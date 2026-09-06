@@ -16,7 +16,7 @@
 
 ### 결함
 
-**D-1. 부트스트랩이 배포 저장소를 clone하도록 돼 있었음 — 해결됨(사용자 교체 대기)**
+**D-1. 부트스트랩이 배포 저장소를 clone하도록 돼 있었음 — 해결됨(2026-09-06 확인)**
 
 - 위치: 설치본 `SKILL.md` 14–17행
 - 원문: `git clone --depth 1 https://github.com/LeeKwanBeom/saero-pilates-report.git saero-skill`
@@ -25,7 +25,11 @@
   `LeeKwanBeom/saero-ad-report-skill`에 있다.
 - 조치: 주소를 `saero-ad-report-skill`로 고친 부트스트랩을 사용자에게 전달,
   플러그인 설정에서 교체 예정. 두 저장소가 다르다는 경고 문구도 추가.
-- 다음 점검 시 확인: 새 세션에서 clone이 스킬 본체를 받아오는지.
+- 확인(2026-09-06, 새 세션): 설치본 부트스트랩이 교체된 상태로 풀렸고, 거기 적힌
+  주소로 clone하니 스킬 본체 저장소 `LeeKwanBeom/saero-ad-report-skill`를 받아왔다.
+  받은 내용에 `SKILL.md`(본체) · `references/` · `scripts/validate.py` ·
+  `audit/last-audit.md`가 모두 포함됨. 부트스트랩 3절대로 기준선도 함께 읽혔다.
+  → 해결됨으로 판정. 다음 점검에서 다시 다루지 않는다.
 
 ### 개선안
 
