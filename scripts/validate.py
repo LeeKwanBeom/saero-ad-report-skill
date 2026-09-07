@@ -8,7 +8,9 @@
 확인 항목:
   1. HTML 태그 짝 (div/table/tr/td/th/span/script 등)
   2. KPI 총클릭수 = 07번 정식표 + 클릭1건 목록 + 경쟁사표 합계
-  3. 09번 시간대별 클릭 합계도 KPI와 일치하는지
+  3. 09번 시간대별 클릭 합계 = 키워드 보고서 제외 전 전체 클릭 합계
+     (시간대별 보고서는 광고그룹 구분이 없어 OFF 그룹이 포함된 값이다.
+      KPI와 비교하면 OFF 그룹에 클릭이 생기는 순간 데이터가 맞아도 FAIL이 난다)
   4. 07번 클릭률 4% 이상 행에만 .ctr-high가 적용됐는지 전수 대조
   5. 01번 표도 같은 규칙으로 전수 대조 (.ctr-high는 표 무관, 클릭률 전용)
 
@@ -149,7 +151,11 @@ def main():
     kpi_clicks = int(kw_inc["클릭수"].sum())
     kpi_imp = int(kw_inc["노출수"].sum())
     kpi_cost = int(kw_inc["총비용"].sum())
-    print(f"\n기준 KPI — 노출 {kpi_imp:,} / 클릭 {kpi_clicks} / 광고비 {kpi_cost:,}원\n")
+    all_clicks = int(kw["클릭수"].sum())      # 제외 전 전체 (08·09번 기준)
+    all_imp = int(kw["노출수"].sum())
+    print(f"\n기준 KPI — 노출 {kpi_imp:,} / 클릭 {kpi_clicks} / 광고비 {kpi_cost:,}원")
+    print(f"제외 전 전체 — 노출 {all_imp:,} / 클릭 {all_clicks} "
+          f"(08·09번 각주 차이: 노출 {all_imp - kpi_imp}회 / 클릭 {all_clicks - kpi_clicks}회)\n")
 
     # --- 2. 07번 클릭수 검산 ---
     s7 = section(html, 7, 8)
@@ -168,10 +174,12 @@ def main():
     # --- 3. 시간대별 클릭 합계 ---
     hr = read_csv(hr_path)
     hourly_clicks = int(hr["클릭수"].sum())
+    # KPI가 아니라 제외 전 전체와 비교한다. 시간대별 보고서에는 광고그룹 구분이
+    # 없어 OFF 그룹 클릭이 포함되기 때문(SKILL.md "집계 기준" 참고).
     check(
-        "09번 시간대별 클릭 합계 = KPI",
-        hourly_clicks == kpi_clicks,
-        f"시간대별 CSV {hourly_clicks} vs KPI {kpi_clicks}",
+        "09번 시간대별 클릭 합계 = 키워드 보고서 전체 클릭",
+        hourly_clicks == all_clicks,
+        f"시간대별 CSV {hourly_clicks} vs 전체 {all_clicks} (KPI {kpi_clicks})",
     )
 
     # --- 4. CTR 강조 규칙 (07번) ---

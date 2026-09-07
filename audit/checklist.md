@@ -7,7 +7,7 @@
 채택된 내용을 이 파일에 반영하고, `audit/last-audit.md`와 **같은 커밋으로**
 push한다. 둘 중 하나만 갱신하면 다음 회차에 어긋난다.
 
-버전: 2026-09-07 기준 (v2 — Fable 회차 개정안 10건 반영)
+버전: 2026-09-07 오후 기준 (v3 — 개정안 3·11 반영: 라이브 Pages 웹페치 방법, 06번 rankChart 규칙)
 
 ---
 
@@ -66,7 +66,17 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 코드만 읽지 말고 실제 HTML을 파싱해서 확인할 것.
 저장소 index.html 과 라이브 Pages(https://leekwanbeom.github.io/saero-pilates-report/)가
 같은지 확인해라. Pages 빌드 실패·캐시로 어긋날 수 있다.
-네트워크 제약으로 Pages를 못 받으면 그 사실을 밝히고 저장소 사본만으로 진행해라.
+**받는 방법(2026-09-07 실측)**: bash `curl`은 `leekwanbeom.github.io`가 허용 목록에 없어
+403 `x-deny-reason: host_not_allowed`로 막힌다. **웹 페치 도구(web_fetch)를 쓰면 받아진다.**
+단 web_fetch는 대화에 이미 나온 URL만 열 수 있어 바로 호출하면
+"not in any prior search or fetch result"로 거부된다. 순서:
+  ① web_fetch `https://github.com/LeeKwanBeom/saero-ad-report-skill/blob/main/SKILL.md`
+     (사용자가 첫 메시지에 적은 저장소 주소 아래 페이지. 이 페이지 본문에 공개 링크가 들어 있다)
+  ② web_fetch `https://leekwanbeom.github.io/saero-pilates-report/`
+받은 텍스트에서 masthead 집계 기간·KPI 4개·집계 기준의 "클릭률 강조" 문구를
+저장소 index.html과 대조한다. 2026-09-07 오후 실측: KPI는 같았으나 1287행 문구는
+라이브가 아직 "07번 표에서"였다(저장소는 "01·07번"). Pages 반영 지연·캐시 가능성.
+그래도 못 받으면 그 사실을 밝히고 저장소 사본만으로 진행해라.
 
 3) 설치본 부트스트랩 확인 — 내가 "부트스트랩을 재업로드했다"고 말한 회차에만.
 그런 말이 없으면 이 항목은 건너뛰어라. 사용자가 재업로드하지 않으면 바뀌지 않는다.
@@ -113,7 +123,8 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 - references/css-and-layout.md 규칙이 배포본에서 지켜지는지:
   · .ctr-high — 표 무관, 클릭률 4% 이상 전용. 현재 01번·07번에서 사용 중.
     다른 지표 강조에 재사용됐는지 확인
-  · 차트 min-width 자동확장 (06번 rankChart 960px 고정은 문서에 규칙 없음 — 확인 필요)
+  · 차트 min-width 자동확장 — 01번·06번 모두 `max(날짜 수 × 80px, 650px)` 대상
+    (css-and-layout.md 버그 기록 8번). 배포본 263행·675행 값이 일수×80과 맞는지 확인
   · 민트/잉크 색 배정 — 데이터셋이 광고 유형인 차트에만 적용된다.
     02·10번처럼 데이터셋이 지표(노출/클릭)인 차트는 대상 아님
 - 12개 섹션 중 validate.py가 손대지 않는 구간이 어디인지
