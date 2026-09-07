@@ -10,6 +10,10 @@
   2. KPI 총클릭수 = 07번 정식표 + 클릭1건 목록 + 경쟁사표 합계
   3. 09번 시간대별 클릭 합계도 KPI와 일치하는지
   4. 07번 클릭률 4% 이상 행에만 .ctr-high가 적용됐는지 전수 대조
+  5. 01번 표도 같은 규칙으로 전수 대조 (.ctr-high는 표 무관, 클릭률 전용)
+
+검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
+안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
 
 하나라도 FAIL이면 배포하지 말고 원인을 고친 뒤 다시 실행할 것.
 종료 코드: 0=전부 통과, 1=실패 있음
@@ -84,6 +88,25 @@ def parse_main_rows(s7):
     return out
 
 
+def parse_ctr_cells(sec):
+    """섹션 안의 클릭률 셀 (강조여부, 값). <td class="num...">X%</td> 형태만."""
+    pat = re.compile(r'<td class="num([^"]*)">([\d.]+)%</td>')
+    return [{"has_hl": "ctr-high" in m.group(1), "ctr": float(m.group(2))}
+            for m in pat.finditer(sec)]
+
+
+def check_ctr_rule(label, cells):
+    """클릭률 4% 이상에만 .ctr-high. 셀 0건이면 마크업 변경으로 보고 FAIL."""
+    if not cells:
+        check(label, False, "검사 대상 셀 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
+        return
+    bad = [f"{c['ctr']}%(강조={'있음' if c['has_hl'] else '없음'})"
+           for c in cells if c["has_hl"] != (c["ctr"] >= 4.0)]
+    check(label, not bad,
+          f"{len(cells)}행 검사, 불일치 {len(bad)}건"
+          + (f": {', '.join(bad)}" if bad else ""))
+
+
 def count_click1(s7):
     """클릭 1건 컴팩트 목록의 항목 수 = 클릭 수."""
     i = s7.find("클릭 1건 검색어")
@@ -151,18 +174,27 @@ def main():
         f"시간대별 CSV {hourly_clicks} vs KPI {kpi_clicks}",
     )
 
-    # --- 4. CTR 강조 규칙 ---
-    mismatched = [
-        f"{r['kw']}({r['ctr']}%, 강조={'있음' if r['has_hl'] else '없음'})"
-        for r in rows
-        if r["has_hl"] != (r["ctr"] >= 4.0)
-    ]
-    check(
-        "07번 클릭률 4% 이상에만 .ctr-high",
-        not mismatched,
-        f"{len(rows)}행 검사, 불일치 {len(mismatched)}건"
-        + (f": {', '.join(mismatched)}" if mismatched else ""),
-    )
+    # --- 4. CTR 강조 규칙 (07번) ---
+    if not rows:
+        check("07번 클릭률 4% 이상에만 .ctr-high", False,
+              "정식표 행 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
+    else:
+        mismatched = [
+            f"{r['kw']}({r['ctr']}%, 강조={'있음' if r['has_hl'] else '없음'})"
+            for r in rows
+            if r["has_hl"] != (r["ctr"] >= 4.0)
+        ]
+        check(
+            "07번 클릭률 4% 이상에만 .ctr-high",
+            not mismatched,
+            f"{len(rows)}행 검사, 불일치 {len(mismatched)}건"
+            + (f": {', '.join(mismatched)}" if mismatched else ""),
+        )
+
+    # --- 5. CTR 강조 규칙 (01번) ---
+    # .ctr-high는 07번 전용이 아니다. 01번 일별 표에도 같은 기준으로 적용된다.
+    check_ctr_rule("01번 클릭률 4% 이상에만 .ctr-high",
+                   parse_ctr_cells(section(html, 1, 2)))
 
     # --- 참고: 검색어 CSV와 대조 (누락 탐지) ---
     sr = read_csv(sr_path)
