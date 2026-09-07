@@ -7,7 +7,7 @@
 채택된 내용을 이 파일에 반영하고, `audit/last-audit.md`와 **같은 커밋으로**
 push한다. 둘 중 하나만 갱신하면 다음 회차에 어긋난다.
 
-버전: 2026-09-07 기준 (v3.3 — I-4 반영: validate.py 검사 11개·인자 5개)
+버전: 2026-09-07 기준 (v3.3 — I-4 반영: validate.py 검사 12개·인자 5개)
 
 ---
 
@@ -149,7 +149,7 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 - "특정 조건에서 반드시 틀려진다"고 쓸 거면 그 조건을 말로만 적지 말고
   실제로 그 조건을 만들어서 틀려지는 걸 보여줘라. 못 만들었으면 결함이 아니라
   개선안이다.
-- validate.py 검사 전부(현재 11개)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
+- validate.py 검사 전부(현재 12개)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
   실행: `python3 scripts/validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
   설정값은 `config/report-config.json`에서 읽으므로 그 파일도 함께 받아야 한다.
   방법: 배포본 숫자에 맞춘 CSV로 기준 PASS를 만든 뒤, 각 검사에 대응하는
