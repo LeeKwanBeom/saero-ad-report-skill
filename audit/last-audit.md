@@ -95,6 +95,15 @@ audit/checklist.md(217) · audit/last-audit.md(144) / `saero-pilates-report` @47
 10. 08번 TOP10 정렬 기준(노출수 내림차순) report-structure 220행에 명시 — 미채택
 11. 06번 rankChart 규칙 — **채택·반영**
 
+## 점검표 갱신 이력 (checklist.md)
+
+- v3.2 (2026-09-07) — 개정안 1 채택. 이월 항목 목록을 checklist에서 제거하고
+  이 파일을 단일 정본으로 지정. 앞으로 이월 항목은 위 "개선안" 표와
+  아래 "다음 점검에서 대조할 것" 절만 갱신하면 된다.
+- v3.1 (2026-09-07) — web_fetch 캐시 주의 절차 추가.
+- v3 (2026-09-07) — 개정안 3·11 반영.
+- v2 (2026-09-07) — 점검표를 저장소 정본(audit/checklist.md)으로 이관.
+
 ## 다음 점검에서 대조할 것
 - ~~라이브 Pages 1287행 문구~~ — **종결.** 사용자 시크릿 창 확인 결과 라이브도 `01·07번 표에서`였다. web_fetch가 캐시된 옛 사본을 준 것이며, Pages 빌드·저장소 모두 정상. 앞으로 web_fetch 결과가 저장소와 다르면 캐시부터 의심할 것(checklist.md 2)번 절차에 반영).
 - D-3~D-6 수정이 저장소에 남아 있는지(SKILL.md 57·152·219행, validate.py 검사 3, css-and-layout.md 버그 8).
