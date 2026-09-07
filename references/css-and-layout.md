@@ -169,7 +169,9 @@ CSS Grid 칸에 컬럼 많은 표를 넣으면 칸이 표의 최소 너비만큼
 
 **8. 매주 늘어나는 차트의 폭**
 01번은 날짜가 매주 늘어나 고정 폭으로 두면 막대·라벨이 점점 좁아지다 겹친다.
-`min-width = max(날짜 수 × 80px, 650px)`로 자동 확장되게 한다.
+`min-width = max(날짜 수 × per_day_px, floor_px)`로 자동 확장되게 한다.
+두 값은 `config/report-config.json`의 `chart_min_width`에 있다(기본 80px / 650px).
+대상 섹션도 같은 파일 `date_based_sections`에 적혀 있다(현재 01·06번).
 06번 `rankChart`도 x축이 날짜라 같은 규칙의 대상이다(12일 기준 960px).
 05번처럼 카테고리 수가 고정인 차트에는 필요 없다.
 

@@ -3,7 +3,10 @@
 새로필라테스 광고 리포트 배포 전 검증.
 
 사용법:
-    python3 validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV>
+    python3 validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
+
+설정값(개업일·제외그룹·CTR 기준·차트 폭 규칙)은 config/report-config.json에서 읽는다.
+이 스크립트에 값을 직접 적지 않는다.
 
 확인 항목:
   1. HTML 태그 짝 (div/table/tr/td/th/span/script 등)
@@ -11,8 +14,15 @@
   3. 09번 시간대별 클릭 합계 = 키워드 보고서 제외 전 전체 클릭 합계
      (시간대별 보고서는 광고그룹 구분이 없어 OFF 그룹이 포함된 값이다.
       KPI와 비교하면 OFF 그룹에 클릭이 생기는 순간 데이터가 맞아도 FAIL이 난다)
-  4. 07번 클릭률 4% 이상 행에만 .ctr-high가 적용됐는지 전수 대조
+  4. 07번 클릭률 기준 이상 행에만 .ctr-high가 적용됐는지 전수 대조
   5. 01번 표도 같은 규칙으로 전수 대조 (.ctr-high는 표 무관, 클릭률 전용)
+  6. masthead 집계 기간 = CSV 일별 min~max·일수
+  7. KPI 타일 4개(노출·클릭·클릭률·광고비) = CSV 계산값
+  8. 04번 예산 비중 합계 = 100.0%
+  9. 01번 차트 min-width = 날짜 수 × per_day_px (floor 적용)
+ 10. 섹션 주석 <!-- Section N: --> 1~12 존재
+ 11. 08·09번 각주의 "N회 차이" = 제외 전 전체 노출 − KPI 노출,
+     그리고 상세지역 CSV 노출 합계 = 제외 전 전체 노출
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
 안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
@@ -30,9 +40,24 @@ except ImportError:
     sys.exit("pandas가 필요합니다: pip install pandas --break-system-packages")
 
 
-# 이미 확인된 제외 그룹. 새 그룹이 생기면 SKILL.md의 판정 규칙에 따라
-# 사용자에게 확인한 뒤 여기에 추가할 것.
-EXCLUDED_GROUPS = ["노원필라테스(삭제)"]
+import json
+import os
+from datetime import datetime
+
+_CFG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "config", "report-config.json")
+try:
+    with open(_CFG_PATH, encoding="utf-8") as _f:
+        CFG = json.load(_f)
+except FileNotFoundError:
+    sys.exit(f"설정 파일이 없습니다: {_CFG_PATH}\n"
+             "스킬 저장소를 통째로 받았는지 확인하세요.")
+
+EXCLUDED_GROUPS = CFG["excluded_groups"]
+CTR_HIGH = float(CFG["ctr_high_threshold"])
+PER_DAY_PX = int(CFG["chart_min_width"]["per_day_px"])
+FLOOR_PX = int(CFG["chart_min_width"]["floor_px"])
 
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style"]
@@ -103,7 +128,7 @@ def check_ctr_rule(label, cells):
         check(label, False, "검사 대상 셀 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
         return
     bad = [f"{c['ctr']}%(강조={'있음' if c['has_hl'] else '없음'})"
-           for c in cells if c["has_hl"] != (c["ctr"] >= 4.0)]
+           for c in cells if c["has_hl"] != (c["ctr"] >= CTR_HIGH)]
     check(label, not bad,
           f"{len(cells)}행 검사, 불일치 {len(bad)}건"
           + (f": {', '.join(bad)}" if bad else ""))
@@ -135,11 +160,98 @@ def sum_competitor(s7):
     return sum(int(m.group(1)) for m in pat.finditer(seg))
 
 
+def parse_days(kw):
+    """키워드 보고서의 일별 컬럼에서 (min, max, 일수)."""
+    d = pd.to_datetime(kw["일별"].astype(str).str.rstrip("."), format="%Y.%m.%d")
+    return d.min(), d.max(), (d.max() - d.min()).days + 1
+
+
+def check_masthead(html, dmin, dmax, ndays):
+    m = re.search(r"집계 기간<b>([^<]+)</b>", html)
+    if not m:
+        check("masthead 집계 기간", False, "문구를 못 찾음 — 마크업 변경 의심")
+        return
+    got = m.group(1).strip()
+    want = f"{dmin.strftime('%Y.%m.%d')} — {dmax.strftime('%m.%d')} ({ndays}일)"
+    check("masthead 집계 기간", got == want, f"화면 `{got}` vs CSV `{want}`")
+
+
+def parse_kpi_tiles(html):
+    """KPI 타일의 (라벨, 값 문자열)."""
+    pat = re.compile(r'<div class="label">([^<]+)</div>\s*'
+                     r'<div class="value">([^<]+)<span class="unit">')
+    return {m.group(1).strip(): m.group(2).strip() for m in pat.finditer(html)}
+
+
+def check_kpi_tiles(html, imp, clicks, cost):
+    tiles = parse_kpi_tiles(html)
+    if not tiles:
+        check("KPI 타일 값", False, "타일을 못 찾음 — 마크업 변경 의심")
+        return
+    ctr = round(clicks / imp * 100, 2) if imp else 0
+    want = {"총 노출수": f"{imp:,}", "총 클릭수": f"{clicks:,}",
+            "총 광고비": f"{cost:,}", "평균 클릭률": f"{ctr:g}"}
+    bad = [f"{k}: 화면 {tiles.get(k, '없음')} vs CSV {v}"
+           for k, v in want.items() if tiles.get(k) != v]
+    check("KPI 타일 4개 = CSV", not bad,
+          f"{len(want)}개 검사, 불일치 {len(bad)}건" + (f": {'; '.join(bad)}" if bad else ""))
+
+
+def check_budget_share(html):
+    s4 = section(html, 4, 5)
+    rows = re.findall(r"<tr>(.*?)</tr>", s4, re.S)
+    shares = []
+    for r in rows:
+        cells = re.findall(r'<td class="num[^"]*">([^<]+)</td>', r)
+        if len(cells) >= 7 and cells[5].endswith("%"):
+            shares.append(float(cells[5].rstrip("%")))
+    if not shares:
+        check("04번 예산 비중 합계", False, "비중 셀 0건 — 마크업 변경 의심")
+        return
+    total = round(sum(shares), 1)
+    check("04번 예산 비중 합계 = 100.0%", abs(total - 100.0) < 0.05,
+          f"{len(shares)}행 합계 {total}% ({' + '.join(str(x) for x in shares)})")
+
+
+def check_chart_width(html, ndays):
+    s1 = section(html, 1, 2)
+    widths = [int(x) for x in re.findall(r"min-width:\s*(\d+)px", s1)]
+    if not widths:
+        check("01번 차트 min-width", False, "min-width 0건 — 마크업 변경 의심")
+        return
+    want = max(ndays * PER_DAY_PX, FLOOR_PX)
+    check("01번 차트 min-width = 날짜수x{}px".format(PER_DAY_PX),
+          want in widths, f"화면 {widths} / 기대 {want}px ({ndays}일)")
+
+
+def check_section_comments(html):
+    missing = [n for n in range(1, 13) if f"<!-- Section {n}:" not in html]
+    check("섹션 주석 1~12 존재", not missing,
+          "전부 있음" if not missing else f"누락 {missing}")
+
+
+def check_diff_footnotes(html, all_imp, kpi_imp, rg_imp):
+    diff = all_imp - kpi_imp
+    notes = re.findall(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", html)
+    if not notes:
+        check("08·09번 각주 N회 차이", False, "각주 0건 — 마크업 변경 의심")
+    else:
+        bad = [f"각주 {a}/{b}/{c}회" for a, b, c in notes
+               if int(a.replace(",", "")) != all_imp
+               or int(b.replace(",", "")) != kpi_imp
+               or int(c) != diff]
+        check("08·09번 각주 N회 차이", not bad,
+              f"각주 {len(notes)}곳 검사, 불일치 {len(bad)}건"
+              + (f": {'; '.join(bad)}" if bad else f" (전체 {all_imp:,} / KPI {kpi_imp:,} / 차이 {diff})"))
+    check("상세지역 CSV 노출 합계 = 제외 전 전체", rg_imp == all_imp,
+          f"상세지역 CSV {rg_imp:,} vs 제외 전 전체 {all_imp:,}")
+
+
 def main():
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 6:
         sys.exit(__doc__)
 
-    html_path, kw_path, sr_path, hr_path = sys.argv[1:5]
+    html_path, kw_path, sr_path, hr_path, rg_path = sys.argv[1:6]
     html = open(html_path, encoding="utf-8").read()
 
     # --- 1. 태그 짝 ---
@@ -190,7 +302,7 @@ def main():
         mismatched = [
             f"{r['kw']}({r['ctr']}%, 강조={'있음' if r['has_hl'] else '없음'})"
             for r in rows
-            if r["has_hl"] != (r["ctr"] >= 4.0)
+            if r["has_hl"] != (r["ctr"] >= CTR_HIGH)
         ]
         check(
             "07번 클릭률 4% 이상에만 .ctr-high",
@@ -203,6 +315,16 @@ def main():
     # .ctr-high는 07번 전용이 아니다. 01번 일별 표에도 같은 기준으로 적용된다.
     check_ctr_rule("01번 클릭률 4% 이상에만 .ctr-high",
                    parse_ctr_cells(section(html, 1, 2)))
+
+    # --- 6~11. 확장 검사 ---
+    dmin, dmax, ndays = parse_days(kw)
+    check_masthead(html, dmin, dmax, ndays)
+    check_kpi_tiles(html, kpi_imp, kpi_clicks, kpi_cost)
+    check_budget_share(html)
+    check_chart_width(html, ndays)
+    check_section_comments(html)
+    rg = read_csv(rg_path)
+    check_diff_footnotes(html, all_imp, kpi_imp, int(rg["노출수"].sum()))
 
     # --- 참고: 검색어 CSV와 대조 (누락 탐지) ---
     sr = read_csv(sr_path)

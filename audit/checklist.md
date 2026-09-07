@@ -7,7 +7,7 @@
 채택된 내용을 이 파일에 반영하고, `audit/last-audit.md`와 **같은 커밋으로**
 push한다. 둘 중 하나만 갱신하면 다음 회차에 어긋난다.
 
-버전: 2026-09-07 기준 (v3.2 — 개정안 1 반영: 이월 항목을 last-audit.md 단일 정본으로)
+버전: 2026-09-07 기준 (v3.3 — I-4 반영: validate.py 검사 11개·인자 5개)
 
 ---
 
@@ -149,12 +149,18 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 - "특정 조건에서 반드시 틀려진다"고 쓸 거면 그 조건을 말로만 적지 말고
   실제로 그 조건을 만들어서 틀려지는 걸 보여줘라. 못 만들었으면 결함이 아니라
   개선안이다.
-- validate.py 검사 전부(현재 5개)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
+- validate.py 검사 전부(현재 11개)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
+  실행: `python3 scripts/validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
+  설정값은 `config/report-config.json`에서 읽으므로 그 파일도 함께 받아야 한다.
   방법: 배포본 숫자에 맞춘 CSV로 기준 PASS를 만든 뒤, 각 검사에 대응하는
   한 곳만 바꾼다. 실 CSV가 있으면 실 CSV로, 없으면 합성으로.
   2026-09-07 실측 예시 — 태그 짝(div 제거→FAIL) · 07클릭합(28→27→FAIL) ·
   09시간대(CSV −1→FAIL) · 07CTR(3.18% 강조 추가/4.71% 제거→FAIL) ·
-  01CTR(5.22% 강조 제거/3.37% 추가→FAIL) · 0건 가드(섹션 주석·name-cell 변조→FAIL)
+  01CTR(5.22% 강조 제거/3.37% 추가→FAIL) · 0건 가드(섹션 주석·name-cell 변조→FAIL) ·
+  masthead(12일→11일→FAIL) · KPI 타일(4,912→4,913→FAIL) ·
+  예산비중(91.7→91.6, 합 99.9%→FAIL) · min-width(960→900→FAIL) ·
+  섹션 주석(Section 5 제거→FAIL) · 각주(6회→5회→FAIL) ·
+  config 삭제(즉시 종료) · config의 excluded_groups 비우기(KPI 4,912→4,918로 바뀌며 FAIL)
   하나라도 깨뜨렸는데 PASS가 나오면 그 검사는 죽은 것이고 결함이다.
 - 실측한 것과 코드를 읽고 추론한 것을 구분해라. 결함 표에 [실측]/[추론] 표시를 달고,
   추론만으로 올린 항목은 왜 실측하지 못했는지 한 줄로 적어라.

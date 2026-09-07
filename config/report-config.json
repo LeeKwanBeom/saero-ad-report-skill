@@ -1,0 +1,22 @@
+{
+  "_comment": "리포트 설정 단일 출처. SKILL.md·references·validate.py는 값을 여기서만 읽는다. 값을 바꿀 때 이 파일만 고치면 된다.",
+  "open_date": "2026.08.26.",
+  "deploy_repo": "LeeKwanBeom/saero-pilates-report",
+  "skill_repo": "LeeKwanBeom/saero-ad-report-skill",
+  "excluded_groups": ["노원필라테스(삭제)"],
+  "excluded_group_keywords": [
+    "노원역필라테스", "노원필라테스", "상계동필라테스", "임산부필라테스", "산후필라테스",
+    "노원구필라테스", "노원산후필라테스", "노원임산부필라테스", "노원산전필라테스", "노원키즈필라테스"
+  ],
+  "competitors": [
+    "젠필라테스", "이레필라테스", "오운필라테스",
+    "스마일필라테스", "와우필라테스", "퍼스트필라테스", "노원M필라테스"
+  ],
+  "target_districts": ["노원구", "도봉구", "강북구", "중랑구", "성북구"],
+  "ctr_high_threshold": 4.0,
+  "chart_min_width": {
+    "per_day_px": 80,
+    "floor_px": 650,
+    "date_based_sections": [1, 6]
+  }
+}
