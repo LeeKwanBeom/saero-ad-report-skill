@@ -5,7 +5,7 @@
 사용법:
     python3 validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
 
-설정값(개업일·제외그룹·CTR 기준·차트 폭 규칙)은 config/report-config.json에서 읽는다.
+설정값(제외그룹·CTR 기준·차트 폭 규칙·날짜축 섹션)은 config/report-config.json에서 읽는다.
 이 스크립트에 값을 직접 적지 않는다.
 
 확인 항목:
@@ -19,10 +19,14 @@
   6. masthead 집계 기간 = CSV 일별 min~max·일수
   7. KPI 타일 4개(노출·클릭·클릭률·광고비) = CSV 계산값
   8. 04번 예산 비중 합계 = 100.0%
-  9. 01번 차트 min-width = 날짜 수 × per_day_px (floor 적용)
- 10. 섹션 주석 <!-- Section N: --> 1~12 존재
- 11. 08·09번 각주의 "N회 차이" = 제외 전 전체 노출 − KPI 노출
- 12. 상세지역 CSV 노출 합계 = 제외 전 전체 노출
+  9. 날짜축 차트 min-width = 날짜 수 × per_day_px (floor 적용)
+     — 대상 섹션은 config chart_min_width.date_based_sections (현재 01·06번).
+       섹션마다 검사 1개가 나온다. 설정에 섹션을 더하면 검사도 늘어난다.
+ 10. 날짜축 차트 x축 라벨 배열('M/D(요일)' 형태) 길이 = 날짜 수
+     — 라벨 배열은 하단 스크립트에 있어 섹션 슬라이스 밖이므로 html 전체에서 찾는다.
+ 11. 섹션 주석 <!-- Section N: --> 1~12 존재
+ 12. 08·09번 각주의 "N회 차이" = 제외 전 전체 노출 − KPI 노출
+ 13. 상세지역 CSV 노출 합계 = 제외 전 전체 노출
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
 안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
@@ -58,6 +62,7 @@ EXCLUDED_GROUPS = CFG["excluded_groups"]
 CTR_HIGH = float(CFG["ctr_high_threshold"])
 PER_DAY_PX = int(CFG["chart_min_width"]["per_day_px"])
 FLOOR_PX = int(CFG["chart_min_width"]["floor_px"])
+DATE_SECTIONS = [int(n) for n in CFG["chart_min_width"]["date_based_sections"]]
 
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style"]
@@ -123,7 +128,7 @@ def parse_ctr_cells(sec):
 
 
 def check_ctr_rule(label, cells):
-    """클릭률 4% 이상에만 .ctr-high. 셀 0건이면 마크업 변경으로 보고 FAIL."""
+    """클릭률 CTR_HIGH 이상에만 .ctr-high. 셀 0건이면 마크업 변경으로 보고 FAIL."""
     if not cells:
         check(label, False, "검사 대상 셀 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
         return
@@ -214,14 +219,32 @@ def check_budget_share(html):
 
 
 def check_chart_width(html, ndays):
-    s1 = section(html, 1, 2)
-    widths = [int(x) for x in re.findall(r"min-width:\s*(\d+)px", s1)]
-    if not widths:
-        check("01번 차트 min-width", False, "min-width 0건 — 마크업 변경 의심")
-        return
+    """config date_based_sections에 적힌 섹션마다 min-width = max(일수×per_day_px, floor)."""
     want = max(ndays * PER_DAY_PX, FLOOR_PX)
-    check("01번 차트 min-width = 날짜수x{}px".format(PER_DAY_PX),
-          want in widths, f"화면 {widths} / 기대 {want}px ({ndays}일)")
+    for num in DATE_SECTIONS:
+        label = f"{num:02d}번 차트 min-width"
+        sec = section(html, num, num + 1)
+        widths = [int(x) for x in re.findall(r"min-width:\s*(\d+)px", sec)]
+        if not widths:
+            check(label, False, "min-width 0건 — 섹션 주석 또는 마크업 변경 의심")
+            continue
+        check(f"{label} = 날짜수x{PER_DAY_PX}px",
+              want in widths, f"화면 {widths} / 기대 {want}px ({ndays}일)")
+
+
+def check_date_labels(html, ndays):
+    """'M/D(요일)' 형태로만 이루어진 labels:[...] 배열은 전부 날짜축이다. 길이 = 일수."""
+    found = []
+    for m in re.finditer(r"labels\s*:\s*\[([^\]]*)\]", html):
+        items = [x.strip() for x in m.group(1).split(",") if x.strip()]
+        if items and all(re.fullmatch(r"'\d+/\d+\(.\)'", x) for x in items):
+            found.append(len(items))
+    if not found:
+        check("날짜축 x축 라벨 개수", False, "날짜형 라벨 배열 0건 — 스크립트 마크업 변경 의심")
+        return
+    bad = [n for n in found if n != ndays]
+    check("날짜축 x축 라벨 개수 = 날짜수", not bad,
+          f"배열 {len(found)}개 {found} / 기대 {ndays}개")
 
 
 def check_section_comments(html):
@@ -296,7 +319,7 @@ def main():
 
     # --- 4. CTR 강조 규칙 (07번) ---
     if not rows:
-        check("07번 클릭률 4% 이상에만 .ctr-high", False,
+        check(f"07번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high", False,
               "정식표 행 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
     else:
         mismatched = [
@@ -305,7 +328,7 @@ def main():
             if r["has_hl"] != (r["ctr"] >= CTR_HIGH)
         ]
         check(
-            "07번 클릭률 4% 이상에만 .ctr-high",
+            f"07번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high",
             not mismatched,
             f"{len(rows)}행 검사, 불일치 {len(mismatched)}건"
             + (f": {', '.join(mismatched)}" if mismatched else ""),
@@ -313,7 +336,7 @@ def main():
 
     # --- 5. CTR 강조 규칙 (01번) ---
     # .ctr-high는 07번 전용이 아니다. 01번 일별 표에도 같은 기준으로 적용된다.
-    check_ctr_rule("01번 클릭률 4% 이상에만 .ctr-high",
+    check_ctr_rule(f"01번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high",
                    parse_ctr_cells(section(html, 1, 2)))
 
     # --- 6~11. 확장 검사 ---
@@ -322,6 +345,7 @@ def main():
     check_kpi_tiles(html, kpi_imp, kpi_clicks, kpi_cost)
     check_budget_share(html)
     check_chart_width(html, ndays)
+    check_date_labels(html, ndays)
     check_section_comments(html)
     rg = read_csv(rg_path)
     check_diff_footnotes(html, all_imp, kpi_imp, int(rg["노출수"].sum()))

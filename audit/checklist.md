@@ -7,7 +7,7 @@
 채택된 내용을 이 파일에 반영하고, `audit/last-audit.md`와 **같은 커밋으로**
 push한다. 둘 중 하나만 갱신하면 다음 회차에 어긋난다.
 
-버전: 2026-09-07 기준 (v4.1 — 검증 회차 절 추가)
+버전: 2026-09-07 기준 (v4.2 — 개정안 ①~④ 반영: clone 허용 · web_fetch 전제 삭제 · 행 번호 · 대상 목록)
 
 v4 에서 더한 것: 토큰 선요청 · 마무리 순서(push 우선) · 회차 안 교차 점검 ·
 검사 완화 금지 · 기록 문구 정확성 · 새 설정값의 문서화 의무.
@@ -43,7 +43,8 @@ v4 에서 더한 것: 토큰 선요청 · 마무리 순서(push 우선) · 회�
 
 4개가 다 있으면 → 그대로 진행. 리포트는 갱신하지 말고 점검에만 쓴다.
 
-하나라도 없으면 → **저장소 clone도 하지 말고 거기서 멈춰라.** 아래 내용으로 알려라.
+하나라도 없으면 → **저장소 clone(읽기)은 하되 진단은 시작하지 말고 멈춰서 요청해라.**
+(이 점검표 자체가 저장소 안에 있어 clone 없이는 읽을 수 없다.) 아래 내용으로 알려라.
 없는 파일명을 짚어서 말하고, 짐작으로 채우거나 합성 데이터로 대체하지 마라.
 
 > 점검을 시작하기 전에 CSV가 필요합니다. 지금 [있는 것 / 없는 것]입니다.
@@ -80,7 +81,8 @@ LeeKwanBeom/saero-pilates-report ← 배포본. index.html·service-worker.js·�
 1) 스킬 저장소 확인 (이 파일을 읽었다면 이미 clone돼 있다)
 git clone https://github.com/LeeKwanBeom/saero-ad-report-skill
 대상: SKILL.md(정본) / README.md / references/report-structure.md /
-references/css-and-layout.md / scripts/validate.py /
+references/css-and-layout.md / scripts/validate.py / config/report-config.json
+(validate.py가 읽는 설정, 없으면 스크립트가 즉시 종료) / .gitignore /
 audit/last-audit.md / audit/checklist.md(이 파일)
 실제 ls 결과가 이 목록과 다르면 그것부터 알려줄 것.
 
@@ -89,23 +91,21 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 코드만 읽지 말고 실제 HTML을 파싱해서 확인할 것.
 저장소 index.html 과 라이브 Pages(https://leekwanbeom.github.io/saero-pilates-report/)가
 같은지 확인해라. Pages 빌드 실패·캐시로 어긋날 수 있다.
-**받는 방법(2026-09-07 실측)**: bash `curl`은 `leekwanbeom.github.io`가 허용 목록에 없어
-403 `x-deny-reason: host_not_allowed`로 막힌다. **웹 페치 도구(web_fetch)를 쓰면 받아진다.**
-단 web_fetch는 대화에 이미 나온 URL만 열 수 있어 바로 호출하면
-"not in any prior search or fetch result"로 거부된다. 순서:
-  ① web_fetch `https://github.com/LeeKwanBeom/saero-ad-report-skill/blob/main/SKILL.md`
-     (사용자가 첫 메시지에 적은 저장소 주소 아래 페이지. 이 페이지 본문에 공개 링크가 들어 있다)
-  ② web_fetch `https://leekwanbeom.github.io/saero-pilates-report/`
-받은 텍스트에서 masthead 집계 기간·KPI 4개·집계 기준의 "클릭률 강조" 문구를
-저장소 index.html과 대조한다.
+**라이브를 기계로 확인할 수단이 이 환경에는 없다(2026-09-07 두 회차 실측).**
+- bash `curl` → `leekwanbeom.github.io`는 허용 목록 밖, 403 `x-deny-reason: host_not_allowed`
+- `api.github.com/repos/…/pages/builds/latest` → 무인증 404 (Pages API는 토큰 필요)
+- `raw.githubusercontent.com/…/index.html` → 200이지만 저장소 사본이라 라이브 검증이 아님
+- web_fetch → **캐시된 옛 사본을 준다.** 2026-09-07 저녁 회차에 대조군으로 저장소
+  `blob/main/SKILL.md`를 web_fetch하니 234행 옛 본문이 왔다(같은 시각 git HEAD는 312행).
+  Pages도 같은 이유로 옛 문구("07번 표에서")를 돌려줬다. web_fetch 결과는 근거로 쓰지 마라.
 
-**web_fetch 결과가 저장소와 다르면 결함으로 올리기 전에 도구 캐시부터 의심하고,
-사용자에게 시크릿 창 확인을 요청해라.** 2026-09-07 오후에 web_fetch가 두 번 모두
-"07번 표에서"(옛 문구)를 돌려줬는데, 사용자가 시크릿 창으로 확인한 라이브는
-"01·07번 표에서"로 이미 정상이었다. 저장소·Pages 둘 다 문제없었고 도구 캐시였다.
-사용자 확인 전에는 Pages 불일치를 결함으로 올리지 마라.
-
-그래도 못 받으면 그 사실을 밝히고 저장소 사본만으로 진행해라.
+따라서 **라이브 확인은 사용자 시크릿 창 확인이 유일하다.** 저장소 index.html의
+masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적어 사용자에게
+"시크릿 창에서 이 값들이 보이는지" 확인을 요청하고, 답이 오기 전에는
+**Pages 불일치를 결함으로 올리지 마라.** 답이 없으면 "라이브 미확인"이라고
+기준선에 적고 저장소 사본만으로 진행해라.
+(다음 회차에 web_fetch 대조군을 한 번 더 받아 캐시가 풀렸는지만 본다. 풀렸으면
+이 절을 되돌릴 수 있다.)
 
 3) 설치본 부트스트랩 확인 — 내가 "부트스트랩을 재업로드했다"고 말한 회차에만.
 그런 말이 없으면 이 항목은 건너뛰어라. 사용자가 재업로드하지 않으면 바뀌지 않는다.
@@ -149,7 +149,8 @@ https://github.com/LeeKwanBeom/saero-pilates-report
   · .ctr-high — 표 무관, 클릭률 4% 이상 전용. 현재 01번·07번에서 사용 중.
     다른 지표 강조에 재사용됐는지 확인
   · 차트 min-width 자동확장 — 01번·06번 모두 `max(날짜 수 × 80px, 650px)` 대상
-    (css-and-layout.md 버그 기록 8번). 배포본 263행·675행 값이 일수×80과 맞는지 확인
+    (css-and-layout.md 버그 기록 8번). validate.py가 config `date_based_sections`
+    순회로 검사한다(2026-09-07 저녁부터) — 실행 출력에 `01번 차트`·`06번 차트` 줄이 둘 다 있는지
   · 민트/잉크 색 배정 — 데이터셋이 광고 유형인 차트에만 적용된다.
     02·10번처럼 데이터셋이 지표(노출/클릭)인 차트는 대상 아님
 - 12개 섹션 중 validate.py가 손대지 않는 구간이 어디인지
@@ -160,7 +161,7 @@ https://github.com/LeeKwanBeom/saero-pilates-report
   특히 배포 저장소와 스킬 저장소를 혼동해 적은 곳이 있는지
 - 실 CSV로만 확인 가능한 것 (CSV를 받았으면 반드시 실측):
   · 인코딩, 천단위 콤마. 콤마가 있으면 validate.py의 int(...sum())에서 죽는지
-  · 4종의 컬럼 구성이 SKILL.md 42행 표와 일치하는지
+  · 4종의 컬럼 구성이 SKILL.md "1단계. CSV 4개 확인" 표(2026-09-07 기준 57~62행)와 일치하는지
   · 4종의 집계 기간이 서로 다를 때 어떻게 되는지
   · 데이터가 비거나 1건일 때
 - 토큰 안내가 정확한지. 배포는 saero-pilates-report 권한,
@@ -172,7 +173,8 @@ https://github.com/LeeKwanBeom/saero-pilates-report
 - "특정 조건에서 반드시 틀려진다"고 쓸 거면 그 조건을 말로만 적지 말고
   실제로 그 조건을 만들어서 틀려지는 걸 보여줘라. 못 만들었으면 결함이 아니라
   개선안이다.
-- validate.py 검사 전부(현재 12개)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
+- validate.py 검사 전부(2026-09-07 저녁 기준 14개 — 실행 출력의 [PASS]/[FAIL] 줄을 세어라.
+  config `date_based_sections`에 섹션을 더하면 늘어난다)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
   실행: `python3 scripts/validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
   설정값은 `config/report-config.json`에서 읽으므로 그 파일도 함께 받아야 한다.
   방법: 배포본 숫자에 맞춘 CSV로 기준 PASS를 만든 뒤, 각 검사에 대응하는
@@ -181,7 +183,9 @@ https://github.com/LeeKwanBeom/saero-pilates-report
   09시간대(CSV −1→FAIL) · 07CTR(3.18% 강조 추가/4.71% 제거→FAIL) ·
   01CTR(5.22% 강조 제거/3.37% 추가→FAIL) · 0건 가드(섹션 주석·name-cell 변조→FAIL) ·
   masthead(12일→11일→FAIL) · KPI 타일(4,912→4,913→FAIL) ·
-  예산비중(91.7→91.6, 합 99.9%→FAIL) · min-width(960→900→FAIL) ·
+  예산비중(91.7→91.6, 합 99.9%→FAIL) · 01 min-width(263행 960→900→FAIL) ·
+  06 min-width(675행 960→900→FAIL, 2026-09-07 저녁 검사 신설) ·
+  날짜축 라벨(1313행 배열에서 1개 제거→FAIL) ·
   섹션 주석(Section 5 제거→FAIL) · 각주(6회→5회→FAIL) ·
   config 삭제(즉시 종료) · config의 excluded_groups 비우기(KPI 4,912→4,918로 바뀌며 FAIL)
   하나라도 깨뜨렸는데 PASS가 나오면 그 검사는 죽은 것이고 결함이다.
