@@ -7,7 +7,7 @@
 채택된 내용을 이 파일에 반영하고, `audit/last-audit.md`와 **같은 커밋으로**
 push한다. 둘 중 하나만 갱신하면 다음 회차에 어긋난다.
 
-버전: 2026-09-07 기준 (v4.2 — 개정안 ①~④ 반영: clone 허용 · web_fetch 전제 삭제 · 행 번호 · 대상 목록)
+버전: 2026-09-08 기준 (v4.3 — 파괴 실험을 tests/mutation_test.py로 이관)
 
 v4 에서 더한 것: 토큰 선요청 · 마무리 순서(push 우선) · 회차 안 교차 점검 ·
 검사 완화 금지 · 기록 문구 정확성 · 새 설정값의 문서화 의무.
@@ -81,7 +81,7 @@ LeeKwanBeom/saero-pilates-report ← 배포본. index.html·service-worker.js·�
 1) 스킬 저장소 확인 (이 파일을 읽었다면 이미 clone돼 있다)
 git clone https://github.com/LeeKwanBeom/saero-ad-report-skill
 대상: SKILL.md(정본) / README.md / references/report-structure.md /
-references/css-and-layout.md / scripts/validate.py / config/report-config.json
+references/css-and-layout.md / scripts/validate.py / tests/mutation_test.py / config/report-config.json
 (validate.py가 읽는 설정, 없으면 스크립트가 즉시 종료) / .gitignore /
 audit/last-audit.md / audit/checklist.md(이 파일)
 실제 ls 결과가 이 목록과 다르면 그것부터 알려줄 것.
@@ -173,22 +173,16 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 - "특정 조건에서 반드시 틀려진다"고 쓸 거면 그 조건을 말로만 적지 말고
   실제로 그 조건을 만들어서 틀려지는 걸 보여줘라. 못 만들었으면 결함이 아니라
   개선안이다.
-- validate.py 검사 전부(2026-09-07 저녁 기준 14개 — 실행 출력의 [PASS]/[FAIL] 줄을 세어라.
-  config `date_based_sections`에 섹션을 더하면 늘어난다)에 대해 각각 깨뜨려 FAIL이 뜨는지 확인해라.
-  실행: `python3 scripts/validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
-  설정값은 `config/report-config.json`에서 읽으므로 그 파일도 함께 받아야 한다.
-  방법: 배포본 숫자에 맞춘 CSV로 기준 PASS를 만든 뒤, 각 검사에 대응하는
-  한 곳만 바꾼다. 실 CSV가 있으면 실 CSV로, 없으면 합성으로.
-  2026-09-07 실측 예시 — 태그 짝(div 제거→FAIL) · 07클릭합(28→27→FAIL) ·
-  09시간대(CSV −1→FAIL) · 07CTR(3.18% 강조 추가/4.71% 제거→FAIL) ·
-  01CTR(5.22% 강조 제거/3.37% 추가→FAIL) · 0건 가드(섹션 주석·name-cell 변조→FAIL) ·
-  masthead(12일→11일→FAIL) · KPI 타일(4,912→4,913→FAIL) ·
-  예산비중(91.7→91.6, 합 99.9%→FAIL) · 01 min-width(263행 960→900→FAIL) ·
-  06 min-width(675행 960→900→FAIL, 2026-09-07 저녁 검사 신설) ·
-  날짜축 라벨(1313행 배열에서 1개 제거→FAIL) ·
-  섹션 주석(Section 5 제거→FAIL) · 각주(6회→5회→FAIL) ·
-  config 삭제(즉시 종료) · config의 excluded_groups 비우기(KPI 4,912→4,918로 바뀌며 FAIL)
-  하나라도 깨뜨렸는데 PASS가 나오면 그 검사는 죽은 것이고 결함이다.
+- **검사 생존은 `tests/mutation_test.py`로 확인한다.** validate.py 검사 전부를 사본에서
+  하나씩 깨뜨려 FAIL이 뜨는지 보고, 검사 개수는 실행 시점 출력을 세어 따라간다
+  (개수가 늘면 그에 대응하는 변조가 없는 검사를 UNCOVERED로 보고한다 — 그러면 스크립트에
+  변조를 추가해라). 0건 가드·config 실험(`ctr_high_threshold`·`date_based_sections`)도 포함.
+  실행: `python3 tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
+  — 원본·CSV·config는 임시 디렉토리로 복사해서만 건드리며, 끝에 원본 md5가 그대로임을 출력한다.
+  실 CSV가 있으면 실 CSV로, 없으면 배포본 숫자에 맞춘 합성 CSV로. 기준 실행이 PASS가 아니면
+  스크립트가 멈추니 그때는 CSV·배포본 조합부터 확인해라.
+  출력에 [MISS]·[UNCOVERED]·[SKIP]이 하나라도 있으면 그 검사는 죽었거나 미확인이고 결함이다.
+  (스크립트가 못 잡는 것 두 가지는 손으로: config 파일 삭제→즉시 종료, `excluded_groups` 비우기→KPI 값이 바뀌며 FAIL.)
 - 실측한 것과 코드를 읽고 추론한 것을 구분해라. 결함 표에 [실측]/[추론] 표시를 달고,
   추론만으로 올린 항목은 왜 실측하지 못했는지 한 줄로 적어라.
 
