@@ -166,7 +166,7 @@ def compute(D, cfg, comp_prev=()):
         "정식표": [{"검색어": r.검색어, "매칭": badge[r.검색어], "노출": int(r.노출), "클릭": int(r.클릭), "CTR": pct(r.클릭, r.노출),
                    "hl": bool(pct(r.클릭, r.노출) >= CTRH), "CPC": cpc(int(r.총비용), int(r.클릭)), "총비용": int(r.총비용)} for r in main.itertuples()],
         "클릭1": [{"검색어": r.검색어, "노출": int(r.노출), "총비용": int(r.총비용)}
-                 for r in gen[gen["클릭"] == 1].sort_values(["노출", "총비용"], ascending=[False, False]).itertuples()],  # 노출↓, 동률 직전 순서
+                 for r in gen[gen["클릭"] == 1].sort_values(["노출", "총비용"], ascending=[False, False]).itertuples()],  # 노출↓. 동률: HTML은 직전 순서 유지가 정본, 이 출력의 2차 키(총비용↓)는 참고 — compare.py는 집합+정렬 방향만 본다
         "클릭0목록": [{"검색어": r.검색어, "노출": int(r.노출)} for r in gen[(gen["클릭"] == 0) & (gen["노출"] >= 5)].sort_values("노출", ascending=False).itertuples()],
         "클릭0전체": {"개수": int((gs["클릭"] == 0).sum()), "노출": int(gs[gs["클릭"] == 0]["노출"].sum())},  # 경쟁사 포함
         "경쟁사표": [{"검색어": r.검색어, "노출": int(r.노출), "클릭": int(r.클릭), "총비용": int(r.총비용)}

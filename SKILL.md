@@ -154,8 +154,11 @@ combine이 FAIL이면 **작업을 멈추고** 메시지에 맞춰 사용자에�
 ### 4단계. 현재 배포본 가져오기
 
 ```
-python3 scripts/deploy.py fetch --token-file <배포 토큰파일> --out /home/claude/work/index.html
+python3 scripts/deploy.py fetch --token-file <배포 토큰파일> --out /home/claude/work/prev.html   # 직전 배포본 — 손대지 않는다
+cp /home/claude/work/prev.html /home/claude/work/index.html                                       # 작업본은 이 사본
 ```
+`prev.html`은 5단계 compute의 `--competitors-html`과 6단계 precheck.sh 3번째 인자로 그대로 쓴다(작업본을 넣으면
+작업본의 경쟁사표가 정본이 돼 검사가 무력화된다 — 2026-09-27 검증 (c)).
 (내부는 `GET https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html`,
 `Authorization: token {토큰}` — 응답의 `sha`를 출력하고 `content`를 base64 디코드해 저장한다.)
 
@@ -168,8 +171,9 @@ python3 scripts/deploy.py fetch --token-file <배포 토큰파일> --out /home/c
 **숫자는 `scripts/compute.py` 출력값만 쓴다 — 즉석 계산 금지.**
 
 ```bash
-python3 scripts/compute.py /home/claude/work/combined --competitors-html <직전 배포본 index.html> -o /home/claude/work/compute.json
+python3 scripts/compute.py /home/claude/work/combined --competitors-html /home/claude/work/prev.html -o /home/claude/work/compute.json
 ```
+(`--competitors-html`은 4단계의 직전 배포본 `prev.html` — 작업본 `index.html`을 넣지 말 것.)
 
 키는 report-structure.md 절 번호("KPI","01"~"10")이고 자리마다 값이 있다. 계산 정의는
 report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 어긋나면 둘 다 고친다.
@@ -183,16 +187,20 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 
 ### 6단계. 검증
 
-한 번에: `scripts/precheck.sh <작업중인 index.html> [합본폴더]` — 아래 셋을 순서대로, 하나라도 실패하면 멈춘다.
+한 번에: `scripts/precheck.sh /home/claude/work/index.html /home/claude/work/combined /home/claude/work/prev.html [--pending]`
+— 아래 셋을 순서대로, 하나라도 실패하면 멈춘다. 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
+같으면 "직전 배포본이 작업본과 같다 — 4단계 fetch 파일을 넣어라"로 exit 1. `--pending`은 validate에만 넘어간다.
+진단 회차의 재현 시험(작업본 = 현재 배포본)은 3번째 인자에 **그 배포본의 직전 배포**(예: ad48222 → 4c08ab3)를 넣는다.
 
 1. `scripts/validate.py`(독립 검산 — 태그 짝·클릭수·CTR 강조·top5·카드·경쟁사·11·12번 등, 아래 "배포 전 검산")
    ```bash
    python3 scripts/validate.py <작업중인 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV> [--pending]
    ```
-   `--pending`은 사용자 답을 기다리며 채팅 질문을 남긴 채 배포하는 회차에만 붙인다(잔존 문구 검사만 허용).
-   답을 반영한 재배포에는 붙이지 않는다.
+   `--pending`은 사용자 답을 기다리며 채팅 질문을 남긴 채 배포하는 회차에만 붙인다(07 각주·11·12번 잔존 문구 검사 21만 허용,
+   건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다. 잔존 문구를 보는 자리는 이 검사 하나뿐이다(compare.py에 없음).
 2. `scripts/compare.py <작업중인 index.html> <compute.json>` — 배포본 값이 compute.py 출력과 **차이 0**인지
-   (2026-09-26 기준 99항목: 표·차트 배열·각주·section-desc 숫자·11번 수동 검사).
+   (2026-09-27 기준 95항목: 표·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어. 09-26의 99에서 잔존 문구 5항목을
+   validate 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눔). 경쟁사표 정본은 3번째 인자의 직전 배포본.
 3. `tests/overflow_check.py <작업중인 index.html>` — 360·390·430px 가로 넘침 0(css-and-layout.md 버그 기록 10).
 
 하나라도 실패하면 배포하지 말고 원인을 찾아 고친 뒤 다시 실행한다.
@@ -221,13 +229,14 @@ sha 조회와 본문 준비까지만 하고 아무것도 보내지도 쓰지도 
 ```
 ## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차)
 합본 `일별` ~ (N일) · 배포 커밋 <해시>(직전 <해시>, 파일 sha a → b) · 집계 기간 `…`
-validate.py 검사 N개 전부 PASS(실행 출력 [PASS] 줄 세어 N) · compare.py 차이 0(항목 M) · overflow 360/390/430 넘침 0 · 재수령본 md5 일치
+validate.py 검사 N개 전부 PASS(실행 출력 [PASS] 줄 세어 N) · compare.py 차이 0(항목 M, 직전 배포본 인자 <해시>) · overflow 360/390/430 넘침 0 · 재수령본 md5 일치
+`--pending` 사용: 아니오/예 — 채팅 질문 N건(예이면 답을 반영한 재배포에서 `--pending` 없이 다시 PASS했는지도 적는다)
 **효율: 벽시계 __분 · 도구 호출 __회 · 즉석 코드 __행**(compute/compare 밖에서 새로 쓴 코드 — 0이 목표)
 2-1단계 선확인 / 제외 그룹 신규 후보 / 01·06 min-width·라벨 / 11번 판정(유지·뒤집힘·근거 소멸) / 12번 이월 판정 / 경쟁사·제외 검색어 대조 / 사용자에게 요청한 값 / 다음 회차 대조
 ```
 
-효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤
-compute/compare 방식은 4회·약 1분·0행(같은 재현). 기록이 쌓여야 E3(도구 호출 묶기)를 실측할 수 있다.
+효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤 같은 재현은
+**precheck.sh 1회·약 15초·0행**(재현 시험 — 계산·대조만, last-audit.md 효율표와 같은 값). 기록이 쌓여야 E3(도구 호출 묶기)를 실측할 수 있다.
 
 ## 승인이 필요한 지점 — 여기서는 반드시 멈춘다
 
@@ -323,7 +332,7 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 **동률·경계·정의(2026-09-26 D-11 — 상세는 report-structure.md 각 절 "정의(compute.py)")**
 - 07번은 **검색어 단위로 합산**(검색 유형이 갈린 행은 합치고 뱃지는 노출 많은 유형, 일치·확장 동률이면 직전 뱃지 유지).
   정식표 클릭 동률 → 노출 내림차순. 경쟁사표 노출 동률 → 클릭 내림차순, 그 안은 직전 순서. 클릭1건·클릭0·08번
-  컴팩트 목록 동률 → 직전 순서 유지.
+  컴팩트 목록 동률 → 직전 순서 유지. **동률 원칙(2026-09-27)**: HTML의 동률 순서는 직전 순서 유지가 정본. compute.py 출력의 동률 순서(클릭1건 2차 키 총비용↓ 등)는 참고이며 compare.py는 집합+정렬 방향만 본다.
 - 09번 심야 = 22·23·0~8시(**09시 배타**), 비중은 정수 반올림. 06번 rankChart = 노원역필라테스 **그룹 전체**(자동매칭 포함) 가중순위.
 - 10번 표 A = `검색/콘텐츠 매체 == 검색` 이면서 `매체이름`이 `네이버`로 시작하는 매체 전부(검색탭·광고더보기 포함),
   B = 검색이면서 그 외(`기타 매체`의 검색분 포함), C·D = 콘텐츠의 같은 구분.
@@ -395,8 +404,9 @@ config `date_based_sections`에 따라 늘고 준다):
   config에 있는지는 어순 변형 때문에 검사하지 않는다) + 경쟁사표 각 행의 노출·클릭 = 검색어 CSV
 - (2026-09-26 추가) 검색어 CSV 클릭 합계 = KPI 클릭 (종전 `참고` 출력 → FAIL)
 - (2026-09-26 추가) 11번 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "유지+뒤집힘+근거 소멸 = 직전 항목 수"
-- (2026-09-26 추가) 11·12번 본문 금칙어(`필요`·`시점`·`할 것`·`검토`·`주째`) 0건 / 잔존 문구(`확인 요청`·`판단 요청`·`기다림`·
-  `확인 중`·`대기`) 0건 — 후자는 `--pending`(사용자 답 대기 배포)일 때만 허용
+- (2026-09-26 추가) 11·12번 본문 금칙어(`필요`·`시점`·`할 것`·`검토`·`주째`) 0건 / (09-27 범위 확장) 07번 각주(`class="note"`)·
+  11·12번 본문 잔존 문구(`확인 요청`·`판단 요청`·`기다림`·`확인 중`·`대기`) 0건 — 후자는 `--pending`(사용자 답 대기 배포)일 때만 허용,
+  잔존 문구를 보는 유일한 검사(compare.py에는 없음)
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.

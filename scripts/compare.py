@@ -2,8 +2,11 @@
 """index.html(배포본 또는 작업본)에서 12개 섹션 값을 파싱해 compute.py JSON과 항목별 대조. 배포 전 차이 0이어야 한다.
 
 사용법: python3 scripts/compare.py <index.html> <compute.json>
-- 표 값·차트 배열·각주·section-desc 숫자·11번 수동 검사까지 대조한다(2026-09-26 ad48222 기준 99항목).
+- 표 값·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어까지 대조한다(2026-09-27 ad48222 기준 95항목 —
+  09-26 99에서 잔존 문구 5항목을 validate.py 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눔).
 - 동률 자리는 "직전 순서 유지" 관행이라 집합+정렬 방향으로 대조한다(경쟁사표·클릭1건·클릭0·08 컴팩트).
+  HTML의 동률 순서는 직전 순서 유지가 정본이고 compute.py 출력의 동률 순서(클릭1건 2차 키 총비용↓ 등)는 참고다.
+- 잔존 문구(확인 요청 등)는 여기서 보지 않는다 — validate.py 검사 21(`--pending`)이 유일한 자리.
 - 마크업이 바뀌어 항목을 못 찾으면 [DIFF]로 나온다(조용히 통과하지 않음). 종료 코드 1 = 차이 있음.
 """
 import json
@@ -130,7 +133,9 @@ try:
     def short(full):  # 08 컴팩트 목록 지역명 축약 규칙(report-structure.md 08번)
         return (full.replace("서울특별시 ", "").replace("경기도 ", "").replace("인천광역시 ", "인천 ").replace("광주광역시 ", "광주 ")
                 .replace("전남광주통합특별시 ", "광주 ").replace("부산광역시 ", "부산 ").replace("경상북도 ", "").replace("세종특별자치시", "세종시"))
-    cmp("08 컴팩트 목록(순서 포함, 지역명 축약)", [{"지역": a, "노출": int(b), "클릭": int(c)} for a, b, c in c8], [{"지역": short(r["지역"]), "노출": r["노출"], "클릭": r["클릭"]} for r in R["08"]["컴팩트"]])
+    got8 = [{"지역": a, "노출": int(b), "클릭": int(c)} for a, b, c in c8]
+    cmp("08 컴팩트 목록(집합, 지역명 축약)", sorted(got8, key=lambda x: x["지역"]), sorted([{"지역": short(r["지역"]), "노출": r["노출"], "클릭": r["클릭"]} for r in R["08"]["컴팩트"]], key=lambda x: x["지역"]))
+    cmp("08 컴팩트 정렬(클릭↓, 동률 노출↓, 그 안은 직전 순서)", [(x["클릭"], x["노출"]) for x in got8] == sorted([(x["클릭"], x["노출"]) for x in got8], reverse=True), True)
     m = grp(r"클릭 0인 (\d+)개 지역에서 노출 ([\d,]+)회", s8); cmp("08 클릭0 각주", {"개수": int(m.group(1)), "노출": num(m.group(2))}, R["08"]["클릭0"])
     m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", s8); cmp("08 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3))}, R["08"]["각주"])
     m = grp(r"노원구 단독으로 전체 노출의 (\d+)%·클릭의 (\d+)%", s8); cmp("08 노원 비중", {"노출%": int(m.group(1)), "클릭%": int(m.group(2))}, R["08"]["노원"])
@@ -162,7 +167,6 @@ try:
     s11, s12 = sec(11), sec(12); li = re.findall(r"<li>(.*?)</li>", s11, re.S)
     cmp("11 항목 수(본문 ≤8, 참고 ≤2)", [len([x for x in li if "(참고)" not in x[:30]]) <= 8, len([x for x in li if "(참고)" in x[:30]]) <= 2], [True, True])
     for w in ["필요", "시점", "할 것", "검토", "주째"]: cmp(f"11·12 금칙어 '{w}'", len(re.findall(w, re.sub(r"<[^>]+>", "", s11 + s12))), 0)
-    for w in ["확인 요청", "판단 요청", "기다림", "확인 중", "대기"]: cmp(f"07·11·12 잔존 문구 '{w}'", len(re.findall(w, re.sub(r"<[^>]+>", "", s7 + s11 + s12))), 0)
     cmp("11 판정 줄 유지+뒤집힘+소멸 = 직전 항목 수", (lambda m: int(m.group(2)) + int(m.group(3)) + int(m.group(4)) == int(m.group(1)))(grp(r"지난 회차 11번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)), True)
 except (ValueError, IndexError, KeyError) as e:
     diffs.append(f"파싱 실패 {e}"); print(f"  [DIFF] 파싱 실패 — 마크업이 바뀌었으면 compare.py를 고칠 것: {e}")

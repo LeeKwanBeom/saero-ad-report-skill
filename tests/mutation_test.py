@@ -291,7 +291,7 @@ def main():
         muts.append(("11 판정 줄 유지 +1", "11번 항목 수",
                      {"html": replace_in_section(H, 11, m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}") if m else None}))
         muts.append(("11 첫 항목에 금칙어 삽입", "11·12번 금칙어", {"html": replace_in_section(H, 11, "<li><b>", "<li><b>필요 ")}))
-        muts.append(("12 첫 항목에 잔존 문구 삽입", "11·12번 잔존 문구", {"html": replace_in_section(H, 12, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
+        muts.append(("12 첫 항목에 잔존 문구 삽입", "잔존 문구", {"html": replace_in_section(H, 12, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -306,7 +306,7 @@ def main():
             ("0건: 경쟁사표 name-cell 변조", "경쟁사표", {"html": H.replace(s7, s7[:s7.find("경쟁사 브랜드명")] + s7[s7.find("경쟁사 브랜드명"):].replace('class="name-cell"', 'class="namecell"'), 1)}),
             ("0건: 11 판정 줄 문구 변조", "11번 항목 수", {"html": H.replace("항목 판정: 유지", "항목 판정 - 유지", 1)}),
             ("0건: Section 11·12 주석 변조(본문 0자)", "11·12번 금칙어", {"html": H.replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}),
-            ("0건: Section 11·12 주석 변조(잔존 문구 검사)", "11·12번 잔존 문구", {"html": H.replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}),
+            ("0건: Section 11·12 주석 변조(잔존 문구 검사)", "잔존 문구", {"html": H.replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}),
         ]
         for n in date_secs:
             m = re.search(r"\s*min-width:\s*\d+px;?", section(H, n))

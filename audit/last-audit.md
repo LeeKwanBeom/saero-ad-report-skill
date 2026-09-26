@@ -14,7 +14,7 @@ I-9대로 CSV 실측 항목은 "직전 결과 재현"으로 갈음. 리포트 �
 
 ## 수정 기록 (2026-09-26 수정 회차, 진단과 같은 세션 — 브랜치 `fix-20260926`, main 미반영)
 
-**브랜치·커밋**: 모든 변경은 `fix-20260926`에만 push. 코드·문서 커밋 `ea597d4`, 이 기록 커밋 = **브랜치 `fix-20260926`의 HEAD**(최종 — 자기 해시는 본문에 적을 수 없으므로 검증 세션이 `git log -1 --oneline`으로 확인해 기록한다).
+**브랜치·커밋**: 모든 변경은 `fix-20260926`에만 push. 코드·문서 커밋 `ea597d4`, 이 기록 커밋 `65caa1d`, 버전 줄 정정 `990bb4b`(수정 회차 1 최종 — 2026-09-27 검증 세션 확인 뒤 정정 기입). 수정 회차 2는 아래 "수정 기록 2".
 main은 사용자가 검증 통과 뒤 별도 세션에서 합친다 — 그동안 갱신 회차는 main(현행 코드·검사 14개)으로 돈다.
 검증 세션용: `git clone -b fix-20260926 --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill`
 부트스트랩(설치본)은 손대지 않음(재업로드 없음). 실제 `data/`·config·배포본(ad48222) 변경 없음.
@@ -63,15 +63,16 @@ main은 사용자가 검증 통과 뒤 별도 세션에서 합친다 — 그동�
 - `python3 tests/overflow_check.py <ad48222>` : 360·390·430 PASS(scrollWidth = 뷰포트), exit 0. `bash scripts/precheck.sh <ad48222>` : 전부 통과.
 - `python3 scripts/deploy.py push --token-file <아무 유효 토큰> --file <ad48222> --message x --dry-run` : `[dry-run] PUT을 보내지 않음`, 로컬 md5 4defb16a… 전후 동일, 배포 저장소 main ad48222 전후 동일. `verify` : 재수령본 md5 일치.
 - 역검증(과거 배포본 + 그 기간으로 자른 합본, 시간대별은 그 배포본 09번 배열): feed999 → 21 PASS / 1 FAIL(`05번 mediaChart top5`) · 036080a → 21/1(`06번 카드 큰 숫자` 1.70 vs 1.69) · 4c08ab3 → 21/1(`11·12번 잔존 문구` 확인 요청 1·판단 요청 2·확인 중 1 — 답 대기 배포라 정상, `--pending`이면 22 PASS).
-- 손 실험(사본): config 삭제 → `설정 파일이 없습니다` exit 1 / `excluded_groups` 비우기 → KPI 9,519→9,525 FAIL 2건.
+- 손 실험(사본): config 삭제 → `설정 파일이 없습니다` exit 1 / `excluded_groups` 비우기 → KPI 9,519→9,525 FAIL **3건**(KPI 타일·08·09번 각주·05 top5 — 검사 14가 제외 그룹을 읽으므로. 2026-09-27 검증 판단 1로 2→3 정정, 재실측).
 - 실제 `data/` 8파일·config·배포본 index.html md5 불변(mutation 마지막 줄 + `git status`에 data/·config 변경 없음 + 배포 저장소 HEAD ad48222).
 
 ### 효율 — 진단 회차 기준선 대비 (같은 재현 시험)
 | 항목 | 진단 회차(즉석 코드) | 수정 회차(compute+compare) |
 |---|---|---|
-| 벽시계 | 약 5분(마크업 확인 → 대조 0건) | **약 10초**(compute 0.5초 + compare 0.3초; precheck.sh 전체 약 15초) |
-| 도구 호출 | 17회(마크업 확인 9·작성 3·실행 5) | **1회**(precheck.sh) 또는 2회(compute·compare) |
+| 벽시계 | 약 5분(마크업 확인 → 대조 0건) | **약 15초**(precheck.sh 1회 — validate·compute·compare·overflow) |
+| 도구 호출 | 17회(마크업 확인 9·작성 3·실행 5) | **1회**(precheck.sh) |
 | 새로 쓴 코드 | 290행(회차 폴더에만) | **0행**(저장소 scripts/) |
+(2026-09-27 검증 판단 2로 SKILL.md 8단계 문구와 통일: "precheck.sh 1회·약 15초·0행, 재현 시험 — 계산·대조만")
 E2(기계 자리 자동 교체)·E4(부트스트랩 읽기 분량 축소, P5 분리와 짝)는 이월. E3의 실측은 다음 갱신 회차가 8단계 양식으로 벽시계·호출 수·즉석 코드를 적어야 생긴다.
 
 ### 원래 제안·지시를 바꾼 곳 (B 검증이 볼 것)
@@ -86,6 +87,37 @@ E2(기계 자리 자동 교체)·E4(부트스트랩 읽기 분량 축소, P5 분
 ### 다음 회차(검증 뒤 main 병합 후)에 볼 것
 - 갱신 회차가 8단계 양식으로 효율 3항목을 적는지 / compute.py `신규변형후보`가 뜬 회차에 경쟁사표 행이 추가됐는지 / `--pending` 남용 여부(답 반영 재배포에 붙어 있으면 결함).
 - E2·E4·개정안 13·14(파일 분리) 재상정.
+
+## 수정 기록 2 (2026-09-27, 검증 회차 판단 6건 처리 — 브랜치 `fix-20260926`, main 미반영)
+
+검증 보고 `saero-ad-report_검증_2026-09-27.md`는 이 세션에 첨부되지 않았다 — 사용자 메시지에 요약된 6건과 지정 위치로 처리했다.
+커밋: 이 절을 포함한 커밋 해시는 자기 참조라 본문에 적지 않는다 — **검증 세션이 `git log -1 --oneline`으로 확인해 적는다.**
+main 미반영, 배포(PUT) 없음, 실제 `data/`·config(af2f8560)·배포본 ad48222(4defb16a) 불변 [실측].
+
+### 처리 내역
+| # | 판단 | 조치(절·함수명) | 실측 |
+|---|---|---|---|
+| 1 | 10-2 FAIL 2→3 | 이 파일 수정 기록 1 "검증 회차가 재현할 실측" 손 실험 줄 정정 | `excluded_groups` 비우기 → KPI 타일·08·09번 각주·05 top5 FAIL 3건 재실측 |
+| 2 | 효율 문구 통일 | SKILL.md 8단계 문단 + 수정 기록 1 효율표 → "precheck.sh 1회·약 15초·0행(재현 시험 — 계산·대조만)" | precheck.sh 1회 통과(아래) |
+| — | 기록 커밋 정정 | 수정 기록 1 "이 기록 커밋 = 브랜치 HEAD" → `65caa1d`(+ 버전 줄 정정 `990bb4b`) | — |
+| 3 | compare 08 컴팩트 | compare.py 08 절: 순서 대조 1항목 → **집합(지역명 축약) + 정렬 방향(클릭↓, 동률 노출↓)** 2항목. docstring "동률 자리" 줄과 일치 | 95 OK / 0 DIFF |
+| 4 | 동률 원칙 한 문장 | report-structure.md 07번 (2) 클릭1건 정의 줄 · SKILL.md "동률·경계·정의" 문단 · checklist [의도된 동작] 4 · compute.py `07.클릭1` 주석 — 코드 변경 없음 | grep "동률 원칙(2026-09-27)" 3곳 + compute 주석 1곳 |
+| 5 | `--pending` 일원화 | validate.py `check_11_12` 검사 21 범위 → 07번 각주(`class="note"`)·11·12번 본문(<script> 앞), 세 범위 중 하나라도 못 찾으면 0건 FAIL, 이름 `07 각주·11·12번 잔존 문구 0건` / compare.py 잔존 문구 5항목 삭제(99→95) / precheck.sh `[--pending]`을 validate에만 / SKILL.md 6단계 사용법·8단계 양식(`--pending` 사용: 아니오/예 — 채팅 질문 N건)·검산 목록 / checklist [되돌리면 안 되는 것] 행 / mutation_test 변조·가드 대상 문자열 `잔존 문구`(기준값 변화 없음: 변조 22·가드 14·archive 7) | 4c08ab3(그 기간 CSV): `--pending` 없이 21 PASS / 1 FAIL(07 각주 0건 + 11·12번 4건: 확인 요청 1·판단 요청 2·확인 중 1), 있으면 22 PASS. precheck.sh(직전 배포본 036080a): 없이 → validate에서 exit 1, 있으면 → validate 22·compare 95/0·overflow 0 "6단계 전부 통과" |
+| 6 | precheck 직전 배포본 인자 | precheck.sh 인자 3개 필수 `<작업본> <합본폴더> <직전 배포본>` + md5 같으면 `[FAIL] 직전 배포본이 작업본과 같다 — 4단계 fetch 파일(/home/claude/work/prev.html)을 넣어라` exit 1, compute `--competitors-html`에 직전 배포본 / SKILL.md 4단계 fetch `--out /home/claude/work/prev.html` + `cp` 작업본, 5·6단계 사용법 통일, 진단 회차 재현 시험은 그 배포본의 직전 배포를 넣는다고 명시 | (c) 모의 재현: ad48222 사본 경쟁사표에 config 밖 브랜드 행 `RHA필라테스상계`(CSV 노출 1·클릭 0·0원) 추가 → 옛 호출(작업본을 `--competitors-html`로) validate 22 PASS·compare 95/0(무력화 재현) / **새 precheck.sh(직전 = ad48222 실물) → compare OK 94 / DIFF 1 `07 경쟁사표(집합)`, exit 1** / 작업본=직전 인자 → 즉시 exit 1 |
+| 기록 | (c) 알림 없음 | "다음 점검에서 대조할 것"에 후보 추가(config 별칭 등) | — |
+| 기록 | overflow Chart.js | checklist [의도된 동작] 17 | — |
+
+### 전체 재실행 (브랜치 코드, 배포본 ad48222 + 합본 4종)
+combine PASS(합본 4종 md5 09-26과 동일) → compute → compare **OK 95 / DIFF 0** → validate **22 PASS**(세어 22) → mutation_test 변조 22 + 0건 가드 14 + archive 7 = 43 [OK], [MISS]/[UNCOVERED]/[SKIP] 0, 원본 md5 전부 동일 → overflow 360/390/430 넘침 0 → precheck.sh(작업본 ad48222, 직전 배포본 **4c08ab3**) "6단계 전부 통과" exit 0 → 실제 data/·config·배포본 md5 불변, 배포 저장소 HEAD ad48222.
+
+### 원래 제안·지시를 바꾼 곳
+1. 검사 21의 "07 각주" 범위를 07번 섹션 전체가 아니라 `class="note"` 요소로 잡았다 — 정식표·목록 본문에 "대기"·"확인 중" 같은 검색어가 들어올 수 있어 오검출을 피하기 위해. 4c08ab3에서 07 각주는 0건이라 지시의 실측 결과(1 FAIL)는 같다.
+2. compare 항목 수는 99 − 잔존 문구 5 + 08 컴팩트 정렬 1 = **95**(지시의 "99→N"의 N). 수정 기록 1의 99는 당시 사실이라 원문 보존.
+3. precheck.sh를 진단 회차 재현 시험에 쓰려면 3번째 인자에 현재 배포본이 아니라 그 직전 배포(ad48222 → 4c08ab3)를 넣어야 한다 — 같은 파일 가드가 막으므로. SKILL.md 6단계·checklist 16에 명시.
+4. 수정 회차 1의 효율표 수치(약 10초·1~2회)를 지시대로 "약 15초·1회"로 통일했다(precheck.sh 한 번이 validate·overflow까지 포함).
+
+### 이월
+E2·E4·개정안 13·14(파일 분리)는 그대로. config 별칭(아래 "다음 점검에서 대조할 것") 신설 여부는 다음 진단 회차가 올린다.
 
 ## 0. 시작 전 확인 [실측]
 - 부트스트랩 44행: 41행 `설치 경로(`/mnt/skills/plugins/...`)`는 실제 경로 `/mnt/skills/plugins/saero-ad-report/SKILL.md`와 일치, 22~29행 받기 실패 절차 적절 → **그대로(재업로드 불필요)**. 설치 폴더의 references/report-structure.md(291행, md5 80854b7b…)·css-and-layout.md(179행)·scripts/validate.py(185행)는 저장소(368·201·371행)보다 낡았고 archive.py는 없음 — 부트스트랩 37행 "참조 문서·스크립트도 받은 저장소 안의 것을 쓴다"가 있어 결함 아님. 재업로드할 일이 생기면 그때 사본을 패키지에서 빼면 된다(선택).
@@ -231,6 +263,7 @@ SKILL.md 303~318 "매번 함께 바꿔야 할 텍스트"·320~347 "배포 전 �
 - (이번 회차 변경 없음 — 1차 커밋은 last-audit.md만. 채택 후 2차 커밋에서 v4.4로.)
 
 ## 다음 점검에서 대조할 것
+- (2026-09-27 검증 (c)) 07 경쟁사표에 **config에 없는 브랜드**의 행이 있거나 그 브랜드의 다른 표기가 검색어 CSV에 새로 나타나도 지금은 알림이 없다(compute.py `신규변형후보`·validate 검사 16은 config 이름 기준). 후보: config에 `competitor_aliases`(표 안 브랜드 → 표기 목록) 또는 경쟁사표 name-cell 브랜드를 config에 강제하는 검사. 다음 진단 회차가 채택 여부를 올린다.
 - 이번 회차 결함 D-10~D-13·개선안 1~5·효율 E1~E4·개정안 1~15 중 사용자가 고른 것의 조치 여부(수정 회차) → 검증은 별도 세션(checklist [검증 회차] A/B).
 - 라이브 시크릿 창 확인 결과(이번 회차 미수령이면 "라이브 미확인" 유지).
 - E1을 채택하면: `scripts/compute.py`로 다음 갱신 회차 배포본을 재현해 차이 0인지 / validate.py 독립 계산 유지 여부 / D-11 정의 12개가 코드나 문서 어느 한쪽에 들어갔는지.

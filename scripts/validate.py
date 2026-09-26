@@ -33,9 +33,10 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  18. (2026-09-26 추가) 검색어 CSV 클릭 합계 = KPI 클릭 (종전 `참고` 출력을 FAIL로)
  19. (2026-09-26 추가) 11번 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "유지+뒤집힘+근거 소멸 = 직전 항목 수"
  20. (2026-09-26 추가) 11·12번 본문(<script> 앞까지) 금칙어(필요·시점·할 것·검토·주째) 0건 — 조치 문장은 12번 몫
- 21. (2026-09-26 추가) 11·12번 본문 잔존 문구(확인 요청·판단 요청·기다림·확인 중·대기) 0건.
+ 21. (2026-09-26 추가, 09-27 범위 확장) 07번 각주(`class="note"`)·11·12번 본문(<script> 앞까지)의 잔존 문구
+     (확인 요청·판단 요청·기다림·확인 중·대기) 0건. 잔존 문구 검사는 이 검사 하나뿐이다(compare.py에는 없음 — --pending 일원화).
      사용자 답을 기다리며 배포하는 회차(4c08ab3처럼 채팅 질문을 남긴 배포)는 `--pending`을 붙여 이 검사만 허용한다
-     (건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다 — 기본은 엄격.
+     (건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다 — 기본은 엄격. 세 범위 중 하나라도 못 찾으면 0건 가드 FAIL.
 
 사용법(옵션): python3 validate.py ... [--pending]
 
@@ -291,8 +292,9 @@ def check_competitors(s7, sr):
 
 
 def check_11_12(html, pending=False):
-    """19~21. 11번 항목 수·판정 줄, 11·12번 본문 금칙어, 잔존 문구(--pending이면 허용)."""
+    """19~21. 11번 항목 수·판정 줄, 11·12번 본문 금칙어, 07 각주·11·12 잔존 문구(--pending이면 허용)."""
     s11, s12 = section(html, 11), section(html, 12)
+    notes7 = re.findall(r'<(?:p|div)[^>]*class="note"[^>]*>(.*?)</(?:p|div)>', section(html, 7), re.S)
     li = re.findall(r"<li>(.*?)</li>", s11, re.S)
     m = re.search(r"지난 회차 11번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)
     if not li or not m:
@@ -309,17 +311,23 @@ def check_11_12(html, pending=False):
     text = re.sub(r"<[^>]+>", "", s11 + s12)
     if not text.strip():
         check("11·12번 금칙어 0건", False, "11·12번 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
-        check("11·12번 잔존 문구 0건", False, "11·12번 본문 0자")
+        check("07 각주·11·12번 잔존 문구 0건", False, "11·12번 본문 0자")
         return
     hits = {w: len(re.findall(w, text)) for w in FORBIDDEN}
     bad = [f"{w} {n}건" for w, n in hits.items() if n]
     check("11·12번 금칙어 0건", not bad, f"{len(hits)}종 검사, {len(text):,}자" + (f" — {', '.join(bad)}" if bad else ""))
+    text7 = re.sub(r"<[^>]+>", "", " ".join(notes7))
+    if not notes7 or not s11.strip() or not s12.strip():
+        check("07 각주·11·12번 잔존 문구 0건", False, f"07 각주 {len(notes7)}개 / 11번 {len(s11)}자 / 12번 {len(s12)}자 — 범위를 못 찾음, 마크업 변경 의심")
+        return
+    hits7 = {w: len(re.findall(w, text7)) for w in RESIDUAL}
     hits = {w: len(re.findall(w, text)) for w in RESIDUAL}
-    bad = [f"{w} {n}건" for w, n in hits.items() if n]
+    bad = [f"{w} {n}건" for w, n in ((w, hits7[w] + hits[w]) for w in RESIDUAL) if n]
+    detail = f"{len(RESIDUAL)}종 검사 — 07 각주 {sum(hits7.values())}건 + 11·12번 {sum(hits.values())}건"
     if bad and pending:
-        check("11·12번 잔존 문구 0건", True, f"--pending: 사용자 답 대기 배포라 허용 — {', '.join(bad)} (답을 반영한 재배포에선 0건이어야 함)")
+        check("07 각주·11·12번 잔존 문구 0건", True, f"--pending: 사용자 답 대기 배포라 허용 — {detail}: {', '.join(bad)} (답을 반영한 재배포에선 0건이어야 함)")
     else:
-        check("11·12번 잔존 문구 0건", not bad, f"{len(hits)}종 검사" + (f" — {', '.join(bad)}" if bad else ""))
+        check("07 각주·11·12번 잔존 문구 0건", not bad, detail + (f": {', '.join(bad)}" if bad else ""))
 
 
 def main():
