@@ -1,6 +1,6 @@
 # 점검 기준선
 점검일: 2026-09-26 (저녁 회차, Fable) — 진단만. 목표 ① 정확성(재현 시험) ② 갱신 회차 효율. 수정은 사용자가 고른 항목만, 검증은 별도 세션
-결함 4건(D-10~D-13, 전부 미조치) / 개선안 5건(정확성) / 효율 개선안 4건(E1~E4) / 인용불가로 제외 0건
+결함 4건(D-10~D-13) / 개선안 5건(정확성) / 효율 개선안 4건(E1~E4) / 인용불가로 제외 0건 — **2026-09-26 수정 회차(같은 세션)에서 D-10~D-13·개선안 1~5·E1·E3·개정안 1~12·14(계획)·15 조치, E2·E4·개정안 13 이월. 아래 "수정 기록" 참고. 검증은 별도 세션**
 직전 기준선(2026-09-07 저녁, 정정 2026-09-09, 커밋 cb95494 → 3cc21b6·dfc6a94) 대비: 해결 유지 3건(D-7·D-8·D-9), 미해결 2건(I-7·I-8), 이관 1건(I-9 → 점검표 개정안 2), 종결·대체 1건(I-10 → D-12), 근거없음 0건, 신규 결함 4건(D-10~D-13)
 
 점검 대상(전부 저장소에서 받은 것): `saero-ad-report-skill` @a5ed6e0 — SKILL.md(361행) · README.md(2) · references/report-structure.md(368) ·
@@ -11,6 +11,81 @@ audit/checklist.md(358, v4.3) · audit/last-audit.md(1,018) · .gitignore(2) · 
 **실 CSV = 저장소 data/ 보관본 합본(기간 2026.08.26~09.25, 31일, `scripts/archive.py combine` PASS)** — 직전 갱신 회차(09-26, 배포 ad48222)와 같은 기간이라
 I-9대로 CSV 실측 항목은 "직전 결과 재현"으로 갈음. 리포트 갱신·배포 없음. 실제 `data/`·config·배포본은 불변(사본에서만 실험, diff/md5 대조).
 행 번호는 위 커밋의 파일 기준(view 도구 번호 = 실제 줄 번호). 바이트 수는 적지 않는다.
+
+## 수정 기록 (2026-09-26 수정 회차, 진단과 같은 세션 — 브랜치 `fix-20260926`, main 미반영)
+
+**브랜치·커밋**: 모든 변경은 `fix-20260926`에만 push. 코드·문서 커밋 `__C1__`, 이 기록 커밋 `__C2__`(= 브랜치 HEAD, 최종).
+main은 사용자가 검증 통과 뒤 별도 세션에서 합친다 — 그동안 갱신 회차는 main(현행 코드·검사 14개)으로 돈다.
+검증 세션용: `git clone -b fix-20260926 --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill`
+부트스트랩(설치본)은 손대지 않음(재업로드 없음). 실제 `data/`·config·배포본(ad48222) 변경 없음.
+사용자 결정: 저장소 공개 유지(2026-09-27) → SKILL.md "원본 보관" 절에 한 줄. 라이브 시크릿 창 확인: **라이브 미확인**(답 비어 있음).
+행 번호 인용은 수정 후 파일 기준을 붙였다(SKILL.md 428행·checklist 439행·report-structure 410행·validate.py 기준). 위치는 절·함수명으로.
+
+### 조치 내역 (사용자 지정 항목만)
+| 항목 | 조치(위치 = 절·함수명) | 실측 |
+|---|---|---|
+| D-10 | report-structure.md 01번 "차트 컨테이너" 줄 → `min-width:{max(날짜수×per_day_px, floor_px)}px` + config `chart_min_width` 참조 / 07번 `.ctr-high` 줄·04번 "CPC 값에 .ctr-high" 줄 → "클릭률 기준(config `ctr_high_threshold`, 현재 4%) 이상" / css-and-layout.md "같은 강조색" 문단·유틸 클래스 표 `.ctr-high` 행 → 같은 문구 / 버그 기록 8 `(12일 기준 960px)` → `(N일 × per_day_px, 01번과 같은 값)`. **남은 것(표)**: SKILL.md "배포 전 검산" 사고 기록 문장(`CTR 3.68%인데 4% 이상`)·css 버그 9 사고 기록(`4% 미만`)은 사고 기록 자리라 유지 / report-structure 09번 `min-width:650px`(고정값 — config 대상 아님, 그 자리에 명시) / css 버그 8 `(기본 80px / 650px)`는 config 키 병기 설명 자리라 유지 / report-structure 04번 129행 설명은 키 병기로 교체 | grep `4%\|80px\|960px\|650px` 재실행: 정의 자리 0건 [실측] |
+| D-11 | report-structure.md 각 절에 "정의(compute.py 키)" 줄 12개 + 05번 top5 정의(⑬, 추가) / SKILL.md "반드시 지켜야 할 계산 규칙"에 "동률·경계·정의" 문단(07 검색어 단위 합산·동률 처리·심야 09시 배타·06 그룹 전체·10번 A/B·04 최대잔여법·07 각주 경쟁사 포함) | 문서 ↔ compute.py 대조표(아래) 13/13 일치, compare 99항목 차이 0 [실측] |
+| D-12 | SKILL.md "배포 정보" 35행 문장에 `(git clone — API GET은 무인증이면 rate limit 403)` / 4단계를 `deploy.py fetch`로 바꾸고 "토큰이 없거나 API가 403이면 git clone …(진단·검증 회차)" 한 줄 | 09-11 기록(이 파일 "2026-09-11 갱신 회차" 절 `배포본은 git clone 공개 저장소로 받음(SKILL.md 4단계 대안)`)은 **당시 SKILL.md에 그 대안 문구가 없었다** — 원문 보존, 이 줄로 정정. 2026-09-26 수정으로 이제 4단계에 있음 |
+| D-13 | SKILL.md 1단계 "받아야 할 파일" 표 아래 문단 → "4개 중 하나라도 없으면 combine이 FAIL로 멈춘다 — 빠진 보고서를 받아 store한 뒤 다시. 부분 갱신 경로는 없다". `--allow-missing` 류 옵션 없음 | grep `직전 데이터로 두고\|나머지만 갱신`: SKILL.md·references·checklist 0건(이 파일의 D-13 결함 표 인용 원문만 남음) [실측] |
+| 개선안 1 | validate.py `check_media_top5`(라벨·값·순서·색 = 키워드 CSV `매체이름` 상위 5, 0건 가드)·`check_cards_vs_04`(카드 큰 숫자 = `parse_04_rows` 순위 셀, 0건 가드). mutation_test.py 변조 `05 mediaChart 첫 값 +1`·`06 첫 카드 큰 숫자 +0.01` + 가드 `mediaChart id 변조`·`06 카드 등록 문구 변조` | 역검증: feed999(29일) → `05번 mediaChart top5` FAIL(5위 에펨코리아 501 vs CSV 통합검색 PC) / 036080a(30일) → `06번 카드 큰 숫자` FAIL(노원산전 카드 1.70 vs 04번 1.69) / 4c08ab3 → 두 검사 PASS [실측] |
+| 개선안 2 | validate.py `check_competitors`: (16) config `competitors` 이름을 포함하는 검색어가 경쟁사표 밖이면 FAIL(순방향만, 역방향 검사 없음 — 주석 명시) (17) 경쟁사표 각 행 노출·클릭 = 검색어 CSV. mutation 변조 `검색어 CSV 첫 행 검색어를 config 경쟁사명 포함으로`·`07 경쟁사표 첫 행 노출 +1` + 가드 `경쟁사표 name-cell 변조` | ad48222: 표 밖 0건·25행 일치 [실측] |
+| 개선안 3 | validate.py 검사로 넣음(별도 스크립트 아님 — mutation이 덮게): `check_11_12` (19) 항목 수 ≤8·(참고) ≤2·판정 줄 합 (20) 금칙어 5종 0건 (21) 잔존 문구 5종 0건. 범위는 `reportlib.section`이 12번을 `<script>` 앞에서 끊음. mutation 변조 3 + 가드 3. SKILL.md "배포 전 검산"·report-structure 11번 수동 검사 문단 반영 | ad48222: 7+2, 7=6+1+0, 금칙어·잔존 0건 [실측] |
+| 개선안 4 | validate.py (18) `검색어 CSV 클릭 합계 = KPI 클릭` — 종전 `참고` print 삭제. **지시문의 "기존 변조(검색어 CSV 클릭 −1)"는 없었음**(기존 것은 `시간대별 CSV 첫 행 클릭 −1`로 검사 3 대상 — FAIL 사유 그대로) → `검색어 CSV 첫 행 클릭 −1` 변조를 새로 추가 | 변조 → `검색어 CSV 클릭 합계` FAIL [실측] |
+| 개선안 5 | mutation_test.py `archive_experiments()`: data/ 사본에서 기준 combine PASS 뒤 7종(store 옛 다운로드·두 달 걸침 / combine 시간대별 +1·개업 달 제거·헤더 빈틈·검색어 경계 불일치·검색어 종류 누락) 전부 `[FAIL]`, 끝에 실제 data/ 8파일 md5 대조. `tests/overflow_check.py`(playwright, 360/390/430px, 배포본 경로 인자). SKILL.md 6단계 3항·checklist 파괴 실험 절 반영 | 7/7 [OK], overflow 360/390/430 PASS, md5 전부 동일 [실측] |
+| E1 | `scripts/compute.py`(합본 4종 + config [+ 직전 배포본] → JSON, 키 "KPI","01"~"10" 자리별) · `scripts/compare.py`(index.html vs JSON 99항목) · `scripts/reportlib.py`(공통 헬퍼 — 읽기·제외그룹 필터·일수·섹션 자르기까지, 값 계산 공유 금지를 docstring·validate.py docstring에 명시). SKILL.md 5단계 "compute.py 출력값만 — 즉석 계산 금지", 6단계에 compare(차이 0) | compute+compare로 ad48222 재현 **99 OK / 0 DIFF** [실측] |
+| E3 | `scripts/ingest.sh`(store→combine→data push, `set -euo pipefail`) · `scripts/precheck.sh`(validate→compute+compare→overflow) · `scripts/deploy.py`(fetch/push/verify, sha 재조회 내장, 토큰은 파일, `--dry-run`, 계산 로직 없음). SKILL.md 1·4·6·7단계 | precheck.sh 통과 / deploy.py `push --dry-run`: 로컬 md5 4defb16a 전후 동일·배포 저장소 main ad48222 전후 동일·PUT 없음, `verify` 재수령본 md5 일치 [실측] |
+| 개정안 8 | SKILL.md **8단계 신설**(audit 기록 양식: validate 개수·compare 차이·overflow·md5·**효율 3항목**) | — |
+| 개정안 1~7·9~12·15 | checklist.md v4.4 — 머리말(2회 커밋·구조 변경 예정), [시작 전 확인 ②](합본·I-9), 1) 대상 목록, 라이브 절(web_fetch 대조군 삭제), 3) 설치본 매 회차, [의도된 동작] 16개, [되돌리면 안 되는 것] 18행, 실 CSV 항목 종결, 파괴 실험 절(archive 7종·overflow), [판정 기준](행수·md5·grep·직전 세션·효율), [마무리](2회 커밋·PC push·토큰 폐기·고를 항목), 기준선 양식(점검 대상·효율 기준선) | 개정안 13 미채택(그대로), 14는 계획만 |
+| P6 | SKILL.md "원본 보관" 절 `사용자 결정(2026-09-27): 공개 유지` | — |
+
+### D-11 문서 ↔ compute.py 대조 (수정 회차 규칙 1 — 같은 규칙인지 항목별로)
+| # | 정의 | report-structure.md | compute.py | 일치 |
+|---|---|---|---|---|
+| ① | 06 rankChart = 노원역필라테스 그룹 전체 가중순위 | 06번 "정의(compute.py 06.rankChart)" | `nw = pw[광고그룹=="노원역필라테스"]`, `wrank(nw[일별==d])` | ✓ 31/31 |
+| ② | 07 클릭0 각주 경쟁사 포함 / 목록은 제외 | 07번 (3) 정의 | `클릭0전체 = gs` 전체, `클릭0목록 = gen`(경쟁사 제외) | ✓ 563/1,885 |
+| ③ | 10번 A = 검색 & `네이버` 접두 전부 | 10번 표 정의 | `isn = 매체이름.startswith("네이버")`, `iss & isn` | ✓ 7,639/296 |
+| ④ | 09 심야 22·23·0~8시 | 09번 정의 | `night = [22, 23] + range(0, 9)` | ✓ 2,012/65 |
+| ⑤ | 08 TOP10 노출↓(동률 클릭↓) | 08번 정의 | `gr.sort_values(["노출","클릭"], desc)` head(10) | ✓ |
+| ⑥ | 06 카드 = 최근 7일 노출 있는 신규 그룹, OFF 제외 | 06번 카드 정의 | `pw[일별.isin(days[-7:])]["노출수"].sum() > 0` | ✓ 2개 |
+| ⑦ | 동률: 정식표 노출↓·경쟁사표 클릭↓·목록 직전 순서 | 07·08번 정의 | `sort_values(["클릭","노출"])`·`(["노출","클릭"])`·compare는 집합+정렬 방향 | ✓ |
+| ⑧ | 04 최대잔여법 | 04번 정의 | `lr_share()` | ✓ 92.8/3.8/1.5/1.0/0.9 |
+| ⑨ | 01 순위 민트 = 닷새 최솟값 | 01번 ② 정의 | `순위민트 = min(rank5)` | ✓ 9/25 |
+| ⑩ | 08 지역명 축약 | 08번 컴팩트 정의 | compare.py `short()` (compute는 원명) | ✓ |
+| ⑪ | 06 매칭표 순위 1자리, 카드 N일차 = 등록일 포함 | 06번 정의 | `mrow` round 1, `(마지막날 − 첫 노출일).days + 1` | ✓ 3.0/2.0·26·24일차 |
+| ⑫ | 07 검색어 단위 합산, 뱃지 노출 많은 유형, 동률 직전 뱃지 | 07번 (1) 정의 | `gs = sr.groupby("검색어")`, `badge` + `*동률` | ✓ 19행, 동률 0 |
+| ⑬(추가) | 05 top5 = 매체이름 노출 상위 5, 색 = 캠페인 유형 | 05번 정의 | `m5.head(5)`, `mtype` | ✓ + validate 검사 14 |
+
+### 검증 회차가 재현할 실측 (전부 이 세션 실측, 브랜치 코드로)
+- `python3 scripts/compute.py /home/claude/work/combined --competitors-html <ad48222 index.html> -o compute.json` → `python3 scripts/compare.py <ad48222> compute.json` : **OK 99 / DIFF 0**, exit 0.
+- `python3 scripts/validate.py <ad48222> <합본 4종>` : **검사 22개 PASS 22 / FAIL 0**(출력 세어 22 — 14 + 8: 05 top5·06 카드·경쟁사 순방향·경쟁사표 값·검색어 클릭합·11번 항목/판정·금칙어·잔존 문구). config `date_based_sections` [1]이면 21.
+- `python3 tests/mutation_test.py <ad48222> <합본 4종>` : 기준 22 PASS → 변조 22 [OK] + 0건 가드 14 [OK] + config 실험 2 + **archive 7/7 [OK]**, 커버리지 22/22, [MISS]/[UNCOVERED]/[SKIP] 0, 원본 md5(html·CSV 4·data/ 8) 전부 동일, exit 0 (약 14초).
+- `python3 tests/overflow_check.py <ad48222>` : 360·390·430 PASS(scrollWidth = 뷰포트), exit 0. `bash scripts/precheck.sh <ad48222>` : 전부 통과.
+- `python3 scripts/deploy.py push --token-file <아무 유효 토큰> --file <ad48222> --message x --dry-run` : `[dry-run] PUT을 보내지 않음`, 로컬 md5 4defb16a… 전후 동일, 배포 저장소 main ad48222 전후 동일. `verify` : 재수령본 md5 일치.
+- 역검증(과거 배포본 + 그 기간으로 자른 합본, 시간대별은 그 배포본 09번 배열): feed999 → 21 PASS / 1 FAIL(`05번 mediaChart top5`) · 036080a → 21/1(`06번 카드 큰 숫자` 1.70 vs 1.69) · 4c08ab3 → 21/1(`11·12번 잔존 문구` 확인 요청 1·판단 요청 2·확인 중 1 — 답 대기 배포라 정상, `--pending`이면 22 PASS).
+- 손 실험(사본): config 삭제 → `설정 파일이 없습니다` exit 1 / `excluded_groups` 비우기 → KPI 9,519→9,525 FAIL 2건.
+- 실제 `data/` 8파일·config·배포본 index.html md5 불변(mutation 마지막 줄 + `git status`에 data/·config 변경 없음 + 배포 저장소 HEAD ad48222).
+
+### 효율 — 진단 회차 기준선 대비 (같은 재현 시험)
+| 항목 | 진단 회차(즉석 코드) | 수정 회차(compute+compare) |
+|---|---|---|
+| 벽시계 | 약 5분(마크업 확인 → 대조 0건) | **약 10초**(compute 0.5초 + compare 0.3초; precheck.sh 전체 약 15초) |
+| 도구 호출 | 17회(마크업 확인 9·작성 3·실행 5) | **1회**(precheck.sh) 또는 2회(compute·compare) |
+| 새로 쓴 코드 | 290행(회차 폴더에만) | **0행**(저장소 scripts/) |
+E2(기계 자리 자동 교체)·E4(부트스트랩 읽기 분량 축소, P5 분리와 짝)는 이월. E3의 실측은 다음 갱신 회차가 8단계 양식으로 벽시계·호출 수·즉석 코드를 적어야 생긴다.
+
+### 원래 제안·지시를 바꾼 곳 (B 검증이 볼 것)
+1. 검사 20(금칙어·잔존 문구 0건)을 **둘로 나누고** 잔존 문구 검사에 `--pending` 허용을 넣었다 — 역검증에서 4c08ab3(사용자 답을 기다리며 채팅 질문을 남긴 정상 배포)이 잔존 문구로 FAIL했기 때문. 기본은 엄격, 답을 반영한 재배포엔 붙이지 않는다(SKILL.md 6단계·[의도된 동작] 15).
+2. 개선안 4 지시의 "기존 변조(검색어 CSV 클릭 −1)"는 존재하지 않았다(기존은 시간대별) → 검색어 변조를 신설했고 시간대별 변조는 그대로 검사 3을 겨냥.
+3. 개선안 3은 별도 스크립트가 아니라 validate.py 검사 19~21로 넣었다(mutation_test가 덮고 개수를 세게).
+4. [의도된 동작]은 15 + 이번 회차 산물 1(16번)로 16개. "되돌리면 안 되는 것" 18행.
+5. compute.py에 05번 top5 정의(⑬)를 더했고 02번 비중도 최대잔여법으로 통일(값 동일 92.8/7.2). deploy.py에 `verify` 서브명령(재수령본 md5)을 더했다(지시엔 GET/sha/PUT만).
+6. E1 헬퍼 공유 범위: reportlib에 `section()`(섹션 자르기, 12번은 `<script>` 앞에서)도 넣었다 — 값 계산이 아니라 자르기이므로 지시 범위 안으로 봄.
+7. archive.py 코드·docstring은 바꾸지 않았다(변경 없음). validate.py docstring은 22개 목록으로 갱신.
+
+### 다음 회차(검증 뒤 main 병합 후)에 볼 것
+- 갱신 회차가 8단계 양식으로 효율 3항목을 적는지 / compute.py `신규변형후보`가 뜬 회차에 경쟁사표 행이 추가됐는지 / `--pending` 남용 여부(답 반영 재배포에 붙어 있으면 결함).
+- E2·E4·개정안 13·14(파일 분리) 재상정.
 
 ## 0. 시작 전 확인 [실측]
 - 부트스트랩 44행: 41행 `설치 경로(`/mnt/skills/plugins/...`)`는 실제 경로 `/mnt/skills/plugins/saero-ad-report/SKILL.md`와 일치, 22~29행 받기 실패 절차 적절 → **그대로(재업로드 불필요)**. 설치 폴더의 references/report-structure.md(291행, md5 80854b7b…)·css-and-layout.md(179행)·scripts/validate.py(185행)는 저장소(368·201·371행)보다 낡았고 archive.py는 없음 — 부트스트랩 37행 "참조 문서·스크립트도 받은 저장소 안의 것을 쓴다"가 있어 결함 아님. 재업로드할 일이 생기면 그때 사본을 패키지에서 빼면 된다(선택).

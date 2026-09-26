@@ -32,14 +32,15 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 | 리포트 배포(7단계) | `LeeKwanBeom/saero-pilates-report` |
 | 스킬 문서·기준선·**원본 보관(data/)** push | `LeeKwanBeom/saero-ad-report-skill` |
 
-읽기는 두 저장소 모두 공개라 토큰 없이 된다. 토큰이 필요한 건 쓰기뿐이다.
+읽기는 두 저장소 모두 공개라 토큰 없이 된다(`git clone` — API GET은 무인증이면 rate limit 403이 난다,
+2026-09-11·09-21·09-26 실측). 토큰이 필요한 건 쓰기뿐이다.
 사용자에게 토큰을 요청할 때는 **어느 저장소 권한인지 명시**하고, 받은 토큰으로
 push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확인한다.
 
 ## 설정값은 config/report-config.json 하나에서 읽는다
 
 개업일·제외 그룹·경쟁사 목록·타겟 지역·CTR 강조 기준·차트 폭 규칙은 전부
-`config/report-config.json`에 있다. **값을 정의하는 자리(판정 목록·계산 기준)는
+`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`. **값을 정의하는 자리(판정 목록·계산 기준)는
 이 문서나 references에 값을 적지 않고 설정 파일의 키를 가리킨다.** validate.py도
 값을 하드코딩하지 않고 그 파일을 읽는다. 값이 바뀌면 그 파일만 고친다.
 
@@ -71,10 +72,14 @@ push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확�
 - 스크립트: `scripts/archive.py` (store / combine). 검사 내용은 그 파일 docstring.
 - 이 저장소는 **공개**다. 원본 CSV(검색어·지역·비용 전부)가 누구나 볼 수 있는 상태로
   올라간다는 점을 도입 회차에 사용자에게 알렸다.
+  **사용자 결정(2026-09-27): 공개 유지.** 비공개·절충안(data/ 분리, 계정번호 마스킹)은 채택하지 않음.
 
 ## 전체 절차
 
 ### 1단계. CSV 받기 → 보관 → 합본
+
+한 번에: `scripts/ingest.sh <스킬 저장소 토큰파일> <업로드CSV> [...]` — 아래 1~3을 순서대로 실행하고
+어느 단계든 실패하면 거기서 멈춘다(`set -e`). 단계를 따로 돌릴 때는 아래 명령을 쓴다.
 
 1. 업로드 파일을 보관한다(종류는 컬럼으로, 달은 첫 줄 기간 헤더로 판별):
    ```bash
@@ -102,8 +107,9 @@ push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확�
 
 모든 CSV는 첫 줄이 기간 헤더이므로 `pandas.read_csv(path, skiprows=1)`로 읽는다.
 
-4개 중 하나라도 없으면 먼저 사용자에게 확인한다. 특정 보고서만 없으면 그 섹션은
-직전 데이터로 두고 나머지만 갱신한 뒤, 그 사실을 안내한다.
+4개 중 하나라도 없으면 combine이 FAIL로 멈춘다(조각 경계 불일치, `archive.py` combine 검사) — 빠진
+보고서를 받아 store한 뒤 다시 combine한다. **부분 갱신 경로는 없다**(2026-09-26 D-13: 옛 "직전 데이터로
+두고 나머지만" 경로는 합본 방식과 양립하지 않아 삭제).
 
 "지역 보고서"(시/도 단위)와 "요일별 보고서"는 받을 필요 없다.
 
@@ -148,16 +154,27 @@ combine이 FAIL이면 **작업을 멈추고** 메시지에 맞춰 사용자에�
 ### 4단계. 현재 배포본 가져오기
 
 ```
-GET https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html
-Header: Authorization: token {토큰}
+python3 scripts/deploy.py fetch --token-file <배포 토큰파일> --out /home/claude/work/index.html
 ```
+(내부는 `GET https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html`,
+`Authorization: token {토큰}` — 응답의 `sha`를 출력하고 `content`를 base64 디코드해 저장한다.)
 
-응답의 `sha`를 보관하고, `content`를 base64 디코드해서 작업 파일로 저장한다.
+**토큰이 없거나 API가 403이면 `git clone https://github.com/LeeKwanBeom/saero-pilates-report`로
+받는다(진단·검증 회차).** 무인증 API GET은 rate limit 403이 난다(2026-09-11·09-21·09-26 실측).
 
 ### 5단계. 전 섹션 재계산·교체
 
 `references/report-structure.md`를 읽고 12개 섹션을 순서대로 갱신한다.
-숫자는 반드시 pandas로 계산한 값만 쓴다. 추측 금지.
+**숫자는 `scripts/compute.py` 출력값만 쓴다 — 즉석 계산 금지.**
+
+```bash
+python3 scripts/compute.py /home/claude/work/combined --competitors-html <직전 배포본 index.html> -o /home/claude/work/compute.json
+```
+
+키는 report-structure.md 절 번호("KPI","01"~"10")이고 자리마다 값이 있다. 계산 정의는
+report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 어긋나면 둘 다 고친다.
+`--competitors-html`의 07번 경쟁사표가 경쟁사 집합의 정본이고, 출력의 `신규변형후보`(config 이름을
+포함하는데 직전 표에 없던 검색어)는 사람이 표기 변형 행으로 추가한다. 11·12번은 계산 대상이 아니다.
 예외: **11번은 12번을 확정한 뒤 맨 마지막에 쓴다** — 12번에서 완료·철회로
 결정된 항목을 11번이 "미반영"으로 서술하는 모순을 막기 위해서다(11번·12번
 "작성 기준" 참고).
@@ -166,27 +183,51 @@ Header: Authorization: token {토큰}
 
 ### 6단계. 검증
 
-`scripts/validate.py`를 실행해 태그 짝·클릭수 검산·CTR 강조 규칙을 한 번에 확인한다.
+한 번에: `scripts/precheck.sh <작업중인 index.html> [합본폴더]` — 아래 셋을 순서대로, 하나라도 실패하면 멈춘다.
 
-```bash
-python3 scripts/validate.py <작업중인 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
-```
+1. `scripts/validate.py`(독립 검산 — 태그 짝·클릭수·CTR 강조·top5·카드·경쟁사·11·12번 등, 아래 "배포 전 검산")
+   ```bash
+   python3 scripts/validate.py <작업중인 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV> [--pending]
+   ```
+   `--pending`은 사용자 답을 기다리며 채팅 질문을 남긴 채 배포하는 회차에만 붙인다(잔존 문구 검사만 허용).
+   답을 반영한 재배포에는 붙이지 않는다.
+2. `scripts/compare.py <작업중인 index.html> <compute.json>` — 배포본 값이 compute.py 출력과 **차이 0**인지
+   (2026-09-26 기준 99항목: 표·차트 배열·각주·section-desc 숫자·11번 수동 검사).
+3. `tests/overflow_check.py <작업중인 index.html>` — 360·390·430px 가로 넘침 0(css-and-layout.md 버그 기록 10).
 
 하나라도 실패하면 배포하지 말고 원인을 찾아 고친 뒤 다시 실행한다.
 
 ### 7단계. 배포
 
-배포 직전에 `sha`를 **다시 조회**한다(4단계 이후 시간이 지났으면 값이 바뀌었을 수 있다).
+```bash
+python3 scripts/deploy.py push --token-file <배포 토큰파일> --file <작업중인 index.html> --message "리포트 갱신: <기간>" [--dry-run]
+python3 scripts/deploy.py verify --token-file <배포 토큰파일> --file <작업중인 index.html>   # 재수령본 md5 = 로컬
+```
 
-```
-PUT https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html
-body: { "message": "...", "content": "<base64>", "sha": "<최신 sha>" }
-```
+`push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). `--dry-run`은
+sha 조회와 본문 준비까지만 하고 아무것도 보내지도 쓰지도 않는다(2026-09-26 실측). 내부는
+`PUT https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html`
+`body: { "message", "content": <base64>, "sha": <최신 sha> }`. 토큰은 파일에서만 읽는다 — 채팅에서 옮겨 적지 말 것.
 
 반영까지 1~2분 걸린다는 점과 공개 링크를 함께 안내한다.
 
 보관본(`data/`)은 1단계에서 이미 push했다. 배포 후 audit 기록 push 때 `git status`로
 `data/`에 안 올라간 변경이 없는지 한 번 더 본다.
+
+### 8단계. audit 기록 (갱신 회차 기록 양식 — 2026-09-26 개정안 8)
+
+`audit/last-audit.md`의 갱신 회차 절에 아래를 적고 스킬 저장소에 push한다(같은 회차에 config가 바뀌었으면 함께).
+
+```
+## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차)
+합본 `일별` ~ (N일) · 배포 커밋 <해시>(직전 <해시>, 파일 sha a → b) · 집계 기간 `…`
+validate.py 검사 N개 전부 PASS(실행 출력 [PASS] 줄 세어 N) · compare.py 차이 0(항목 M) · overflow 360/390/430 넘침 0 · 재수령본 md5 일치
+**효율: 벽시계 __분 · 도구 호출 __회 · 즉석 코드 __행**(compute/compare 밖에서 새로 쓴 코드 — 0이 목표)
+2-1단계 선확인 / 제외 그룹 신규 후보 / 01·06 min-width·라벨 / 11번 판정(유지·뒤집힘·근거 소멸) / 12번 이월 판정 / 경쟁사·제외 검색어 대조 / 사용자에게 요청한 값 / 다음 회차 대조
+```
+
+효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤
+compute/compare 방식은 4회·약 1분·0행(같은 재현). 기록이 쌓여야 E3(도구 호출 묶기)를 실측할 수 있다.
 
 ## 승인이 필요한 지점 — 여기서는 반드시 멈춘다
 
@@ -279,6 +320,15 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
   `(순위 × 노출수).sum() / 노출수.sum()`, 순위가 0인 행은 제외
 - 타겟 지역 = `config/report-config.json`의 `target_districts` (현재 5개 자치구)
 
+**동률·경계·정의(2026-09-26 D-11 — 상세는 report-structure.md 각 절 "정의(compute.py)")**
+- 07번은 **검색어 단위로 합산**(검색 유형이 갈린 행은 합치고 뱃지는 노출 많은 유형, 일치·확장 동률이면 직전 뱃지 유지).
+  정식표 클릭 동률 → 노출 내림차순. 경쟁사표 노출 동률 → 클릭 내림차순, 그 안은 직전 순서. 클릭1건·클릭0·08번
+  컴팩트 목록 동률 → 직전 순서 유지.
+- 09번 심야 = 22·23·0~8시(**09시 배타**), 비중은 정수 반올림. 06번 rankChart = 노원역필라테스 **그룹 전체**(자동매칭 포함) 가중순위.
+- 10번 표 A = `검색/콘텐츠 매체 == 검색` 이면서 `매체이름`이 `네이버`로 시작하는 매체 전부(검색탭·광고더보기 포함),
+  B = 검색이면서 그 외(`기타 매체`의 검색분 포함), C·D = 콘텐츠의 같은 구분.
+- 04번 예산 비중은 최대잔여법(소수 1자리, 합 100.0). 07번 "클릭 0 검색어 전체" 각주는 경쟁사 포함, "노출 5회 이상" 목록은 경쟁사 제외.
+
 **누락 금지** — 이 리포트에서 가장 자주 났던 사고 유형이다
 - 07번: 클릭 1건 이상인 검색어는 정식 표(클릭 2건 이상) 또는 클릭 1건 컴팩트 목록
   중 **반드시 어딘가에** 포함. "TOP N"으로 자르지 말 것
@@ -319,7 +369,8 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 
 ## 배포 전 검산
 
-`scripts/validate.py`가 자동으로 확인하는 항목:
+`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-09-26 기준 22개,
+config `date_based_sections`에 따라 늘고 준다):
 
 - HTML 태그 짝 (div/table/tr/td/th/span/script 등)
 - KPI 총클릭수 = 07번 정식표 + 클릭1건 목록 + 경쟁사표 합계
@@ -337,25 +388,41 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 - 섹션 주석 `<!-- Section N: -->` 1~12 존재
 - 08·09번 각주 "N회 차이" = 제외 전 전체 노출 − KPI 노출,
   그리고 상세지역 CSV 노출 합계 = 제외 전 전체 노출
+- (2026-09-26 추가) 05번 mediaChart top5 = 키워드 CSV `매체이름` 노출 상위 5 — 라벨·값·순서·색
+  (09-25 5위 누락 사고 유형. 역검증: feed999 배포본에서 FAIL)
+- (2026-09-26 추가) 06번 신규 키워드 카드 큰 숫자 = 04번 같은 그룹의 평균순위 셀 (09-26 1.70/1.67 사고 유형. 역검증: 036080a에서 FAIL)
+- (2026-09-26 추가) config `competitors` 이름을 포함하는 검색어가 07번 경쟁사표 **밖**에 없는지(순방향만 — 표 안 이름이
+  config에 있는지는 어순 변형 때문에 검사하지 않는다) + 경쟁사표 각 행의 노출·클릭 = 검색어 CSV
+- (2026-09-26 추가) 검색어 CSV 클릭 합계 = KPI 클릭 (종전 `참고` 출력 → FAIL)
+- (2026-09-26 추가) 11번 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "유지+뒤집힘+근거 소멸 = 직전 항목 수"
+- (2026-09-26 추가) 11·12번 본문 금칙어(`필요`·`시점`·`할 것`·`검토`·`주째`) 0건 / 잔존 문구(`확인 요청`·`판단 요청`·`기다림`·
+  `확인 중`·`대기`) 0건 — 후자는 `--pending`(사용자 답 대기 배포)일 때만 허용
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.
 
-위 목록 중 "매번 함께 바꿔야 할 텍스트" 1·3·4·8·9번은 자동 검사 대상이다
-(3·4번은 min-width와 라벨 개수까지. 라벨의 날짜·요일 문자열 자체는 검사하지 않는다).
-남은 수동 항목은 2(og:description) · 5(09번 심야 콜아웃) · 6(11번 날짜 문장) ·
-7(01번 인사이트 박스)와 3·4번의 라벨 문자열 내용이다.
+위 목록 중 "매번 함께 바꿔야 할 텍스트" 1·3·4·8·9번은 validate.py 자동 검사 대상이고
+(3·4번은 min-width와 라벨 개수까지), 2(og:description)·5(09번 심야 콜아웃 숫자)·7(01번 인사이트 표·순위 5칸·해석 숫자)과
+3·4번의 라벨 문자열은 `scripts/compare.py`가 compute.py 출력과 대조한다. 남은 순수 수동 항목은
+6(11번 날짜 문장)과 **문장이 여전히 사실인지**(서술 검증)뿐이다. report-structure.md 11번 수동 검사 6개 중
+4개(항목 수·판정 줄·금칙어·12번 모순의 잔존 문구)는 validate.py 검사가 됐다.
 
 마지막 항목이 중요한 이유: 표를 클릭수 내림차순으로 재정렬할 때 조건부 스타일이
 셀 값과 어긋나는 사고가 실제로 있었다(CTR 3.68%인데 4% 이상 강조가 남아있었음).
 행을 복사해서 값만 바꾸는 방식을 피하고, 스타일은 항상 새로 판단해서 넣는다.
 
-수동으로 추가 확인할 것:
-- 08·09번 "OO% 차지" 콜아웃을 실제 데이터로 재계산해 일치하는지
-- 섹션 설명(section-desc)의 "OO가 최고치" 서술이 여전히 사실인지
+수동으로 추가 확인할 것(숫자는 compare.py가 대조하므로 **문장의 사실 여부**만):
+- 08·09번 "OO% 차지" 콜아웃·section-desc "OO가 최고치"의 숫자는 compare.py 대조 항목이다 — 문장 방향(늘었다/줄었다·
+  최고치 유지)이 여전히 사실인지는 사람이 본다
+- 12번의 완료·철회·보류 항목과 11번 서술이 어긋나지 않는지(작성 기준 4)
 
-## 참고 문서
+## 참고 문서·스크립트
 
-- `references/report-structure.md` — 12개 섹션별 상세 구현 규칙. 5단계에서 읽는다.
+- `references/report-structure.md` — 12개 섹션별 상세 구현 규칙 + 각 절 "정의(compute.py)". 5단계에서 읽는다.
 - `references/css-and-layout.md` — CSS 유틸 클래스, 여백 기준, 재발 방지용 버그 기록.
   디자인·레이아웃을 건드려야 할 때 읽는다.
+- `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
+- `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에) · `scripts/compute.py`(5단계 값) ·
+  `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·
+  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`).
+- `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침) — 정기 점검 때.
