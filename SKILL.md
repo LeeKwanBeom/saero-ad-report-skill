@@ -40,7 +40,7 @@ push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확�
 ## 설정값은 config/report-config.json 하나에서 읽는다
 
 개업일·제외 그룹·경쟁사 목록·타겟 지역·CTR 강조 기준·차트 폭 규칙은 전부
-`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`. **값을 정의하는 자리(판정 목록·계산 기준)는
+`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`·`exclusions.py`(`exclusions` 블록: 대상 그룹·금지 패턴·registry 경로). **값을 정의하는 자리(판정 목록·계산 기준)는
 이 문서나 references에 값을 적지 않고 설정 파일의 키를 가리킨다.** validate.py도
 값을 하드코딩하지 않고 그 파일을 읽는다. 값이 바뀌면 그 파일만 고친다.
 
@@ -165,6 +165,32 @@ cp /home/claude/work/prev.html /home/claude/work/index.html                     
 **토큰이 없거나 API가 403이면 `git clone https://github.com/LeeKwanBeom/saero-pilates-report`로
 받는다(진단·검증 회차).** 무인증 API GET은 rate limit 403이 난다(2026-09-11·09-21·09-26 실측).
 
+### 5-0단계. 제외 검색어 — 후보·승인·등록·확인·기록 (2026-09-27 도입, `scripts/exclusions.py`)
+
+파워링크 3그룹 "확장 검색" 칸의 제외 검색어를 **묻지 않고 판정하고, 승인 뒤에만 등록하고, 등록 뒤 다시 읽어 확인하고, 기록**한다.
+값 정의·API·UI 실물·registry 스키마·판정 규칙은 전부 `references/exclusion-ui.md`(문서 = 코드). 대상 그룹·금지 패턴·registry 경로는
+config `exclusions`. 등록 상태의 기계 정본은 `audit/exclusions.csv`(registry) — **"이미 등록했었냐"를 사용자에게 묻지 않는다.**
+
+```bash
+python3 scripts/exclusions.py propose /home/claude/work/combined            # 후보·재노출 판정·승인 문구(쓰기 0) → work/exclusions_proposal_<날짜>.md
+python3 scripts/exclusions.py push --approved work/approved_<날짜>.txt --dry-run   # 승인 뒤 할 일 목록만(호출 0)
+python3 scripts/exclusions.py report                                          # registry 요약
+```
+1. **재노출 판정**(propose 출력 "재노출 판정"): 등록 이력이 있는 이름이 `확장` 행에 잡히면 registry로 판정해 셋 중 하나로 **보고만** 한다 —
+   "등록돼 있는데도 노출"(등록일·노출일 명시, 원인은 "~일 수 있음") / "등록 누락 → 후보"·"일부 그룹 미등록 → 후보"(다음 승인 목록에 자동 포함) /
+   "미확인" = registry 파일이 없거나 못 읽은 회차 — 이때 propose·push·verify는 `[FAIL] registry 없음 … (미확인)` exit 1로 **멈추고 아무 후보도 내지 않는다**
+   (빈 registry로 판정하면 이력 있는 이름이 신규 후보로 올라오므로; 8단계 양식의 "미확인 c"는 그 회차 표시). 등록 당일은 판정하지 않고, 정확 일치·`확장` 행만 본다(현행 규칙 유지).
+   어느 경우도 탭 목록 확인을 요청하지 않는다. 등록·확인에 **실패한 이름(`failed`)은 재노출이 없어도 다음 propose 재등록 후보에 실패 사유와 함께 다시 오른다** — 반복 실패(문자 제한 등)는 registry `status=keep`으로 사용자가 뺀다.
+2. **후보 제시**: 신규 후보(클릭 0·첫 등장·금지 패턴·경쟁사·업종어 아님)는 무관/애매/키즈로 분류해 채팅에 제안(결정은 사용자), 재등록 후보(registry 미등록·일부 누락)는 그대로,
+   "업종어 포함"(config `industry_terms`)과 "후보에서 뺀 것"(`never_exclude_patterns`·`competitors`)은 이유와 함께 보이기만 한다.
+3. **승인 문구**는 propose 출력 마지막 절을 그대로 붙인다(전체 이름 명시 → 답 "등록 승인 N개", 뺄 이름 답 허용). **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
+4. **등록·확인**: 이 환경은 API 호스트가 막혀 있어(references 3절) `pull`·`push`·`verify`는 **사용자 PC의 PowerShell**에서 돈다 — 명령을 채팅에 그대로 적어 주고,
+   실행 뒤 `audit/exclusions.csv`·`work/exclusions_pull_<날짜>.json`을 받아 읽는다. 키 파일은 저장소·채팅 밖. 첫 실행은 `pull`만(읽기 전용). push는 pull → 그룹별로 없는 이름만 POST →
+   verify(다시 읽어 3그룹 확인)까지 한 번에 하고, 확인 안 된 이름은 `failed`(성공이라고 쓰지 않는다). 부분 실패는 그룹×이름으로 보고, 재시도는 사용자 결정.
+   push는 그룹별 `현재 N + 등록 예정 M`을 찍고 config `max_per_group`(950 추정) 초과 예상이면 `[주의]`만 낸다(차단 안 함 — 3716 오류는 항목별 `failed`로 남고 재승인 대상). `delete`도 `--confirm` 없이는 돌지 않는다.
+5. **기록**: registry가 정본. `audit/last-audit.md` "등록 제외 검색어 대조 목록" 표에는 **회차별 요약 행만**(등록 n · verified n · 실패 n · description). 07번 각주·12번 1번에는 판정 결과 문구 그대로.
+6. 시험 등록(`test-roundtrip`, 사용자 입회·1건·등록→확인→삭제)은 구현 검증 회차와 API 키가 바뀐 뒤에만. 검증·진단 회차는 propose·report·`--dry-run`만.
+
 ### 5단계. 전 섹션 재계산·교체
 
 `references/report-structure.md`를 읽고 12개 섹션을 순서대로 갱신한다.
@@ -233,6 +259,7 @@ validate.py 검사 N개 전부 PASS(실행 출력 [PASS] 줄 세어 N) · compar
 `--pending` 사용: 아니오/예 — 채팅 질문 N건(예이면 답을 반영한 재배포에서 `--pending` 없이 다시 PASS했는지도 적는다)
 **효율: 벽시계 __분 · 도구 호출 __회 · 즉석 코드 __행**(compute/compare 밖에서 새로 쓴 코드 — 0이 목표)
 2-1단계 선확인 / 제외 그룹 신규 후보 / 01·06 min-width·라벨 / 11번 판정(유지·뒤집힘·근거 소멸) / 12번 이월 판정 / 경쟁사·제외 검색어 대조 / 사용자에게 요청한 값 / 다음 회차 대조
+제외 검색어(5-0단계): 재노출 판정 n건(등록돼 있는데도 노출 a · 등록 누락 b · 미확인 c) / 후보 n → 승인 n → 등록 n · verified n · 실패 n(description) / registry 행수
 ```
 
 효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤 같은 재현은
@@ -288,6 +315,9 @@ validate.py 검사 N개 전부 PASS(실행 출력 [PASS] 줄 세어 N) · compar
 몇 주간 노출이 한 자릿수로 정체되면 자연 소멸로 보고 더는 언급하지 않는다.
 
 **(3) 새로운 제외 그룹 후보** — 아래 참고
+
+**(4) 제외 검색어 등록** — 5-0단계의 승인 문구에 "등록 승인 N개"(또는 뺄 이름) 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다.
+등록 여부 자체는 묻지 않는다(registry가 답한다). 금지 패턴(config `never_exclude_patterns`)·경쟁사 이름은 승인 목록에 있어도 코드가 거부한다.
 
 일반 지역+필라테스 조합(예: "노원구필라테스", "노원역근처필라테스")은 경쟁사가
 아니라 일반 검색어다. 이 절차 대상이 아니며 정식 표나 클릭1건 목록에 그대로 둔다.
@@ -431,6 +461,10 @@ config `date_based_sections`에 따라 늘고 준다):
 - `references/report-structure.md` — 12개 섹션별 상세 구현 규칙 + 각 절 "정의(compute.py)". 5단계에서 읽는다.
 - `references/css-and-layout.md` — CSS 유틸 클래스, 여백 기준, 재발 방지용 버그 기록.
   디자인·레이아웃을 건드려야 할 때 읽는다.
+- `references/exclusion-ui.md` — 제외 검색어 자동화의 값 정의: API 끝점·서명·오류 코드, UI 실물(탭·대화상자·`이미등록`·금지 요소 `+ 전체추가`),
+  registry 스키마·상태, 후보·재노출 판정 규칙, PC 실행 절차, 시험 등록. 5-0단계에서 읽는다.
+- `scripts/exclusions.py`(5-0단계 `pull`/`import-ui`/`propose`/`push --dry-run`/`verify`/`delete`/`test-roundtrip`/`report`) ·
+  `audit/exclusions.csv`(등록 상태 registry, 기계 정본) · `tests/test_exclusions.py`(가짜 API로 서명·판정·부분 실패·verified:false·dry-run 무전송·시험 순서 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에) · `scripts/compute.py`(5단계 값) ·
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·
