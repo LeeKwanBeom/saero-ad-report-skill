@@ -1,3 +1,176 @@
+# 기능 추가 탐색 기준선(보고서 자동 수집, 2026-09-28)
+점검일: 2026-09-28 (기능 추가 회차 — **탐색·설계만**, Fable, 웹 claude.ai 세션). SKILL.md·scripts·config·data·checklist.md **변경 없음**. 네이버 계정 쓰기 호출 **0**(API·UI 어느 쪽도 호출 자체가 안 됨 — 0절). 리포트 갱신·배포 **없음**. 산출물은 이 절(1차 커밋, 이 파일만)과 사용자 폴더 사본 `saero-ad-report_보고서자동수집_탐색_2026-09-28.md`, PC 실행용 프로브 `naver_report_probe.py`·대조 `compare_ab.py`(회차 폴더·사용자 폴더에만, 저장소 미포함). 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차(브랜치 `feat-report-fetch`).
+추가할 기능: 1단계 "CSV 받기"의 수동 부분(광고주센터 로그인 → 다차원 보고서 4개 기간을 이번 달 1일~어제로 조회 → CSV 다운로드)을 자동화해 사람 손 없이 4개 파일이 `data/YYYY-MM/`에 놓이게 한다. store 이후(combine·compute·배포)는 그대로.
+점검 대상(전부 저장소에서 받은 것): `saero-ad-report-skill` @c273bd5(main) — SKILL.md(472행, md5 9c618593…) · audit/checklist.md(465행, v4.5) · audit/last-audit.md(1,785행) · references/exclusion-ui.md(129행) · scripts/archive.py(196행) · scripts/exclusions.py(944행) · scripts/ingest.sh(15행) · config/report-config.json · data/2026-08·2026-09 4종씩 / 공식 API 문서 = `naver/searchad-apidoc` gh-pages @ed3174a(2026-09-16) `assets/json/ncc-report.json`·`master-report.json`·`ncc-heroes-ncc.json`·`assets/i18n/markdown-en-US.json`(`#/tags/StatReport` 보고서 사양)·`_posts/`(공지 33건 중 보고서 관련) + master @0aa7a76(php·java·python 샘플) git clone / 광고주센터 화면·API 호출: **직접 접속 전부 미실측(0절)**, 사용자 스크린샷 **미수령**.
+효율: 벽시계 약 20분(16:48 UTC clone → 17:08 보고, push 대기 제외) · 도구 호출 약 62회 · 즉석 코드 483행(`ui_csv_facts.py` 58 — UI CSV 형식 실물·09-25 A측 / `naver_report_probe.py` 319 — PC 실행 API 프로브 / `compare_ab.py` 106 — A/B 대조표. 전부 회차 폴더, 저장소 미포함).
+표기: [실측] 이 세션에서 직접 확인 / [문서] 공식 API 문서·저장소 원문 / [기록] 이 파일의 과거 회차 / [추론] 확인 못 함 / [미실측] 차단·미수령으로 시도 실패.
+
+## 0. 결정적 실측 — 이 세션(웹)의 경로와 첨부 [실측]
+
+| 경로 | 시도 | 결과(원문) |
+|---|---|---|
+| 클라우드 컨테이너 curl | `api.searchad.naver.com/stat-reports`·`/master-reports` · `ads.naver.com/manage/ad-accounts/2580077/sa/reports` · `manage.searchad.naver.com/` (대조군 `github.com`) | 4개 전부 **HTTP 403 `x-deny-reason: host_not_allowed`** / github 200. 프로브 스크립트로 보내도 같은 403(`Host not in allowlist: api.searchad.naver.com`) |
+| web_fetch(근거 아님 — 채널 확인만) | 보고서 목록 URL | `SITE_BLOCKED` |
+| Claude in Chrome · 내장 브라우저 · PC 셸(device_bash) | — | **이 세션 도구 목록에 없음** → 시도 불가(09-27 기준선 0절의 4경로 중 3개는 재실측 못 함) |
+| GitHub API·gist(master-report 컬럼 사양) | `api.github.com/gists/186ca42e…` · `gist.githubusercontent.com` | rate limit 403 / 프록시 403 → **master-report 파일 컬럼 사양 미열람** |
+| 첨부 | `/mnt/user-data/uploads/` 16:48·16:56·16:58 UTC | **비어 있음** — push 토큰·스크린샷(목록 화면) 모두 미수령 → 1차 커밋은 로컬 작성까지, push·재clone 확인 못 함 |
+
+- 뜻: 09-27과 같다 — 스킬이 도는 환경에서는 API도 화면도 못 연다. **경로 C(사용자 PC PowerShell 실행)가 유일한 실측 통로**이며, 이번 회차의 실측(A/B의 B측·이름 매핑·파일 형식·집계 시각)은 아래 프로브를 PC에서 돌린 결과 파일로 채운다.
+
+## 1. 끼어들 자리와 지금 사용자에게 묻는 문구 [실측: @c273bd5 원문]
+
+| 파일·행 | 원문 | 자동화 뒤 |
+|---|---|---|
+| SKILL.md 65 | `- **이번 달**: 사용자가 매일 **이번 달 1일~어제**로 4개를 받아 준다. 같은 달 파일을 덮어쓴다.` | "PC 스크립트가 만든다"로 바뀔 문장 |
+| SKILL.md 63 | `(네이버 원본 그대로, 첫 줄 기간 헤더 포함. 키워드 보고서 원본 파일명은 \`필라테스_보고서_…\`)` | 원본 = "UI 형식과 같은 생성 CSV"로 정의 갱신(설계안 A) |
+| SKILL.md 81~82 | `한 번에: \`scripts/ingest.sh <스킬 저장소 토큰파일> <업로드CSV> [...]\`` | 입력이 업로드 CSV → 생성 CSV 4개(경로만 바뀜, ingest.sh 불변 가능) |
+| SKILL.md 84~89 (1단계 1항) | `업로드 파일을 보관한다(종류는 컬럼으로, 달은 첫 줄 기간 헤더로 판별)` … `두 달에 걸친 파일(예: "최근 30일")은 거부된다 → 사용자에게 **이번 달 1일~어제**로 다시 받아 달라고 한다. 기간 끝이 보관본보다 이른 파일(옛 다운로드)도 거부된다.` | 거부 규칙은 그대로 두고, 생성기가 애초에 그런 파일을 만들지 않게 한다(4절 2·3) |
+| SKILL.md 127~129 | `> 이번 파일이 '최근 30일' 같은 자동 기간으로 받아진 것 같습니다. 네이버 광고시스템 다운로드 화면에서 '사용자 지정 기간'을 선택하고 **이번 달 1일 ~ 어제**로 맞춰서 4개 파일을 다시 받아주세요.` | 자동 수집이 정상이면 나올 일 없음 — 수동 폴백 문구로 유지 |
+| SKILL.md 69~71 | `**31일로 끝나는 달**: … **말일 하루치 4개**를 따로 받아 \`store --chunk\`로 조각을 더한다.` | API는 하루 단위라 이 예외가 사라짐(설계안 A는 달 안의 날짜를 모아 한 파일로 만들 수 있다) |
+| SKILL.md 108 | `모든 CSV는 첫 줄이 기간 헤더이므로 \`pandas.read_csv(path, skiprows=1)\`로 읽는다.` | 유지(생성 CSV도 같은 헤더) |
+| last-audit.md 923(09-27 갱신 회차) | `- 다음 회차 대조: 이번 달 파일 9/1~어제로 덮어쓰기 / …` | 매 회차 첫 줄이 이 수동 단계 |
+| archive.py 51 `HEAD_RE` | `\((\d{4})\.(\d{2})\.(\d{2})\.~(\d{4})\.(\d{2})\.(\d{2})\.\)\s*\"?,\s*(\d+)` | 생성 CSV 첫 줄이 이 정규식에 맞아야 함 |
+| archive.py 59~66 `read_head` / 69~76 `kind_of` | utf-8-sig로 첫 줄 읽기 / `{"광고그룹","키워드"} ⊂ 컬럼 → 키워드`, 그 외 `검색어`·`상세지역`·`시간대별` 컬럼명으로 판별 | 컬럼명이 정확히 같아야 함 |
+| archive.py 79~100 `store` | 83~84 두 달 걸침 → FAIL / 91~95 기간 끝이 보관본보다 앞이면 FAIL(`--force`) / 96~99 같은 달·종류 덮어쓰기 | 생성기는 `--force`를 쓰지 않는다(4절 3) |
+| archive.py 111~181 `combine` | 조각 경계 4종 일치·시간대별·상세지역 노출합 = 키워드·일별 최솟값 = open_date·계정 동일 | 생성 CSV 4개가 이 검사를 통과해야 store 이후 무변경 |
+
+**자동 생성 파일이 store·combine을 그대로 통과하는 조건**(UI CSV 실물 = `data/2026-09` 4파일 [실측]):
+- 첫 줄 `"<이름> 보고서(YYYY.MM.DD.~YYYY.MM.DD.),2580077"` — 이름은 `필라테스`(키워드 보고서의 저장 이름)·`검색어`·`상세지역`·`시간대별`. 계정번호 **2580077**(광고주센터 URL 번호 = CSV 헤더; API `CUSTOMER_ID` 4480035와 다름 — [의도된 동작] 20).
+- 인코딩 **utf-8-sig(BOM)**, 줄바꿈 **LF**(CRLF 0), 값에 따옴표 0(첫 줄만 따옴표). 2행 컬럼명 정확 일치: 키워드 13열 `캠페인,광고그룹,키워드,일별,매체이름,PC/모바일 매체,검색/콘텐츠 매체,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위` / 검색어 16열(`검색어,검색 유형,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용` + 전환 8열) / 상세지역 20열(`상세지역,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위` + 전환 12열) / 시간대별 10열(`시간대별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,총 전환율(%),총 전환매출액(원)`). **전환 관련 열은 세 파일 모두 전부 0**(이 계정은 전환 추적 없음) [실측].
+- 일별 `YYYY.MM.DD.`(끝에 점). 숫자: 노출·클릭·CPC·비용 정수, 클릭률 `0`/`6.5`/`6.33`(최대 2자리, 후행 0 없음), 평균노출순위 `2`/`1.3`(최대 1자리). 시간대별 라벨 `00시~01시` … `23시~00시` 24행.
+- **행 순서는 무관**(combine은 pandas 합산·groupby, store는 복사) — 키워드 파일은 캠페인 순만 확인되고 그룹·일자 순서는 코드포인트 정렬이 아님(UI 내부 순서) [실측] → 생성 CSV가 UI와 바이트 동일할 필요는 없다. 단 `일별` 컬럼의 조각 경계는 헤더 기간 안이어야 한다.
+- combine이 요구하는 정합: 조각(=달)마다 시간대별·상세지역 노출합 = 키워드 노출합. UI 09-25 하루치는 194/194/194로 맞지만 **총비용은 키워드 12,014 vs 검색어·상세지역 12,015로 1원 어긋남**(행 단위 반올림) [실측] — 비용 정합은 combine·validate가 보지 않으므로 통과에는 영향 없음. A/B 판정 기준(결정 4)에 반영.
+
+## 2. 대상 조사
+
+### 2-a. 공식 API [문서] — 대용량 보고서(STAT-REPORT) + 요약 통계(/stats) + 마스터
+
+| 항목 | 값 | 표기 |
+|---|---|---|
+| base·인증 | `https://api.searchad.naver.com`, 헤더 `X-Timestamp`·`X-API-KEY`·`X-Customer`(4480035)·`X-Signature`=base64(HMAC-SHA256(secret, `"{ts}.{METHOD}.{uri}"`)) — exclusions.py `NaverApi.sign`과 동일 | [문서·코드] |
+| 보고서 작업 생성 | `POST /stat-reports` body `{"reportTp": …, "statDt": "YYYYMMDD"(KST)}` → `{reportJobId, reportTp, statDt, status, updateTm, downloadUrl}` | [문서 ncc-report.json] |
+| 상태 | `GET /stat-reports/{reportJobId}` — status `REGIST`·`RUNNING`·`WAITING` → `BUILT`(완료) / `NONE`(데이터 없음) / `ERROR` / **`AGGREGATING`(집계 미완)** | [문서] |
+| 다운로드 | `downloadUrl`을 GET — 서명 uri는 **`/report-download`**(php `restapi.php` DOWNLOAD 245행 `getHeader("GET", "/report-download")`) | [문서: 샘플 코드] |
+| 정리 | `DELETE /stat-reports/{reportJobId}` 204 · `GET /stat-reports` 목록 | [문서] |
+| **하루 = 작업 1개** | `statDt`가 단일 일자 → 이번 달 1일~어제(오늘 기준 27일) × 종류 2 = **54작업**(첫 회차), 이후 **매일 2작업**(전날 증분) | [문서·추론] |
+| 제공 기간 | AD_DETAIL은 "요청 시점부터 과거 30일"(2017-06-21 릴리스 노트) — **UI 30일 창과 같음**. 생성된 파일은 **생성 30일 뒤 자동 삭제**(같은 노트) → 영구 보관은 이 저장소 `data/`가 계속 맡는다 | [문서] |
+| 비용 | **2026-03-30 데이터부터 COST가 long·정수(소수 첫째 자리 반올림)·VAT 포함**(2026-02-11 공지). 같은 공지: "stat-report의 지표와 광고주 센터의 합산 지표를 비교하는 경우 정확히 일치하지 않을 수 있습니다" → UI 총비용의 VAT 포함 여부·반올림 단위는 **A/B로만 판정** | [문서] / VAT 대응 [미실측] |
+| 집계 시각 | UI 문구 `최근 집계 완료 시간: 2026.09.28. 00:20`(사용자 전언). API 쪽 숫자는 문서에 없음 — 2023-07-11 공지에 "EXPKEYWORD 평소 생성 시간 오전 2시 전후"(당시), `AGGREGATING` 상태가 정의돼 있음. `GET /stats` 응답 `cycleBaseTm`(yyyyMMddHHmm, "The latest datetime available")이 **자동 실행 시각 조건의 실측 근거** → 프로브가 기록 | [문서]·시각 [미실측] |
+| 429·호출 한도 | 숫자 없음(09-27 기준선 1절과 같음). 프로브가 54작업을 5초 폴링으로 순차 실행하며 429 여부를 calls.jsonl에 남긴다 | [미실측] |
+| 파일 형식 | 샘플이 `.tsv`로 저장 — **헤더 유무·인코딩·CRLF 미확인** → 프로브가 첫 3줄·BOM·CRLF·바이트 수 기록 | [미실측] |
+
+**reportTp ↔ UI 보고서 대응과 컬럼 1:1 표**(`#/tags/StatReport` 원문 컬럼 번호; UI 열은 1절 실물):
+
+| UI 보고서 | reportTp | API 컬럼(번호:이름) → UI 열 | 변환 |
+|---|---|---|---|
+| 키워드(필라테스) | **AD_DETAIL** | 1 Date→일별 · 3 Campaign ID→캠페인 · 4 AD Group ID→광고그룹 · 5 AD keyword ID→키워드 · 10 Media code→매체이름·검색/콘텐츠 매체 · 11 PC Mobile Type→PC/모바일 매체 · 12 Impression→노출수 · 13 Click→클릭수 · 14 Cost→총비용 · 15 Sum of AD rank→평균노출순위(=합/노출) | 8 Hours·9 Region code·6 AD ID·7 Channel ID로 갈라진 행을 **(캠페인·그룹·키워드·매체·PC/모바일·일자)로 합산**. 클릭률=클릭/노출×100, CPC=비용/클릭, 순위=순위합/노출 |
+| 검색어 | **EXPKEYWORD** | 1 Date→일별 · 5 Search Keyword→검색어 · 8 Search Keyword Type→검색 유형(**0 일치 / 1 확장 / 2 일치(유사검색어)**, 2025-07-01부터; 그 전 5도 일치) · 9~11→노출·클릭·총비용 | 6 Media code·7 PC/모바일·3·4 캠페인·그룹으로 갈라진 행을 (검색어·유형·일자)로 합산. 전환 8열 = 0 |
+| 상세지역 | AD_DETAIL | 9 Region code→상세지역(코드→이름 매핑 필요) · 1 Date · 12~15 | (지역·일자) 합산, 순위=합/노출 |
+| 시간대별 | AD_DETAIL | 8 Hours→시간대별(`00시~01시` 라벨로 변환) · 12~15 | (시간) 합산 — **기간 전체 24행**(일자 없음, UI와 같음) |
+
+- `AD`(reportTp)는 AD_DETAIL에서 시간·지역만 뺀 것 — 키워드 보고서만이면 AD로도 되지만 세 UI 보고서를 한 원본에서 만들려면 **AD_DETAIL 하나로 충분**(호출 수 절감) [문서·추론].
+- **EXPKEYWORD의 범위 리스크(핵심)**: 이름이 "Powerlink search term report"(2023-05-29 개명)인데, UI 검색어 보고서의 09-25 노출 194는 **플레이스 137을 포함**(키워드 보고서 총합과 같음) [실측]. API 검색어 보고서가 플레이스 광고의 검색어를 담는지 **미실측** — 안 담기면 설계안 A로 검색어 보고서를 못 만들고(validate "검색어 CSV 클릭 합계 = KPI 클릭" FAIL), `GET /stats?id&statType=NPLA_SCH_KEYWORD`(StatTypeResponse `schKeyword`·impCnt·clkCnt·salesAmt — 문서 예시값 그대로, 기간 파라미터 없음) 같은 별도 경로를 조사해야 한다 [문서·추론]. **A/B 1순위 판정 항목.**
+- `GET /stats`(요약): `ids`(캠페인·그룹·키워드 ID)·`fields`·`timeRange{since,until}`·`timeIncrement 1|allDays`·`breakdown pcMblTp|dayw|hh24|regnNo`(하나만). `regnNo`는 문서 예시가 `Gangwon-do, Gyeonggi-do`(시/도) → **상세지역(시·군·구)을 대체하지 못한다** [문서]. 용도는 `cycleBaseTm` 확인과 교차 검산(그룹별 하루 합계) 정도.
+
+**ID·코드 → 이름 매핑**(생성 CSV의 문자열이 compute.py의 그룹 기준이므로 전부 정확해야 함 — compute.py 85~86 `검색/콘텐츠 매체==검색`, 133 `매체이름` top5, 134·211 `캠페인` 접두 `플레이스`·`매체이름` 접두 `네이버`, reportlib 제외 그룹 `excluded_groups` 이름 일치):
+
+| 대상 | 방법 | 표기 |
+|---|---|---|
+| 캠페인·광고그룹·키워드 이름 | ① master-reports `item=Campaign/Adgroup/Keyword`(POST → BUILT → TSV, **컬럼 사양은 gist 미열람**) ② 대안 읽기 `GET /ncc/campaigns`·`GET /ncc/adgroups?nccCampaignId=`·`GET /ncc/keywords?nccAdgroupId=`(JSON `name`·`keyword`, swagger 확인) — ②는 이번 회차 허용 목록 밖(결정 2) | ① [문서 일부] ② [문서] |
+| 삭제/OFF 그룹 표기 | UI는 `노원필라테스(삭제)`(config `excluded_groups` 값 그대로) — API 이름에 `(삭제)`가 붙는지, 삭제 그룹이 master·목록에 나오는지 **미실측**. 생성기가 UI 규칙을 재현 못 하면 제외 그룹 판정이 깨지므로 A/B 필수 항목(월 전체 이름 집합 대조) | [미실측] |
+| 키워드 `-` 행(316/450행, 자동매칭·플레이스) | AD_DETAIL의 AD keyword ID가 빈값/특수값일 것 → `-`로 변환 | [추론] |
+| 매체코드 → 매체이름·PC/모바일·검색/콘텐츠 | master `item=Media`("Media info") — UI 매체이름 21종(`네이버 통합검색 - 모바일`·`네이버 플레이스 - PC`·`다음-모바일`·`기타 매체`…)과 대응·표기가 같은지 미실측. `PC Mobile Type` 값 형식도 미실측 | [문서 일부]·[미실측] |
+| 지역코드 → 상세지역명 | 후보 `GET /ncc/criterion-dictionary/RL`(지역 타게팅 사전: `dictionaryCode`·`name`) — AD_DETAIL Region code와 같은 코드계인지 미확인. UI 특수값 `-`·`국내 - 상세 위치 확인불가`의 코드 표기도 미확인 | [추론] |
+| Hours → `HH시~HH시` | Hours 값 형식(`0`~`23`? `00`?) 미실측 → 라벨 변환표 config | [미실측] |
+| 검색 유형 | 0→일치, 1→확장, 2→일치(유사검색어), 5→일치(2025-07-01 이전) — UI 값 집합 `확장 945·일치 526·일치(유사검색어) 6`과 이름이 같음 | [문서]·[실측] |
+
+### 2-b. A/B 실측 1일치(2026-09-25) — A측 [실측], B측 [미실측: 프로브 대기]
+
+| 종류 | A(UI CSV `data/2026-09` 09-25 행) | B(API) | 판정 |
+|---|---|---|---|
+| 키워드 | 8행 · 노출 194 · 클릭 8 · 총비용 **12,014** (파워링크 6행 71회·0클릭 / 플레이스 2행 137회·8클릭 12,014원; 매체 4종) | 대기 — `AD_DETAIL-20260925.tsv` | — |
+| 검색어 | 51행(확장 34·일치 17) · 194 · 8 · **12,015** | 대기 — `EXPKEYWORD-20260925.tsv` | 플레이스 포함 여부가 1순위 |
+| 상세지역 | 25행 · 194 · 8 · **12,015**(클릭 행: 의정부 2·확인불가 1·강남 1·노원 2·도봉 2) | 대기 — AD_DETAIL Region code 합산 + RL 사전 | — |
+| 시간대별 | **하루치 UI 파일 없음**(보관본은 9/1~9/26 합계) → 사용자가 UI에서 9/25~9/25로 받은 시간대별 CSV 1개 필요(결정 5) | 대기 — AD_DETAIL Hours 합산 | — |
+
+- 09-25 A측 행은 회차 폴더 `ui_<종류>_20260925.csv`로 떼어 두었고, `compare_ab.py`가 B 파일이 오면 합계·행 집합(검색어×유형·지역명·시간·키워드 ID 조합)·공통 행 값 차이(노출·클릭 불일치, 비용 ±1 초과)·유형 코드 분포·매핑 커버리지를 표로 낸다(지금은 B 전부 `[미실측]`으로 출력됨 [실측]).
+- 차이가 나면 원인 후보: 비용 VAT/반올림(2026-03-30 변경) · EXPKEYWORD 매체 범위(2023-11-13 공지 "다차원 보고서와 대용량 보고서의 매체 기준을 통합"·2025-07-01 검색 지면 기준) · 플레이스 캠페인 포함 여부 · 순위 반올림(행 단위 1자리 vs 합/노출) · 지역 `-`/확인불가 코드.
+
+### 2-c. UI 실물(차선용) — [미수령]
+스크린샷이 오지 않았다. 요청: ① 목록 화면(4개 이름·기본 통계기간 `최근 7일 (오늘 제외)`·"조회일 기준 전일까지의 지표"·"최근 집계 완료 시간" 문구 — 사용자 전언은 있으나 화면 미수령) ② 보고서 하나를 연 화면의 **기간 선택 UI**(사용자 지정 기간 입력 방식)·`조회`·`다운로드` 버튼·완료 확인 방법 ③ 다운로드된 파일명 형식(현재 저장 이름 `필라테스_보고서_…`만 기록). 설계안 C의 셀렉터·완료 판정은 이 실물 없이는 못 적는다.
+
+### 2-d. 그 밖의 내보내기 — [미실측]
+- 안내문의 "정기적으로 조회"가 예약 생성·이메일 발송을 뜻하는지: 화면 미수령으로 판정 못 함. web_fetch·검색은 근거로 쓰지 않았다.
+- API 공지들이 말하는 "대용량 (다운로드) 보고서" = **STAT-REPORT API 자체**(2019-04-30·2023-07-09 공지의 명칭) [문서] — UI에 같은 이름의 기능이 있다면 같은 데이터일 가능성이 높다 [추론]. 있어도 "안으로 올린다"는 설계안 A(API)와 결과가 같다.
+
+## 3. 설계안(≤3, 채택은 사용자)
+
+| | **A) API → UI와 같은 형식의 CSV 4개**(PC 스크립트) → store 이후 무변경 | B) API TSV 원본 보관 + archive.py 새 입력 경로 | C) PC 브라우저 자동화(Playwright, 로그인 세션 재사용) |
+|---|---|---|---|
+| 흐름 | 승인(첫 실사용·월 백필은 사용자 승인, 매일 증분은 승인 없이) → **읽기**(`GET /stats` cycleBaseTm으로 어제 집계 완료 확인 · 캐시 `data/api/YYYY-MM/`에 없는 날짜 목록) → **쓰기(파일 생성만)**: 날짜×종류마다 POST /stat-reports → 폴링 → 다운로드 → DELETE → 캐시 저장; 매핑(master 또는 ncc 읽기)으로 이름 채워 4개 CSV 생성 → **확인**: 4개 자체 검사(노출합 3종 일치·일별 범위·계정번호·컬럼) PASS → `archive.py store` → `combine` PASS → **기록**(생성 로그 `work/report_fetch_<날짜>.json`: 작업 ID·상태·바이트·집계 시각·매핑 미해결 0건) | A와 같되 CSV 변환 없이 TSV를 `data/api/`에 두고 combine이 TSV도 읽음 | 승인 → 읽기(목록 화면 4개 이름 확인) → 4개마다 기간 입력·조회·다운로드 → 확인(파일 4개 존재·첫 줄 기간 = 1일~어제) → `store` → `combine` → 기록 |
+| config | `report_fetch`: `api_base` · `customer_id`(4480035) · `account_no`(2580077, 헤더용) · **`allowed_endpoints`**(GET /stats·/stat-reports·/master-reports·/report-download, POST /stat-reports·/master-reports, DELETE 둘 — 이 밖은 코드가 차단) · `report_types`(AD_DETAIL·EXPKEYWORD) · `csv_names`(필라테스·검색어·상세지역·시간대별) · `columns`(4종 헤더 문자열 원문) · `kw_type_map`(0 일치·1 확장·2 유사·5 일치) · `hour_labels` · `mapping`(master items / RL 사전 / 삭제 그룹 접미 규칙) · `cache_dir` · `refetch_days`(재집계 대비 0~3) · `poll_sec 5`·`poll_max_sec 600` · `run_after_kst` · `key_file` 경로는 **config에도 두지 않음**(인자만) | A + `raw_format`(TSV 컬럼 표) | `report_names`·`list_url`·셀렉터·`download_dir`·프로필 경로 |
+| dry-run | 호출 0 — 캐시 대비 **받을 날짜×종류 목록·예상 호출 수·소요**·생성할 파일명·매핑 사전 유무만 출력(프로브 `--dry-run`과 같은 방식) | 같음 | 브라우저 안 열고 할 일 목록만 |
+| 부분 실패 | 날짜×종류 단위로 성공/실패(status NONE·ERROR·AGGREGATING·429·다운로드 실패·매핑 미해결)를 표로 보고. **하나라도 빠지면 4개 CSV를 만들지 않고 store 금지**(SKILL.md 110~112 "부분 갱신 경로 없음"과 일치). 재시도는 사용자 결정. 이미 캐시된 날짜는 재요청 안 함 | 같음 | 4개 중 일부만 받아지면 store 금지 |
+| 리스크 | ① EXPKEYWORD가 플레이스 검색어를 안 담을 수 있음(2-a) ② 비용 VAT·반올림 차이 ③ 이름 매핑(삭제 그룹 `(삭제)`·매체 표기·지역 특수값) ④ 재집계된 과거 일자를 캐시가 못 따라감(`refetch_days`) ⑤ 집계 전 실행(AGGREGATING) ⑥ 키 파일 권한 = 계정 전체(09-27 기준선 1절) ⑦ 54작업 429 | A의 ①~⑦ + archive.py·validate.py가 두 형식을 알아야 해 "되돌리면 안 되는 것" archive 5종 검사(checklist 187행)를 건드림 | 화면 구조 무예고 변경·로그인 만료/2차 인증(비밀번호는 Claude가 못 침)·다운로드 완료 판정·기간 입력 실수 → 하지만 **바이트 동일 CSV**라 변환 리스크 0 |
+| 검증 | 첫 실사용 전: 프로브 결과로 A/B 4종 판정(결정 4) → 구현 검증 회차: 같은 날짜 재생성 → `store`·`combine` PASS · 생성 4개 vs UI 4개 **합산값 동일**(compute.json 차이 0) · dry-run 무변경(캐시·data md5) · 허용 목록 밖 호출 차단(단위 시험) · 부분 실패 시 store 안 됨 · 키 값 미출력 grep | 같음 + combine TSV 경로 시험 | 셀렉터 시험·다운로드 파일 첫 줄 검사 |
+| 호출·소요 | 매일: GET /stats 1 + (POST 1·GET 폴링 ~2·다운로드 1·DELETE 1)×2 ≈ **11회, 1분 안팎** [추론]. 첫 백필(27일): ≈ 27×2×5 = **270회 + master 5×4 = 20회, 5초 폴링 순차 약 10~15분** [추론] | 같음 | 페이지 4개 × (열기·기간·조회·다운로드) 왕복 수십 회, 렌더링 대기 포함 3~5분 [추론] |
+| 분담 | **PC**: 수집·생성·자체 검사(표준 라이브러리만 — PC는 pandas 없음, exclusions.py 선례) / **세션**: store·combine·push·이후 단계(생성 CSV 4개를 사용자가 채팅에 올리거나 PC에서 커밋). 스케줄은 PC 작업 스케줄러(사용자 결정) | 같음 | 전부 PC(브라우저), 세션은 이후 단계 |
+
+**추천 순서(근거 한 줄)**: A — 공식 API·문서로 관리되는 스키마·store 이후 무변경(SKILL.md·archive.py 불변, 점검표 archive 행 유지). B는 "되돌리면 안 되는 것" 표를 건드려 미채택 권고. C는 A/B 실측에서 ①~③이 해결 안 될 때의 차선(실물 스크린샷 필수).
+
+## 4. 절대 하면 안 되는 항목 후보와 근거
+
+| 후보(config `report_fetch.forbidden`/코드 차단) | 근거 | 기존 표와의 충돌 |
+|---|---|---|
+| 1. 허용 끝점 밖 호출 금지 — `allowed_endpoints`에 GET /stats·/stat-reports(+/{id})·/master-reports(+/{id})·/report-download, POST /stat-reports·/master-reports, DELETE 그 둘만. **PUT 전면 금지**, `/ncc/*` 쓰기 금지(캠페인·그룹·키워드·제외 검색어·예산·소재) | 키 하나가 계정 전체 쓰기 권한(09-27 기준선 1절). 프로브가 이미 이 방식(표 밖이면 보내기 전 exit 3) | 없음 — [되돌리면 안 되는 것] 197·201행(exclusions dry-run 0·쓰기 전 읽기)과 같은 방향 |
+| 2. 두 달에 걸친 기간의 파일 생성 금지 — 생성기는 달 단위로만 헤더·행을 만든다(1일~어제, 달이 바뀌면 지난달 파일은 안 건드림) | archive.py 83~84 거부 규칙·SKILL.md 64 "지난달 확정본" | 없음 — store 거부 2종 유지 |
+| 3. 보관본 기간 축소 덮어쓰기 금지 — 생성기는 `--force`를 절대 붙이지 않고, 캐시 날짜 수 < 보관본 날짜 수면 FAIL | archive.py 91~95 | 없음 |
+| 4. 키 값·키 파일 위치 출력·기록 금지 — 로그엔 경로만, 저장소·config·채팅·연결 폴더 밖 | exclusion-ui.md 2절 키 규칙·checklist 절대 규칙 | 없음 |
+| 5. 당일(`statDt`=오늘)·`cycleBaseTm` 이후 날짜 요청 금지 | 부분 집계 데이터가 "확정" 파일이 됨(UI도 전일까지만) | 없음 |
+| 6. 생성한 보고서 작업 잔존 금지 — 다운로드 뒤 DELETE, 끝에 목록 GET으로 0 확인(30일 자동 삭제가 있어도) | 문서 30일 삭제·계정 정돈 | 없음 |
+| 7. 4개 중 일부만 성공했을 때 store 금지·부분 갱신 금지 | SKILL.md 110~112·checklist 188행 | 없음 — 같은 규칙 |
+| 8. 이름 매핑 미해결 행을 `-`·빈칸으로 채우지 않는다 → FAIL | compute 05·10·제외 그룹 판정이 이름 문자열 기준 | 없음 |
+| 9. 생성 CSV를 store 없이 계산에 쓰지 않는다 | SKILL.md 53~54 | 없음 |
+| 10. 결정 2 전까지 `GET /ncc/campaigns·adgroups·keywords` 읽기도 금지(허용 목록에 없음) | 이번 회차 지시 | exclusions.py `GET /ncc/adgroups/{id}`는 5-0단계 전용 — 충돌 아님 |
+
+[의도된 동작] 후보(구현 회차에 checklist 21~로): 생성 CSV의 행 순서가 UI와 다를 수 있음(합산 동일) · 총비용 ±1원은 반올림(UI 안에서도 1원 차이 실측) · 당일 데이터 미포함 · API `CUSTOMER_ID`≠헤더 계정번호(20번 그대로).
+
+## 5. 리스크(각 한 줄)
+- EXPKEYWORD 플레이스 미포함이면 A는 검색어 보고서에서 막힌다 → 프로브 첫 판정, 대안 `statType=NPLA_SCH_KEYWORD` 조사 또는 검색어만 C.
+- 비용이 VAT·반올림으로 UI와 어긋나면 리포트 광고비가 과거 배포본과 불연속 → 결정 4의 허용 오차, 안 맞으면 지난달 확정본은 UI 원본 유지.
+- 매핑 사전(master·RL)이 UI 표기와 다르면 compute 05·08·10이 조용히 틀린다 → 생성 검사에 "이름 집합 = 직전 달 UI 이름 집합 ⊆" 대조 추가.
+- 재집계(공지 사례 다수)를 캐시가 못 따라감 → `refetch_days` 또는 월 1회 전체 재수집.
+- 키 유출 시 계정 전체 쓰기 → 재발급 절차·키 파일 위치 규칙 유지.
+
+## 사용자 확인 요청(이번 회차)
+1. push 토큰(파일 첨부) — 1차 커밋 push용. 2. 스크린샷 3장(2-c ①②③). 3. 프로브 실행 결과 폴더 `probe_out\`(키 없음) — 명령은 references 아닌 이 절 아래 "PC 실행" 참고. 4. 9/25~9/25 하루치 시간대별 UI CSV(결정 5).
+
+**PC 실행(경로 C, 저장소 밖 아무 폴더)**:
+```
+python naver_report_probe.py --key-file C:\Users\<사용자>\naver-api.keys.json --day 2026-09-25 --out probe_out --dry-run      # 호출 0, 계획 44건 출력
+python naver_report_probe.py --key-file C:\Users\<사용자>\naver-api.keys.json --day 2026-09-25 --out probe_out                # list·stats(11 GET)·statreport(AD_DETAIL·EXPKEYWORD 각 POST→폴링→다운로드→DELETE→삭제 확인)
+python naver_report_probe.py --key-file ... --day 2026-09-25 --out probe_out --modes master,dict                              # 결정 2 뒤에만: master 5작업(Campaign·Adgroup·Keyword·Media·BusinessChannel)+RL 사전
+```
+프로브 실측(이 세션): `py_compile` OK · `--dry-run` 44호출 계획·HTTP 0 · 키 문자열이 로그·calls.jsonl에 없음 · modes=stats에서 POST /stat-reports·PUT·DELETE /ncc/*·GET /ncc/campaigns 전부 차단 · 컨테이너 실호출은 403(0절).
+
+## 마무리 기록(이번 회차)
+- 커밋: 이 절을 last-audit.md 맨 위에 붙인 1차 커밋(author `LeeKwanBeom <322668067+LeeKwanBeom@users.noreply.github.com>`). 토큰은 세션 중 수령(파일로 저장, 옮겨 적지 않음) → `git pull --rebase` → push → 재clone 대조. 결과는 채팅 보고·사용자 폴더 사본에(이 절의 커밋 해시는 자기 참조라 적지 않는다).
+- 네이버 계정: 쓰기 0·읽기 0(호출 불가). 저장소 SKILL.md·scripts·config·data md5 불변(변경 파일 = audit/last-audit.md만).
+
+## 내가 고를 항목
+1. 설계안: A / B / C (추천 A, C는 차선).
+2. 이번 회차 허용 끝점 확장: ① POST·GET·DELETE `/master-reports`(마스터 보고서 작업 — 계정 설정 쓰기 아님) ② `GET /ncc/criterion-dictionary/RL` ③ `GET /ncc/campaigns`·`adgroups`·`keywords` 읽기 — 각각 허용/불허.
+3. 프로브 실행 범위: statreport 2작업만 / + master 5작업 / AD도 추가(3작업).
+4. A/B 판정 기준: 노출·클릭 **완전 일치** + 총비용 **±1원/보고서 허용**(UI 내부 1원 차이 실측) / 행 집합 동일 / 비용 불일치면 VAT·반올림 원인 분석 후 재판정.
+5. 시간대별 하루치 UI CSV(9/25~9/25) 제공 여부(없으면 시간대별은 월 합계로만 대조).
+6. 첫 실사용 범위: 전날 하루치만(9월 파일은 UI 원본 유지) / 이번 달 전체 재생성해 UI 원본과 대체 / 10월 1일부터.
+7. 재집계 대응 `refetch_days`(0 / 3) 와 실행 시각(PC 스케줄러 03:00 KST 이후 / 수동).
+8. config 값: `csv_names`·`account_no 2580077`·`report_types AD_DETAIL,EXPKEYWORD`·`cache_dir data/api`(공개 저장소에 원본 TSV도 올릴지).
+
+토큰은 이 회차가 끝나면 GitHub에서 폐기해 주세요(이번 세션에는 수령·사용된 토큰 없음).
+
+---
+
 # 기능 추가 탐색 기준선(제외 검색어 등록 자동화, 2026-09-27)
 점검일: 2026-09-27 (기능 추가 회차 — **탐색·설계만**, Fable). SKILL.md·scripts·config·data·checklist.md **변경 없음**. 제외 검색어 추가·삭제·저장 버튼 클릭 **없음**(읽기도 못 했다 — 아래 0). 리포트 갱신·배포 **없음**. 산출물은 이 절(1차 커밋, 이 파일만)과 사용자 폴더 사본 `saero-ad-report_제외검색어_탐색_2026-09-27.md`. 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차.
 점검 대상(전부 저장소에서 받은 것): `saero-ad-report-skill` @5e8c055(main) — SKILL.md(438행) · audit/checklist.md(444행, v4.4 — 안전 규칙·[의도된 동작] 9·10 읽음) · audit/last-audit.md(1,352행 — "등록 제외 검색어 대조 목록" 절·09-27 제안 행 읽음) · config/report-config.json(49행) / 합본 = `data/` combine PASS(2026.08.26~09.26, 32일, 9,737/302/344,274원) / 공식 API 문서 = `naver/searchad-apidoc` master(README.md·NaverSA_API_Error_Code_MAP.md·python-sample) + gh-pages(`assets/json/ncc-heroes-ncc.json` swagger 65경로, `_posts/2024-09-13-release-note.md`·`2024-08-19-notice1.md`·`2026-09-16-release-note.md`·`2020-12-18-notice.md`) git clone / **광고시스템 화면·API 사용 관리 화면·API 호출: 직접 접속 전부 미실측(0절)** — UI는 사용자 스크린샷 23장(09-27 세션 중 회신)으로 3그룹 전부 실측.
