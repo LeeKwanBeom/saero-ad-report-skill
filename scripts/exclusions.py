@@ -40,7 +40,21 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from reportlib import ROOT, load_config
+try:
+    from reportlib import ROOT, load_config
+except ImportError as _e:  # 사용자 PC(파이썬만 있는 환경)에는 pandas가 없을 수 있다 — reportlib이 맨 위에서 pandas를 import하므로 여기서만 대신 정의(첫 실사용 2026-09-27)
+    if getattr(_e, "name", None) not in ("pandas", "reportlib"):
+        raise
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def load_config():
+        """reportlib.load_config와 같은 동작(pandas 없는 PC용 사본) — config/report-config.json, 없으면 즉시 종료."""
+        cfg = os.path.join(ROOT, "config", "report-config.json")
+        try:
+            with open(cfg, encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            raise SystemExit(f"설정 파일이 없습니다: {cfg}\n스킬 저장소를 통째로 받았는지 확인하세요.")
 
 try:  # Windows 콘솔 한글
     sys.stdout.reconfigure(encoding="utf-8")

@@ -405,6 +405,14 @@ combine **PASS**(32일 · 9,737/302/344,274원) → validate **22 PASS / 0 FAIL*
 4. 첫 자동 회차: `propose` → 승인 문구 → "등록 승인 N개"(미등록 33개 안팎) → `push --dry-run` → `push --key-file` → 출력(그룹별 성공·실패·verify)·`audit/exclusions.csv`·`work/exclusions_pull_<날짜>.json` → 대조 목록 표에 요약 행 → 다음 날부터 재노출 판정("등록돼 있는데도 노출" 0이어야 정상).
 5. 이월: 검증 2 참고 ①(그룹 ID → 그룹명 표기) · 탐색 기준선 4절 236행(승인 문구에 그룹별 현재 개수 — propose가 오프라인이라 registry 기준 추정치로 넣을지) · `import-ui` 실사용 여부(API가 되면 안 쓰는 경로).
 
+
+## 첫 실사용 기록 (2026-09-27~ — 제외 검색어 자동화, 사용자 PC 실행)
+
+- **1. 환경(2026-09-27)**: 사용자 PC PowerShell에 `git` 없음(`git : 'git' 용어가 … 인식되지 않습니다`), Python은 3.14(`pythoncore-3.14-64`), pandas 없음. 조치 ① 저장소 clone 대신 **세션이 main 트리(30파일)를 연결 폴더 `Desktop\Agent\claude\saero-ad-report-skill\`에 직접 배치**(device_commit_files) — 이후 PC 실행 결과(registry·`work/` 스냅샷)는 그 폴더에서 세션이 읽어 저장소에 커밋한다. ② `scripts/exclusions.py`의 `from reportlib import ROOT, load_config`가 reportlib의 모듈 수준 `import pandas` 때문에 PC에서 실패하므로 **ImportError 폴백**(pandas·reportlib이 없으면 ROOT·load_config를 같은 동작으로 자체 정의) 추가 + 시험 `test_runs_without_pandas_for_pc_commands`(pandas를 막고 `report` 실행 exit 0, 시험 20→**21**). pull/push/verify/test-roundtrip은 표준 라이브러리만 쓰고 propose(pandas)는 세션에서 돈다. 검증 회차 밖의 코드 변경이므로 다음 점검 회차가 대조한다(변경 = import 블록 1곳·시험 1개, 다른 함수 불변).
+- 2. `pull` 결과: (대기)
+- 3. 시험 1건: (대기)
+- 4. 첫 자동 회차: (대기)
+
 ---
 
 # 점검 기준선

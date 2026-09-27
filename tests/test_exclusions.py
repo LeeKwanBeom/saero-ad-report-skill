@@ -256,6 +256,17 @@ class TestApiFlows(unittest.TestCase):
 
 
 class TestCliSafety(unittest.TestCase):
+    def test_runs_without_pandas_for_pc_commands(self):
+        """첫 실사용 2026-09-27: 사용자 PC에는 pandas가 없다 — report(=pull/push/verify와 같은 import 경로)가 pandas 없이 돌아야 한다."""
+        import subprocess
+        script = os.path.join(ROOT, "scripts", "exclusions.py")
+        code = ("import sys, runpy; sys.modules['pandas'] = None; sys.path.insert(0, %r); sys.argv = ['exclusions.py', 'report']; "
+                "runpy.run_path(%r, run_name='__main__')" % (os.path.dirname(script), script))  # python scripts\\exclusions.py 와 같은 조건
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        self.assertIn("registry", r.stdout)
+        self.assertNotIn("pandas", r.stderr)
+
     def test_missing_registry_stops_judging_commands_but_pull_creates(self):
         """검증 판단 1: registry가 없으면 propose/push/verify/delete/test-roundtrip/report는 [FAIL] … 미확인 exit 1, pull은 새로 만든다."""
         with tempfile.TemporaryDirectory() as td:
