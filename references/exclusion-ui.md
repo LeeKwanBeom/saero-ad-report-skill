@@ -25,7 +25,7 @@
 | 그룹 | `GET /ncc/adgroups/{adgroupId}` → `name`, `userLock`, `useExpSearch`, `useAdvoost` |
 | 인증 헤더 | `X-Timestamp`(ms) · `X-API-KEY`(엑세스라이선스) · `X-Customer`(CUSTOMER_ID) · `X-Signature` = base64(HMAC-SHA256(비밀키, `"{ts}.{METHOD}.{uri}"`)), **uri 는 쿼리 제외 경로** |
 | CUSTOMER_ID | **4480035** (도구 > SA API 사용 관리 화면 표시값 [실측 09-27]) — 광고주센터 URL의 `ad-accounts/2580077` 나 보고서 CSV 헤더 계정번호와 **다르다** |
-| 한도 | 그룹당 최대 개수 초과 = 오류 3716(숫자 미공개, UI 카운터 `0/950` 로 보아 950 [추론]) |
+| 한도 | 그룹당 최대 개수 초과 = 오류 3716(숫자 미공개, UI 카운터 `0/950` 로 보아 950 [추론] → config `max_per_group`, push가 현재+예정으로 초과 예상만 경고) |
 | 오류 | 3721~3723(문자·형식), 3728, ADVoost ON 그룹 3754/4422(등록 거부) — 항목별 `resultStatus` 로 온다 |
 | 429 | 5초 쉬고 1회 재시도, 그래도 429면 중단 보고 |
 | 키 | `keys.json` `{"api_key","secret_key","customer_id"}` — **저장소·채팅 금지**. 이 세션에 연결되지 않은 PC 폴더(예 `C:\Users\<사용자>\naver-api.keys.json`)에 두고 `--key-file` 경로만 넘긴다. 채팅에 키가 찍힌 화면을 올렸으면 **재발급** |
@@ -45,9 +45,11 @@ python scripts\exclusions.py pull --key-file C:\Users\<사용자>\naver-api.keys
 python scripts\exclusions.py push --approved work\approved_<날짜>.txt --dry-run              # 할 일 목록만, 호출 0
 python scripts\exclusions.py push --approved work\approved_<날짜>.txt --key-file <keys>       # 승인 뒤에만. 등록 → 자동 verify
 python scripts\exclusions.py verify --key-file <keys>                                        # pending 재확인
+python scripts\exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys> --confirm   # 되돌리기(승인 뒤)
 python scripts\exclusions.py test-roundtrip --keyword saero제외테스트<날짜> --group <adgroup_id> --key-file <keys> --confirm
 ```
-`pull`·`push`·`verify` 뒤의 `audit/exclusions.csv` 와 `work/exclusions_pull_<날짜>.json` 을 Claude가 읽어 판정·기록한다(사용자 폴더 경유 또는 커밋).
+`pull`·`push`·`verify` 뒤의 `audit/exclusions.csv` 와 `work/exclusions_pull_<날짜>.json`(세 명령 모두 마지막으로 읽은 목록을 쓴다) 을 Claude가 읽어 판정·기록한다(사용자 폴더 경유 또는 커밋).
+registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 없음 … (미확인)` exit 1 — 저장소를 통째로 받았는지·`--registry` 경로부터 본다.
 
 ## 4. UI 실물 [실측: 사용자 화면 23장, 2026-09-27] — API를 못 쓸 때의 읽기 폴백과 금지 요소
 
@@ -69,7 +71,7 @@ python scripts\exclusions.py test-roundtrip --keyword saero제외테스트<날�
 열: `keyword, group_id, group_name, type, status, source, registered_at, restrict_kwd_id, verified_at, note`.
 - 한 행 = 이름 × 그룹. `group_name="*"` 는 그룹 미확인 기록 행(대조 목록 표에서 온 것) — 3그룹 API 행이 다 생기면 pull이 지운다.
 - `status`: `registered`(등록 확인) · `unregistered`(미등록 확인) · `pending`(POST 성공, 재확인 전) · `failed`(등록 실패 또는 **확인 실패**) ·
-  `missing`(등록 기록이 있는데 API 목록에 없음) · `deleted`(삭제·시험) · `keep`(사용자 결정으로 노출 유지 — 후보에서 뺀다).
+  `missing`(등록 기록이 있는데 API 목록에 없음) · `deleted`(삭제·시험) · `keep`(사용자 결정으로 후보에서 뺀다 — 노출 유지, 또는 문자 제한처럼 등록이 반복 실패해 포기한 이름).
 - `source`: `api` · `ui`(화면 전사) · `record`(대조 목록 표) · `skill`(push/verify/test가 씀).
 - 초기값(2026-09-27): 3그룹 UI 전사 340행 — 노원역필라테스 등록 135·미등록 24 / 노원산전필라테스 36·8 / 상계동필라테스 14·3 / 기록 행 `*` 등록 87·미등록 33.
   **미등록 33개**(09-23 32개 중 22 + 09-27 제안 14, 겹침 3) 가 첫 자동 회차의 재등록 후보다.
@@ -83,24 +85,31 @@ python scripts\exclusions.py test-roundtrip --keyword saero제외테스트<날�
    - `registered` 이고 마지막 등록일(`max(registered_at)`) **다음 날 이후** 노출 → **"등록돼 있는데도 노출"**(등록일·노출일 명시; 원인은 "~일 수 있음" 으로만) → 07번 각주·12번 1번에 사실만.
    - 등록 당일 노출 → **"등록 당일(판정 안 함)"**(CSV가 일 단위). 등록일 이전 노출 → "등록 전 노출(정상)".
    - `partial` → **"일부 그룹 미등록 → 후보"**, `unregistered` → **"등록 누락 → 후보"** — 둘 다 재등록 후보에 자동 포함.
-   - 등록일 미상 → "등록됨(등록일 미상)". `keep` → "노출 유지(사용자 결정)". registry를 못 읽은 회차 → "미확인".
+   - 등록일 미상 → "등록됨(등록일 미상)". `keep` → "노출 유지(사용자 결정)". registry에 없는 이름은 재노출 절에 오르지 않는다(신규 후보 규칙으로).
+   - **"미확인" = registry 파일이 없거나 못 읽은 회차.** `load_registry`가 `RegistryUnavailable`을 내고 propose/push/verify/delete/test-roundtrip/report는
+     `[FAIL] registry 없음: <경로> — 등록 상태를 판정할 수 없어(미확인) 멈춥니다` **exit 1** — 후보·등록·기록 0. 빈 registry로 진행하면 이력 있는 이름이 전부 신규 후보로 올라오기 때문이다.
+     registry를 새로 만들 수 있는 명령은 `pull`·`import-ui`만(2026-09-27 검증 판단 1).
 2. 등록 이력이 없는 이름: **클릭 > 0 이면 후보 아님**(07번 표에서 사람이 본다) → `never_exclude_patterns`(부분 일치: 운동·산전·산후·임산부)·
    `competitors`(config, `never_exclude_competitors=true`) 해당 → **"후보에서 뺀 것"**(이유와 함께 보고만) → 이전 CSV에 있었던 이름은 건너뜀(`--all` 로 포함) →
    `industry_terms`(필라테스·필테) 포함 → **"업종어 포함"** 묶음(기본 후보 아님, 사용자가 고르면 승인 목록에 넣는다) → 나머지 = **신규 후보**(무관/애매/키즈 분류는 채팅에서, 결정은 사용자).
 3. 승인 문구(그대로 채팅에):
-   > 제외 검색어 등록 승인 요청 — 대상: 파워링크 3그룹(…) "확장 검색" 칸 / 건수: N / 목록: 이름1 · 이름2 · … / 제외한 것: 금지 패턴·경쟁사 n · 이미 등록 m
+   > 제외 검색어 등록 승인 요청 — 대상: 파워링크 3그룹(…) "확장 검색" 칸 / 건수: N / 목록: 이름1 · 이름2 · … / 제외한 것: 금지 패턴·경쟁사 n · 이미 등록 m · 노출 유지(사용자 결정) k
+   (m = 창 안에 나왔지만 registry에 등록 확인된 이름 수, k = `keep` 이름 수 — 2026-09-27 검증 판단 3)
    > 답: "등록 승인 N개" (뺄 이름이 있으면 적어 주세요 — 그만큼 뺀 뒤 다시 확인합니다). 답이 오기 전에는 아무것도 등록하지 않습니다.
    승인된 이름만 `work/approved_<날짜>.txt`(한 줄에 하나, `#` 주석 허용)에 남겨 `push --approved` 에 넘긴다.
 
 ## 7. 등록·확인·실패 처리 (`push` → `verify`)
 
-- `push` 는 승인 목록에서 금지 패턴·경쟁사 이름을 **거부**(`[거부] …`, 승인 목록에 있어도 등록 안 함) → `pull`(쓰기 전 읽기) → **그룹마다 아직 없는 이름만** POST(50개씩) →
-  응답 항목별 `resultStatus` 로 성공(`pending`)/실패(`failed`, 코드·문구 기록) → `verify`(다시 읽어 3그룹 모두 있으면 `registered`+`verified_at`, 없으면 `failed`).
+- `push` 는 승인 목록에서 금지 패턴·경쟁사 이름을 **거부**(`[거부] …`, 승인 목록에 있어도 등록 안 함) → `pull`(쓰기 전 읽기) → 그룹별 `현재 N + 등록 예정 M = 합`을 찍고
+  config `max_per_group`(950 추정) 초과 예상이면 `[주의]`(차단은 안 함) → **그룹마다 아직 없는 이름만** POST(50개씩) →
+  응답 항목별 `resultStatus` 로 성공(`pending`)/실패(`failed`, 코드·문구 기록) → `verify`(다시 읽어 3그룹 모두 있으면 `registered`+`verified_at`, 없으면 `failed`) → `work/` 스냅샷.
   exit 0 = 전부 확인, 1 = 실패·미확인 있음(재시도는 사용자 결정), 2 = 네트워크 차단.
+- **실패한 이름은 사라지지 않는다**: `failed` 이름은 재노출이 없어도 다음 `propose` "재등록 후보"에 `직전 실패: <사유>`와 함께 오르고 `report`에도 나온다.
+  문자 제한(3721~3723)처럼 반복 실패할 이름은 사용자가 registry `status=keep`으로 바꿔 뺀다(2026-09-27 검증 판단 2).
 - `description` = `saero-ad-report <날짜>`(config `description_prefix`) — UI 설명 열·API 로 스킬 등록분과 수동 등록분을 구분.
-- `--dry-run`: 승인 목록·거부·그룹별 계획(registry 기준: 등록 예정/이미 등록)만 출력, **HTTP 호출 0·registry 변경 0**. 첫 pull 전에는 그룹 ID 매핑이 없어 registry 그룹명 기준으로 계획을 보인다.
-- 부분 실패(그룹 일부·항목 일부): 성공/실패를 그룹×이름으로 나눠 보고, 조용히 넘어가지 않는다. 한도 초과(3716)면 남은 용량을 보고하고 우선순위를 **다시 승인** 받는다.
-- 되돌리기: `delete --group <id> --ids <restrict_kwd_id,…>`(registry `deleted`). 삭제도 승인 대상.
+- `--dry-run`: 승인 목록·거부·그룹별 계획(registry 기준: 등록 예정/이미 등록/현재 등록 수 → 등록 후 합/한도 추정)만 출력, **HTTP 호출 0·registry 변경 0**. 첫 pull 전에는 그룹 ID 매핑이 없어 registry 그룹명 기준으로 계획을 보인다.
+- 부분 실패(그룹 일부·항목 일부): 성공/실패를 그룹×이름으로 나눠 보고, 조용히 넘어가지 않는다. 한도 초과(3716)는 항목별 `failed`로 남는다 — 남은 용량은 계산하지 않는다(공식 한도 미공개, 950은 UI 카운터 추정) → 노출 많은 순으로 잘라 **다시 승인** 받는다.
+- 되돌리기: `delete --group <id> --ids <restrict_kwd_id,…> --key-file <keys> --confirm`(registry `deleted`). 삭제도 승인 대상 — `--confirm` 없이는 돌지 않고, `--dry-run`은 호출 0.
 
 ## 8. 시험 등록 (`test-roundtrip`, 사용자 입회, 1건)
 
@@ -111,4 +120,4 @@ registry `deleted` 행. 사용자는 같은 그룹의 제외 검색어 탭에서
 
 - 기계 정본 = registry. 사람이 읽는 표 = `audit/last-audit.md` "등록 제외 검색어 대조 목록" 에 **회차별 요약 행만**(등록 n · verified n · 실패 n · description) — 이름 원본은 registry에 있다.
 - 재노출 판정 결과 세 가지("등록돼 있는데도 노출"/"등록 누락 → 후보"/"미확인")는 채팅 보고와 07번 각주·12번 1번에 그대로 쓴다.
-- 이 기능으로 생긴 [의도된 동작]·"되돌리면 안 되는 것" 은 `audit/checklist.md` 18~20번·표 하단 6행.
+- 이 기능으로 생긴 [의도된 동작]·"되돌리면 안 되는 것" 은 `audit/checklist.md` 18~20번·표 하단 9행(6행 + 수정 회차 2의 3행).

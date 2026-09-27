@@ -149,7 +149,7 @@ class TestStatusAndJudgement(unittest.TestCase):
         self.assertEqual(X.reexposure_judgement(rows, "a", [d("2026-09-20")])[0], "등록 당일(판정 안 함)")
         self.assertEqual(X.reexposure_judgement(rows, "a", [d("2026-09-19")])[0], "등록 전 노출(정상)")
         self.assertEqual(X.reexposure_judgement(rows, "c", [d("2026-09-22")])[0], "등록 누락 → 후보")
-        self.assertEqual(X.reexposure_judgement(rows, "zzz", [d("2026-09-22")])[0], "미확인(등록 이력 없음)")
+        self.assertEqual(X.reexposure_judgement(rows, "zzz", [d("2026-09-22")])[0], "이력 없음(registry에 없는 이름)")
 
 
 class TestProposal(unittest.TestCase):
@@ -169,12 +169,14 @@ class TestProposal(unittest.TestCase):
         self.assertEqual([k for k, _, _ in p["new"]], ["노원역맛집출구"])          # 첫 등장·클릭0·금지 아님
         self.assertEqual([k for k, _, _ in p["industry"]], ["노원필라테스주말"])   # 업종어 → 별도 묶음
         self.assertEqual({k for k, _, _ in p["blocked"]}, {"노원구운동", "노원역필라테스정원"})
-        self.assertEqual([k for k, _ in p["rereg"]], ["노원역세"])
+        self.assertEqual([k for k, _, _ in p["rereg"]], ["노원역세"])
         judged = {k: j for k, _, j, _ in p["reexposed"]}
         self.assertEqual(judged["노원역카페"], "등록돼 있는데도 노출")
         self.assertEqual(judged["노원역세"], "등록 누락 → 후보")
         self.assertEqual(p["candidates"], ["노원역맛집출구", "노원역세"])
         self.assertIn("건수: 2", p["approval_text"])
+        self.assertIn("이미 등록 1 · 노출 유지(사용자 결정) 0", p["approval_text"])   # 노원역카페(등록됨)가 "이미 등록"으로 셈(검증 판단 3)
+        self.assertEqual(p["n_registered"], 1)
         self.assertNotIn("클릭있음", json.dumps(p, ensure_ascii=False, default=str))
         self.assertNotIn("일치만", json.dumps(p, ensure_ascii=False, default=str))
         p2 = X.build_proposal(rows, sr, day="2026-09-26", first_seen_only=False)
@@ -254,6 +256,101 @@ class TestApiFlows(unittest.TestCase):
 
 
 class TestCliSafety(unittest.TestCase):
+    def test_missing_registry_stops_judging_commands_but_pull_creates(self):
+        """검증 판단 1: registry가 없으면 propose/push/verify/delete/test-roundtrip/report는 [FAIL] … 미확인 exit 1, pull은 새로 만든다."""
+        with tempfile.TemporaryDirectory() as td:
+            reg = os.path.join(td, "없는.csv"); ap = os.path.join(td, "a.txt"); kf = os.path.join(td, "k.keys.json")
+            write_text(ap, "노원역맛집출구\n"); write_text(kf, json.dumps({"api_key": "K", "secret_key": "S"}))
+            cases = [["report"], ["push", "--approved", ap, "--dry-run"], ["verify", "--key-file", kf],
+                     ["delete", "--group", GIDS[0], "--ids", "rk-1", "--key-file", kf, "--confirm"],
+                     ["test-roundtrip", "--keyword", "x", "--group", GIDS[0], "--key-file", kf, "--confirm"]]
+            for argv in cases:
+                with redirect_stdout(io.StringIO()) as buf:
+                    rc = X.main(["--registry", reg] + argv)
+                self.assertEqual(rc, 1, argv)
+                self.assertIn("registry 없음", buf.getvalue(), argv)
+                self.assertIn("미확인", buf.getvalue(), argv)
+                self.assertFalse(os.path.exists(reg), argv)                        # 아무것도 만들지 않는다
+            orig, orig_root = X._default_sender, X.ROOT
+            X._default_sender = FakeSender(); X.ROOT = td                           # 스냅샷은 임시 폴더의 work/ 에
+            try:
+                with redirect_stdout(io.StringIO()) as buf:
+                    rc = X.main(["--registry", reg, "pull", "--key-file", kf])
+            finally:
+                X._default_sender, X.ROOT = orig, orig_root
+            self.assertEqual(rc, 0)
+            self.assertTrue(os.path.exists(reg))                                    # pull만 새로 만든다
+            self.assertIn("스냅샷", buf.getvalue())
+            self.assertTrue(os.path.exists(os.path.join(td, "work", f"exclusions_pull_{X.today()}.json")))
+        with self.assertRaises(X.RegistryUnavailable):                              # 형식이 다른 파일도 멈춤
+            with tempfile.TemporaryDirectory() as td:
+                bad = os.path.join(td, "bad.csv"); write_text(bad, "a,b\n1,2\n")
+                X.load_registry(bad)
+
+    def test_failed_names_come_back_as_candidates_with_reason(self):
+        """검증 판단 2: 등록 실패(failed) 이름은 재노출이 없어도 다음 propose 재등록 후보·report에 사유와 함께 오른다."""
+        import pandas as pd
+        rows = rows_of(("실패이름", "그룹A", "failed", ""))
+        rows[0]["note"] = "2026-09-27 등록 실패: 3723 등록할 수 없는 문자"
+        sr = pd.DataFrame([("다른이름", "확장", "2026.09.26.", 1, 0)], columns=["검색어", "검색 유형", "일별", "노출수", "클릭수"])
+        sr["d"] = sr["일별"].str.rstrip(".").map(lambda s: __import__("datetime").date(*[int(x) for x in s.split(".")]))
+        p = X.build_proposal(rows, sr, day="2026-09-26")
+        self.assertEqual([(k, why) for k, _, why in p["rereg"]], [("실패이름", "2026-09-27 등록 실패: 3723 등록할 수 없는 문자")])
+        self.assertIn("실패이름", p["candidates"])
+        md = X.render_proposal(p)
+        self.assertIn("**직전 실패**: 2026-09-27 등록 실패: 3723", md)
+        rows[0]["status"] = "keep"                                                  # 사용자가 제외하면 사라진다
+        self.assertEqual(X.build_proposal(rows, sr, day="2026-09-26")["rereg"], [])
+        with tempfile.TemporaryDirectory() as td:
+            reg = os.path.join(td, "r.csv"); rows[0]["status"] = "failed"; X.save_registry(reg, rows)
+            with redirect_stdout(io.StringIO()) as buf:
+                X.main(["--registry", reg, "report"])
+            self.assertIn("등록·확인 실패 1개", buf.getvalue())
+            self.assertIn("실패이름", buf.getvalue())
+
+    def test_push_logs_capacity_and_warns_over_limit(self):
+        """검증 판단 4: push는 그룹별 현재+예정을 찍고 max_per_group 초과 예상이면 [주의]; 차단은 하지 않는다."""
+        s = FakeSender(); s.kws[GIDS[0]] = {f"기존{i}": f"rk-{i}" for i in range(3)}
+        logs = []
+        old = X.EX.get("max_per_group")
+        X.EX["max_per_group"] = 4
+        try:
+            res = X.do_push(api_with(s), [], ["새1", "새2"], "desc", log=logs.append)
+        finally:
+            if old is None:
+                X.EX.pop("max_per_group", None)
+            else:
+                X.EX["max_per_group"] = old
+        line = next(m for m in logs if m.startswith("[push] 그룹A: 현재"))
+        self.assertIn("현재 3 + 등록 예정 2 = 5 (한도 추정 4 — [주의] 초과 예상", line)
+        self.assertEqual(res[GIDS[0]]["added"], ["새1", "새2"])                    # 경고만, 등록은 진행(3716은 항목별 실패로 남는다)
+        self.assertTrue(any(m.startswith("[push] 그룹B: 현재 0 + 등록 예정 2 = 2 (한도 추정 4)") for m in logs))
+
+    def test_delete_requires_confirm_and_verify_writes_snapshot(self):
+        """참고 2: delete는 --confirm 없이는 돌지 않는다(dry-run 제외). 참고 1: verify/push도 스냅샷을 쓴다."""
+        with tempfile.TemporaryDirectory() as td:
+            reg = os.path.join(td, "r.csv"); kf = os.path.join(td, "k.keys.json")
+            write_text(kf, json.dumps({"api_key": "K", "secret_key": "S"}))
+            X.save_registry(reg, rows_of(("대기", "그룹A", "pending", "2026-09-27")))
+            with self.assertRaises(SystemExit):
+                X.main(["--registry", reg, "delete", "--group", GIDS[0], "--ids", "rk-1", "--key-file", kf])
+            with redirect_stdout(io.StringIO()) as buf:
+                rc = X.main(["--registry", reg, "delete", "--group", GIDS[0], "--ids", "rk-1", "--dry-run"])
+            self.assertEqual(rc, 0); self.assertIn("호출 0", buf.getvalue())
+            orig_sender, orig_root = X._default_sender, X.ROOT
+            fake = FakeSender(); fake.kws[GIDS[0]] = {"대기": "rk-1"}; fake.kws[GIDS[1]] = {"대기": "rk-2"}; fake.kws[GIDS[2]] = {"대기": "rk-3"}
+            X._default_sender = fake; X.ROOT = td                                  # 스냅샷은 임시 폴더의 work/ 에
+            try:
+                with redirect_stdout(io.StringIO()) as buf:
+                    rc = X.main(["--registry", reg, "verify", "--key-file", kf])
+            finally:
+                X._default_sender, X.ROOT = orig_sender, orig_root
+            self.assertEqual(rc, 0)
+            snap = os.path.join(td, "work", f"exclusions_pull_{X.today()}.json")
+            self.assertTrue(os.path.exists(snap))
+            with open(snap, encoding="utf-8") as f:
+                self.assertEqual(json.load(f)[GIDS[0]]["keywords"], ["대기"])
+
     def test_pull_auth_error_returns_1_and_keeps_registry(self):
         with tempfile.TemporaryDirectory() as td:
             kf = os.path.join(td, "k.keys.json"); reg = os.path.join(td, "r.csv"); shutil.copy(REAL_REG, reg)
@@ -275,10 +372,11 @@ class TestCliSafety(unittest.TestCase):
         for r, gid in zip(rows, GIDS):
             r["group_id"] = gid                                              # pull 뒤 상태: 그룹 ID가 채워져 있다
         plan = X.dry_run_plan(rows, ["있음", "없음"])
-        self.assertEqual([lab for lab, _, _ in plan], [f"그룹A({GIDS[0]})", f"그룹B({GIDS[1]})", f"그룹C({GIDS[2]})"])
-        self.assertEqual([todo for _, todo, _ in plan], [["없음"], ["없음"], ["있음", "없음"]])  # 그룹C는 미등록이라 다시 등록 예정
-        self.assertEqual([skip for _, _, skip in plan], [["있음"], ["있음"], []])
-        self.assertEqual(X.dry_run_plan([], ["x"]), [("(registry 비어 있음 — 3그룹 전부 등록 예정)", ["x"], [])])
+        self.assertEqual([lab for lab, _, _, _ in plan], [f"그룹A({GIDS[0]})", f"그룹B({GIDS[1]})", f"그룹C({GIDS[2]})"])
+        self.assertEqual([todo for _, todo, _, _ in plan], [["없음"], ["없음"], ["있음", "없음"]])  # 그룹C는 미등록이라 다시 등록 예정
+        self.assertEqual([skip for _, _, skip, _ in plan], [["있음"], ["있음"], []])
+        self.assertEqual([n for _, _, _, n in plan], [1, 1, 0])                       # 현재 registry 등록 수(용량 표시용)
+        self.assertEqual(X.dry_run_plan([], ["x"]), [("(registry 비어 있음 — 3그룹 전부 등록 예정)", ["x"], [], 0)])
 
     def test_push_dry_run_zero_http_and_no_file_change(self):
         with tempfile.TemporaryDirectory() as td:

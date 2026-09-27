@@ -13,7 +13,7 @@ registry(API·UI 실물)로 판정한다. 등록·삭제는 승인 뒤에만, �
     python3 scripts/exclusions.py push   --approved <파일> --key-file <keys.json> [--dry-run] [--reason "..."]
                                                                             # 승인 목록을 3그룹에 등록. --dry-run은 HTTP 호출 0·파일 변경 0
     python3 scripts/exclusions.py verify --key-file <keys.json> [--approved <파일>]  # 다시 읽어 verified_at 기록, 없으면 실패
-    python3 scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys.json> [--dry-run]
+    python3 scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys.json> --confirm [--dry-run]
     python3 scripts/exclusions.py test-roundtrip --keyword <시험문자열> --group <adgroup_id> --key-file <keys.json> --confirm [--dry-run]
                                                                             # 시험 1건: 없음 확인 → 등록 → 확인 → 삭제 → 없음 확인(사용자 입회)
     python3 scripts/exclusions.py report                                    # registry 요약
@@ -21,6 +21,8 @@ registry(API·UI 실물)로 판정한다. 등록·삭제는 승인 뒤에만, �
 keys.json: {"api_key": "<엑세스라이선스>", "secret_key": "<비밀키>", "customer_id": 4480035}
   — 저장소·채팅에 두지 않는다. 이 세션에 연결되지 않은 PC 폴더에 두고 경로만 넘긴다. customer_id를 생략하면 config 값.
 네트워크가 막힌 환경(프록시 403)에서는 pull/push/verify가 그 사실을 출력하고 exit 2 — 같은 명령을 PC에서 실행한다.
+registry 파일이 없거나 못 읽으면 propose/push/verify/delete/test-roundtrip/report는 "[FAIL] registry 없음 … (미확인)" exit 1로 멈춘다
+(빈 registry로 판정하면 이력 있는 이름이 신규 후보로 올라오므로). 새로 만드는 명령은 pull·import-ui만.
 값의 정의(문서 = 코드): SKILL.md 5-0단계, references/exclusion-ui.md.
 """
 import argparse
@@ -64,11 +66,26 @@ def registry_path(override=None):
 
 
 # ---------------------------------------------------------------- registry
-def load_registry(path):
+class RegistryUnavailable(Exception):
+    """registry 파일이 없거나 열 수 없다 — 판정 불가(미확인). propose/push/verify/delete/test/report는 여기서 멈춘다."""
+
+
+def load_registry(path, create_ok=False):
+    """registry 읽기. 파일이 없으면 create_ok(pull·import-ui)일 때만 빈 목록, 아니면 RegistryUnavailable."""
     if not os.path.exists(path):
-        return []
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        rows = [dict(r) for r in csv.DictReader(f)]
+        if create_ok:
+            return []
+        raise RegistryUnavailable(f"registry 없음: {path} — 등록 상태를 판정할 수 없어(미확인) 멈춥니다. "
+                                  "저장소를 통째로 받았는지·--registry 경로가 맞는지 확인. 새로 만드는 명령은 pull·import-ui만")
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            header = reader.fieldnames or []
+            rows = [dict(r) for r in reader]
+    except (OSError, UnicodeDecodeError, csv.Error) as e:
+        raise RegistryUnavailable(f"registry를 읽을 수 없음: {path} — {e}")
+    if "keyword" not in header or "status" not in header:
+        raise RegistryUnavailable(f"registry 형식이 다름: {path} — 열 {header} (필요: {REG_COLS})")
     for r in rows:
         for c in REG_COLS:
             r.setdefault(c, "")
@@ -300,8 +317,17 @@ def regtm_to_date(s):
 
 
 # ---------------------------------------------------------------- pull (읽기)
-def do_pull(api, rows, log=print, gids=None, mark_missing=True):
-    """3그룹 GET → registry 갱신. 반환: {gid: {"name":…, "keywords": {kw: item}, "adgroup": {...}}}"""
+def write_snapshot(out):
+    """pull 결과(그룹별 이름 목록)를 work/exclusions_pull_<날짜>.json 에 — Claude가 읽는 파일. 반환 경로."""
+    snap = os.path.join(ROOT, "work", f"exclusions_pull_{today()}.json")
+    os.makedirs(os.path.dirname(snap), exist_ok=True)
+    with open(snap, "w", encoding="utf-8") as f:
+        json.dump({g: {"name": v["name"], "keywords": sorted(v["keywords"])} for g, v in out.items()}, f, ensure_ascii=False, indent=1)
+    return snap
+
+
+def do_pull(api, rows, log=print, gids=None, mark_missing=True, snapshot=False):
+    """3그룹 GET → registry 갱신. 반환: {gid: {"name":…, "keywords": {kw: item}, "adgroup": {...}}}. snapshot=True면 work/ 스냅샷도 쓴다."""
     out = {}
     stamp = today()
     for gid in (gids or target_ids()):
@@ -349,15 +375,17 @@ def do_pull(api, rows, log=print, gids=None, mark_missing=True):
                 r["note"] = (r["note"] + " | " if r["note"] else "") + f"{stamp} API 확인: 미등록 그룹 {', '.join(miss)}"
             keep.append(r)
         rows[:] = keep
+    if snapshot:
+        log(f"[pull] 스냅샷 {write_snapshot(out)}")
     return out
 
 
 def cmd_pull(a):
     api = api_from_args(a)
     path = registry_path(a.registry)
-    rows = load_registry(path)
+    rows = load_registry(path, create_ok=True)  # pull은 registry를 새로 만들 수 있는 명령
     try:
-        out = do_pull(api, rows)
+        do_pull(api, rows, snapshot=True)
     except NetworkBlocked as e:
         print(f"[FAIL] {e}")
         return 2
@@ -365,11 +393,7 @@ def cmd_pull(a):
         print(f"[FAIL] {e}")
         return 1
     save_registry(path, rows)
-    snap = os.path.join(ROOT, "work", f"exclusions_pull_{today()}.json")
-    os.makedirs(os.path.dirname(snap), exist_ok=True)
-    with open(snap, "w", encoding="utf-8") as f:
-        json.dump({g: {"name": v["name"], "keywords": sorted(v["keywords"])} for g, v in out.items()}, f, ensure_ascii=False, indent=1)
-    print(f"[pull] registry 갱신 {path} ({len(rows)}행) · 스냅샷 {snap}")
+    print(f"[pull] registry 갱신 {path} ({len(rows)}행)")
     return 0
 
 
@@ -408,7 +432,7 @@ def do_import_ui(rows, parsed, group_name, date):
 
 def cmd_import_ui(a):
     path = registry_path(a.registry)
-    rows = load_registry(path)
+    rows = load_registry(path, create_ok=True)  # import-ui도 registry를 새로 만들 수 있다(첫 UI 전사)
     with open(a.file, encoding="utf-8") as f:
         parsed = parse_ui_lines(f.read())
     n_reg, n_unreg = do_import_ui(rows, parsed, a.group, a.date or today())
@@ -423,6 +447,12 @@ def load_search_terms(combined_dir):
     sr = pd.read_csv(os.path.join(combined_dir, "검색어.csv"), skiprows=1)
     sr["d"] = sr["일별"].astype(str).str.rstrip(".").map(lambda s: dt.date(*[int(x) for x in s.split(".")]))
     return sr
+
+
+def failure_note(rows, keyword):
+    """직전 등록·확인 실패 사유(failed 행 note) — 재등록 후보 옆에 보여 사용자가 keep(제외)할지 정하게."""
+    notes = sorted({r["note"] for r in rows if r["keyword"] == keyword and r["status"] == "failed" and r["note"]})
+    return " / ".join(notes)[:200]
 
 
 def fmt_groups(gs):
@@ -450,7 +480,7 @@ def reexposure_judgement(rows, keyword, exposure_days):
         return "등록 누락 → 후보", f"미등록 {fmt_groups(unreg)}"
     if status == "keep":
         return "노출 유지(사용자 결정)", ""
-    return "미확인(등록 이력 없음)", ""
+    return "이력 없음(registry에 없는 이름)", ""
 
 
 def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
@@ -466,6 +496,7 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
     first_seen = sr.groupby("검색어")["d"].min()
     agg = ext.groupby("검색어").agg(imp=("노출수", "sum"), clk=("클릭수", "sum"), days=("d", lambda s: sorted(set(s))))
     new, industry, blocked, already, reexposed, rereg_names = [], [], [], [], [], set()
+    n_registered = 0  # 창 안에 나왔지만 이미 등록돼 있어 후보가 아닌 이름 수(승인 문구 "이미 등록 m")
     for kw, r in agg.iterrows():
         status, reg, unreg = registration_status(rows, kw)
         judge, why = reexposure_judgement(rows, kw, r["days"])
@@ -473,6 +504,8 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
             reexposed.append((kw, int(r["imp"]), judge, why))
             if status in ("partial", "unregistered"):
                 rereg_names.add(kw)
+            else:
+                n_registered += 1
             continue
         if status == "keep":
             already.append((kw, int(r["imp"]), "노출 유지(사용자 결정)"))
@@ -491,27 +524,27 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
             industry.append(entry)  # 업종어 포함 — 기본 후보 아님, 사용자가 고르면 승인 목록에 넣는다
         else:
             new.append(entry)
-    # 재등록 후보: registry에 미등록·일부 누락으로 적힌 이름 전부(이번 창에 안 나온 것 포함)
+    # 재등록 후보: registry에 미등록·누락·등록 실패로 적힌 이름 전부(이번 창에 안 나온 것 포함) — 실패한 이름도 조용히 사라지지 않는다
     rereg = []
-    for kw in sorted({r["keyword"] for r in rows if r["status"] in ("unregistered", "missing", "partial")} | rereg_names):
+    for kw in sorted({r["keyword"] for r in rows if r["status"] in ("unregistered", "missing", "partial", "failed")} | rereg_names):
         status, reg, unreg = registration_status(rows, kw)
         if status in ("unregistered", "partial"):
             if blocked_reason(kw):
                 blocked.append((kw, 0, blocked_reason(kw) + "(등록 기록 있음 — 사용자 확인)"))
                 continue
-            rereg.append((kw, sorted(unreg)))
+            rereg.append((kw, sorted(unreg), failure_note(rows, kw)))
     new.sort(key=lambda x: (-x[1], x[0]))
     industry.sort(key=lambda x: (-x[1], x[0]))
-    cands = [k for k, _, _ in new] + [k for k, _ in rereg if k not in {n[0] for n in new}]
+    cands = [k for k, _, _ in new] + [k for k, _, _ in rereg if k not in {n[0] for n in new}]
     names = [group_label(rows, t["adgroup_id"]) for t in targets()]
     if all(n == t["adgroup_id"] for n, t in zip(names, targets())):  # 첫 pull 전: registry의 그룹명(UI 전사)으로 표기
         names = sorted({r["group_name"] for r in rows if r["group_name"] != STAR}) or names
     text = ("제외 검색어 등록 승인 요청 — 대상: 파워링크 3그룹(" + ", ".join(names) + ') "확장 검색" 칸 / '
             f"건수: {len(cands)} / 목록: " + " · ".join(cands) +
-            f" / 제외한 것: 금지 패턴·경쟁사 {len(blocked)} · 이미 등록 {len(already)}\n"
+            f" / 제외한 것: 금지 패턴·경쟁사 {len(blocked)} · 이미 등록 {n_registered} · 노출 유지(사용자 결정) {len(already)}\n"
             '답: "등록 승인 N개" (뺄 이름이 있으면 적어 주세요 — 그만큼 뺀 뒤 다시 확인합니다). 답이 오기 전에는 아무것도 등록하지 않습니다.')
     return dict(window=(lo, hi), new=new, industry=industry, rereg=rereg, blocked=blocked, already=already,
-                reexposed=reexposed, candidates=cands, approval_text=text)
+                reexposed=reexposed, candidates=cands, approval_text=text, n_registered=n_registered)
 
 
 def render_proposal(p):
@@ -521,8 +554,9 @@ def render_proposal(p):
     L += [f"- {k} — 노출 {imp} · 첫 등장 {fs}" for k, imp, fs in p["new"]] or ["- (없음)"]
     L.append(f"\n## 업종어 포함 {len(p['industry'])}개 (config industry_terms — 기본 후보 아님, 뺄 이름은 사용자가 고른다)")
     L += [f"- {k} — 노출 {imp} · 첫 등장 {fs}" for k, imp, fs in p["industry"]] or ["- (없음)"]
-    L.append(f"\n## 재등록 후보 {len(p['rereg'])}개 (registry에 미등록·일부 그룹 누락으로 기록된 이름)")
-    L += [f"- {k} — 미등록 {fmt_groups(g)}" for k, g in p["rereg"]] or ["- (없음)"]
+    L.append(f"\n## 재등록 후보 {len(p['rereg'])}개 (registry에 미등록·일부 그룹 누락·등록 실패로 기록된 이름)")
+    L += [f"- {k} — 미등록 {fmt_groups(g)}" + (f" — **직전 실패**: {why} (반복 실패면 registry status=keep으로 제외)" if why else "")
+          for k, g, why in p["rereg"]] or ["- (없음)"]
     L.append(f"\n## 재노출 판정 {len(p['reexposed'])}건 (등록 이력이 있는 이름의 창 안 확장 노출)")
     L += [f"- {k} — 노출 {imp} — **{j}** {w}" for k, imp, j, w in p["reexposed"]] or ["- (없음)"]
     L.append(f"\n## 후보에서 뺀 것 {len(p['blocked'])}개 (config never_exclude_patterns·competitors)")
@@ -579,11 +613,11 @@ def item_ok(item):
     return bool(item.get("nccAdgroupRestrictKwdId")) and (code in (None, 0, "0"))
 
 
-def do_push(api, rows, names, description, log=print, chunk=50):
+def do_push(api, rows, names, description, log=print, chunk=50, snapshot=False):
     """쓰기 전 읽기(pull) → 그룹별로 아직 없는 이름만 POST → 응답 항목별 성공/실패 → registry(pending/failed).
     반환 {gid: {"added": [...], "skipped": [...], "failed": [(kw, msg)]}}"""
     stamp = today()
-    current = do_pull(api, rows, log=log, mark_missing=False)
+    current = do_pull(api, rows, log=log, mark_missing=False, snapshot=snapshot)
     result = {}
     for gid in target_ids():
         name = current[gid]["name"]
@@ -591,6 +625,9 @@ def do_push(api, rows, names, description, log=print, chunk=50):
         todo = [k for k in names if k not in have]
         skipped = [k for k in names if k in have]
         added, failed = [], []
+        cap = int(EX.get("max_per_group") or 0)
+        log(f"[push] {name}: 현재 {len(have)} + 등록 예정 {len(todo)} = {len(have) + len(todo)}"
+            + (f" (한도 추정 {cap}{' — [주의] 초과 예상: 3716 오류 항목은 failed로 남고 우선순위를 다시 승인받는다' if len(have) + len(todo) > cap else ''})" if cap else ""))
         for i in range(0, len(todo), chunk):
             part = todo[i:i + chunk]
             try:
@@ -620,10 +657,10 @@ def do_push(api, rows, names, description, log=print, chunk=50):
     return result
 
 
-def do_verify(api, rows, names, log=print):
+def do_verify(api, rows, names, log=print, snapshot=False):
     """다시 읽어 names가 3그룹 모두에 있는지. 있으면 registered+verified_at, 없으면 failed. 반환 {gid: missing[]}"""
     stamp = today()
-    current = do_pull(api, rows, log=log, mark_missing=False)
+    current = do_pull(api, rows, log=log, mark_missing=False, snapshot=snapshot)
     missing = {}
     for gid in target_ids():
         name = current[gid]["name"]
@@ -642,7 +679,7 @@ def do_verify(api, rows, names, log=print):
 
 
 def dry_run_plan(rows, names):
-    """registry만으로 그룹별 계획 [(라벨, 등록 예정, 건너뜀)]. 첫 pull 전(그룹 ID↔이름 매핑 없음)에는 registry의 그룹명 기준."""
+    """registry만으로 그룹별 계획 [(라벨, 등록 예정, 건너뜀, 현재 registry 등록 수)]. 첫 pull 전(그룹 ID↔이름 매핑 없음)에는 registry의 그룹명 기준."""
     plan = []
     mapped = {gid: group_label(rows, gid) for gid in target_ids()}
     if all(name == gid for gid, name in mapped.items()):
@@ -650,12 +687,12 @@ def dry_run_plan(rows, names):
         groups = groups or [(None, "(registry 비어 있음 — 3그룹 전부 등록 예정)")]
         for g, label in groups:
             have = {r["keyword"] for r in rows if r["status"] == "registered" and g is not None and r["group_name"] == g}
-            plan.append((label, [k for k in names if k not in have], [k for k in names if k in have]))
+            plan.append((label, [k for k in names if k not in have], [k for k in names if k in have], len(have)))
         return plan
     for gid, name in mapped.items():
         have = {r["keyword"] for r in rows if r["status"] == "registered"
                 and (r["group_id"] == gid or (not r["group_id"] and r["group_name"] == name))}
-        plan.append((f"{name}({gid})", [k for k in names if k not in have], [k for k in names if k in have]))
+        plan.append((f"{name}({gid})", [k for k in names if k not in have], [k for k in names if k in have], len(have)))
     return plan
 
 
@@ -672,8 +709,10 @@ def cmd_push(a):
     rows = load_registry(path)
     if a.dry_run:  # 할 일 목록만 — HTTP 호출 0 · registry 변경 0. 실제 push는 registry가 아니라 API를 다시 읽어(pull) 정한다
         print(f"[dry-run] HTTP 호출 0 · registry 변경 0. 승인 {len(ok)}개 · description='{description}' · 아래는 registry 기준 계획")
-        for label, todo, skip in dry_run_plan(rows, ok):
-            print(f"[dry-run] {label}: 등록 예정 {len(todo)} · registry에 이미 등록 {len(skip)}")
+        cap = int(EX.get("max_per_group") or 0)
+        for label, todo, skip, have_n in dry_run_plan(rows, ok):
+            print(f"[dry-run] {label}: 등록 예정 {len(todo)} · registry에 이미 등록 {len(skip)} · 현재 registry 등록 {have_n}"
+                  + (f" → 등록 후 {have_n + len(todo)}/{cap}(추정)" if cap else ""))
             if todo:
                 print("           등록: " + " · ".join(todo))
             if skip:
@@ -683,7 +722,7 @@ def cmd_push(a):
     try:
         res = do_push(api, rows, ok, a.reason or description)
         save_registry(path, rows)
-        miss = do_verify(api, rows, ok)
+        miss = do_verify(api, rows, ok, snapshot=True)  # 등록 뒤 다시 읽은 목록이 그날의 스냅샷
     except NetworkBlocked as e:
         save_registry(path, rows)
         print(f"[FAIL] {e}")
@@ -708,7 +747,7 @@ def cmd_verify(a):
         print("[verify] 확인할 이름이 없습니다(pending 0)")
         return 0
     try:
-        miss = do_verify(api, rows, names)
+        miss = do_verify(api, rows, names, snapshot=True)
     except NetworkBlocked as e:
         print(f"[FAIL] {e}")
         return 2
@@ -726,6 +765,8 @@ def cmd_delete(a):
     if a.dry_run:
         print(f"[dry-run] DELETE {a.group} ids={ids} — 호출 0")
         return 0
+    if not a.confirm:
+        raise SystemExit("--confirm 이 필요합니다(삭제도 승인 대상 — 사용자가 화면을 보는 자리에서만 실행)")
     api = api_from_args(a)
     path = registry_path(a.registry)
     rows = load_registry(path)
@@ -803,8 +844,11 @@ def cmd_report(a):
     print(f"registry {registry_path(a.registry)} · {len(rows)}행")
     for (g, s), n in sorted(c.items()):
         print(f"  {g:<12} {s:<12} {n}")
-    un = sorted({r['keyword'] for r in rows if r['status'] in ('unregistered', 'partial', 'missing')})
-    print(f"  미등록·누락 이름 {len(un)}개: " + " · ".join(un))
+    un = sorted({r['keyword'] for r in rows if r['status'] in ('unregistered', 'partial', 'missing', 'failed')})
+    print(f"  미등록·누락·실패 이름 {len(un)}개: " + " · ".join(un))
+    fl = sorted({r['keyword'] for r in rows if r['status'] == 'failed'})
+    if fl:
+        print(f"  그중 등록·확인 실패 {len(fl)}개(다음 propose 재등록 후보에 사유와 함께 오름): " + " · ".join(fl))
     return 0
 
 
@@ -817,11 +861,15 @@ def main(argv=None):
     s = sub.add_parser("propose"); s.add_argument("combined"); s.add_argument("--day"); s.add_argument("--since"); s.add_argument("--all", action="store_true"); s.add_argument("--out"); s.set_defaults(fn=cmd_propose)
     s = sub.add_parser("push"); s.add_argument("--approved", required=True); s.add_argument("--key-file"); s.add_argument("--dry-run", action="store_true"); s.add_argument("--reason"); s.set_defaults(fn=cmd_push)
     s = sub.add_parser("verify"); s.add_argument("--key-file"); s.add_argument("--approved"); s.set_defaults(fn=cmd_verify)
-    s = sub.add_parser("delete"); s.add_argument("--group", required=True); s.add_argument("--ids", required=True); s.add_argument("--key-file"); s.add_argument("--dry-run", action="store_true"); s.set_defaults(fn=cmd_delete)
+    s = sub.add_parser("delete"); s.add_argument("--group", required=True); s.add_argument("--ids", required=True); s.add_argument("--key-file"); s.add_argument("--confirm", action="store_true"); s.add_argument("--dry-run", action="store_true"); s.set_defaults(fn=cmd_delete)
     s = sub.add_parser("test-roundtrip"); s.add_argument("--keyword", required=True); s.add_argument("--group", required=True); s.add_argument("--key-file"); s.add_argument("--confirm", action="store_true"); s.add_argument("--dry-run", action="store_true"); s.set_defaults(fn=cmd_test_roundtrip)
     s = sub.add_parser("report"); s.set_defaults(fn=cmd_report)
     a = ap.parse_args(argv)
-    return a.fn(a)
+    try:
+        return a.fn(a)
+    except RegistryUnavailable as e:  # 판정 불가(미확인) — 아무것도 제안·등록하지 않고 멈춘다
+        print(f"[FAIL] {e}")
+        return 1
 
 
 if __name__ == "__main__":
