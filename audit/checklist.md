@@ -14,7 +14,9 @@
 개선안 이월 표)로 분리하고, 저장소 SKILL.md에 "갱신 회차는 registry + updates 최근 절, 진단 회차는 셋 다"를 명시한다
 (부트스트랩은 저장소 SKILL.md를 따르므로 재업로드 불필요). 2026-09-26 회차에는 분리하지 않았다.
 
-버전: v4.4 (2026-09-26 수정 회차 — 개정안 1~12·14(계획)·15 채택: 2회 커밋 규칙, 합본 방식·I-9, 설치본 매 회차 확인,
+버전: v4.5 (2026-09-27 기능 추가 회차 — 제외 검색어 등록 자동화 `scripts/exclusions.py`(브랜치 `feat-exclusions`): [의도된 동작] 18~20 추가(등록 여부는 registry로 판정·묻지 않음 / 후보 규칙 / 경로 C PC 실행),
+"되돌리면 안 되는 것" 6행 추가(dry-run 무전송·금지 패턴 거부·verified:false=실패·확장 칸만·쓰기 전 읽기·시험 1건), [의도된 동작] 9 뒤 한 줄. 검증은 별도 세션, main 병합 전.
+v4.4 (2026-09-26 수정 회차 — 개정안 1~12·14(계획)·15 채택: 2회 커밋 규칙, 합본 방식·I-9, 설치본 매 회차 확인,
 [의도된 동작] 17개(15 + 회차 산물 2)·"되돌리면 안 되는 것" 표 신설, 판정 기준(행수·md5·grep·직전 세션), 마무리(토큰 폐기·PC push),
 효율 기준선 표 상시화, web_fetch 대조군 삭제, 대상 목록 갱신, 실 CSV 항목 종결, 파괴 실험에 archive 7종·overflow 추가.
 v4.3: 2026-09-08 파괴 실험을 tests/mutation_test.py로 이관)
@@ -151,7 +153,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 6. 07번 "클릭 0 검색어 전체 N개·N회" 각주는 **경쟁사 포함**, "노출 5회 이상" 컴팩트 목록은 경쟁사 제외. "확장·클릭 0 노출"은 **행 단위**(검색어 단위 아님).
 7. 06번 카드: OFF 확정 그룹(노원키즈)은 카드 제거, 04번 행은 `(9/2 등록 · 9/17 OFF)`로 유지, `excluded_groups`에는 넣지 않음(실집행 있음). 카드 "N일차"는 등록일 포함 일수, 매칭표 순위는 소수 1자리(04번은 2자리).
 8. 08번 컴팩트 목록 지역명 축약(`서울특별시 ` 생략, `전남광주통합특별시 북구`→`광주 북구`, `인천광역시`→`인천`, `세종특별자치시`→`세종시`).
-9. "운동" 계열(창동역운동 등 6개)·산전·산후·임산부 계열은 제외 검색어 대상 아님(09-21·09-24 사용자 결정). "노원역운동"은 등록돼 있지 않음(09-25) — 둘 다 다시 묻지 않음.
+9. "운동" 계열(창동역운동 등 6개)·산전·산후·임산부 계열은 제외 검색어 대상 아님(09-21·09-24 사용자 결정). "노원역운동"은 등록돼 있지 않음(09-25) — 둘 다 다시 묻지 않음. **(2026-09-27) 제외 검색어의 등록 여부는 스킬이 registry(`audit/exclusions.csv`)로 판정하고 사용자에게 묻지 않는다** — 이 계열은 config `exclusions.never_exclude_patterns`로 후보에서 자동 제외되고 승인 목록에 있어도 코드가 거부한다.
 10. 파트너 매체(다음·네이트·Bing)는 "해제"인데 노출이 잡힘 — 네이버 답변을 사용자가 전하기 전까지 12·11번에 올리지 않고 채팅으로도 묻지 않음(09-24). 파워링크 예산 현행 유지(09-17)·지역 설정 전국(09-20)·플레이스 일예산 상향 유지(09-21)는 각각 걸어둔 재상정 조건 전까지 다시 올리지 않음.
 11. 노원M필라테스는 경쟁사표 미복귀(09-14 사용자 결정), 클릭 1건 목록에 둠. 필라테스안 계열은 제외 확정(09-26). 경쟁사 채택·제외·종결은 last-audit.md `## 경쟁사 판정 이력` 표가 정본.
 12. 09번 심야 = 22·23·0~8시(09시 배타), 비중은 정수 반올림. 09번 min-width 650px은 고정(config 대상 아님). 심야 서술은 긍정 톤 유지.
@@ -160,6 +162,9 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 15. 11번은 12번 확정 뒤 맨 마지막에 쓴다. 상계동필라테스는 하루 30회 이상 이틀 전까지 카드 유지. 사용자 답을 기다리며 배포하는 회차는 validate.py `--pending`으로 잔존 문구 검사를 허용한다(4c08ab3 유형) — 답을 반영한 재배포는 엄격.
 16. (2026-09-26 수정 회차로 생긴 것) 5단계 숫자는 `scripts/compute.py` 출력만 쓴다 — 정의는 report-structure.md 각 절 "정의(compute.py)" 줄과 1:1. validate.py는 compute.py와 **값 계산을 공유하지 않는** 독립 검산(reportlib은 읽기·필터·일수·섹션까지). validate 검사 개수는 실행 출력을 센다(2026-09-26 기준 22개). compare.py 차이 0(2026-09-27 기준 95항목)·overflow 3폭·mutation_test(validate 22 + 0건 가드 14 + archive 7)는 배포 전·점검 때 전부 돌린다. precheck.sh 3번째 인자는 4단계 fetch 파일(직전 배포본) — 작업본과 같으면 exit 1이 정상이고, 진단 회차 재현 시험은 그 배포본의 직전 배포를 넣는다.
 17. (2026-09-27) `tests/overflow_check.py`는 컨테이너에서 cdnjs가 막혀 **Chart.js 미로드 상태**로 scrollWidth를 잰다 — 차트 canvas 폭은 validate 검사 9(min-width)가 따로 보고, 라이브에서의 차트 넘침은 사용자 시크릿 창 확인 몫이다. 결함 아님.
+18. (2026-09-27 기능 추가) 제외 검색어 자동화(SKILL.md 5-0단계·`references/exclusion-ui.md`)의 **등록 상태 정본은 `audit/exclusions.csv`(registry)** — 재노출된 이름은 "등록돼 있는데도 노출 / 등록 누락 → 후보 / 미확인" 셋 중 하나로 **묻지 않고** 보고한다. 대조 목록 표는 회차별 요약 행만 받는다(이름 원본은 registry). registry 초기값은 09-27 UI 전사(340행, `source=ui`·`record`, `group_id` 빈칸)라 첫 `pull` 전에는 그룹 ID 매핑이 없고 `*` 기록 행이 남아 있는 것이 정상 — pull이 채우고 지운다.
+19. (2026-09-27 기능 추가) 후보 규칙: `확장` 행·정확 일치·클릭 0·창 안 첫 등장만 신규 후보. `industry_terms`(필라테스·필테) 포함 이름은 "업종어 포함" 묶음으로만 보이고 기본 후보가 아니다(6세필라테스처럼 이미 제외한 이름이 있어도). 클릭이 있는 이름은 후보로 올리지 않는다(07번 표에서 사람이 본다). 이전 CSV에 있었던 이름은 `--all` 없이는 후보에 안 오른다. 전부 의도된 동작.
+20. (2026-09-27 기능 추가) 이 환경(브라우저 2종·컨테이너·PC 연결 셸)은 광고시스템·`api.searchad.naver.com`이 막혀 있어(탐색 기준선 0절) `pull`·`push`·`verify`·`test-roundtrip`은 **사용자 PC의 일반 셸**에서 돈다(경로 C). 스크립트가 `[FAIL] 네트워크 차단(프록시)` exit 2를 내는 것은 결함이 아니다. API `CUSTOMER_ID`(4480035)가 광고주센터 URL 계정번호(2580077)와 다른 것도 정상.
 
 [되돌리면 안 되는 것 — 이게 그대로 있는지 확인해라] (2026-09-26 신설)
 
@@ -187,6 +192,12 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | deploy.py `--dry-run`은 PUT을 보내지 않고 파일도 쓰지 않는다 | 검증 회차가 실수로 배포한다 | scripts/deploy.py |
 | 잔존 문구는 validate 검사 21(07 각주·11·12번) 한 곳에서만 보고, **답을 반영한 재배포에 `--pending` 금지** | 답 대기용 예외가 상시 예외가 돼 "확인 요청" 문구가 배포본에 남는다(4c08ab3 유형이 정상 배포로 통과) | validate.py check_11_12 · precheck.sh · SKILL.md 6·8단계 |
 | precheck.sh 3번째 인자 = 4단계 fetch 파일(직전 배포본), 작업본과 md5 같으면 exit 1 | 작업본의 경쟁사표가 정본이 돼 config 밖 브랜드 행 추가를 못 막는다(2026-09-27 검증 (c): 옛 호출 0 DIFF → 새 호출 DIFF 1) | scripts/precheck.sh · compute.py `--competitors-html` |
+| exclusions.py `push --dry-run`·`delete --dry-run`·`test-roundtrip --dry-run`은 **HTTP 호출 0·registry 변경 0**(test_exclusions `test_push_dry_run_zero_http_and_no_file_change`) | 검증 회차가 실수로 광고 계정에 등록한다 | scripts/exclusions.py cmd_push·cmd_delete·cmd_test_roundtrip |
+| `never_exclude_patterns`·`competitors` 해당 이름은 승인 목록에 있어도 **거부**(`[거부]`), 후보 산출에서도 자동 제외 | 산전·산후·임산부·운동 계열·경쟁사명이 파워링크 확장 노출에서 조용히 차단된다(09-21·09-24 사용자 결정 위배) | scripts/exclusions.py blocked_reason·split_blocked·build_proposal |
+| 등록 응답이 성공이어도 **다시 읽어(verify) 목록에 없으면 `failed`** — `verified_at`은 읽기 확인을 통과한 이름에만 | "등록했다"고 기록했는데 실물엔 없는 상태가 재노출로만 드러난다(09-23 22개 누락 유형) | scripts/exclusions.py do_verify·do_test_roundtrip(`verified:false`) |
+| 대상은 **"확장 검색" 칸만**(`type=EXP_SEARCH` — GET에도 반드시 붙인다) · 그룹은 config `exclusions.targets` 3개 · 플레이스·`일치(유사검색어)` 칸·`+ 전체추가` 금지 | GET의 기본 type은 다른 칸이라 목록이 비어 보이고, 전체추가는 수백 개를 한 번에 제외한다 | scripts/exclusions.py NaverApi.restricted·add_restricted · references/exclusion-ui.md 4절 |
+| **쓰기 전 읽기**: push는 pull로 현재 목록을 읽어 그룹별로 없는 이름만 POST, "이미 등록했었냐"는 registry로 판정하고 묻지 않는다 | 중복 POST·사용자 질문이 매 회차 되살아난다(09-25·09-26 "다시 묻지 말 것" 기록) | scripts/exclusions.py do_push·registration_status |
+| 실제 등록 시험은 **1건·사용자 입회·`--confirm`·등록→확인→삭제까지** — 실제 이름으로 대량 시험 금지 | 시험 데이터가 계정에 남거나 실제 노출이 막힌다 | scripts/exclusions.py cmd_test_roundtrip · checklist [검증 회차] |
 
 [알려진 이월 항목]
 
@@ -370,6 +381,10 @@ A 는 사실 확인이라 답이 하나뿐이고, B 는 원저자만 할 수 있
 
 **수정하면서 원래 제안을 바꿨으면 기준선에 그 사실과 이유를 반드시 남겨라.**
 B 검증이 그 대목만 따로 볼 수 있어야 한다.
+
+**C. 외부에 쓰는 기능(제외 검색어 등록 등)의 검증에 반드시 들어가는 재현 4개(2026-09-27)**: ① 시험 등록 1건(사용자 입회, 등록→확인→삭제, `test-roundtrip --confirm`)
+② dry-run 무변경(`push --dry-run` 전후 registry 행수·md5 동일, HTTP 호출 0) ③ 금지 패턴 차단(승인 목록에 `노원역운동` 류를 넣어도 `[거부]`)
+④ 확인 실패 경로(`verified:false`)가 실패로 보고되는지(`tests/test_exclusions.py`의 drop_after_post 시험). 실제 광고 계정에 쓰는 것은 ①의 1건뿐이고 나머지는 가짜 API·사본으로.
 
 [마무리 — 기준선 갱신]
 진단이 끝나면 스킬 저장소(saero-ad-report-skill)의 두 파일을 갱신하고 push한다. **커밋은 두 번이다**
