@@ -382,6 +382,29 @@
 
 1. **API 비밀키 재발급**(09-27 채팅에 키가 보이는 화면이 올라왔음) → PC에 `naver-api.keys.json`(저장소 밖). 2. PC에서 `pull` → 출력의 그룹명 3개·`userLock`·`useAdvoost`·`[주의]` 줄 확인, registry `group_id` 채워졌는지·`*` 행 정리·`missing` 발생 여부(있으면 그 이름들이 진짜 없는지 UI로 한 번) → 이 결과가 **2-3절 요청 3(ID↔그룹명)의 답**. 3. `test-roundtrip` 1건 입회. 4. 첫 자동 회차: `propose` → 승인 문구 → 사용자 답 → PC `push`(33개 안팎) → 대조 목록 표에 요약 행 → 다음 날부터 재노출 판정. 5. 첫 실사용 결과를 이 파일 "첫 실사용 기록"에.
 
+
+## 검증·병합 기록 (2026-09-27 — 제외 검색어 기능 추가 회차: 검증 1 → 수정 회차 2 → 검증 2 통과 → main 병합)
+
+**병합**: `feat-exclusions`(최종 `fd5626a` = 53356d1 구현 · a615a84 기록 · a8c8c12 수정 2 · fd5626a 기록 2)을 main(`11c0bc2` — 분기 뒤 main 커밋 없음)에 `git merge --no-ff` → 병합 커밋 **`6a35abf`**(부모 11c0bc2·fd5626a). 충돌 0, 병합 tree = fd5626a tree(`git diff fd5626a` 0행).
+사용자 명시 승인("main에 합쳐", 2026-09-27) 뒤 병합. 브랜치 `feat-exclusions`는 지우지 않고 둔다. 코드·문서 재수정 없음(이 절 + 대조 목록 머리말 한 구절 + "다음 점검에서 대조할 것" 추가만). 이 절의 기록 커밋 해시는 자기 참조라 본문에 적지 않는다.
+위 "구현 기록"·"수정 기록 2" 표제의 `main 미반영`은 당시 사실 — 원문 보존, 이 절로 정정(**2026-09-27 main 반영**).
+
+**검증 1**(`saero-ad-report_검증_2026-09-27.md` 143행, 별도 세션, 대상 a615a84): 기준값·재현 ①~⑨ 전부 재현. 판단 요청 4건(registry 없으면 조용히 진행 / failed 이름 소멸 / "이미 등록 m" 라벨≠값 / 남은 용량 문서>코드) + 참고 2건(스냅샷·`delete --confirm`) → 조정 세션(이 세션)이 브랜치 코드에서 실물 확인 → 사용자 "고쳐" → **수정 회차 2**(a8c8c12·fd5626a, 위 "수정 기록 2").
+**검증 2**(`saero-ad-report_검증2_2026-09-27.md` 96행, 같은 검증 세션, 대상 fd5626a): **재현 실패 0건 → main 병합 승인.** 참고 4건(결함 아님): ① 첫 pull 뒤 재등록 후보 줄의 "미등록 …"이 그룹명 대신 그룹 ID로 찍힘(`registration_status` `g = group_id or group_name`, `fmt_groups`는 `*`만 치환) — 읽기 편의, 판정·건수 영향 0 → 이월 ② 승인 문구(propose, 오프라인)에는 용량이 없고 dry-run·push 출력에만 ③ SKILL 5-0 1항의 "멈추는 명령"은 셋만 적음(references·checklist는 여섯 — 부분집합) ④ dry-run의 "현재 registry 등록 n"은 UI 전사 기준 추정(첫 pull 뒤 API 기준으로 맞춰짐).
+
+**병합 main에서 전체 세트 재실행** [실측] — 합본 = `data/` 보관본 `archive.py combine`(사본 폴더 `combined_merge`, 앞선 합본 4파일과 바이트 동일: 키워드 265f47fa·검색어 940600ac·상세지역 a08d0371·시간대별 5b2e7aaa), 작업본 = 배포본 `277889d`(git clone, md5 94b436f2…), 직전 배포본 = `ad48222`(md5 4defb16a…). 배포 저장소 HEAD `277889d` 그대로, **PUT 없음**:
+combine **PASS**(32일 · 9,737/302/344,274원) → validate **22 PASS / 0 FAIL** → compute(`--competitors-html` ad48222: KPI 9,731/302/3.1%/344,274원, 경쟁사 25행, 신규 변형 후보 []) → compare **OK 95 / DIFF 0** → mutation_test **43 [OK]**([MISS]/[UNCOVERED]/[SKIP] 0) → precheck.sh(277889d · 합본 · ad48222) 6단계 전부 통과, overflow 360/390/430 넘침 0 → **`tests/test_exclusions.py` 20 OK**, `audit/exclusions.csv` 3c4c8232 불변. 병합 전(브랜치 tree)·병합 뒤(main) 두 번 돌려 같은 값.
+네이버 계정 쓰기 0(이 회차 전체 — 탐색·구현·검증·병합 어디서도 등록·삭제 호출 없음). 저장소 push는 클라우드 git 프록시 403이라 전부 PC(device_bash)에서.
+
+**부트스트랩**: 설치본 SKILL.md는 저장소 주소·받는 방법 그대로 → **재업로드 불필요(설치본 불변)**. 다음 갱신 회차부터 부트스트랩 clone이 main = 병합본(5-0단계·`scripts/exclusions.py`·registry)을 받는다.
+
+**첫 실사용에서 볼 것**(전부 사용자 PC, 순서대로 — SKILL.md 5-0단계·references/exclusion-ui.md 3절):
+1. **API 비밀키 재발급**(09-27 채팅에 키가 보이는 화면이 올라왔음) → `C:\Users\<사용자>\naver-api.keys.json`(연결 폴더·저장소·채팅 밖).
+2. `python scripts\exclusions.py pull --key-file <keys>` **읽기만** → 출력의 그룹명 3개(= 탐색 기준선 2-3절 요청 3의 답)·`userLock`·`useAdvoost`·`[주의]` 줄 / registry `group_id` 채워졌는지·`*` 행 정리·`missing` 발생 이름(있으면 UI로 한 번 확인) → 결과를 이 파일 "첫 실사용 기록"에.
+3. `test-roundtrip --keyword saero제외테스트<날짜> --group <adgroup_id> --key-file <keys> --confirm` **1건·사용자 입회**(제외 검색어 탭에서 생겼다 사라지는지) → `PASS`·registry `deleted` 1행.
+4. 첫 자동 회차: `propose` → 승인 문구 → "등록 승인 N개"(미등록 33개 안팎) → `push --dry-run` → `push --key-file` → 출력(그룹별 성공·실패·verify)·`audit/exclusions.csv`·`work/exclusions_pull_<날짜>.json` → 대조 목록 표에 요약 행 → 다음 날부터 재노출 판정("등록돼 있는데도 노출" 0이어야 정상).
+5. 이월: 검증 2 참고 ①(그룹 ID → 그룹명 표기) · 탐색 기준선 4절 236행(승인 문구에 그룹별 현재 개수 — propose가 오프라인이라 registry 기준 추정치로 넣을지) · `import-ui` 실사용 여부(API가 되면 안 쓰는 경로).
+
 ---
 
 # 점검 기준선
@@ -663,6 +686,7 @@ SKILL.md 303~318 "매번 함께 바꿔야 할 텍스트"·320~347 "배포 전 �
 - (이번 회차 변경 없음 — 1차 커밋은 last-audit.md만. 채택 후 2차 커밋에서 v4.4로.)
 
 ## 다음 점검에서 대조할 것
+- (2026-09-27 제외 검색어 병합 `6a35abf`) **첫 실사용**(PC `pull` → 시험 1건 → 첫 `push`) 기록이 "첫 실사용 기록"에 있는지 · 그룹 ID↔그룹명 3개가 registry에 채워졌는지 · 대조 목록 표에 요약 행이 생겼는지 · `--registry` 없음 exit 1·dry-run 무변경·거부·verified:false(checklist [검증 회차] C) 재현 · 검증 2 참고 ①(그룹 ID 표기) 채택 여부.
 - (2026-09-27 병합) **첫 실사용 갱신 회차**(병합본 main으로 도는 첫 회차)가 새 절차대로 돌았는지 기록으로 대조: 1단계 `scripts/ingest.sh`(store→combine→data push) · 4단계 `deploy.py fetch --out /home/claude/work/prev.html` + `cp` 작업본 · 5단계 `compute.py --competitors-html prev.html`(즉석 계산 0) · 6단계 `precheck.sh` **3인자**(작업본·합본·prev.html, 답 반영 재배포에 `--pending` 없음) · 8단계 양식(**효율 3항목** 벽시계·도구 호출·즉석 코드 + **`--pending` 사용: 아니오/예** 칸). 하나라도 빠지면 다음 진단 회차가 결함으로 올린다.
 - (2026-09-27 검증 2 참고 ②) `tests/mutation_test.py`에 검사 21의 **07 각주(`class="note"`) 잔존 문구 변조 + 0건 가드 추가** — 지금은 11·12번 본문 변조·가드만 있다. 다음 회차 후보(코드 변경이라 진단 → 사용자 선택 → 수정 순서).
 - (2026-09-27 병합) config 별칭(`competitor_aliases`) 후보 — 바로 아래 검증 (c) 줄 그대로 이월. 채택 여부는 다음 진단 회차가 올린다.
@@ -839,7 +863,7 @@ checklist.md는 변경 없음 — 가드 개수를 적어두지 않았고 스크
 - 잡히지 않았으면 "등록 이후 재노출 0"을 한 줄로 보고. 조용히 넘어가지 말 것.
 - **"확장" 유형 = 파워링크 자동매칭(키워드 `-`) 노출이다(09-24 실측).** 29일치 날마다 검색어 CSV `검색 유형=="확장"` 노출이 키워드 CSV 파워링크 `-` 노출과 같거나 1~2회 차(누적 1,801 대 1,806), 클릭은 39 대 39로 일치. 따라서 "확장"에서 나온 무관 검색어는 **파워링크 그룹에만** 등록하면 되고 플레이스 칸은 필요 없다. 플레이스 제외 검색어 칸은 가득 참(09-24 사용자) — 플레이스 쪽 등록을 제안하지 말 것.
 - 사용자가 새 목록을 등록하면 **같은 회차에 이 표에 목록 원본을 추가**한다. 목록을 저장소에 안 남겨 67·79개 대조가 불가능했던 일(09-19~09-20)이 있었다.
-- **(2026-09-27 기능 추가 회차부터, 브랜치 `feat-exclusions` 병합 뒤 적용)** 등록 여부는 **`audit/exclusions.csv`(registry)로 스킬이 판정하고 사용자에게 묻지 않는다** —
+- **(2026-09-27 기능 추가 회차 — main 병합 `6a35abf`, 적용 중)** 등록 여부는 **`audit/exclusions.csv`(registry)로 스킬이 판정하고 사용자에게 묻지 않는다** —
   재노출은 "등록돼 있는데도 노출 / 등록 누락 → 후보 / 미확인" 셋 중 하나로 보고(SKILL.md 5-0단계, `scripts/exclusions.py propose`). "탭 목록 확인 요청"은 하지 않는다.
   스킬이 등록한 회차는 이 표에 **요약 행만**(등록 n · verified n · 실패 n · description) 적고 이름 원본은 registry에 둔다. 사용자가 손으로 등록한 목록은 종전대로 원본을 적는다.
 
