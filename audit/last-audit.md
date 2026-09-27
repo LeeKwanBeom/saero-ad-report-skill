@@ -317,6 +317,7 @@
 13. **UI 폴백 `import-ui`**: API를 못 쓰는 회차에 "기간의 검색어" 표 전사(`이미등록|이름|확장` 줄)를 registry에 반영. `+추가`는 registry에 이미 있는 이름만 미등록으로 적는다(그 외는 일반 검색어). 초기 registry 340행이 이 방식으로 만들어졌다.
 14. **키 파일**: `{"api_key","secret_key","customer_id"}` JSON을 **이 세션에 연결되지 않은 PC 폴더**에 두고 `--key-file` 경로만. `*.keys.json`은 .gitignore. 사용자가 09-27 채팅에 비밀키가 보이는 화면을 올렸으므로 **첫 실사용 전 재발급**(아래 "다음에 볼 것").
 15. **`registration_status`의 한계를 그대로 둠**: 미등록 증거가 없고 등록 증거가 한 그룹뿐이면 `registered`로 본다(UI 전사는 그 그룹에 노출된 이름만 보여 다른 두 그룹은 미확인) — 첫 `pull`이 3그룹 API 행으로 바로잡는다. 그래서 첫 실사용은 pull부터.
+16. (수정 회차 2) **`--read-only` 모드는 만들지 않음** — 쓰기 명령 셋이 전부 `--confirm`(delete·test-roundtrip) 또는 승인 파일(push) + `--dry-run`을 가지므로 별도 모드가 필요 없다고 봤다(검증 8절 지적에 대한 답). 환경이 열리고 키가 있으면 절차(SKILL 5-0 6항)와 이 플래그들이 막는다.
 
 ### 실측 (이 세션, 브랜치 코드)
 
@@ -343,6 +344,39 @@
 - 설계안 config 키 이름·구조(낱개 키 → `exclusions` 블록, 그룹명 미기재) — 임의 결정 2. `industry_terms`·클릭>0 제외 규칙 신설 — 임의 결정 4·5. 부분 실패 "1회 재시도" → 재시도 없음(사용자 결정) — 임의 결정 10.
 - 4-C 설계는 "Claude가 pull 파일을 읽어 판정"이었는데, 구현은 pull/verify가 **registry를 직접 갱신**하고 Claude는 registry·스냅샷을 읽는다(사람 명령 수는 같고 기록이 한 곳).
 - 탐색 기준선 4-A의 `--read-only` 플래그는 만들지 않았다 — 쓰기 명령(push·delete·test-roundtrip)이 각각 `--dry-run`·`--confirm`을 가지므로 별도 모드가 필요 없다고 봤다(검증·진단 회차는 propose·report·`--dry-run`만 쓴다 — SKILL.md 5-0단계 6).
+
+### 수정 기록 2 (2026-09-27, 검증 회차 판단 요청 4건 + 참고 2건 처리 — 같은 브랜치 `feat-exclusions`, main 미반영)
+
+검증 회차(별도 세션, `saero-ad-report_검증_2026-09-27.md` 143행, 대상 a615a84): 기준값 10항목·시험 16·재현 ①~⑨ 전부 재현. 판단 요청 4건·참고 2건은 조정(이 세션)이 브랜치 코드에서 실물 확인한 뒤
+사용자 지시("고쳐")로 **전부 고쳤다**. 네이버 계정 쓰기 0 · main 0 · 배포 0. 검증 2는 검증 세션에 이어서(아래 재현 목록).
+
+| # | 검증 지적 | 분류 | 처리(절·함수명) |
+|---|---|---|---|
+| 판단 1 | registry 파일이 없으면 조용히 `[]`로 진행 → 이력 있는 이름이 신규 후보(실측 10개) — 문서의 "미확인" 경로가 코드에 없음 | 코드 결함(안전장치) | `load_registry(path, create_ok=False)`: 파일 없음·못 읽음·열 다름 → `RegistryUnavailable`(69~88행) → `main`이 `[FAIL] registry 없음 … 판정할 수 없어(미확인) 멈춥니다` exit 1(870행). `pull`·`import-ui`만 `create_ok=True`. 이름이 registry에 없는 경우의 판정 문구는 "미확인(등록 이력 없음)" → **"이력 없음(registry에 없는 이름)"**으로 바꿔 문서의 "미확인"과 구분. 문서: SKILL 5-0 1항·references 6절·3절·checklist 표 |
+| 판단 2 | `failed` 이름이 재노출 없으면 다음 propose·report에서 사라짐(설계 "다음 후보로 되돌린다" 미구현·미기록) | 코드 결함(설계 위배) | `build_proposal` 재등록 후보 집합에 `failed` 포함(529행), `failure_note()`(452행)로 직전 실패 사유를 `rereg` 3번째 값·제안서 "**직전 실패**: …"에 표시. `cmd_report` 목록에 failed 포함 + "그중 등록·확인 실패 n개" 줄(847행~). 빼는 방법 = registry `status=keep`(문서화: references 5·7절, SKILL 5-0 1항) |
+| 판단 3 | 승인 문구 "이미 등록 m"이 keep만 셈 | 경미(라벨≠값) | `n_registered`(창 안 status=registered 이름 수, 499·508행) → 문구 `이미 등록 {n_registered} · 노출 유지(사용자 결정) {len(already)}`(544행), 반환값에 `n_registered` 추가. 실측 `--day 2026-09-26` → 이미 등록 1(노원구어린이), `--since 2026-09-21` → 35(검증 보고의 32+3과 같음). references 6절 문구 갱신 |
+| 판단 4 | "남은 용량 보고" 코드 없음(문서 > 코드) | 경미(문서>코드) | config `exclusions.max_per_group: 950`(UI 카운터 추정, `_comment`에 명시) 신설. `do_push`가 그룹별 `현재 N + 등록 예정 M = 합 (한도 추정 950)`을 찍고 초과 예상이면 `[주의]`만(628행~, 차단 안 함 — 3716은 항목별 failed·재승인). `dry_run_plan` 4번째 값 = 현재 registry 등록 수 → dry-run 출력 `현재 registry 등록 n → 등록 후 합/950(추정)`(712행~). references 2·7절 문구를 코드에 맞춤("남은 용량 계산 안 함") |
+| 참고 1 | 스냅샷 json은 pull만 씀(문서는 pull·push·verify) | 문서≠코드 | `write_snapshot()`(320행) 분리, `do_pull(snapshot=)`·`do_push(snapshot=)`·`do_verify(snapshot=)` — `cmd_pull`·`cmd_push`(verify 단계)·`cmd_verify`가 True. 문서 = 코드 |
+| 참고 2 | `delete`에 `--confirm` 없음(test-roundtrip과 비대칭) | 안전장치 | `cmd_delete`: `--dry-run`이 아니면 `--confirm` 필수(769행), 인자 추가. references 3·7절·SKILL 5-0 4항에 명시 |
+| 참고 3~8 | 판정 우선순위·일치 행 제외·업종어 묶음 크기·차단 시 재저장 바이트 동일·역사 행·BrokenPipe | 결함 아님 | 변경 없음 |
+
+검증 8절 "`--read-only` 미구현(의도의 절반)": 유지 — 쓰기 명령 3개가 이제 전부 `--confirm`(delete·test-roundtrip) 또는 승인 파일(push) + `--dry-run`을 가지므로 별도 모드는 만들지 않았다(임의 결정 16). 다른 임의 결정은 그대로.
+
+변경 파일(수정 회차 2, 행수 `wc -l` · md5 앞 8자리): `scripts/exclusions.py` 828→**876** · 2122fffa / `tests/test_exclusions.py` 326→**424** · a8783b5d(시험 16→**20**: registry 없음 exit 1·pull은 생성·형식 다름, failed 후보 복귀·사유·keep·report, 용량 로그·경고·차단 없음, delete `--confirm`·verify 스냅샷) /
+`config/report-config.json` 82→**83** · b6f1b99c(`max_per_group` 1키 + `_comment` 한 문장, 다른 키 불변) / `references/exclusion-ui.md` 114→**123** · 1cc571ac / `SKILL.md` 469→**472** · 9c618593 / `audit/checklist.md` 459→**463** · 931d9d51(v4.5 갱신 이력 1줄 + 표 3행) /
+`audit/exclusions.csv` **341 · 3c4c8232 불변** / `.gitignore` 불변 / 이 파일(커밋 뒤 보고).
+
+실측(이 세션): `python3 tests/test_exclusions.py` → **Ran 20 tests · OK**, registry md5 전/후 3c4c8232 · `py_compile` 2파일 통과 · `propose --day 2026-09-26` → 신규 0·업종어 3·재등록 33·재노출 15(등록돼 있는데도 노출 0)·뺀 것 5·**이미 등록 1 · 노출 유지 0** · `--since 2026-09-21` → 재등록 33·재노출 68·**이미 등록 35** ·
+`push --dry-run`(33개) → `HTTP 호출 0 · registry 변경 0`, 그룹별 `현재 registry 등록 36/135/14 → 등록 후 69/168/47/950(추정)`, md5 불변 · `--registry <없는 경로> propose` → `[FAIL] registry 없음 … (미확인)` **exit 1**, 제안 파일 생성 0 · `report` → "미등록·누락·실패 이름 33개"(failed 0이라 실패 줄 없음).
+
+**검증 2가 재현할 것(검증 세션에 이어서, 브랜치 최신 해시 기준, 토큰·키 없음)**
+1. 기준값: 위 행수·md5·시험 20 · `git diff a615a84 --stat` = 6파일(exclusions.py·test_exclusions.py·config·references·SKILL·checklist) + last-audit.md.
+2. 판단 1: `--registry <없는 경로>`로 `propose`·`push --dry-run`·`report`·`verify`·`delete --confirm`·`test-roundtrip --confirm` → 전부 `[FAIL] registry 없음 … (미확인)` exit 1, 파일 생성 0; 열이 다른 CSV도 `[FAIL] registry 형식이 다름`. 가짜 API 시험 `test_missing_registry_stops_judging_commands_but_pull_creates`에서 pull만 생성.
+3. 판단 2: registry 사본에 `failed` 행(note에 사유) 추가 → `propose` 재등록 후보에 `— **직전 실패**: <사유>`로 오르고 `_candidates.txt`에 포함, `report`에 "그중 등록·확인 실패 n개" 줄; `status=keep`으로 바꾸면 사라짐(`test_failed_names_come_back_as_candidates_with_reason`).
+4. 판단 3: `propose --day 2026-09-26` 승인 문구 `이미 등록 1 · 노출 유지(사용자 결정) 0`, `--since 2026-09-21` → `이미 등록 35`.
+5. 판단 4: `push --dry-run` 출력의 `현재 registry 등록 n → 등록 후 합/950(추정)`; 가짜 API 시험 `test_push_logs_capacity_and_warns_over_limit`(한도 4에 3+2 → `[주의] 초과 예상`, 등록은 진행).
+6. 참고 1·2: `delete … --key-file <keys>`(confirm 없음) → SystemExit `--confirm 이 필요합니다`, `--dry-run`은 exit 0 호출 0; `verify`가 `work/exclusions_pull_<날짜>.json`을 쓰는지(`test_delete_requires_confirm_and_verify_writes_snapshot`).
+7. 회귀: 1차 재현 ①~⑨(구현 기록)가 그대로 — 특히 ② dry-run 무변경·③ 거부·④ verified:false·⑦ 차단 exit 2. 옛 문구 grep: "미확인(등록 이력 없음)" 0건(코드·시험), "남은 용량을 보고" 0건(references).
 
 ### 다음에 볼 것 (검증 통과 → 병합 → 첫 실사용, 순서대로)
 
