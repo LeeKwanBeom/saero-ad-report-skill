@@ -109,6 +109,7 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
   exit 0 = 전부 확인, 1 = 실패·미확인 있음(재시도는 사용자 결정), 2 = 네트워크 차단.
 - **실패한 이름은 사라지지 않는다**: `failed` 이름은 재노출이 없어도 다음 `propose` "재등록 후보"에 `직전 실패: <사유>`와 함께 오르고 `report`에도 나온다.
   문자 제한(3721~3723)처럼 반복 실패할 이름은 사용자가 registry `status=keep`으로 바꿔 뺀다(2026-09-27 검증 판단 2).
+- **이름 대조는 대소문자 무시**(`K()` = 공백 제거 + 대문자): 네이버는 영문을 **대문자로 저장·응답**한다(첫 실사용 실측 `saero제외테스트0927` → `SAERO제외테스트0927`). registry·승인 목록·CSV 이름은 원문대로 두고 대조만 대문자로.
 - `description` = `<prefix> MM-DD`(예 `saero 09-27`, 시험은 `saero test 09-27`; config `description_prefix`) — UI 설명 열·API 로 스킬 등록분과 수동 등록분을 구분.
   **길이 한도는 문서에 없다** — 첫 실사용(2026-09-27) 시험에서 `saero-ad-report 시험 2026-09-27`(29자)가 **400 / 3721 "description … maximum length"** 로 거부됐다(POST 전체 거부, 등록 0).
   `NaverApi.add_restricted`는 3721이면 **prefix만 → 설명 없음** 순으로 물러서서 등록하고(`last_description`에 실제 값), push·test 로그에 그 사실을 찍는다. 다른 400·401은 즉시 실패.

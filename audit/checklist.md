@@ -17,6 +17,7 @@
 버전: v4.5 (2026-09-27 기능 추가 회차 — 제외 검색어 등록 자동화 `scripts/exclusions.py`(브랜치 `feat-exclusions`): [의도된 동작] 18~20 추가(등록 여부는 registry로 판정·묻지 않음 / 후보 규칙 / 경로 C PC 실행),
 "되돌리면 안 되는 것" 6행 추가(dry-run 무전송·금지 패턴 거부·verified:false=실패·확장 칸만·쓰기 전 읽기·시험 1건), [의도된 동작] 9 뒤 한 줄. 검증은 별도 세션, main 병합 전.
 v4.5 갱신 이력: 2026-09-27 수정 회차 2(검증 판단 요청 4건 + 참고 2건) — [되돌리면 안 되는 것] 3행 추가(registry 없으면 멈춤 · failed 이름 후보 복귀 · delete `--confirm`), 버전 줄은 v4.5 유지.
+2026-09-27 첫 실사용 — [되돌리면 안 되는 것] 1행 추가(이름 대조 대소문자 무시). 코드 변경(pandas 폴백·regTm KST·`*` 행 해소·description 3721 폴백·`K()`)은 검증 회차 밖 — 다음 점검 회차가 대조.
 v4.4 (2026-09-26 수정 회차 — 개정안 1~12·14(계획)·15 채택: 2회 커밋 규칙, 합본 방식·I-9, 설치본 매 회차 확인,
 [의도된 동작] 17개(15 + 회차 산물 2)·"되돌리면 안 되는 것" 표 신설, 판정 기준(행수·md5·grep·직전 세션), 마무리(토큰 폐기·PC push),
 효율 기준선 표 상시화, web_fetch 대조군 삭제, 대상 목록 갱신, 실 CSV 항목 종결, 파괴 실험에 archive 7종·overflow 추가.
@@ -202,6 +203,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | registry 파일이 없거나 못 읽으면 propose/push/verify/delete/test-roundtrip/report는 `[FAIL] registry 없음 … (미확인)` **exit 1로 멈춤** — 새로 만드는 명령은 pull·import-ui만 | 빈 registry로 판정해 이력 있는 이름이 전부 신규 후보로 올라온다(2026-09-27 검증 판단 1: 정본 없는 경로에서 신규 후보 10개) | scripts/exclusions.py load_registry(`RegistryUnavailable`)·main |
 | 등록·확인에 **실패한 이름(`failed`)은 다음 propose 재등록 후보·report에 사유와 함께 다시 오른다** — 빼는 건 사용자가 `status=keep`으로 | 실패가 그 회차 채팅 보고 한 번으로 끝나고 다음 회차부터 조용히 사라진다(2026-09-27 검증 판단 2) | scripts/exclusions.py build_proposal·failure_note·cmd_report |
 | `delete`는 `--confirm` 없이는 돌지 않는다(`--dry-run`은 호출 0) — test-roundtrip과 대칭 | 절차만으로 막던 삭제가 명령 한 줄로 실행된다 | scripts/exclusions.py cmd_delete |
+| 이름 대조는 전부 `K()`(공백 제거·**대문자**) — API가 영문을 대문자로 저장·응답한다 | 영문 섞인 이름이 등록됐는데 "실패/미확인"으로 기록되고, 시험은 삭제 전에 멈춰 시험 검색어가 계정에 남는다(2026-09-27 첫 실사용 2차 시험 실사고) | scripts/exclusions.py K·do_push by_kw·do_test_roundtrip |
 
 [알려진 이월 항목]
 

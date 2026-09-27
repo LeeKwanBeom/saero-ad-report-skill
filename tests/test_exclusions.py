@@ -79,8 +79,8 @@ class FakeSender:
                 self.descriptions += [it.get("description") for it in body]
                 out = []
                 for it in body:
-                    k = it["keyword"]
-                    if k in self.fail_keywords:
+                    k = it["keyword"].upper()  # 네이버는 영문을 대문자로 저장·응답한다(첫 실사용 실측)
+                    if k in {f.upper() for f in self.fail_keywords}:
                         out.append(dict(keyword=k, resultStatus={"code": 3723, "message": "등록할 수 없는 문자"}))
                         continue
                     self.seq += 1
@@ -313,6 +313,47 @@ class TestDescriptionFallback(unittest.TestCase):
         self.assertTrue(any("3721(길이 초과)라 'saero'으로 등록" in m for m in logs))
         self.assertEqual(s.kws[GIDS[0]], {})                          # 원상복구는 그대로
         self.assertEqual(X.default_description("test"), f"saero test {X.today()[5:]}")
+
+
+class TestCaseInsensitive(unittest.TestCase):
+    """첫 실사용 2026-09-27 2차 시험: 'saero제외테스트0927' 등록 응답이 'SAERO제외테스트0927' — 대소문자 구분 대조가 성공을 실패로 판정해 삭제 전에 멈췄다."""
+
+    def test_roundtrip_with_latin_letters_passes(self):
+        s = FakeSender(); rows = []
+        X.do_test_roundtrip(api_with(s), rows, "saero제외테스트0927", GIDS[2], log=lambda *a: None)
+        self.assertEqual([c[0] for c in s.calls], ["GET", "GET", "POST", "GET", "DELETE", "GET"])
+        self.assertEqual(s.kws[GIDS[2]], {})
+        self.assertEqual(rows[0]["status"], "deleted")
+
+    def test_push_verify_with_latin_letters(self):
+        s = FakeSender(); rows = []
+        res = X.do_push(api_with(s), rows, ["saero제외test", "노원구godtk"], "saero 09-27", log=lambda *a: None)
+        self.assertEqual([len(v["failed"]) for v in res.values()], [0, 0, 0])
+        self.assertEqual(res[GIDS[0]]["added"], ["saero제외test", "노원구godtk"])
+        miss = X.do_verify(api_with(s), rows, ["saero제외test", "노원구godtk"], log=lambda *a: None)
+        self.assertEqual(sum(len(m) for m in miss.values()), 0)
+        st = {(K, r["group_id"]): r["status"] for r in rows for K in [X.K(r["keyword"])]}
+        self.assertEqual(st[("SAERO제외TEST", GIDS[0])], "registered")
+        self.assertEqual(len([r for r in rows if X.K(r["keyword"]) == "SAERO제외TEST"]), 3)   # 그룹당 1행, 중복 없음
+        res2 = X.do_push(api_with(s), rows, ["SAERO제외TEST"], "saero 09-27", log=lambda *a: None)
+        self.assertEqual(res2[GIDS[0]]["skipped"], ["SAERO제외TEST"])                            # 이미 있음 → 건너뜀
+
+    def test_pull_merges_case_variants_and_blocked_is_case_insensitive(self):
+        s = FakeSender(); s.kws[GIDS[0]] = {"노원구GODTK": "rk-1"}
+        rows = rows_of(("노원구godtk", "그룹A", "unregistered", ""))
+        X.do_pull(api_with(s), rows, log=lambda *a: None)
+        same = [r for r in rows if X.K(r["keyword"]) == "노원구GODTK"]
+        self.assertEqual([(r["group_name"], r["status"]) for r in same], [("그룹A", "registered")])  # 한 행으로 병합
+        self.assertEqual(X.registration_status(rows, "노원구GODTK")[0], "registered")
+        self.assertEqual(X.registration_status(rows, "노원구godtk")[0], "registered")
+        old = list(X.CFG.get("competitors", [])); X.CFG["competitors"] = old + ["AbcPilates"]
+        try:
+            self.assertIn("경쟁사명", X.blocked_reason("노원ABCPILATES점"))
+        finally:
+            X.CFG["competitors"] = old
+        with tempfile.TemporaryDirectory() as td:
+            ap = os.path.join(td, "a.txt"); write_text(ap, "saero제외test\nSAERO제외TEST\n노원역세\n")
+            self.assertEqual(X.read_approved(ap), ["saero제외test", "노원역세"])                 # 승인 목록 중복도 대소문자 무시
 
 
 class TestRegTm(unittest.TestCase):

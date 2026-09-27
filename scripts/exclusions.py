@@ -70,6 +70,12 @@ REG_COLS = ["keyword", "group_id", "group_name", "type", "status", "source", "re
 STAR = "*"  # 그룹별 미확인(기록에서 온 행)
 
 
+def K(s):
+    """검색어 대조 키 — 앞뒤 공백 제거 + **대문자**. 네이버 API는 영문을 대문자로 저장한다(첫 실사용 2026-09-27: 'saero제외테스트0927' 등록 → 응답 'SAERO제외테스트0927').
+    모든 이름 대조(registry·API 목록·응답·승인 목록)는 이 키로 한다. 저장·표시는 원문 그대로."""
+    return (s or "").strip().upper()
+
+
 def today():
     return dt.date.today().isoformat()
 
@@ -117,7 +123,7 @@ def save_registry(path, rows):
 
 def find_row(rows, keyword, group_id=None, group_name=None):
     for r in rows:
-        if r["keyword"] != keyword:
+        if K(r["keyword"]) != K(keyword):
             continue
         if group_id and r["group_id"] == group_id:
             return r
@@ -170,7 +176,7 @@ def registration_status(rows, keyword):
     - unregistered: 미등록 증거만 있음
     - keep: 사용자 결정으로 노출 유지
     - unknown: registry에 없음(한 번도 등록·제안된 적 없음)"""
-    mine = [r for r in rows if r["keyword"] == keyword]
+    mine = [r for r in rows if K(r["keyword"]) == K(keyword)]
     if not mine:
         return "unknown", set(), set()
     if any(r["status"] == "keep" for r in mine):
@@ -195,11 +201,11 @@ def registration_status(rows, keyword):
 def blocked_reason(keyword):
     """never_exclude_patterns(부분 일치)·competitors 이름 포함이면 이유 문자열, 아니면 None."""
     for p in EX.get("never_exclude_patterns", []):
-        if p and p in keyword:
+        if p and K(p) in K(keyword):
             return f"금지 패턴 '{p}'"
     if EX.get("never_exclude_competitors"):
         for c in CFG.get("competitors", []):
-            if c and c in keyword:
+            if c and K(c) in K(keyword):
                 return f"경쟁사명 '{c}'"
     return None
 
@@ -374,7 +380,7 @@ def write_snapshot(out):
     os.makedirs(os.path.dirname(snap), exist_ok=True)
     data = {}
     for g, v in out.items():
-        items = {k: {"id": it.get("nccAdgroupRestrictKwdId", ""), "regTm": it.get("regTm", ""), "registered_at": regtm_to_date(it.get("regTm"))}
+        items = {it.get("keyword", k): {"id": it.get("nccAdgroupRestrictKwdId", ""), "regTm": it.get("regTm", ""), "registered_at": regtm_to_date(it.get("regTm"))}
                  for k, it in v["keywords"].items()}
         data[g] = {"name": v["name"], "count": len(items), "keywords": sorted(items), "items": items}
     with open(snap, "w", encoding="utf-8") as f:
@@ -390,12 +396,12 @@ def do_pull(api, rows, log=print, gids=None, mark_missing=True, snapshot=False):
         ag = api.adgroup(gid)
         name = ag.get("name", gid)
         items = api.restricted(gid)
-        kws = {}
+        kws = {}  # K(이름) → API 항목(원문 keyword는 항목 안)
         for it in items:
             kw = it.get("keyword", "")
             if not kw or it.get("type", EX["type"]) != EX["type"]:
                 continue
-            kws[kw] = it
+            kws[K(kw)] = it
             upsert(rows, kw, gid, name, status="registered", source="api",
                    registered_at=regtm_to_date(it.get("regTm")) or None, restrict_kwd_id=it.get("nccAdgroupRestrictKwdId", ""),
                    verified_at=stamp)
@@ -404,7 +410,7 @@ def do_pull(api, rows, log=print, gids=None, mark_missing=True, snapshot=False):
             same_group = (r["group_id"] == gid) or (not r["group_id"] and norm_name(r["group_name"]) == norm_name(name))
             if same_group and not r["group_id"]:
                 r["group_id"] = gid  # UI 전사 행에 그룹 ID를 채운다(이름 정규화 일치)
-            if mark_missing and same_group and r["status"] in ("registered", "pending") and r["keyword"] not in kws:
+            if mark_missing and same_group and r["status"] in ("registered", "pending") and K(r["keyword"]) not in kws:
                 r["status"] = "missing"
                 r["note"] = (r["note"] + " | " if r["note"] else "") + f"{stamp} API 목록에 없음"
         advoost = ag.get("useAdvoost")
@@ -424,7 +430,7 @@ def do_pull(api, rows, log=print, gids=None, mark_missing=True, snapshot=False):
     #   · 없는 그룹이 있음 → 그 그룹에 명시 행: * 행이 registered/pending이면 missing(기록엔 등록인데 실물에 없음), keep은 keep, 그 외(unregistered 등)는 unregistered
     if set(out) >= set(target_ids()):
         for r in [r for r in rows if r["group_name"] == STAR]:
-            lacking = [g for g in target_ids() if r["keyword"] not in out[g]["keywords"]]
+            lacking = [g for g in target_ids() if K(r["keyword"]) not in out[g]["keywords"]]
             new_status = "missing" if r["status"] in ("registered", "pending") else ("keep" if r["status"] == "keep" else "unregistered")
             for g in lacking:
                 if find_row(rows, r["keyword"], group_id=g) is None:  # 그 그룹 행이 이미 있으면(UI 전사 등) 그대로 둔다
@@ -481,7 +487,7 @@ def do_import_ui(rows, parsed, group_name, date):
         if st == "이미등록":
             upsert(rows, kw, None, group_name, status="registered", source="ui", verified_at=date)
             n_reg += 1
-        elif any(r["keyword"] == kw for r in rows):  # 기록·제안에 있던 이름만 미등록으로 기록(그 외 +추가는 일반 검색어)
+        elif any(K(r["keyword"]) == K(kw) for r in rows):  # 기록·제안에 있던 이름만 미등록으로 기록(그 외 +추가는 일반 검색어)
             upsert(rows, kw, None, group_name, status="unregistered", source="ui", verified_at=date)
             n_unreg += 1
     return n_reg, n_unreg
@@ -508,7 +514,7 @@ def load_search_terms(combined_dir):
 
 def failure_note(rows, keyword):
     """직전 등록·확인 실패 사유(failed 행 note) — 재등록 후보 옆에 보여 사용자가 keep(제외)할지 정하게."""
-    notes = sorted({r["note"] for r in rows if r["keyword"] == keyword and r["status"] == "failed" and r["note"]})
+    notes = sorted({r["note"] for r in rows if K(r["keyword"]) == K(keyword) and r["status"] == "failed" and r["note"]})
     return " / ".join(notes)[:200]
 
 
@@ -520,7 +526,7 @@ def reexposure_judgement(rows, keyword, exposure_days):
     """(판정 문자열, 근거) — 등록일 다음 날 이후 확장 노출이 있는 이름에 대해."""
     status, reg, unreg = registration_status(rows, keyword)
     if status == "registered":
-        dates = [r["registered_at"] for r in rows if r["keyword"] == keyword and r["registered_at"]]
+        dates = [r["registered_at"] for r in rows if K(r["keyword"]) == K(keyword) and r["registered_at"]]
         rd = max(dates) if dates else ""  # 재등록이 있으면 마지막 등록일 기준
         if not rd:
             return "등록됨(등록일 미상)", ""
@@ -592,7 +598,7 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
             rereg.append((kw, sorted(unreg), failure_note(rows, kw)))
     new.sort(key=lambda x: (-x[1], x[0]))
     industry.sort(key=lambda x: (-x[1], x[0]))
-    cands = [k for k, _, _ in new] + [k for k, _, _ in rereg if k not in {n[0] for n in new}]
+    cands = [k for k, _, _ in new] + [k for k, _, _ in rereg if K(k) not in {K(n[0]) for n in new}]
     names = [group_label(rows, t["adgroup_id"]) for t in targets()]
     if all(n == t["adgroup_id"] for n, t in zip(names, targets())):  # 첫 pull 전: registry의 그룹명(UI 전사)으로 표기
         names = sorted({r["group_name"] for r in rows if r["group_name"] != STAR}) or names
@@ -649,9 +655,9 @@ def read_approved(path):
     with open(path, encoding="utf-8-sig") as f:
         for line in f:
             k = line.strip()
-            if not k or k.startswith("#") or k in seen:
+            if not k or k.startswith("#") or K(k) in seen:
                 continue
-            seen.add(k)
+            seen.add(K(k))
             out.append(k)
     return out
 
@@ -678,9 +684,9 @@ def do_push(api, rows, names, description, log=print, chunk=50, snapshot=False):
     result = {}
     for gid in target_ids():
         name = current[gid]["name"]
-        have = current[gid]["keywords"]
-        todo = [k for k in names if k not in have]
-        skipped = [k for k in names if k in have]
+        have = current[gid]["keywords"]  # K(이름) → 항목
+        todo = [k for k in names if K(k) not in have]
+        skipped = [k for k in names if K(k) in have]
         added, failed = [], []
         cap = int(EX.get("max_per_group") or 0)
         log(f"[push] {name}: 현재 {len(have)} + 등록 예정 {len(todo)} = {len(have) + len(todo)}"
@@ -696,9 +702,9 @@ def do_push(api, rows, names, description, log=print, chunk=50, snapshot=False):
                     failed.append((k, str(e)[:200]))
                     upsert(rows, k, gid, name, status="failed", source="skill", note=f"{stamp} 등록 실패: {str(e)[:120]}")
                 continue
-            by_kw = {it.get("keyword"): it for it in (resp or [])}
+            by_kw = {K(it.get("keyword")): it for it in (resp or [])}  # 응답 keyword는 대문자
             for k in part:
-                it = by_kw.get(k)
+                it = by_kw.get(K(k))
                 if it is not None and item_ok(it):
                     added.append(k)
                     upsert(rows, k, gid, name, status="pending", source="skill", registered_at=regtm_to_date(it.get("regTm")) or stamp,
@@ -723,11 +729,11 @@ def do_verify(api, rows, names, log=print, snapshot=False):
     missing = {}
     for gid in target_ids():
         name = current[gid]["name"]
-        have = current[gid]["keywords"]
-        miss = [k for k in names if k not in have]
+        have = current[gid]["keywords"]  # K(이름) → 항목
+        miss = [k for k in names if K(k) not in have]
         for k in names:
-            if k in have:
-                it = have[k]
+            if K(k) in have:
+                it = have[K(k)]
                 upsert(rows, k, gid, name, status="registered", source="api", verified_at=stamp,
                        registered_at=regtm_to_date(it.get("regTm")) or None, restrict_kwd_id=it.get("nccAdgroupRestrictKwdId", ""))
             else:
@@ -745,13 +751,13 @@ def dry_run_plan(rows, names):
         groups = [(g, f"{g}(ID 매핑 전 — pull 뒤 확정)") for g in sorted({r["group_name"] for r in rows if r["group_name"] != STAR})]
         groups = groups or [(None, "(registry 비어 있음 — 3그룹 전부 등록 예정)")]
         for g, label in groups:
-            have = {r["keyword"] for r in rows if r["status"] == "registered" and g is not None and r["group_name"] == g}
-            plan.append((label, [k for k in names if k not in have], [k for k in names if k in have], len(have)))
+            have = {K(r["keyword"]) for r in rows if r["status"] == "registered" and g is not None and r["group_name"] == g}
+            plan.append((label, [k for k in names if K(k) not in have], [k for k in names if K(k) in have], len(have)))
         return plan
     for gid, name in mapped.items():
-        have = {r["keyword"] for r in rows if r["status"] == "registered"
+        have = {K(r["keyword"]) for r in rows if r["status"] == "registered"
                 and (r["group_id"] == gid or (not r["group_id"] and r["group_name"] == name))}
-        plan.append((f"{name}({gid})", [k for k in names if k not in have], [k for k in names if k in have], len(have)))
+        plan.append((f"{name}({gid})", [k for k in names if K(k) not in have], [k for k in names if K(k) in have], len(have)))
     return plan
 
 
@@ -850,25 +856,25 @@ def do_test_roundtrip(api, rows, keyword, gid, log=print):
     """시험 1건: 없음 확인 → 등록 → 확인(verified) → 삭제 → 없음 확인. 실패하면 그 단계에서 예외."""
     stamp = today()
     name = api.adgroup(gid).get("name", gid)
-    before = {it.get("keyword") for it in api.restricted(gid)}
-    if keyword in before:
+    before = {K(it.get("keyword")) for it in api.restricted(gid)}
+    if K(keyword) in before:
         raise ApiError(f"시험 키워드 '{keyword}'가 이미 {name}에 있음 — 다른 문자열로")
     want = default_description("test")
     resp = api.add_restricted(gid, [keyword], want)
     if api.last_description != want:
         log(f"[test] description '{want}'는 3721(길이 초과)라 '{api.last_description or '(없음)'}'으로 등록")
-    it = next((x for x in (resp or []) if x.get("keyword") == keyword), None)
+    it = next((x for x in (resp or []) if K(x.get("keyword")) == K(keyword)), None)  # 응답은 대문자(첫 실사용 2차 시도의 실패 원인)
     if it is None or not item_ok(it):
         raise ApiError(f"등록 실패: {json.dumps(resp, ensure_ascii=False)[:300]}")
     rid = it.get("nccAdgroupRestrictKwdId")
     log(f"[test] 등록 성공 id={rid}")
-    after = {x.get("keyword"): x for x in api.restricted(gid)}
-    if keyword not in after:
+    after = {K(x.get("keyword")): x for x in api.restricted(gid)}
+    if K(keyword) not in after:
         raise ApiError("등록 응답은 성공인데 다시 읽은 목록에 없음(verified:false)")
     log(f"[test] 다시 읽어 확인: 있음(verified)")
     api.delete_restricted(gid, [rid])
-    final = {x.get("keyword") for x in api.restricted(gid)}
-    if keyword in final:
+    final = {K(x.get("keyword")) for x in api.restricted(gid)}
+    if K(keyword) in final:
         raise ApiError("삭제 뒤에도 목록에 남아 있음")
     log(f"[test] 삭제 뒤 확인: 없음 — 원상복구")
     upsert(rows, keyword, gid, name, status="deleted", source="skill", registered_at=stamp, restrict_kwd_id=rid, verified_at=stamp,
