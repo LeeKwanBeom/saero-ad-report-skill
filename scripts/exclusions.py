@@ -241,6 +241,7 @@ class NaverApi:
         self.sender = sender or _default_sender
         self.calls = []  # (method, uri) — 테스트·dry-run 검증용
         self.log = log
+        self.last_description = None  # 마지막 POST에 실제로 쓴 description(3721 폴백 확인용)
 
     def sign(self, ts, method, uri):
         msg = f"{ts}.{method}.{uri}".encode("utf-8")
@@ -296,17 +297,42 @@ class NaverApi:
         return r or []
 
     def add_restricted(self, gid, keywords, description):
-        body = [{"keyword": k, "type": EX["type"], "description": description} for k in keywords]
-        st, r = self.request("POST", f"/ncc/adgroups/{gid}/restricted-keywords", body=body)
-        if st not in (200, 201):
+        """POST. description 은 식별용(선택) — 한도가 문서에 없고 3721(설명 최대 길이 초과, 첫 실사용 2026-09-27: 29자에서 발생)이 오면
+        짧은 것 → 없음 순으로 물러선다(이름 등록이 목적이지 설명이 목적이 아니다). 실제로 쓴 값은 self.last_description."""
+        tried = []
+        chain = []
+        for d in (description or "", short_description(description), ""):
+            if d not in chain:
+                chain.append(d)
+        for desc in chain:
+            body = [dict({"keyword": k, "type": EX["type"]}, **({"description": desc} if desc else {})) for k in keywords]
+            st, r = self.request("POST", f"/ncc/adgroups/{gid}/restricted-keywords", body=body)
+            if st in (200, 201):
+                self.last_description = desc
+                return r or []
+            code = str((r or {}).get("code")) if isinstance(r, dict) else ""
+            tried.append((desc, st, code))
+            if st == 400 and code == "3721" and desc != "":
+                continue  # 설명이 길다 — 더 짧게
             raise ApiError(f"POST restricted-keywords {gid} → {st}: {json.dumps(r, ensure_ascii=False)[:500]}")
-        return r or []
+        raise ApiError(f"POST restricted-keywords {gid}: description 시도 전부 실패 {tried}")
 
     def delete_restricted(self, gid, ids):
         st, r = self.request("DELETE", f"/ncc/adgroups/{gid}/restricted-keywords", params={"ids": ",".join(ids)})
         if st not in (200, 204):
             raise ApiError(f"DELETE restricted-keywords {gid} → {st}: {json.dumps(r, ensure_ascii=False)[:300]}")
         return True
+
+
+def short_description(description):
+    """3721 폴백용 짧은 설명 — 첫 낱말(prefix)만. 예 'saero 09-27' → 'saero'."""
+    return (description or "").split(" ")[0][:10]
+
+
+def default_description(kind=""):
+    """등록 설명 기본값 — 짧게: '<prefix> [kind ]MM-DD' (예 'saero 09-27', 'saero test 09-27'). 첫 실사용에서 29자짜리가 3721로 거부됐다."""
+    prefix = EX.get("description_prefix", "saero")
+    return f"{prefix} {kind + ' ' if kind else ''}{today()[5:]}"
 
 
 def load_keys(path):
@@ -663,6 +689,8 @@ def do_push(api, rows, names, description, log=print, chunk=50, snapshot=False):
             part = todo[i:i + chunk]
             try:
                 resp = api.add_restricted(gid, part, description)
+                if api.last_description != description:
+                    log(f"[push] {name}: description '{description}'는 3721(길이 초과)라 '{api.last_description or '(없음)'}'으로 등록")
             except ApiError as e:
                 for k in part:
                     failed.append((k, str(e)[:200]))
@@ -735,7 +763,7 @@ def cmd_push(a):
     if not ok:
         print("[push] 등록할 이름이 없습니다")
         return 1
-    description = f"{EX.get('description_prefix', 'saero-ad-report')} {today()}"
+    description = default_description()
     path = registry_path(a.registry)
     rows = load_registry(path)
     if a.dry_run:  # 할 일 목록만 — HTTP 호출 0 · registry 변경 0. 실제 push는 registry가 아니라 API를 다시 읽어(pull) 정한다
@@ -825,7 +853,10 @@ def do_test_roundtrip(api, rows, keyword, gid, log=print):
     before = {it.get("keyword") for it in api.restricted(gid)}
     if keyword in before:
         raise ApiError(f"시험 키워드 '{keyword}'가 이미 {name}에 있음 — 다른 문자열로")
-    resp = api.add_restricted(gid, [keyword], f"{EX.get('description_prefix', 'saero-ad-report')} 시험 {stamp}")
+    want = default_description("test")
+    resp = api.add_restricted(gid, [keyword], want)
+    if api.last_description != want:
+        log(f"[test] description '{want}'는 3721(길이 초과)라 '{api.last_description or '(없음)'}'으로 등록")
     it = next((x for x in (resp or []) if x.get("keyword") == keyword), None)
     if it is None or not item_ok(it):
         raise ApiError(f"등록 실패: {json.dumps(resp, ensure_ascii=False)[:300]}")

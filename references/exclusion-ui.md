@@ -109,7 +109,9 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
   exit 0 = 전부 확인, 1 = 실패·미확인 있음(재시도는 사용자 결정), 2 = 네트워크 차단.
 - **실패한 이름은 사라지지 않는다**: `failed` 이름은 재노출이 없어도 다음 `propose` "재등록 후보"에 `직전 실패: <사유>`와 함께 오르고 `report`에도 나온다.
   문자 제한(3721~3723)처럼 반복 실패할 이름은 사용자가 registry `status=keep`으로 바꿔 뺀다(2026-09-27 검증 판단 2).
-- `description` = `saero-ad-report <날짜>`(config `description_prefix`) — UI 설명 열·API 로 스킬 등록분과 수동 등록분을 구분.
+- `description` = `<prefix> MM-DD`(예 `saero 09-27`, 시험은 `saero test 09-27`; config `description_prefix`) — UI 설명 열·API 로 스킬 등록분과 수동 등록분을 구분.
+  **길이 한도는 문서에 없다** — 첫 실사용(2026-09-27) 시험에서 `saero-ad-report 시험 2026-09-27`(29자)가 **400 / 3721 "description … maximum length"** 로 거부됐다(POST 전체 거부, 등록 0).
+  `NaverApi.add_restricted`는 3721이면 **prefix만 → 설명 없음** 순으로 물러서서 등록하고(`last_description`에 실제 값), push·test 로그에 그 사실을 찍는다. 다른 400·401은 즉시 실패.
 - `--dry-run`: 승인 목록·거부·그룹별 계획(registry 기준: 등록 예정/이미 등록/현재 등록 수 → 등록 후 합/한도 추정)만 출력, **HTTP 호출 0·registry 변경 0**. 첫 pull 전에는 그룹 ID 매핑이 없어 registry 그룹명 기준으로 계획을 보인다.
 - 부분 실패(그룹 일부·항목 일부): 성공/실패를 그룹×이름으로 나눠 보고, 조용히 넘어가지 않는다. 한도 초과(3716)는 항목별 `failed`로 남는다 — 남은 용량은 계산하지 않는다(공식 한도 미공개, 950은 UI 카운터 추정) → 노출 많은 순으로 잘라 **다시 승인** 받는다.
 - 되돌리기: `delete --group <id> --ids <restrict_kwd_id,…> --key-file <keys> --confirm`(registry `deleted`). 삭제도 승인 대상 — `--confirm` 없이는 돌지 않고, `--dry-run`은 호출 0.

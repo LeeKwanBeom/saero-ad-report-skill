@@ -45,7 +45,7 @@ NAMES = {GIDS[0]: "그룹A", GIDS[1]: "그룹B", GIDS[2]: "그룹C"}
 class FakeSender:
     """api.searchad.naver.com 흉내 — 광고그룹 3개, 제외 검색어 메모리 저장."""
 
-    def __init__(self, fail_keywords=(), drop_after_post=False, blocked=False, advoost=None, auth_fail=False):
+    def __init__(self, fail_keywords=(), drop_after_post=False, blocked=False, advoost=None, auth_fail=False, desc_max=None):
         self.kws = {g: {} for g in GIDS}
         self.seq = 0
         self.calls = []
@@ -54,6 +54,8 @@ class FakeSender:
         self.blocked = blocked
         self.advoost = advoost
         self.auth_fail = auth_fail
+        self.desc_max = desc_max  # description 글자 수 한도 흉내(실서버 한도는 미공개, 29자에서 3721 실측)
+        self.descriptions = []    # 등록에 실제로 쓰인 description
 
     def __call__(self, method, url, headers, data):
         if self.blocked:
@@ -72,6 +74,9 @@ class FakeSender:
                              for k, i in self.kws[gid].items()]
             if method == "POST":
                 body = json.loads(data.decode("utf-8"))
+                if self.desc_max is not None and any(len(it.get("description", "")) > self.desc_max for it in body):
+                    return 400, {"code": 3721, "status": 400, "title": "The description of the negative search terms has reached its maximum length."}
+                self.descriptions += [it.get("description") for it in body]
                 out = []
                 for it in body:
                     k = it["keyword"]
@@ -273,6 +278,41 @@ class TestApiFlows(unittest.TestCase):
                 X._default_sender = orig
             self.assertEqual(rc, 2)
             self.assertIn("네트워크 차단", buf.getvalue())
+
+
+class TestDescriptionFallback(unittest.TestCase):
+    """첫 실사용 2026-09-27: 'saero-ad-report 시험 2026-09-27'(29자)가 3721로 거부됨 → 짧은 설명 → 설명 없음 순 폴백."""
+
+    def test_fallback_to_prefix_then_none(self):
+        s = FakeSender(desc_max=8)                                   # 'saero 09-27'(11자) 거부, 'saero'(5자) 허용
+        api = api_with(s)
+        api.add_restricted(GIDS[0], ["x"], X.default_description())
+        self.assertEqual(api.last_description, "saero")
+        self.assertEqual(s.descriptions, ["saero"])
+        self.assertEqual([c[0] for c in s.calls], ["POST", "POST"])  # 2번째 시도에서 성공
+        s2 = FakeSender(desc_max=3)                                  # 어떤 설명도 안 됨 → 설명 없이
+        api2 = api_with(s2)
+        api2.add_restricted(GIDS[0], ["x"], X.default_description())
+        self.assertEqual(api2.last_description, "")
+        self.assertEqual(s2.descriptions, [None])                    # description 키 자체를 안 보냄
+        self.assertEqual(len(s2.calls), 3)
+
+    def test_other_400_is_not_retried(self):
+        s = FakeSender(fail_keywords={"x"})                          # 항목별 실패는 200 응답 안의 resultStatus — 폴백 대상 아님
+        api = api_with(s)
+        resp = api.add_restricted(GIDS[0], ["x"], X.default_description())
+        self.assertEqual(resp[0]["resultStatus"]["code"], 3723)
+        self.assertEqual(api.last_description, X.default_description())
+        s3 = FakeSender(auth_fail=True)                               # 401은 즉시 ApiError, 재시도 없음
+        with self.assertRaises(X.ApiError):
+            api_with(s3).add_restricted(GIDS[0], ["x"], "saero 09-27")
+
+    def test_roundtrip_logs_fallback(self):
+        s = FakeSender(desc_max=8); logs = []
+        X.do_test_roundtrip(api_with(s), [], "시험", GIDS[0], log=logs.append)
+        self.assertTrue(any("3721(길이 초과)라 'saero'으로 등록" in m for m in logs))
+        self.assertEqual(s.kws[GIDS[0]], {})                          # 원상복구는 그대로
+        self.assertEqual(X.default_description("test"), f"saero test {X.today()[5:]}")
 
 
 class TestRegTm(unittest.TestCase):
