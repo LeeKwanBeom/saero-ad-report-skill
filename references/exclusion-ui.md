@@ -23,6 +23,7 @@
 | 등록 | `POST /ncc/adgroups/{adgroupId}/restricted-keywords` body `[{"keyword","type":"EXP_SEARCH","description"}]` — 응답은 항목별 객체(`nccAdgroupRestrictKwdId`, `regTm`, 실패면 `resultStatus{code,message}`) |
 | 삭제 | `DELETE /ncc/adgroups/{adgroupId}/restricted-keywords?ids=id1,id2` |
 | 그룹 | `GET /ncc/adgroups/{adgroupId}` → `name`, `userLock`, `useExpSearch`, `useAdvoost` |
+| `regTm` | 응답의 등록시각은 **UTC**(`…Z`) — registry에는 KST 날짜로(5절) |
 | 인증 헤더 | `X-Timestamp`(ms) · `X-API-KEY`(엑세스라이선스) · `X-Customer`(CUSTOMER_ID) · `X-Signature` = base64(HMAC-SHA256(비밀키, `"{ts}.{METHOD}.{uri}"`)), **uri 는 쿼리 제외 경로** |
 | CUSTOMER_ID | **4480035** (도구 > SA API 사용 관리 화면 표시값 [실측 09-27]) — 광고주센터 URL의 `ad-accounts/2580077` 나 보고서 CSV 헤더 계정번호와 **다르다** |
 | 한도 | 그룹당 최대 개수 초과 = 오류 3716(숫자 미공개, UI 카운터 `0/950` 로 보아 950 [추론] → config `max_per_group`, push가 현재+예정으로 초과 예상만 경고) |
@@ -69,7 +70,9 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
 ## 5. registry — `audit/exclusions.csv` (기계 정본, utf-8-sig)
 
 열: `keyword, group_id, group_name, type, status, source, registered_at, restrict_kwd_id, verified_at, note`.
-- 한 행 = 이름 × 그룹. `group_name="*"` 는 그룹 미확인 기록 행(대조 목록 표에서 온 것) — 3그룹 API 행이 다 생기면 pull이 지운다.
+- 한 행 = 이름 × 그룹. `group_name="*"` 는 그룹 미확인 기록 행(대조 목록 표에서 온 것) — **3그룹을 다 읽은 pull이 그룹별 행으로 풀고 지운다**(없는 그룹마다 `unregistered`, 등록 기록인데 없으면 `missing`, `keep`은 `keep`). 첫 pull(2026-09-27) 뒤 registry에 `*` 행은 없다(648행 = 등록 183×3 + 미등록 33×3).
+- `registered_at`은 **KST 날짜**. API `regTm`은 UTC(예 `2026-09-16T23:21:31.000Z` = 09-17 08:21 KST)라 `regtm_to_date`가 +9h 해서 적는다 — 검색어 CSV `일별`(KST)과 같은 기준이어야 "등록 당일" 판정이 맞다(첫 실사용 실측: 기록의 09-17·09-21 등록분이 UTC로는 09-16·09-20).
+- 스냅샷 `work/exclusions_pull_<날짜>.json`: 그룹별 `name`·`count`·`keywords`(정렬) + `items{이름: {id, regTm(UTC 원문), registered_at(KST)}}`.
 - `status`: `registered`(등록 확인) · `unregistered`(미등록 확인) · `pending`(POST 성공, 재확인 전) · `failed`(등록 실패 또는 **확인 실패**) ·
   `missing`(등록 기록이 있는데 API 목록에 없음) · `deleted`(삭제·시험) · `keep`(사용자 결정으로 후보에서 뺀다 — 노출 유지, 또는 문자 제한처럼 등록이 반복 실패해 포기한 이름).
 - `source`: `api` · `ui`(화면 전사) · `record`(대조 목록 표) · `skill`(push/verify/test가 씀).

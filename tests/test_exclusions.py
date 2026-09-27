@@ -140,6 +140,10 @@ class TestStatusAndJudgement(unittest.TestCase):
         self.assertEqual(X.registration_status(rows, "c")[0], "unregistered")
         self.assertEqual(X.registration_status(rows, "d")[0], "keep")
         self.assertEqual(X.registration_status(rows, "zzz")[0], "unknown")
+        for r, gid in zip(rows, [GIDS[0], GIDS[0], GIDS[1], GIDS[1], ""]):
+            r["group_id"] = gid                                                  # pull 뒤: ID가 있어도 표시는 그룹명(검증 2 참고 ①)
+        self.assertEqual(X.registration_status(rows, "b")[1:], ({"그룹A"}, {"그룹B"}))
+        self.assertIn("미등록 그룹B", X.reexposure_judgement(rows, "b", [])[1])
 
     def test_reexposure(self):
         import datetime as dt
@@ -193,6 +197,22 @@ class TestApiFlows(unittest.TestCase):
         self.assertEqual(st[("노원역카페", GIDS[0])], "registered")
         self.assertNotIn(("노원역카페", "*"), st)                       # 3그룹 API 행이 있으니 기록 행 제거
         self.assertEqual(st[("사라진이름", GIDS[0])], "missing")         # 그룹A 이름은 group_id로 연결되고 missing
+
+    def test_pull_resolves_star_rows_into_group_rows(self):
+        """첫 실사용 2026-09-27: 3그룹을 다 읽으면 기록 행(*)은 그룹별 행으로 풀린다 — 미등록 기록 → 없는 그룹마다 unregistered, 등록 기록인데 없는 그룹 → missing."""
+        s = FakeSender(); s.kws[GIDS[0]] = {"반만": "rk-1"}; s.kws[GIDS[1]] = {"반만": "rk-2"}   # 그룹C에는 없음
+        rows = rows_of(("미등록기록", "*", "unregistered", ""), ("반만", "*", "registered", "2026-09-23"), ("유지", "*", "keep", ""))
+        X.do_pull(api_with(s), rows, log=lambda *a: None)
+        self.assertEqual([r for r in rows if r["group_name"] == "*"], [])                       # * 행 0
+        st = {(r["keyword"], r["group_name"]): r["status"] for r in rows}
+        self.assertEqual([st[("미등록기록", n)] for n in ("그룹A", "그룹B", "그룹C")], ["unregistered"] * 3)
+        self.assertEqual((st[("반만", "그룹A")], st[("반만", "그룹B")], st[("반만", "그룹C")]), ("registered", "registered", "missing"))
+        self.assertEqual([st[("유지", n)] for n in ("그룹A", "그룹B", "그룹C")], ["keep"] * 3)
+        self.assertEqual(X.registration_status(rows, "미등록기록"), ("unregistered", set(), {"그룹A", "그룹B", "그룹C"}))
+        self.assertEqual(X.registration_status(rows, "반만")[0], "partial")
+        self.assertEqual(X.registration_status(rows, "유지")[0], "keep")
+        note = X.find_row(rows, "반만", group_id=GIDS[2])["note"]
+        self.assertIn("API 확인: 이 그룹에 없음", note)
 
     def test_pull_merges_ui_rows_by_normalized_name_and_warns_stray(self):
         s = FakeSender(); s.kws[GIDS[0]] = {"노원역카페": "rk-1"}

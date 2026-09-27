@@ -177,7 +177,7 @@ def registration_status(rows, keyword):
         return "keep", set(), set()
     reg = set(); unreg = set()
     for r in mine:
-        g = r["group_id"] or r["group_name"]
+        g = r["group_name"] if r["group_name"] and r["group_name"] != STAR else (r["group_id"] or STAR)  # 표시는 그룹명(검증 2 참고 ①), 이름 없는 API 행만 ID
         if r["status"] in ("registered", "pending"):
             reg.add(g)
         elif r["status"] in ("unregistered", "missing", "failed"):
@@ -393,18 +393,19 @@ def do_pull(api, rows, log=print, gids=None, mark_missing=True, snapshot=False):
                     and norm_name(r["group_name"]) not in api_names})
     if stray and (gids is None or set(gids) >= set(target_ids())):
         log(f"[pull] [주의] registry 그룹명 {', '.join(stray)} 은(는) API 그룹명 {', '.join(v['name'] for v in out.values())} 과 맞지 않음 — registry 그룹명을 API 이름으로 고치거나 targets를 확인")
-    # 기록 행(*): 모든 대상 그룹에 API 행이 있으면 API 행이 정본 — * 행은 제거
+    # 기록 행(*, 그룹 미확인): 3그룹을 다 읽었으면 API가 정본 — 그룹별 행으로 풀고 * 행은 지운다(첫 실사용 2026-09-27: 읽은 뒤에는 "그룹 미확인"이 남을 이유가 없다)
+    #   · 3그룹 모두 등록 → API 행이 이미 있으니 그냥 제거
+    #   · 없는 그룹이 있음 → 그 그룹에 명시 행: * 행이 registered/pending이면 missing(기록엔 등록인데 실물에 없음), keep은 keep, 그 외(unregistered 등)는 unregistered
     if set(out) >= set(target_ids()):
-        keep = []
-        for r in rows:
-            if r["group_name"] == STAR and all(r["keyword"] in out[g]["keywords"] for g in target_ids()):
-                continue
-            if r["group_name"] == STAR and r["status"] == "registered":
-                miss = [out[g]["name"] for g in target_ids() if r["keyword"] not in out[g]["keywords"]]
-                r["status"] = "missing"
-                r["note"] = (r["note"] + " | " if r["note"] else "") + f"{stamp} API 확인: 미등록 그룹 {', '.join(miss)}"
-            keep.append(r)
-        rows[:] = keep
+        for r in [r for r in rows if r["group_name"] == STAR]:
+            lacking = [g for g in target_ids() if r["keyword"] not in out[g]["keywords"]]
+            new_status = "missing" if r["status"] in ("registered", "pending") else ("keep" if r["status"] == "keep" else "unregistered")
+            for g in lacking:
+                if find_row(rows, r["keyword"], group_id=g) is None:  # 그 그룹 행이 이미 있으면(UI 전사 등) 그대로 둔다
+                    upsert(rows, r["keyword"], g, out[g]["name"], status=new_status, source="api", verified_at=stamp,
+                           registered_at=r["registered_at"] or None,
+                           note=(f"{stamp} API 확인: 이 그룹에 없음" + (f" | 기록: {r['note']}" if r["note"] else ""))[:300])
+        rows[:] = [r for r in rows if r["group_name"] != STAR]
     if snapshot:
         log(f"[pull] 스냅샷 {write_snapshot(out)}")
     return out
