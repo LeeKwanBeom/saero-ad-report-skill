@@ -325,18 +325,34 @@ def api_from_args(a):
     return NaverApi(key, secret, cid)
 
 
+KST = dt.timezone(dt.timedelta(hours=9))
+
+
 def regtm_to_date(s):
-    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", str(s or ""))
-    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else ""
+    """API regTm(UTC, 예 2026-09-16T23:40:12.000Z) → **KST 날짜**. 검색어 CSV의 '일별'이 KST라 등록 당일 판정은 KST로 해야 맞다
+    (첫 실사용 2026-09-27: UTC 날짜로 두면 09-17 오전 등록분이 09-16으로 잡혀 09-17 노출이 "등록돼 있는데도 노출"이 된다)."""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?", str(s or ""))
+    if not m:
+        return ""
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if m.group(4) is None:
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+    t = dt.datetime(y, mo, d, int(m.group(4)), int(m.group(5)), int(m.group(6) or 0), tzinfo=dt.timezone.utc)
+    return t.astimezone(KST).date().isoformat()
 
 
 # ---------------------------------------------------------------- pull (읽기)
 def write_snapshot(out):
-    """pull 결과(그룹별 이름 목록)를 work/exclusions_pull_<날짜>.json 에 — Claude가 읽는 파일. 반환 경로."""
+    """pull 결과를 work/exclusions_pull_<날짜>.json 에 — Claude가 읽는 파일. 그룹별 이름 목록 + 이름별 {id, regTm(원문 UTC), 등록일(KST)}. 반환 경로."""
     snap = os.path.join(ROOT, "work", f"exclusions_pull_{today()}.json")
     os.makedirs(os.path.dirname(snap), exist_ok=True)
+    data = {}
+    for g, v in out.items():
+        items = {k: {"id": it.get("nccAdgroupRestrictKwdId", ""), "regTm": it.get("regTm", ""), "registered_at": regtm_to_date(it.get("regTm"))}
+                 for k, it in v["keywords"].items()}
+        data[g] = {"name": v["name"], "count": len(items), "keywords": sorted(items), "items": items}
     with open(snap, "w", encoding="utf-8") as f:
-        json.dump({g: {"name": v["name"], "keywords": sorted(v["keywords"])} for g, v in out.items()}, f, ensure_ascii=False, indent=1)
+        json.dump(data, f, ensure_ascii=False, indent=1)
     return snap
 
 

@@ -255,6 +255,17 @@ class TestApiFlows(unittest.TestCase):
             self.assertIn("네트워크 차단", buf.getvalue())
 
 
+class TestRegTm(unittest.TestCase):
+    def test_regtm_utc_to_kst_date(self):
+        """첫 실사용 2026-09-27: regTm은 UTC — 09:00 KST 전 등록분은 UTC 날짜가 하루 이르다."""
+        self.assertEqual(X.regtm_to_date("2026-09-16T23:40:12.000Z"), "2026-09-17")   # 09-17 08:40 KST
+        self.assertEqual(X.regtm_to_date("2026-09-17T00:10:00.000Z"), "2026-09-17")   # 09-17 09:10 KST
+        self.assertEqual(X.regtm_to_date("2026-09-26T04:18:00.000Z"), "2026-09-26")   # 09-26 13:18 KST(UI 등록시각과 일치)
+        self.assertEqual(X.regtm_to_date("2026-09-26T15:30:00.000Z"), "2026-09-27")   # 09-27 00:30 KST
+        self.assertEqual(X.regtm_to_date("2026-09-26"), "2026-09-26")                 # 날짜만 오면 그대로
+        self.assertEqual(X.regtm_to_date(None), "")
+
+
 class TestCliSafety(unittest.TestCase):
     def test_runs_without_pandas_for_pc_commands(self):
         """첫 실사용 2026-09-27: 사용자 PC에는 pandas가 없다 — report(=pull/push/verify와 같은 import 경로)가 pandas 없이 돌아야 한다."""
