@@ -4,8 +4,8 @@
 실행: "$PY" tests/test_exclusions.py   (unittest, 저장소 루트에서 Git Bash — $PY = 저장소 밖 venv 파이썬, references/code-tab.md 1절)
 가짜 API(FakeSender)로 pull/push/verify/test-roundtrip 경로를 돌리고, dry-run이 HTTP를 0회 호출하는지,
 금지 패턴·경쟁사명이 승인 목록에 있어도 거부되는지, 등록 응답은 성공인데 다시 읽으면 없는 경우(verified:false)가 실패로
-보고되는지(함수 결과와 CLI 종료 코드 둘 다), 승인 목록 참조 선택 모드의 쓰기 전 가드(합계 ≠ N·범위 밖·빈 원천·중복·
-이미 모든 그룹 등록된 추가 이름·쌍둥이 [주의]·실제 push의 --approved 거부)를 확인한다. 끝에 실제 audit/exclusions.csv md5가 그대로인지 출력한다.
+보고되는지(함수 결과와 CLI 종료 코드 둘 다), 승인 목록 참조 선택 모드의 쓰기 전 가드(합계 ≠ N·범위 밖·빈·못 읽는 원천·중복·
+출처 md5·고른 이름 전부의 이미 registered·금지 패턴·경쟁사명 FAIL·쌍둥이 [주의]·dry-run 파일 0·실제 push의 --approved 거부)를 확인한다. 끝에 실제 audit/exclusions.csv md5가 그대로인지 출력한다.
 """
 import base64
 import hashlib
@@ -553,7 +553,7 @@ def boom(*a, **k):
 
 
 class TestApprovedReference(unittest.TestCase):
-    """2026-09-28 수정 회차 2(검증 1 결론 1·7): 승인 목록 참조 선택 모드 — push가 원천 파일에서 이름을 직접 읽고, 쓰기 전에 멈춘다.
+    """2026-09-28 수정 회차 2·3(검증 1 결론 1·7, 조정 W1·W3·W4·W5·W9·W12): 승인 목록 참조 선택 모드 — push가 원천 파일에서 이름을 직접 읽고, 쓰기 전에 멈춘다.
     9/28 사고: 사용자가 승인한 '노원힐링장소.'가 마침표 없이 들어가 이미 등록된 쌍둥이 '노원힐링장소'로 "건너뜀" → 원문은 미등록."""
     CSV = ('"검색어 보고서(2026.08.26.~2026.09.27.)",2580077\n'
            "검색어,검색 유형,일별,노출수,클릭수\n"
@@ -565,15 +565,20 @@ class TestApprovedReference(unittest.TestCase):
     def setUp(self):
         self.td = tempfile.mkdtemp()
         p = lambda n: os.path.join(self.td, n)
-        self.reg, self.cand, self.ind, self.csv, self.kf = p("r.csv"), p("x_candidates.txt"), p("x_industry.txt"), p("검색어.csv"), p("k.keys.json")
-        fx = rows_of(*[("노원힐링장소", NAMES[g], "registered", "2026-09-17") for g in GIDS])
-        for r, g in zip(fx, GIDS):
+        self.reg, self.cand, self.ind, self.kf = p("r.csv"), p("x_candidates.txt"), p("x_industry.txt"), p("k.keys.json")
+        self.csv = os.path.join(self.td, "work", "combined", "검색어.csv")    # 출처 검사: 저장소(ROOT=td) work/combined/검색어.csv만 받는다
+        os.makedirs(os.path.dirname(self.csv))
+        fx = rows_of(*[("노원힐링장소", NAMES[g], "registered", "2026-09-17") for g in GIDS],
+                     *[("필테등록됨", NAMES[g], "registered", "2026-09-20") for g in GIDS],
+                     ("별기록", "*", "registered", "2026-09-10"))          # 그룹 미확인 기록 — propose 기준으로는 registered
+        for r, g in zip(fx, GIDS + GIDS):
             r["group_id"] = g
         X.save_registry(self.reg, fx)
         self.reg_md5 = md5f(self.reg)
         with open(self.cand, "w", encoding="utf-8", newline="\r\n") as f:   # propose는 Windows에서 CRLF로 쓴다
             f.write("새이름1\n뺄이름\nabc\n")
-        write_text(self.ind, "노원필라테스주말\n")
+        write_text(self.ind, "노원필라테스주말\n필테등록됨\n")
+        self.stamp()
         write_text(self.csv, self.CSV)
         write_text(self.kf, json.dumps({"api_key": "K", "secret_key": "S"}))
         self.orig = (X._default_sender, X.ROOT)
@@ -583,29 +588,46 @@ class TestApprovedReference(unittest.TestCase):
         X._default_sender, X.ROOT = self.orig
         shutil.rmtree(self.td)
 
+    def stamp(self, base="x"):
+        """propose가 쓰는 출처 기록(<창 이름>.md5)과 같은 형식으로 후보·업종어 파일 md5를 적는다."""
+        lines = []
+        for suffix in ("_candidates.txt", "_industry.txt"):
+            f = os.path.join(self.td, base + suffix)
+            if os.path.exists(f):
+                lines.append(f"{md5f(f)}  {base + suffix}\n")
+        write_text(os.path.join(self.td, base + ".md5"), "".join(lines))
+
+    def write_cand(self, text, name="x_candidates.txt", crlf=True):
+        path = os.path.join(self.td, name)
+        with open(path, "w", encoding="utf-8", newline="\r\n" if crlf else "\n") as f:
+            f.write(text)
+        return path
+
     def push(self, *argv):
         with redirect_stdout(io.StringIO()) as buf:
             rc = X.main(["--registry", self.reg, "push", *argv])
         return rc, buf.getvalue()
 
-    def approved(self):
-        p = X.approved_path()
-        if not os.path.exists(p):
-            return None
-        with open(p, "rb") as f:
+    def approved_files(self):
+        w = os.path.join(self.td, "work")
+        return sorted(os.path.join(w, n) for n in (os.listdir(w) if os.path.isdir(w) else []) if n.startswith("approved_"))
+
+    def read_bytes(self, path):
+        with open(path, "rb") as f:
             return f.read()
 
     def assert_nothing_written(self, rc, out):
         self.assertEqual(rc, 1, out)
         self.assertIn("[FAIL] 승인 목록을 만들지 않았다 — 쓰기 0", out)
-        self.assertIsNone(self.approved())                                    # 승인 파일 0
+        self.assertEqual(self.approved_files(), [])                          # 승인 파일 0
         self.assertEqual(md5f(self.reg), self.reg_md5)                        # registry 불변(HTTP는 boom이 막는다)
 
     def test_builds_list_from_sources_with_sources_printed(self):
         rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--industry", self.ind, "--industry-lines", "1",
                             "--extra-csv", self.csv, "--extra-rows", "5", "--expect", "3", "--dry-run")
         self.assertEqual(rc, 0, out)
-        self.assertEqual(self.approved(), "새이름1\n노원필라테스주말\n노원힐링장소.\n".encode())   # 원문 그대로(마침표)·LF·CR 없음
+        self.assertEqual(self.approved_files(), [])                          # W3: dry-run은 파일을 쓰지 않는다(화면만)
+        self.assertIn("[승인 목록] 3개 = --expect 3 (원천 원문 그대로) — dry-run: 파일 안 씀", out)
         self.assertIn(f"'새이름1' ← {self.cand}:1", out)
         self.assertIn(f"'노원필라테스주말' ← {self.ind}:1 (추가 — 후보 밖)", out)
         self.assertIn(f"'노원힐링장소.' ← {self.csv}:5 (추가 — 후보 밖)", out)
@@ -614,15 +636,103 @@ class TestApprovedReference(unittest.TestCase):
         # 쌍둥이 [주의]: 고른 '노원힐링장소.'(5행)와 합본 4행·registry 3행의 '노원힐링장소'를 나란히
         self.assertIn("[주의] 쌍둥이", out)
         self.assertIn(f"고른 것 '노원힐링장소.' ← {self.csv}:5", out)
-        self.assertIn(f"쌍둥이  '노원힐링장소' ← {self.csv}:4·registry 2·3·4행(registered 3)", out)
+        self.assertIn(f"쌍둥이  '노원힐링장소' ← {self.csv}:4·registry 3·5·7행(registered 3)", out)
+
+    def test_real_push_writes_raw_names_to_new_timestamped_file(self):
+        """W3·W12: 실제 push만 승인 파일을 쓰고(시각 이름, 덮어쓰기 없음), 끝 마침표·앞뒤 공백까지 원문 그대로."""
+        self.write_cand(" 앞뒤공백 \n끝마침표.\n")
+        write_text(self.ind, "업종필테끝.\n 업종 필테 \n")
+        self.stamp()
+        X._default_sender = FakeSender()
+        argv = ("--from-candidates", self.cand, "--industry", self.ind, "--industry-lines", "1,2", "--expect", "4", "--key-file", self.kf)
+        rc, out = self.push(*argv)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("' 앞뒤공백 ' ←", out)
+        self.assertIn("' 업종 필테 ' ←", out)
+        files = self.approved_files()
+        self.assertEqual(len(files), 1)
+        self.assertRegex(os.path.basename(files[0]), r"^approved_\d{4}-\d\d-\d\d_\d{6}(_\d+)?\.txt$")
+        self.assertEqual(self.read_bytes(files[0]), " 앞뒤공백 \n끝마침표.\n업종필테끝.\n 업종 필테 \n".encode())
+        self.write_cand("둘째이름\n")
+        self.stamp()
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)   # 두 번째 실제 push — 앞 파일을 덮지 않는다
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(len(self.approved_files()), 2)
+        self.assertEqual(self.read_bytes(files[0]), " 앞뒤공백 \n끝마침표.\n업종필테끝.\n 업종 필테 \n".encode())
 
     def test_9_28_type_extra_row_already_registered_everywhere_fails(self):
         rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--extra-csv", self.csv, "--extra-rows", "4",
                             "--expect", "2", "--dry-run")
         self.assert_nothing_written(rc, out)
-        self.assertIn("[FAIL] 추가 이름 '노원힐링장소' ← ", out)
-        self.assertIn("이미 모든 대상 그룹 registered", out)
+        self.assertIn("[FAIL] 이름 '노원힐링장소' ← ", out)
+        self.assertIn("이미 registered", out)
         self.assertIn(f"쌍둥이  '노원힐링장소.' ← {self.csv}:5", out)            # 맞는 행을 나란히 보인다
+
+    def test_every_name_checked_registered_and_blocked(self):
+        """W1(a)(c): 후보·업종어 이름도 — 이미 registered(모든 그룹·`*` 기록) · 금지 패턴·경쟁사면 FAIL(승인 파일에 들어가지 않는다)."""
+        cases = {"노원힐링장소": "이미 registered", "별기록": "이미 registered", "노원역운동": "금지 패턴 '운동'",
+                 "젠필라테스노원점": "경쟁사명 '젠필라테스'"}
+        for name, want in cases.items():
+            self.write_cand(f"{name}\n")
+            self.stamp()
+            for dry in (["--dry-run"], ["--key-file", self.kf]):
+                rc, out = self.push("--from-candidates", self.cand, "--expect", "1", *dry)
+                self.assert_nothing_written(rc, out)
+                self.assertIn(f"[FAIL] 이름 '{name}' ← {self.cand}:1", out)
+                self.assertIn(want, out, name)
+                self.assertNotIn("[거부]", out)
+        rc, out = self.push("--industry", self.ind, "--industry-lines", "2", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn(f"[FAIL] 이름 '필테등록됨' ← {self.ind}:2", out)
+
+    def test_provenance_hand_written_changed_or_swapped_fails(self):
+        """W1(b): propose 산출물(이름 접미사 + 같은 폴더 .md5 기록)만 받는다."""
+        hand = self.write_cand("노원힐링장소.\n", name="hand_candidates.txt")   # 손으로 쓴 후보 파일 — 출처 기록 없음
+        rc, out = self.push("--from-candidates", hand, "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("후보 파일이 propose 산출물이 아님·propose 뒤 바뀜", out)
+        self.assertIn("hand.md5", out)
+        with open(self.cand, "a", encoding="utf-8") as f:                    # propose 뒤 바뀜 — md5 불일치
+            f.write("덧붙임\n")
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "4", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("후보 파일이 propose 산출물이 아님·propose 뒤 바뀜", out)
+        self.assertIn("출처 기록", out)
+        self.stamp()
+        rc, out = self.push("--from-candidates", self.ind, "--expect", "2", "--dry-run")       # 업종어 파일을 후보 자리에
+        self.assert_nothing_written(rc, out)
+        self.assertIn("_candidates.txt로 끝나야 한다", out)
+        rc, out = self.push("--industry", self.cand, "--industry-lines", "1", "--expect", "1", "--dry-run")  # 후보 파일을 업종어 자리에
+        self.assert_nothing_written(rc, out)
+        self.assertIn("_industry.txt로 끝나야 한다", out)
+        hand_csv = os.path.join(self.td, "mine.csv")                           # 손으로 쓴 CSV — --extra-csv 하나만으로도 막는다(리뷰 반영)
+        write_text(hand_csv, "검색어\n손으로쓴이름.\n")
+        X._default_sender = FakeSender()
+        for dry in (["--dry-run"], ["--key-file", self.kf]):
+            rc, out = self.push("--extra-csv", hand_csv, "--extra-rows", "2", "--expect", "1", *dry)
+            self.assert_nothing_written(rc, out)
+            self.assertIn("합본 CSV가 저장소 work/combined/검색어.csv가 아님", out)
+        self.assertEqual(X._default_sender.calls, [])                       # POST 0
+        X._default_sender = boom
+        rc, out = self.push("--industry", self.cand, "--industry-lines", "1", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("_industry.txt로 끝나야 한다", out)
+        os.remove(os.path.join(self.td, "x.md5"))                             # 출처 기록을 지우면
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "4", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("x.md5을(를) 읽을 수 없음", out)
+
+    def test_twins_case_only_and_inside_candidate_file(self):
+        """W12: 대소문자만 다른 쌍둥이(합본 칸) · 후보 파일 안 쌍둥이(끝 마침표) — 멈추지 않고 [주의]로 나란히."""
+        self.write_cand("노원X\n노원x.\nabc\n")
+        self.stamp()
+        rc, out = self.push("--from-candidates", self.cand, "--drop", "2", "--extra-csv", self.csv, "--extra-rows", "3",
+                            "--expect", "3", "--dry-run")
+        self.assertEqual(rc, 0, out)
+        self.assertIn(f"고른 것 '노원X' ← {self.cand}:1", out)
+        self.assertIn(f"쌍둥이  '노원x.' ← {self.cand}:2", out)                 # 후보 파일 안 쌍둥이
+        self.assertIn(f"고른 것 'abc' ← {self.cand}:3", out)
+        self.assertIn(f"쌍둥이  'ABC' ← {self.csv}:6", out)                     # 대소문자만 다름
 
     def test_sum_range_empty_missing_duplicate_fail_before_writing(self):
         cases = {
@@ -630,11 +740,12 @@ class TestApprovedReference(unittest.TestCase):
             "--drop 9:": ["--from-candidates", self.cand, "--drop", "9", "--expect", "3"],
             "--extra-rows 2:": ["--from-candidates", self.cand, "--drop", "2,3", "--extra-csv", self.csv, "--extra-rows", "2", "--expect", "2"],
             "--extra-rows 7:": ["--from-candidates", self.cand, "--drop", "2,3", "--extra-csv", self.csv, "--extra-rows", "7", "--expect", "2"],
-            "--industry-lines 2:": ["--industry", self.ind, "--industry-lines", "2", "--expect", "1"],
+            "--industry-lines 3:": ["--industry", self.ind, "--industry-lines", "3", "--expect", "1"],
             "같은 이름을 두 번 고름(K() 중복)": ["--from-candidates", self.cand, "--drop", "1,2", "--extra-csv", self.csv, "--extra-rows", "6", "--expect", "2"],
             "--expect N이 없음": ["--from-candidates", self.cand],
             "--extra-csv와 --extra-rows는 함께": ["--from-candidates", self.cand, "--extra-csv", self.csv, "--expect", "3"],
-            "파일 없음": ["--from-candidates", os.path.join(self.td, "없음.txt"), "--expect", "1"],
+            "파일 없음": ["--from-candidates", os.path.join(self.td, "없음_candidates.txt"), "--expect", "1"],
+            "--drop 값 '²'": ["--from-candidates", self.cand, "--drop", "²", "--expect", "3"],   # W4: isdigit은 참, int()는 실패
         }
         for want, argv in cases.items():
             for dry in ([], ["--dry-run"]):
@@ -642,12 +753,22 @@ class TestApprovedReference(unittest.TestCase):
                 self.assert_nothing_written(rc, out)
                 self.assertIn(want, out, (argv, dry))
         write_text(self.cand, "")
+        self.stamp()
         rc, out = self.push("--from-candidates", self.cand, "--expect", "0", "--dry-run")
         self.assert_nothing_written(rc, out)
         self.assertIn("비어 있음", out)
         write_text(self.cand, "\n\n")
         rc, out = self.push("--from-candidates", self.cand, "--expect", "0", "--key-file", self.kf)
         self.assert_nothing_written(rc, out)
+        with open(self.cand, "wb") as f:                                    # W4: UTF-16(PowerShell 5.1 `>`) — Traceback 대신 [FAIL]
+            f.write(b"\xff\xfe" + "새이름1\r\n".encode("utf-16-le"))
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("파일을 읽을 수 없음(UnicodeDecodeError", out)
+        write_text(self.csv, self.CSV + '"줄\n바꿈",확장,2026.09.27.,1,0\n')   # W4: 칸 안 줄바꿈 → 행 번호가 파일 줄과 어긋남
+        rc, out = self.push("--extra-csv", self.csv, "--extra-rows", "3", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("줄바꿈이 든 칸", out)
 
     def test_approved_file_only_for_dry_run(self):
         ap = os.path.join(self.td, "a.txt"); write_text(ap, "새이름1\n")
@@ -663,7 +784,7 @@ class TestApprovedReference(unittest.TestCase):
         self.assertIn("원천이 없음", out)
         rc, out = self.push("--approved", ap, "--dry-run")                      # dry-run은 그대로 된다(승인 파일 안 씀)
         self.assertEqual(rc, 0, out)
-        self.assertIsNone(self.approved())
+        self.assertEqual(self.approved_files(), [])
 
     def test_cli_push_and_verify_exit_1_when_not_verified(self):
         """검증 1 결론 7: 등록 응답은 성공인데 다시 읽으면 없음 → CLI push·verify 둘 다 exit 1(함수 결과만이 아니라 종료 코드)."""
@@ -672,18 +793,68 @@ class TestApprovedReference(unittest.TestCase):
         rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--expect", "1", "--key-file", self.kf)
         self.assertEqual(rc, 1, out)
         self.assertIn("실패/미확인 3", out)
-        self.assertEqual(self.approved(), "새이름1\n".encode())
+        files = self.approved_files()
+        self.assertEqual([self.read_bytes(p) for p in files], ["새이름1\n".encode()])
         self.assertEqual([c[0] for c in fake.calls].count("POST"), 3)
         with redirect_stdout(io.StringIO()) as buf:
-            rc = X.main(["--registry", self.reg, "verify", "--key-file", self.kf, "--approved", X.approved_path()])
+            rc = X.main(["--registry", self.reg, "verify", "--key-file", self.kf, "--approved", files[0]])
         self.assertEqual(rc, 1, buf.getvalue())
         self.assertIn("3건 없음 → failed로 기록", buf.getvalue())
         fake.drop_after_post = False                                            # 대조: 정상 등록이면 둘 다 0
-        with open(self.cand, "w", encoding="utf-8") as f:
-            f.write("새이름2\n")
+        self.write_cand("새이름2\n")
+        self.stamp()
         rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
         self.assertEqual(rc, 0, out)
         self.assertIn("실패/미확인 0", out)
+
+    def test_propose_writes_md5_record_and_warns_empty_window(self):
+        """W1(b)·W5: propose는 후보·업종어 파일의 출처 기록(.md5)을 쓰고, 창에 행이 없으면(--day가 데이터 끝 뒤) [주의] 빈 창.
+        그 산출물은 push 출처 검사를 그대로 통과한다(propose → push 끝까지)."""
+        out_md = os.path.join(self.td, "p.md")
+        with redirect_stdout(io.StringIO()) as buf:
+            rc = X.main(["--registry", self.reg, "propose", os.path.dirname(self.csv), "--day", "2026-09-30", "--out", out_md])
+        self.assertEqual(rc, 0)
+        self.assertIn("[주의] 빈 창(창 2026-09-30~2026-09-30 안 검색어 행 0", buf.getvalue())
+        with redirect_stdout(io.StringIO()) as buf:
+            rc = X.main(["--registry", self.reg, "propose", os.path.dirname(self.csv), "--since", "2026-09-27", "--out", out_md])
+        self.assertEqual(rc, 0)
+        self.assertNotIn("[주의] 빈 창", buf.getvalue())
+        rec = os.path.join(self.td, "p.md5")
+        with open(rec, encoding="utf-8") as f:
+            got = dict(ln.split()[::-1] for ln in f)
+        self.assertEqual(got, {"p_candidates.txt": md5f(os.path.join(self.td, "p_candidates.txt")),
+                               "p_industry.txt": md5f(os.path.join(self.td, "p_industry.txt"))})
+        rc, out = self.push("--from-candidates", os.path.join(self.td, "p_candidates.txt"), "--expect", "2", "--dry-run")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("'노원힐링장소.' ← ", out)
+
+    def test_propose_rereg_skips_names_registered_in_every_target(self):
+        """리뷰 반영: 대상 그룹 전부 등록 확인(group_id 행)인데 `*` missing 기록만 남은 이름은 propose 재등록 후보가 아니다
+        — push가 "이미 registered"로 막는 이름을 propose가 내면 서로 어긋난다. 한 그룹이라도 미등록이면 그대로 후보."""
+        import pandas as pd
+        rows = rows_of(*[("다등록", NAMES[g], "registered", "2026-09-10") for g in GIDS], ("다등록", "*", "missing", ""),
+                       *[("반등록", NAMES[g], "registered", "2026-09-10") for g in GIDS[:2]], ("반등록", NAMES[GIDS[2]], "unregistered", ""))
+        for r, g in zip(rows[:3] + rows[4:7], GIDS + GIDS):
+            r["group_id"] = g
+        sr = pd.DataFrame([("다른이름", "확장", "2026.09.26.", 1, 0)], columns=["검색어", "검색 유형", "일별", "노출수", "클릭수"])
+        sr["d"] = sr["일별"].str.rstrip(".").map(lambda s: __import__("datetime").date(*[int(x) for x in s.split(".")]))
+        sr = pd.concat([sr, pd.DataFrame([("노원\n힐링", "확장", "2026.09.26.", 1, 0)], columns=["검색어", "검색 유형", "일별", "노출수", "클릭수"])], ignore_index=True)
+        sr["d"] = sr["일별"].str.rstrip(".").map(lambda s: __import__("datetime").date(*[int(x) for x in s.split(".")]))
+        self.assertEqual(X.registration_status(rows, "다등록")[0], "partial")
+        p = X.build_proposal(rows, sr, day="2026-09-26")
+        self.assertEqual([k for k, _, _ in p["rereg"]], ["반등록"])
+        self.assertNotIn("다등록", p["candidates"])
+        self.assertNotIn("노원\n힐링", p["candidates"])                        # 줄바꿈이 든 이름은 후보 파일에 쓸 수 없어 "뺀 것"으로(리뷰 반영)
+        self.assertIn("줄바꿈이 든 이름", dict((k, w) for k, _, w in p["blocked"])["노원\n힐링"])
+
+    def test_load_keys_rejects_values_not_usable_as_header(self):
+        """W9: 키 값이 한 줄·ASCII·공백 없음이 아니면 SystemExit — 값은 출력하지 않는다(deploy.usable과 같은 기준)."""
+        for bad in ("K Y", "키값", "K\nY"):
+            write_text(self.kf, json.dumps({"api_key": bad, "secret_key": "S"}))
+            with self.assertRaises(SystemExit) as cm:
+                X.load_keys(self.kf)
+            self.assertIn("api_key 값 형식이 다릅니다", str(cm.exception))
+            self.assertNotIn(bad, str(cm.exception))
 
 
 if __name__ == "__main__":

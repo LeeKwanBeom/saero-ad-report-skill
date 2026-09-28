@@ -2,8 +2,9 @@
 # 1단계 한 번에: store → combine → 보관본 push. 어느 단계든 실패하면 거기서 멈춘다(set -e).
 # 사용법: PY=<venv 파이썬> scripts/ingest.sh <CSV> [<CSV> ...]   (합본은 저장소 work/combined — references/code-tab.md)
 #   push는 이 PC의 git 자격 증명으로 `git push origin HEAD:main`(토큰 인자 없음). main 브랜치에서만 돈다(쓰기 전에 확인).
-#   시작 검사(store 전, 쓰기 0으로 멈춤): 원격 main을 읽어(git fetch → FETCH_HEAD) HEAD와 같은지 · data/*.csv 줄바꿈이 커밋과 같은지
-#   (ls-files --eol i/ = w/ — CRLF로 풀린 작업 폴더에서 `git add data`가 CRLF 바이트를 커밋하지 않게, 2026-09-28 수정 회차 2 N3).
+#   시작 검사(store 전, 쓰기 0으로 멈춤): 원격 main을 읽어(git fetch → FETCH_HEAD) HEAD와 같은지 · data/가 HEAD와 같은지
+#   (`git diff --quiet HEAD -- data` — 스테이징·미스테이징 모두, 수정 회차 3 W2 · 추적 안 된 파일 0) · data/*.csv 줄바꿈이 커밋과 같은지
+#   (ls-files --eol i/ = w/ — stat만 깨끗한 CRLF 작업 파일까지. `git add data`가 CRLF 바이트를 커밋하지 않게, 2026-09-28 수정 회차 2 N3).
 #   push 뒤와 "data/ 변경 없음" 두 분기도 원격 main을 다시 읽어 HEAD와 같아야 통과한다 —
 #   커밋만 되고 push 안 된 상태가 "변경 없음"으로 숨지 않게(2026-09-28 탐색 기준선 6절 공통 보정).
 set -euo pipefail
@@ -26,8 +27,13 @@ synced() {  # 원격 main을 다시 읽어(FETCH_HEAD — single-branch clone에
 }
 echo "== 시작 검사(store 전 — 실패하면 쓰기 0으로 멈춤)"
 synced "시작 전 — store 전에 멈춤(쓰기 0). push 안 된 커밋이 있거나 원격이 앞서 있음(git status -sb로 확인 — push·pull은 사용자와 정한다)"
-EOL="$(git -C "$ROOT" -c core.quotepath=false ls-files --eol -- 'data/*.csv' | awk '{split($1,a,"/");split($2,b,"/"); if(a[2]!=b[2]) print $NF}')"
-if [ -n "$EOL" ]; then echo "[FAIL] data/ CSV 줄바꿈이 커밋과 다름(ls-files --eol i/ ≠ w/) — store 전에 멈춤(쓰기 0). references/code-tab.md 8절 '작업 폴더 줄바꿈': $(printf '%s ' $EOL)"; exit 1; fi
+if ! git -C "$ROOT" diff --quiet HEAD -- data; then
+  echo "[FAIL] data/가 HEAD와 다름(스테이징·미스테이징) — store 전에 멈춤(쓰기 0). git status data/로 보고, 되돌리기는 사용자와(references/code-tab.md 4절 git restore --source=HEAD --staged --worktree -- data — 스테이징된 새 파일까지)"
+  git -C "$ROOT" -c core.quotepath=false status --short -- data; exit 1; fi
+UNTR="$(git -C "$ROOT" -c core.quotepath=false ls-files --others --exclude-standard -- data)"   # diff는 추적 안 된 파일을 못 본다 — `git add data`가 그것까지 커밋하지 않게
+if [ -n "$UNTR" ]; then echo "[FAIL] data/에 추적 안 된 파일이 있음 — store 전에 멈춤(쓰기 0). store 부분 적용·손으로 둔 파일일 수 있다(지우기는 사용자와 — git clean -n -- data로 목록만):"; echo "$UNTR" | sed 's/^/  /'; exit 1; fi
+EOL="$(git -C "$ROOT" -c core.quotepath=false ls-files --eol -- 'data/*.csv' | awk -F'\t' '{split($1,f," "); i=f[1]; w=f[2]; sub(/^i\//,"",i); sub(/^w\//,"",w); if(i!=w) print $2 (w=="" ? " (작업 폴더에 없음)" : "")}')"
+if [ -n "$EOL" ]; then echo "[FAIL] data/ CSV 줄바꿈이 커밋과 다름(ls-files --eol i/ ≠ w/) — store 전에 멈춤(쓰기 0). references/code-tab.md 8절 '작업 폴더 줄바꿈':"; echo "$EOL" | sed 's/^/  /'; exit 1; fi
 echo "data/ CSV 줄바꿈 = 커밋 확인"
 echo "== store"; "$PY" "$ROOT/scripts/archive.py" store "$@"
 echo "== combine"; "$PY" "$ROOT/scripts/archive.py" combine "$OUT"

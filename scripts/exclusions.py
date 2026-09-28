@@ -11,15 +11,15 @@ registry(API·UI 실물)로 판정한다. 등록·삭제는 승인 뒤에만, �
                                                                             # API를 못 쓸 때: "기간의 검색어" 화면 전사로 registry 갱신
     "$PY" scripts/exclusions.py propose <합본폴더> [--since YYYY-MM-DD | --day YYYY-MM-DD] [--all] [--out <md>]
                                                                             # 후보·재노출 판정·승인 문구 — registry·계정 쓰기 0,
-                                                                            # work/exclusions_proposal_<창시작>_<창끝>.md·_candidates.txt·_industry.txt를 쓴다
+                                                                            # work/exclusions_proposal_<창시작>_<창끝>.md·_candidates.txt·_industry.txt·.md5(출처 기록)를 쓴다
     "$PY" scripts/exclusions.py push   --from-candidates <_candidates.txt> [--drop <줄번호,…>]
                                        [--industry <_industry.txt> --industry-lines <줄번호,…>]
                                        [--extra-csv <합본 검색어.csv> --extra-rows <행번호,…>] --expect N
                                        --key-file <keys.json> [--dry-run] [--reason "..."]
-                                                                            # 참조 선택 모드(실제 등록은 이것만): 원천 파일에서 이름을 직접 읽어
-                                                                            # work/approved_<날짜>.txt를 쓰고 3그룹에 등록. 합계 ≠ N 등은 쓰기 전 [FAIL]
+                                                                            # 참조 선택 모드(실제 등록은 이것만): 원천 파일에서 이름을 직접 읽어 3그룹에 등록
+                                                                            # (실제 push만 work/approved_<날짜>_<시분초>.txt를 쓴다). 합계 ≠ N·출처 md5·이미 등록·거부 이름 등은 쓰기 전 [FAIL]
     "$PY" scripts/exclusions.py push   --approved <파일> --dry-run        # 승인 목록 파일 — dry-run·시험 전용(실제 push에 쓰면 [FAIL])
-                                                                            # --dry-run은 HTTP 호출 0·registry 변경 0(참조 선택 모드는 승인 파일만 쓴다)
+                                                                            # --dry-run은 HTTP 호출 0·registry 변경 0·파일 쓰기 0(화면 출력만)
     "$PY" scripts/exclusions.py verify --key-file <keys.json> [--approved <파일>]  # 다시 읽어 verified_at 기록, 없으면 실패
     "$PY" scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys.json> --confirm [--dry-run]
     "$PY" scripts/exclusions.py test-roundtrip --keyword <시험문자열> --group <adgroup_id> --key-file <keys.json> --confirm [--dry-run]
@@ -356,8 +356,11 @@ def load_keys(path):
     with open(path, encoding="utf-8") as f:
         k = json.load(f)
     for need in ("api_key", "secret_key"):
-        if not k.get(need):
+        v = k.get(need)
+        if not v:
             raise SystemExit(f"키 파일에 {need}가 없습니다: {path}")
+        if not isinstance(v, str) or not v.isascii() or any(c.isspace() for c in v):  # deploy.usable과 같은 기준 — 헤더에 못 넣는 값
+            raise SystemExit(f"키 파일의 {need} 값 형식이 다릅니다(한 줄·ASCII·공백 없음이어야 한다 — 값은 출력하지 않는다): {path}")
     return k["api_key"], k["secret_key"], k.get("customer_id") or EX["customer_id"]
 
 
@@ -593,6 +596,9 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
         fs = first_seen.get(kw)
         if first_seen_only and fs is not None and fs < lo:
             continue  # 이전에도 나왔던 이름은 그때 판단이 끝난 것으로 본다(--all로 포함)
+        if "\n" in kw or "\r" in kw:  # 한 줄 한 이름 파일(_candidates.txt·_industry.txt)에 쓸 수 없다 — push의 CSV 칸 줄바꿈 FAIL과 같은 기준
+            blocked.append((kw, int(r["imp"]), "줄바꿈이 든 이름 — 후보 파일에 한 줄로 쓸 수 없어 뺌(사람이 확인)"))
+            continue
         entry = (kw, int(r["imp"]), fs.isoformat() if fs is not None else "")
         if any(t and t in kw for t in EX.get("industry_terms", [])):
             industry.append(entry)  # 업종어 포함 — 기본 후보 아님, 사용자가 고르면 승인 목록에 넣는다
@@ -603,6 +609,8 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
     for kw in sorted({r["keyword"] for r in rows if r["status"] in ("unregistered", "missing", "partial", "failed")} | rereg_names):
         status, reg, unreg = registration_status(rows, kw)
         if status in ("unregistered", "partial"):
+            if registered_everywhere(rows, kw):  # 대상 그룹 전부 등록 확인 — 남은 미등록 증거는 비대상 그룹·그룹 미확인 기록뿐(push가 "이미 registered"로 막는 이름)
+                continue
             if blocked_reason(kw):
                 blocked.append((kw, 0, blocked_reason(kw) + "(등록 기록 있음 — 사용자 확인)"))
                 continue
@@ -618,7 +626,7 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
             f" / 제외한 것: 금지 패턴·경쟁사 {len(blocked)} · 이미 등록 {n_registered} · 노출 유지(사용자 결정) {len(already)}\n"
             '답: "등록 승인 N개" (뺄 이름이 있으면 적어 주세요 — 그만큼 뺀 뒤 다시 확인합니다). 답이 오기 전에는 아무것도 등록하지 않습니다.')
     return dict(window=(lo, hi), new=new, industry=industry, rereg=rereg, blocked=blocked, already=already,
-                reexposed=reexposed, candidates=cands, approval_text=text, n_registered=n_registered)
+                reexposed=reexposed, candidates=cands, approval_text=text, n_registered=n_registered, n_rows=len(win))
 
 
 def render_proposal(p):
@@ -656,14 +664,19 @@ def cmd_propose(a):
         f.write(md)
     base = os.path.splitext(out)[0]
     files = {"_candidates.txt": p["candidates"], "_industry.txt": [k for k, _, _ in p["industry"]]}  # 한 줄에 이름 하나 — push 참조 선택 모드의 원천
+    stamp = []
     for suffix, names in files.items():
         with open(base + suffix, "w", encoding="utf-8") as f:
             f.write("\n".join(names) + ("\n" if names else ""))
+        with open(base + suffix, "rb") as f:
+            stamp.append(f"{hashlib.md5(f.read()).hexdigest()}  {os.path.basename(base + suffix)}\n")
+    with open(base + ".md5", "w", encoding="utf-8", newline="\n") as f:  # 출처 기록 — push는 이 md5와 같은 후보·업종어 파일만 받는다
+        f.writelines(stamp)
     print(md)
-    if lo > hi:
-        print(f"[주의] 빈 창(--since > 데이터 끝) — 창 {lo}~{hi}: 신규 후보 0, 재등록 후보만 썼다")
+    if lo > hi or p["n_rows"] == 0:
+        print(f"[주의] 빈 창(창 {lo}~{hi} 안 검색어 행 0 — --since·--day가 데이터 끝 뒤 등): 신규 후보 0, 재등록 후보만 썼다")
     print(f"[propose] 제안 {out} · 후보 {base}_candidates.txt({len(p['candidates'])}줄) · 업종어 {base}_industry.txt({len(p['industry'])}줄)"
-          " — 승인 뒤 push --from-candidates … --expect N(줄 번호로 고른다)")
+          f" · 출처 기록 {base}.md5 — 승인 뒤 push --from-candidates … --expect N(줄 번호로 고른다)")
     return 0
 
 
@@ -788,17 +801,23 @@ def twin_key(s):
 
 
 def approved_path():
-    return os.path.join(ROOT, "work", f"approved_{today()}.txt")
+    """실제 push가 쓰는 승인 목록 — 시각까지 넣어 덮어쓰지 않는다(같은 초에 또 쓰면 _2, _3 …)."""
+    base = os.path.join(ROOT, "work", f"approved_{dt.datetime.now().strftime('%Y-%m-%d_%H%M%S')}")
+    p, i = base + ".txt", 1
+    while os.path.exists(p):
+        i += 1
+        p = f"{base}_{i}.txt"
+    return p
 
 
 def parse_numbers(text, opt, problems):
-    """'3,5,7' → [3, 5, 7]. 양의 정수가 아닌 값은 problems에 적는다."""
+    """'3,5,7' → [3, 5, 7]. 양의 정수(10진 숫자만 — isdecimal)가 아닌 값은 problems에 적는다."""
     out = []
     for tok in (text or "").split(","):
         tok = tok.strip()
         if not tok:
             continue
-        if not tok.isdigit() or int(tok) < 1:
+        if not tok.isdecimal() or int(tok) < 1:
             problems.append(f"{opt} 값 {tok!r}이(가) 줄·행 번호(1 이상 정수)가 아님")
             continue
         out.append(int(tok))
@@ -807,12 +826,16 @@ def parse_numbers(text, opt, problems):
 
 def read_name_file(path, what, problems):
     """한 줄에 이름 하나인 파일(propose의 _candidates.txt·_industry.txt) → {파일 줄 번호: 이름}.
-    줄 끝 CR·LF만 떼고 원문 그대로(기호·마침표·공백 유지). 빈 줄은 이름이 아니다. 없거나 비었으면 problems."""
+    줄 끝 CR·LF만 떼고 원문 그대로(기호·마침표·공백 유지). 빈 줄은 이름이 아니다. 없거나·못 읽거나(UTF-8 아님)·비었으면 problems."""
     if not os.path.isfile(path):
         problems.append(f"{what} 파일 없음: {path}")
         return None
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        text = f.read()
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            text = f.read()
+    except (OSError, UnicodeError) as e:
+        problems.append(f"{what} 파일을 읽을 수 없음({type(e).__name__} — UTF-8이 아니거나 열 수 없음): {path}")
+        return None
     lines = {i: s.rstrip("\r") for i, s in enumerate(text.split("\n"), 1) if s.rstrip("\r").strip()}
     if not lines:
         problems.append(f"{what} 파일이 비어 있음(이름 0줄): {path}")
@@ -820,22 +843,50 @@ def read_name_file(path, what, problems):
     return lines
 
 
+def check_provenance(path, suffix, what, problems):
+    """propose 산출물인지 — 이름이 suffix(_candidates.txt·_industry.txt)로 끝나고, 같은 폴더의 `<창 이름>.md5`(propose가 씀)에 적힌
+    이 파일의 md5가 지금 파일과 같아야 한다. 손으로 쓴 파일·propose 뒤 바뀐 파일·다른 종류 파일을 막는다."""
+    why = f"후보 파일이 propose 산출물이 아님·propose 뒤 바뀜({what})"
+    if not path.endswith(suffix):
+        problems.append(f"{why} — {path}: 이름이 {suffix}로 끝나야 한다")
+        return
+    rec = path[: -len(suffix)] + ".md5"
+    try:
+        with open(rec, encoding="utf-8") as f:
+            want = {ln.split(None, 1)[1].strip(): ln.split(None, 1)[0] for ln in f if len(ln.split(None, 1)) == 2}
+        with open(path, "rb") as f:
+            got = hashlib.md5(f.read()).hexdigest()
+    except (OSError, UnicodeError) as e:
+        problems.append(f"{why} — 출처 기록 {rec}을(를) 읽을 수 없음({type(e).__name__})")
+        return
+    if want.get(os.path.basename(path)) != got:
+        problems.append(f"{why} — {path} md5 {got[:8]} ≠ 출처 기록 {rec}의 값 {(want.get(os.path.basename(path)) or '없음')[:8]}")
+
+
 def read_csv_terms(path, problems):
     """합본 검색어.csv → {파일 줄 번호: `검색어` 칸 원문}(csv 모듈 — 다른 칸은 보지 않는다).
-    1행 기간 헤더·2행 컬럼 이름 줄은 데이터가 아니다(고르면 범위 밖). 없거나 데이터 행 0이면 problems."""
+    1행 기간 헤더·2행 컬럼 이름 줄은 데이터가 아니다(고르면 범위 밖). 없거나·못 읽거나·데이터 행 0이거나
+    칸 안에 줄바꿈이 있으면(행 번호가 파일 줄과 어긋난다) problems."""
     if not os.path.isfile(path):
         problems.append(f"합본 CSV 파일 없음: {path}")
         return None
     out, col = {}, None
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        rd = csv.reader(f)
-        for rec in rd:
-            if col is None:
-                if "검색어" in rec:
-                    col = rec.index("검색어")
-                continue
-            if col < len(rec) and rec[col].strip():
-                out[rd.line_num] = rec[col]
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            rd = csv.reader(f)
+            for rec in rd:
+                if any("\n" in c or "\r" in c for c in rec):
+                    problems.append(f"합본 CSV {path}:{rd.line_num}에 줄바꿈이 든 칸이 있음 — 행 번호가 파일 줄과 어긋난다")
+                    return None
+                if col is None:
+                    if "검색어" in rec:
+                        col = rec.index("검색어")
+                    continue
+                if col < len(rec) and rec[col].strip():
+                    out[rd.line_num] = rec[col]
+    except (OSError, UnicodeError, csv.Error) as e:
+        problems.append(f"합본 CSV를 읽을 수 없음({type(e).__name__} — UTF-8이 아니거나 형식 오류): {path}")
+        return None
     if col is None:
         problems.append(f"합본 CSV에 `검색어` 칸이 없음: {path}")
         return None
@@ -890,6 +941,7 @@ def build_approved(a, rows, reg_path):
     if a.from_candidates:
         cand = read_name_file(a.from_candidates, "후보(_candidates.txt)", problems)
         if cand is not None:
+            check_provenance(a.from_candidates, "_candidates.txt", "--from-candidates", problems)
             drop = set(parse_numbers(a.drop, "--drop", problems))
             for n in sorted(drop - set(cand)):
                 problems.append(f"--drop {n}: {a.from_candidates}에 그 번호의 이름이 없음(범위 밖 — 이름 줄은 {min(cand)}~{max(cand)})")
@@ -901,10 +953,14 @@ def build_approved(a, rows, reg_path):
     if a.industry and a.industry_lines:
         ind = read_name_file(a.industry, "업종어(_industry.txt)", problems)
         if ind is not None:
+            check_provenance(a.industry, "_industry.txt", "--industry", problems)
             for k, src in pick_lines(ind, parse_numbers(a.industry_lines, "--industry-lines", problems), a.industry, "--industry-lines", problems):
                 picked.append((k, src, True))   # 후보 파일 밖에서 더한 이름(업종어·재상정)
     terms = None
     if a.extra_csv and a.extra_rows:
+        combined = os.path.join(ROOT, "work", "combined", "검색어.csv")  # 출처: ingest(archive combine)가 만든 합본만 — 손으로 쓴 CSV는 받지 않는다
+        if os.path.normcase(os.path.realpath(a.extra_csv)) != os.path.normcase(os.path.realpath(combined)):
+            problems.append(f"합본 CSV가 저장소 work/combined/검색어.csv가 아님(ingest가 만든 합본만 받는다 — 손으로 쓴·다른 CSV 거부): {a.extra_csv}")
         terms = read_csv_terms(a.extra_csv, problems)
         if terms is not None:
             for k, src in pick_lines(terms, parse_numbers(a.extra_rows, "--extra-rows", problems), a.extra_csv, "--extra-rows", problems):
@@ -927,16 +983,11 @@ def build_approved(a, rows, reg_path):
             problems.append(f"같은 이름을 두 번 고름(K() 중복): {seen[K(k)][0]!r} ← {seen[K(k)][1]} / {k!r} ← {src}")
         else:
             seen[K(k)] = (k, src)
-    # 추가 이름이 이미 모든 대상 그룹에 등록 확인 → 9/28 유형 신호(마침표 빠진 쌍둥이 행을 고른 것)
-    for k, src, extra in picked:
-        if extra and registered_everywhere(rows, k):
-            problems.append(f"추가 이름 {k!r} ← {src}은(는) registry에 이미 모든 대상 그룹 registered — 등록할 것이 없다. "
-                            "기호·마침표가 다른 쌍둥이 행을 고른 것일 수 있다(2026-09-28 '노원힐링장소.' 유형 — 위 [주의] 참고)")
-    # [주의] 쌍둥이: 추가 이름과 기호·공백·대소문자만 다른 이름이 후보·합본 칸·registry에 있으면 나란히
-    reg_idx = None
-    for k, src, extra in picked:
+    # [주의] 쌍둥이: 고른 이름과 기호·공백·대소문자만 다른 이름이 후보 파일·합본 칸·registry에 있으면 나란히
+    reg_idx, twinned = None, set()
+    for k, src, _ in picked:
         tk = twin_key(k)
-        if not extra or not tk:
+        if not tk:
             continue
         found = {}                    # 쌍둥이 원문 → 출처 목록
         for n, v in (cand or {}).items():
@@ -958,10 +1009,23 @@ def build_approved(a, rows, reg_path):
             found.setdefault(v, []).append(f"registry {fmt_locs([str(n) for n, _ in hits])}행("
                                            + ", ".join(f"{s} {c}" for s, c in sorted(sts.items())) + ")")
         if found:
+            twinned.add((k, src))
             lines.append(f"[주의] 쌍둥이 — 고른 이름과 기호·공백·대소문자만 다른 이름이 있다. 둘을 나란히 보고 사용자 답과 같은지 확인:")
             lines.append(f"       고른 것 {k!r} ← {src}")
             for v, locs in found.items():
                 lines.append(f"       쌍둥이  {v!r} ← {fmt_locs(locs)}")
+    # 모든 이름: 이미 registered(모든 대상 그룹 — 또는 propose와 같은 기준 registration_status == registered: `*` 기록·pending·비대상 그룹 행 포함)
+    # → 9/28 유형 신호(마침표 빠진 쌍둥이 행을 고른 것). propose는 이런 이름을 후보로 내지 않는다.
+    for k, src, _ in picked:
+        if registered_everywhere(rows, k) or registration_status(rows, k)[0] == "registered":
+            problems.append(f"이름 {k!r} ← {src}은(는) registry에 이미 registered — 등록할 것이 없다(propose는 이런 이름을 후보로 내지 않는다)"
+                            + (". 기호·마침표가 다른 쌍둥이 행을 고른 것일 수 있다(2026-09-28 '노원힐링장소.' 유형 — 위 [주의] 참고)"
+                               if (k, src) in twinned else ""))
+    # 모든 이름: 금지 패턴·경쟁사 → 참조 모드에서는 거부가 아니라 FAIL(propose가 후보로 내지 않는 이름 = 잘못 고른 신호, 승인 파일에 들어가지 않게)
+    for k, src, _ in picked:
+        why = blocked_reason(k)
+        if why:
+            problems.append(f"이름 {k!r} ← {src}: {why} — config never_exclude 대상(propose는 후보로 내지 않는다 — 잘못 고른 신호)")
     return [k for k, _, _ in picked], lines, problems
 
 
@@ -987,11 +1051,8 @@ def cmd_push(a):
                 print(f"[FAIL] {p}")
             print("[FAIL] 승인 목록을 만들지 않았다 — 쓰기 0(승인 파일·HTTP·registry). 원천 파일·번호·N을 사용자 답과 다시 맞춘다")
             return 1
-        out = approved_path()
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        with open(out, "w", encoding="utf-8", newline="\n") as f:
-            f.write("".join(k + "\n" for k in names))
-        print(f"[승인 목록] {out}: {len(names)}줄 = --expect {a.expect} (원천 원문 그대로, LF)")
+        print(f"[승인 목록] {len(names)}개 = --expect {a.expect} (원천 원문 그대로)"
+              + (" — dry-run: 파일 안 씀(실제 push가 work/approved_<날짜>_<시분초>.txt에 쓴다)" if a.dry_run else ""))
     else:
         names = read_approved(a.approved)
     ok, refused = split_blocked(names)
@@ -1015,6 +1076,12 @@ def cmd_push(a):
                 print("           건너뜀: " + " · ".join(skip))
         return 0
     api = api_from_args(a)
+    if reference:  # 실제 push만 승인 목록을 남긴다(시각 이름 — 덮어쓰기 없음). 등록 전에 써서 무엇을 보냈는지 기록
+        out = approved_path()
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        with open(out, "x", encoding="utf-8", newline="\n") as f:
+            f.write("".join(k + "\n" for k in names))
+        print(f"[승인 목록] {out}: {len(names)}줄 (LF)")
     try:
         res = do_push(api, rows, ok, a.reason or description)
         save_registry(path, rows)

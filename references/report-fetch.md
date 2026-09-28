@@ -32,7 +32,7 @@ D:\saero\.venv\Scripts\python.exe scripts\fetch_reports.py --dry-run      # 브�
 ## 3. 매일 실행
 
 ```
-cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1    # Code 탭 Git Bash(code-tab.md 1절) — S0 사전 점검 뒤
+cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never; unset GIT_ASKPASS SSH_ASKPASS    # Code 탭 Git Bash(code-tab.md 1절) — S0 사전 점검 뒤
 "$PY" scripts/fetch_reports.py --prev ~/saero-fetch/downloads/<직전 날짜> [--debug]                  # Code 탭은 run_in_background(3~5분, 사용자 화면에 창)
 ```
 - 시각: **01:00 KST 이후**(어제 집계 완료 — API `cycleBaseTm` 01:00·UI 띠 00:20 실측 09-28). 그 전에 돌리면 어제 행이 비거나 헤더가 그제까지로 나와 "기간 = 기대" FAIL이 난다.

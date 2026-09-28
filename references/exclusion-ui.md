@@ -40,12 +40,12 @@
 네트워크 허용 목록은 없다(사용자 화면 9장). 그래서 **경로 C**: 스크립트는 저장소에, 실행은 사용자 PC에서(2026-09-27 첫 실사용은 사용자가 PowerShell로 쳤다).
 스크립트는 프록시 403을 `NetworkBlocked` 로 잡아 `[FAIL] 네트워크 차단(프록시)…` 를 찍고 **exit 2** — 채팅에서 이것이 나오는 것은 결함이 아니다(PC Code 탭에서 돌린다).
 - **정식 경로 = PC 작업 폴더(`D:\saero\saero-ad-report-skill`, main)를 연 데스크톱 앱 Code 탭 세션** [실측 2026-09-28]: 그 셸은 `api.searchad.naver.com`이 열린다 —
-  읽기 전용 `pull` exit 0(3그룹 각 216) → `push` 5개 × 3그룹 등록·verify 15/15·실패 0(registry 커밋 `bf3089e`). 승인 목록 작성·명령 실행·registry 커밋까지 세션이 하고
+  읽기 전용 `pull` exit 0(3그룹 각 216) → `push` 5개 × 3그룹 등록·verify 15/15·실패 0(registry 커밋 `bf3089e`). 번호 선택(승인 목록은 push가 씀)·명령 실행·registry 커밋까지 세션이 하고
   사용자는 "등록 승인 N개"만 답한다. 사용자가 PowerShell로 같은 명령을 쳐도 같은 경로다. 클라우드 실행 옵션·`/sandbox`(네트워크 격리)는 쓰지 않는다.
 - **이름은 원문 그대로(기호·마침표 포함)** — 실제 등록은 `push` 참조 선택 모드만: push가 propose 산출물(`_candidates.txt`·`_industry.txt`)·합본 CSV `검색어` 칸에서
   줄·행 번호로 이름을 직접 읽고, 세션은 번호와 답의 N만 넘긴다(`references/code-tab.md` 6절). 2026-09-28 첫 Code 탭 실행에서
   승인 목록 파일을 다시 쓰며 `노원힐링장소.`의 마침표가 빠졌다(7절 대조 규칙과 어긋남 — 등록 전 registry 사본으로 dry-run 재현, 216 → 221 대 222) —
-  같은 수정 회차 2에서 코드 가드로 올렸다(마침표 없는 쌍둥이 행을 고르면 "이미 모든 대상 그룹 registered" `[FAIL]`).
+  같은 날 수정 회차 2·3에서 코드 가드로 올렸다(마침표 없는 쌍둥이 행을 고르면 "이미 registered" `[FAIL]`).
 - 키 파일은 저장소·채팅 밖 PC 로컬(`~/naver-api.keys.json`) — 세션은 `--key-file` 경로만 넘기고 **열지도 출력하지도 않는다**(Code 탭 세션은 PC 파일에 닿을 수 있으므로 이것은 규칙이다).
 
 Code 탭 Git Bash(작업 폴더에서, `code-tab.md` 1절 `export PY=… PYTHONUTF8=1` 뒤):
@@ -111,12 +111,13 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
    (m = 창 안에 나왔지만 registry에 등록 확인된 이름 수, k = `keep` 이름 수 — 2026-09-27 검증 판단 3)
    > 답: "등록 승인 N개" (뺄 이름이 있으면 적어 주세요 — 그만큼 뺀 뒤 다시 확인합니다). 답이 오기 전에는 아무것도 등록하지 않습니다.
    승인된 이름은 `push` 참조 선택 모드가 원천(`work/exclusions_proposal_<창시작>_<창끝>_candidates.txt`·`_industry.txt`·합본 `검색어.csv` `검색어` 칸)에서
-   줄·행 번호로 직접 읽어 `work/approved_<날짜>.txt`(한 줄에 하나, LF)에 쓰고 등록한다 — 합계 = `--expect N`(답의 N)이 아니면 쓰기 전 `[FAIL]`(`references/code-tab.md` 6절).
-   propose 파일명에는 창 시작·끝이 둘 다 들어간다(창이 다른 propose끼리 덮지 않는다). `--since`가 데이터 끝보다 뒤면 `[주의] 빈 창` — 재등록 후보만.
+   줄·행 번호로 직접 읽어 등록한다(실제 push만 `work/approved_<날짜>_<시분초>.txt` — 한 줄에 하나, LF, 덮어쓰기 없음) — 합계 = `--expect N`(답의 N)이 아니면
+   쓰기 전 `[FAIL]`(`references/code-tab.md` 6절). propose는 후보·업종어 파일의 md5를 `exclusions_proposal_<창시작>_<창끝>.md5`에 적고, push는 그 값과 같은 파일만 받는다.
+   propose 파일명에는 창 시작·끝이 둘 다 들어간다(창이 다른 propose끼리 덮지 않는다). 창 안 검색어 행이 0이면(`--since`·`--day`가 데이터 끝 뒤 등) `[주의] 빈 창` — 재등록 후보만.
 
 ## 7. 등록·확인·실패 처리 (`push` → `verify`)
 
-- `push` 는 승인 목록에서 금지 패턴·경쟁사 이름을 **거부**(`[거부] …`, 승인 목록에 있어도 등록 안 함) → `pull`(쓰기 전 읽기) → 그룹별 `현재 N + 등록 예정 M = 합`을 찍고
+- `push` 는 금지 패턴·경쟁사 이름을 등록하지 않는다 — 참조 선택 모드(실제 등록)는 하나라도 있으면 쓰기 전 `[FAIL]`, `--approved --dry-run`은 **거부**(`[거부] …`) → `pull`(쓰기 전 읽기) → 그룹별 `현재 N + 등록 예정 M = 합`을 찍고
   config `max_per_group`(950 추정) 초과 예상이면 `[주의]`(차단은 안 함) → **그룹마다 아직 없는 이름만** POST(50개씩) →
   응답 항목별 `resultStatus` 로 성공(`pending`)/실패(`failed`, 코드·문구 기록) → `verify`(다시 읽어 3그룹 모두 있으면 `registered`+`verified_at`, 없으면 `failed`) → `work/` 스냅샷.
   exit 0 = 전부 확인, 1 = 실패·미확인 있음(재시도는 사용자 결정), 2 = 네트워크 차단.
@@ -126,9 +127,10 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
 - `description` = `<prefix> MM-DD`(예 `saero 09-27`, 시험은 `saero test 09-27`; config `description_prefix`) — UI 설명 열·API 로 스킬 등록분과 수동 등록분을 구분.
   **길이 한도는 문서에 없다** — 첫 실사용(2026-09-27) 시험에서 `saero-ad-report 시험 2026-09-27`(29자)가 **400 / 3721 "description … maximum length"** 로 거부됐다(POST 전체 거부, 등록 0).
   `NaverApi.add_restricted`는 3721이면 **prefix만 → 설명 없음** 순으로 물러서서 등록하고(`last_description`에 실제 값), push·test 로그에 그 사실을 찍는다. 다른 400·401은 즉시 실패.
-- `--dry-run`: 승인 목록·거부·그룹별 계획(registry 기준: 등록 예정/이미 등록/현재 등록 수 → 등록 후 합/한도 추정)만 출력, **HTTP 호출 0·registry 변경 0**(참조 선택 모드는 `work/approved_<날짜>.txt`만 쓴다). 첫 pull 전에는 그룹 ID 매핑이 없어 registry 그룹명 기준으로 계획을 보인다.
-- 승인 목록 가드(참조 선택 모드, 쓰기 전 — dry-run도): 합계 ≠ N · 원천 없음·빈 파일 · 번호 범위 밖 · `K()` 중복 · 추가(후보 밖) 이름이 이미 모든 대상 그룹 registered → `[FAIL]` exit 1.
-  추가 이름과 기호·공백·대소문자만 다른 쌍둥이(후보·합본 칸·registry)는 `[주의]`로 나란히 보인다. 실제 push에 `--approved`는 `[FAIL]`.
+- `--dry-run`: 승인 목록·거부·그룹별 계획(registry 기준: 등록 예정/이미 등록/현재 등록 수 → 등록 후 합/한도 추정)만 출력, **HTTP 호출 0·registry 변경 0·파일 쓰기 0**(승인 파일은 실제 push만). 첫 pull 전에는 그룹 ID 매핑이 없어 registry 그룹명 기준으로 계획을 보인다.
+- 승인 목록 가드(참조 선택 모드, 쓰기 전 — dry-run도): 합계 ≠ N · 원천 없음·빈 파일·읽을 수 없음 · 번호 범위 밖 · 출처 md5(propose 산출물 아님·propose 뒤 바뀜) ·
+  `K()` 중복 · CSV 칸 줄바꿈 · 고른 이름 전부가 이미 registered(모든 대상 그룹 또는 propose 기준) · 금지 패턴·경쟁사명 → `[FAIL]` exit 1.
+  고른 이름과 기호·공백·대소문자만 다른 쌍둥이(후보·합본 칸·registry)는 `[주의]`로 나란히 보인다. 실제 push에 `--approved`는 `[FAIL]`.
 - 부분 실패(그룹 일부·항목 일부): 성공/실패를 그룹×이름으로 나눠 보고, 조용히 넘어가지 않는다. 한도 초과(3716)는 항목별 `failed`로 남는다 — 남은 용량은 계산하지 않는다(공식 한도 미공개, 950은 UI 카운터 추정) → 노출 많은 순으로 잘라 **다시 승인** 받는다.
 - 되돌리기: `delete --group <id> --ids <restrict_kwd_id,…> --key-file <keys> --confirm`(registry `deleted`). 삭제도 승인 대상 — `--confirm` 없이는 돌지 않고, `--dry-run`은 호출 0.
 

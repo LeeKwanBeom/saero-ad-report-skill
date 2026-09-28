@@ -9,11 +9,15 @@
   3 push가 거부되면 [FAIL] push 실패 exit 1, 커밋만 된 상태에서 같은 입력으로 다시 → 시작 검사에서 [FAIL](HEAD ≠ origin/main) — 숨지 않음
   4 data/ 밖에 스테이징된 변경은 'data:' 커밋에 섞이지 않는다
   5 CRLF 입력 CSV → 원격 blob 바이트 = 입력(.gitattributes `*.csv -text`가 없으면 autocrlf=true가 LF로 바꿔 실패)
-  6·7 시작 검사(N3): 원격이 앞서 있음 / data/*.csv 작업 파일 줄바꿈 ≠ 커밋 → store 전 [FAIL] exit 1, 쓰기 0
-  precheck: compute만 실패하는 PY 래퍼 → rc ≠ 0·"전부 통과" 없음(통과 래퍼 대조군은 rc 0)
+  6·7 시작 검사(N3): 원격이 앞서 있음 / stat만 깨끗한 CRLF 작업 파일(i/lf w/crlf) → store 전 [FAIL] exit 1, 쓰기 0
+  8 시작 검사(수정 회차 3 W2): data/가 HEAD와 다름 — 스테이징된 CRLF(줄바꿈 검사는 못 잡음)·미스테이징 둘 다 [FAIL], 추적 안 된 파일도 [FAIL]
+  git·ingest·precheck 자식 env는 GIT_* 제거 + 시스템·전역 설정 끔(clean_env — 호출 환경의 GIT_DIR 등으로 실제 저장소에 닿지 않게)
+  1은 "origin/main = HEAD"를 두 번(시작 검사·push 뒤) 단언
+  precheck: compute만 실패하는 PY 래퍼 → rc ≠ 0·"전부 통과" 없음·옛 도장 지움(통과 래퍼 대조군은 rc 0·도장 = 작업본 md5)
 임시 저장소는 core.autocrlf=true(이 PC와 같게 — .gitattributes가 막는지 보려면 변환이 켜져 있어야 한다).
 입력은 늘 data/ 밖 사본이다(archive.py store는 같은 경로면 원본을 지운 뒤 복사하다 잃는다 — 그 조건을 쓰지 않는다).
 """
+import atexit
 import hashlib
 import os
 import shutil
@@ -21,6 +25,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글 — 다른 시험·스크립트와 같은 방식
@@ -33,6 +38,19 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 FILES = {"키워드.csv": "필라테스 보고서,2580077.csv", "검색어.csv": "검색어 보고서,2580077.csv",
          "상세지역.csv": "상세지역 보고서,2580077.csv", "시간대별.csv": "시간대별 보고서,2580077.csv"}
+_fd, EMPTY_GITCONFIG = tempfile.mkstemp(suffix=".gitconfig")   # 실행마다 새 빈 파일(공용 이름이면 남은 내용이 전역 설정이 된다 — 리뷰 반영)
+os.close(_fd)
+atexit.register(lambda: os.path.exists(EMPTY_GITCONFIG) and os.remove(EMPTY_GITCONFIG))
+
+
+def clean_env(**extra):
+    """호출 환경의 GIT_* 변수(GIT_DIR 등)를 지우고 시스템·전역 git 설정을 끈다 — 임시 저장소 밖 실제 저장소·설정에 닿지 않게(test_deploy W10과 같은 방식).
+    autocrlf는 임시 저장소 설정으로 켠다(setUp)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "PYTHONUTF8"))}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=EMPTY_GITCONFIG, GIT_CEILING_DIRECTORIES=os.path.dirname(tempfile.gettempdir()), **extra)
+    return env
+
+
 BASH = shutil.which("bash") or next((p for p in (r"C:\Program Files\Git\bin\bash.exe",) if os.path.exists(p)), None)
 GIT = shutil.which("git")
 COPY = ("scripts/ingest.sh", "scripts/archive.py", "scripts/reportlib.py", "config/report-config.json", ".gitattributes", ".gitignore")
@@ -61,7 +79,7 @@ def _rm_ro(func, path, _exc):  # Windows: git 객체 파일은 읽기 전용
 
 
 def git(cwd, *args, check=True, raw=False):
-    r = subprocess.run([GIT, "-c", "core.quotepath=false", *args], cwd=cwd, capture_output=True,
+    r = subprocess.run([GIT, "-c", "core.quotepath=false", *args], cwd=cwd, capture_output=True, env=clean_env(),
                        **({} if raw else {"text": True, "encoding": "utf-8"}))
     if check and r.returncode != 0:
         raise AssertionError(f"git {args} → {r.returncode}: {r.stderr}")
@@ -98,8 +116,7 @@ class IngestTests(unittest.TestCase):
         shutil.rmtree(self.td, onerror=_rm_ro)
 
     def ingest(self):
-        env = {k: v for k, v in os.environ.items() if k != "PYTHONUTF8"}  # ingest.sh가 스스로 PYTHONUTF8=1을 건다
-        env["PY"] = sys.executable
+        env = clean_env(PY=sys.executable)                               # ingest.sh가 스스로 PYTHONUTF8=1을 건다
         script = os.path.join(self.repo, "scripts", "ingest.sh").replace("\\", "/")
         r = subprocess.run([BASH, script, *[p.replace("\\", "/") for p in self.inputs]], cwd=self.repo, env=env,
                            capture_output=True, text=True, encoding="utf-8")
@@ -112,7 +129,7 @@ class IngestTests(unittest.TestCase):
         rc, out = self.ingest()
         self.assertEqual(rc, 0, out)
         self.assertIn("[PASS] 합본 검사 통과", out)
-        self.assertIn("origin/main = HEAD", out)
+        self.assertEqual(out.count("origin/main = HEAD"), 2, out)           # 시작 검사 + push 뒤 끝 확인
         self.assertEqual(self.head(), git(self.bare, "rev-parse", "main"))
         names = git(self.bare, "ls-tree", "-r", "--name-only", "main").splitlines()
         for kind in FILES:
@@ -201,20 +218,80 @@ class IngestTests(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.repo, "data", "2026-09")))
 
     def test_7_start_check_eol_mismatch_stops_before_store(self):
-        p = os.path.join(self.repo, "data", "2026-08", "키워드.csv")          # .gitattributes 전에 autocrlf=true로 풀린 작업 폴더 흉내
-        with open(p, "rb") as f:
-            b = f.read()
-        with open(p, "wb") as f:
-            f.write(b.replace(b"\n", b"\r\n"))
+        """병합 직후 main 작업 폴더 흉내: .gitattributes 없던 때 autocrlf=true로 풀린 CSV(CRLF)가 blob이 같아 다시 안 풀려
+        `git status`·`git diff HEAD`는 깨끗한데 i/lf w/crlf — 줄바꿈 검사만 잡는다(검증 1 10항 재현 방식)."""
+        rel, sp = "data/2026-08/키워드.csv", "data/2026-08/공백 이름.csv"   # 공백 경로 — awk `$NF`면 "이름.csv"로 잘린다
+        c = ("-c", "user.name=t", "-c", "user.email=t@t")
+        shutil.copy(os.path.join(self.repo, *rel.split("/")), os.path.join(self.repo, *sp.split("/")))
+        git(self.repo, "add", sp)
+        git(self.repo, *c, "commit", "-q", "-m", "공백 경로")
+        git(self.repo, "push", "-q", "origin", "HEAD:main")                   # 시작 검사(HEAD = origin/main)는 통과하게
+        git(self.repo, "rm", "-q", ".gitattributes")
+        git(self.repo, *c, "commit", "-q", "-m", "속성 없던 때")
+        for r in (rel, sp):
+            os.remove(os.path.join(self.repo, *r.split("/")))
+            git(self.repo, "checkout", "--", r)                               # autocrlf=true·속성 없음 → CRLF로 풀림
+        time.sleep(1.2)
+        git(self.repo, "status", "--porcelain")                               # 색인 stat 갱신(racy 아님)
+        git(self.repo, "reset", "-q", "--keep", "HEAD~1")                     # .gitattributes 있는 커밋으로 — CSV blob이 같아 다시 안 풀림
+        with open(os.path.join(self.repo, *rel.split("/")), "rb") as f:
+            self.assertIn(b"\r\n", f.read())
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "")         # 상태·diff는 깨끗(이 경우를 diff 검사는 못 잡는다)
         before = self.head()
         rc, out = self.ingest()
         self.assertEqual(rc, 1, out)
         self.assertIn("[FAIL] data/ CSV 줄바꿈이 커밋과 다름", out)
-        self.assertIn("data/2026-08/키워드.csv", out)
+        self.assertIn(f"  {rel}", out)                                        # 경로 전체(탭 기준 — 공백 경로도 안 잘림)
+        self.assertIn(f"  {sp}", out)
+        self.assertNotIn("data/가 HEAD와 다름", out)
         self.assertNotIn("== store", out)
         self.assertEqual(self.head(), before)
         self.assertFalse(os.path.exists(os.path.join(self.repo, "data", "2026-09")))
         self.assertEqual(git(self.repo, "diff", "--cached", "--name-only"), "")   # 스테이징 0
+
+    def test_8_start_check_data_differs_from_head_staged_or_not(self):
+        """W2: 스테이징된 CRLF(i/crlf w/crlf라 줄바꿈 검사는 통과)·미스테이징 변경 둘 다 `git diff --quiet HEAD -- data`가 store 전에 멈춘다."""
+        rel = "data/2026-08/키워드.csv"
+        p = os.path.join(self.repo, *rel.split("/"))
+        with open(p, "rb") as f:
+            orig = f.read()
+        for staged in (True, False):
+            with open(p, "wb") as f:
+                f.write(orig.replace(b"\n", b"\r\n"))
+            if staged:
+                git(self.repo, "add", rel)
+                self.assertIn("i/crlf", git(self.repo, "ls-files", "--eol", "--", rel))
+            before = self.head()
+            rc, out = self.ingest()
+            self.assertEqual(rc, 1, out)
+            self.assertIn("[FAIL] data/가 HEAD와 다름(스테이징·미스테이징)", out)
+            self.assertNotIn("== store", out)
+            self.assertEqual(self.head(), before)
+            self.assertFalse(os.path.exists(os.path.join(self.repo, "data", "2026-09")))
+            git(self.repo, "restore", "--source=HEAD", "--staged", "--worktree", "--", "data")   # code-tab.md 4절 복구 명령
+            self.assertEqual(git(self.repo, "status", "--porcelain"), "")
+        newf = os.path.join(self.repo, "data", "2026-10", "시간대별.csv")          # 스테이징된 새 파일(ingest 커밋 실패로 남는 `A`) — 복구 명령이 지운다
+        os.makedirs(os.path.dirname(newf))
+        shutil.copy(p, newf)
+        git(self.repo, "add", "data/2026-10/시간대별.csv")
+        rc, out = self.ingest()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("[FAIL] data/가 HEAD와 다름", out)
+        self.assertIn("git restore --source=HEAD --staged --worktree -- data", out)
+        git(self.repo, "restore", "--source=HEAD", "--staged", "--worktree", "--", "data")
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "")
+        self.assertFalse(os.path.exists(newf))
+        extra = os.path.join(self.repo, "data", "2026-10", "키워드.csv")          # 추적 안 된 파일(store 부분 적용 흉내) — diff는 못 본다(리뷰 반영)
+        os.makedirs(os.path.dirname(extra), exist_ok=True)
+        shutil.copy(p, extra)
+        self.assertEqual(subprocess.run([GIT, "diff", "--quiet", "HEAD", "--", "data"], cwd=self.repo, env=clean_env()).returncode, 0)
+        before = self.head()
+        rc, out = self.ingest()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("[FAIL] data/에 추적 안 된 파일이 있음", out)
+        self.assertIn("  data/2026-10/키워드.csv", out)
+        self.assertNotIn("== store", out)
+        self.assertEqual(self.head(), before)
 
 
 PYWRAP = r"""#!/bin/sh
@@ -246,14 +323,22 @@ class PrecheckTests(unittest.TestCase):
 
     def precheck(self, compute):
         u = lambda n: os.path.join(self.td, n).replace(os.sep, "/")
-        env = {k: v for k, v in os.environ.items() if k != "PYTHONUTF8"}
-        env.update(PY=u("pywrap.sh"), T_COMPUTE=compute)
+        env = clean_env(PY=u("pywrap.sh"), T_COMPUTE=compute)
         r = subprocess.run([BASH, os.path.join(ROOT, "scripts", "precheck.sh").replace(os.sep, "/"),
                             u("work/index.html"), u("combined"), u("prev.html")],
                            cwd=self.td, env=env, capture_output=True, text=True, encoding="utf-8")
         return r.returncode, r.stdout + r.stderr
 
     def test_compute_failure_stops_before_compare(self):
+        stamp = os.path.join(self.td, "work", "precheck_ok.md5")
+        rc, out = self.precheck("ok")                                 # 대조군: 래퍼가 통과면 끝까지 간다(빈 시험이 아님) + 도장(W11)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("compare.py 통과(시험 래퍼)", out)
+        self.assertIn("== 6단계 전부 통과", out)
+        with open(os.path.join(self.td, "work", "index.html"), "rb") as f:
+            want = hashlib.md5(f.read()).hexdigest()
+        with open(stamp, encoding="utf-8") as f:
+            self.assertEqual(f.read(), f"{want}  index.html\n")
         rc, out = self.precheck("fail")
         self.assertNotEqual(rc, 0, out)
         self.assertIn("== compute", out)
@@ -261,10 +346,7 @@ class PrecheckTests(unittest.TestCase):
         self.assertNotIn("compare.py 통과", out)
         self.assertNotIn("== overflow", out)
         self.assertNotIn("전부 통과", out)
-        rc, out = self.precheck("ok")                                 # 대조군: 래퍼가 통과면 끝까지 간다(빈 시험이 아님)
-        self.assertEqual(rc, 0, out)
-        self.assertIn("compare.py 통과(시험 래퍼)", out)
-        self.assertIn("== 6단계 전부 통과", out)
+        self.assertFalse(os.path.exists(stamp))                        # 실패한 실행은 옛 도장도 지운다
 
 
 if __name__ == "__main__":

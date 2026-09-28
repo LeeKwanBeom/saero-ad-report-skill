@@ -2,7 +2,8 @@
 """scripts/deploy.py 오프라인 검사 — 가짜 GitHub API + 가짜 git 자격 증명 도우미(네트워크 0, 이 PC 실제 자격 증명 0).
 
 실행: "$PY" tests/test_deploy.py   (unittest, 저장소 루트에서 Git Bash. git이 필요 — 없으면 skip)
-격리: deploy.py를 자식 파이썬으로 돌린다. 자식 환경은 GIT_CONFIG_NOSYSTEM=1 · GIT_CONFIG_GLOBAL=<임시 설정 — 가짜 도우미만>이라
+격리: deploy.py를 자식 파이썬으로 돌린다. 자식 환경은 호출 환경의 `GIT_*` 변수를 전부 지우고(GIT_DIR 등으로 실제 저장소·도우미에
+      닿지 않게) GIT_CONFIG_NOSYSTEM=1 · GIT_CONFIG_GLOBAL=<임시 설정 — 가짜 도우미만> · GIT_CEILING_DIRECTORIES=<임시 폴더의 부모>라
       `git credential fill`이 이 PC의 자격 증명 관리자(GCM)에 닿지 않는다. urllib.request.urlopen은 가짜로 바꿔 끼워
       요청(메서드·URL·Authorization)을 임시 파일에 적고 시나리오 응답을 돌려준다(api.github.com 요청 0).
 검사(2026-09-28 수정 회차 2 N4):
@@ -10,8 +11,11 @@
   2 dry-run이면 PUT 0(--file 있음·없음) · 3 --base 불일치 → [FAIL] exit 1·PUT 0, 일치 → PUT 1, 실제 push에 --base 없음 → exit 2·요청 0
   4 permissions.push 거짓 → [FAIL] exit 1, 권한 조회 401 → [FAIL] exit 1 · 5 도우미 없음 → [FAIL] 자격 증명을 얻지 못함(출처: git)
   6 token_of: 없는 파일 → None(Traceback 없음) · UTF-16LE·BE(BOM) · UTF-8 BOM · 깨진 바이트
+  (수정 회차 3) 7 permissions 필드 없음 → [FAIL] · 못 읽는 --base·--file 없는 --base → exit 2 · PUT 409·403 문구(오류 문구가 헤더 값을
+  되돌려 줘도 `***`) · precheck 도장 없음·불일치 → 실제 push [FAIL]·PUT 0, dry-run은 [주의]
 """
 import base64
+import hashlib
 import json
 import os
 import shutil
@@ -36,7 +40,7 @@ WORK = b"<html><!-- work --></html>\n"         # 작업본
 OTHER = b"<html><!-- other deploy --></html>\n"
 
 RUNNER = r'''
-import io, json, os, sys, urllib.error, urllib.request
+import base64, hashlib, io, json, os, sys, urllib.error, urllib.request
 sys.path.insert(0, os.environ["T_SCRIPTS"])
 scen = json.load(open(os.environ["T_SCEN"], encoding="utf-8"))
 
@@ -52,14 +56,22 @@ class Resp:
 
 def fake_urlopen(req, timeout=None):
     m, url, auth = req.get_method(), req.full_url, req.get_header("Authorization")
+    rec = {"method": m, "url": url, "auth": auth}
+    if m == "PUT":  # 실제로 보낸 본문의 md5(도장과 같은 바이트인지)
+        rec["body_md5"] = hashlib.md5(base64.b64decode(json.loads(req.data)["content"])).hexdigest()
     with open(os.environ["T_LOG"], "a", encoding="utf-8") as f:
-        f.write(json.dumps({"method": m, "url": url, "auth": auth}) + "\n")
+        f.write(json.dumps(rec) + "\n")
     if m == "GET" and url.endswith("/contents/index.html"):
+        if scen.get("edit_on_get"):  # GET을 기다리는 사이 작업본이 바뀌는 경우 흉내(편집기 저장·다른 세션)
+            with open(scen["edit_on_get"], "wb") as f:
+                f.write(b"<html>edited AFTER precheck</html>\n")
         status, body = 200, {"sha": "sha0prev", "content": scen["content_b64"]}
     elif m == "GET" and url.endswith("/repos/" + scen["repo"]):
         status, body = scen["repo_auth"] if auth else [200, {"name": "x"}]
     elif m == "PUT":
-        status, body = 200, {"commit": {"sha": "c0ffee1234"}, "content": {"sha": "f11e5ha000"}}
+        status, body = scen.get("put") or [200, {"commit": {"sha": "c0ffee1234"}, "content": {"sha": "f11e5ha000"}}]
+        if isinstance(body.get("message"), str):  # 서버·프록시가 요청 헤더를 되돌려 주는 경우 흉내
+            body = dict(body, message=body["message"].replace("{AUTH}", auth or ""))
     else:
         status, body = 404, {"message": "no route"}
     if status >= 400:
@@ -93,21 +105,25 @@ class DeployTests(unittest.TestCase):
             with open(p(name), "wb") as f:
                 f.write(data)
         self.prev, self.work, self.other = p("prev.html"), p("work.html"), p("other.html")
+        self.stamp = p("precheck_ok.md5")                                    # precheck.sh가 전부 통과하면 쓰는 도장(작업본 md5)
+        with open(self.stamp, "w", encoding="utf-8") as f:
+            f.write(f"{hashlib.md5(WORK).hexdigest()}  work.html\n")
 
     def tearDown(self):
         shutil.rmtree(self.td)
 
     def run_deploy(self, argv, repo_auth=(200, {"permissions": {"admin": True, "push": True, "pull": True}}),
-                   deployed=PREV, helper=True):
+                   deployed=PREV, helper=True, put=None, edit_on_get=None):
         sys.path.insert(0, SCRIPTS)
         from reportlib import load_config
         with open(self.scen, "w", encoding="utf-8") as f:
             json.dump({"content_b64": base64.b64encode(deployed).decode(), "repo": load_config()["deploy_repo"],
-                       "repo_auth": list(repo_auth)}, f)
+                       "repo_auth": list(repo_auth), "put": list(put) if put else None, "edit_on_get": edit_on_get}, f)
         if os.path.exists(self.log):
             os.remove(self.log)
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_CONFIG", "PYTHONUTF8"))}
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "PYTHONUTF8"))}   # 호출 환경의 GIT_DIR 등 전부 제거
         env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=self.cfg_helper if helper else self.cfg_none,
+                   GIT_CEILING_DIRECTORIES=os.path.dirname(self.td),
                    T_SCRIPTS=SCRIPTS, T_SCEN=self.scen, T_LOG=self.log, T_ARGV=json.dumps(argv))
         r = subprocess.run([sys.executable, self.runner], cwd=self.td, env=env, capture_output=True)
         out, err = r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
@@ -137,6 +153,7 @@ class DeployTests(unittest.TestCase):
         rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m", "--dry-run"])
         self.assertEqual(rc, 0, out + err)
         self.assertIn("배포본 = --base(4단계 fetch)", out)
+        self.assertIn("precheck 도장 = 작업본 md5", out)
         self.assertIn("permissions.push): 참", out)
         self.assertNotIn("PUT", [q["method"] for q in reqs])
 
@@ -172,6 +189,67 @@ class DeployTests(unittest.TestCase):
         puts = [q for q in reqs if q["method"] == "PUT"]
         self.assertEqual(len(puts), 1)
         self.assertEqual(puts[0]["auth"], f"token {FAKE}")
+
+    def test_permission_field_missing_fails(self):
+        rc, out, err, reqs = self.run_deploy(["push", "--dry-run"], repo_auth=(200, {"name": "x"}))   # 응답에 permissions 없음
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("permissions.push): 거짓", out)
+        self.assertIn("[FAIL] 이 자격 증명은 배포 저장소", out)
+
+    def test_base_argument_errors_exit_2_without_requests(self):
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", os.path.join(self.td, "없음.html"), "--message", "m"])
+        self.assertEqual(rc, 2, out + err)
+        self.assertIn("[FAIL] --base 파일을 읽을 수 없음", out)
+        self.assertEqual(reqs, [])
+        rc, out, err, reqs = self.run_deploy(["push", "--base", self.prev, "--dry-run"])        # --file 없이 --base만
+        self.assertEqual(rc, 2, out + err)
+        self.assertIn("[FAIL] --base는 --file과 함께만", out)
+        self.assertEqual(reqs, [])
+
+    def test_put_409_and_403_messages_mask_echoed_credential(self):
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"],
+                                             put=(409, {"message": "sha mismatch; you sent {AUTH}"}))
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨", out)
+        self.assertIn("you sent token ***", out)                              # 되돌아온 헤더 값은 가려진다(run_deploy가 값 0건도 단언)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"],
+                                             put=(403, {"message": "Resource not accessible by integration {AUTH}"}))
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] PUT 403 — 쓰기 권한 없음", out)
+        self.assertIn("***", out)
+
+    def test_precheck_stamp_required_for_real_push(self):
+        """W11: 작업본 옆 도장(precheck_ok.md5) = --file md5일 때만 PUT. 없음·불일치 → [FAIL] exit 1(요청 0 — 네트워크 전에 본다), dry-run은 [주의]."""
+        os.remove(self.stamp)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] precheck 통과본이 아님 — PUT 안 함(도장 없음", out)
+        self.assertEqual(reqs, [])
+        with open(self.stamp, "w", encoding="utf-8") as f:
+            f.write(f"{hashlib.md5(OTHER).hexdigest()}  work.html\n")         # 다른 파일의 도장(precheck 뒤 작업본이 바뀐 경우)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] precheck 통과본이 아님", out)
+        self.assertIn("precheck 뒤 바뀌었거나 다른 파일", out)
+        self.assertEqual(reqs, [])
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m", "--dry-run"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("[주의] precheck 통과본이 아님", out)
+        self.assertNotIn("PUT", [q["method"] for q in reqs])
+        with open(self.stamp, "wb") as f:                                       # UTF-8이 아닌 도장(손으로 쓴·다른 인코딩) — Traceback 대신 사유
+            f.write(b"\xb5\xb5\xc0\xe5 cp949\n")
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] precheck 통과본이 아님 — PUT 안 함(도장을 읽을 수 없음(UnicodeDecodeError)", out)
+        self.assertNotIn("Traceback", err)
+        self.assertEqual(reqs, [])
+
+    def test_file_read_once_put_body_equals_stamped_bytes(self):
+        """리뷰 반영(W11): --file은 한 번만 읽는다 — 도장 대조 뒤 GET을 기다리는 사이 작업본이 바뀌어도 PUT 본문은 도장과 같은 바이트."""
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"], edit_on_get=self.work)
+        self.assertEqual(rc, 0, out + err)
+        puts = [q for q in reqs if q["method"] == "PUT"]
+        self.assertEqual([q["body_md5"] for q in puts], [hashlib.md5(WORK).hexdigest()])   # 바뀐 파일이 아니라 도장 찍힌 바이트
 
     def test_no_credential_helper_fails_cleanly(self):
         rc, out, err, reqs = self.run_deploy(["push", "--dry-run"], helper=False)

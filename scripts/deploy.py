@@ -6,8 +6,11 @@
         GET contents API(무인증 먼저) → 파일 저장, sha 출력.
     $PY scripts/deploy.py push   --file <index.html> --base <4단계 fetch 파일> --message "<커밋 메시지>" [--dry-run] [--token-file <파일>]
         sha를 **다시 조회**한 뒤 PUT. 그 조회 본문 md5 ≠ --base md5면 "[FAIL] 배포본이 4단계 fetch 뒤 바뀜" exit 1(PUT 0).
-        실제 push는 --base 필수(없으면 exit 2). --dry-run 은 sha 조회·base 대조·자격 증명 확인·쓰기 권한 확인
-        (인증 GET /repos/{deploy_repo}의 permissions.push — 참/거짓만 찍고 거짓이면 [FAIL])·본문 준비까지만 하고 PUT을 보내지 않는다
+        실제 push는 --base 필수(없으면 exit 2, --file 없이 --base만 줘도 exit 2) · 작업본 옆 precheck 도장(precheck_ok.md5 — precheck.sh가
+        전부 통과했을 때 쓴 작업본 md5) = --file md5일 때만 PUT(아니면 "[FAIL] precheck 통과본이 아님" exit 1, dry-run은 [주의]).
+        PUT 409 = 배포본이 GET 뒤 바뀜(sha 불일치) · 403 = 쓰기 권한 없음 · 404 = 저장소·경로 없음(권한 부족도 404) — 셋 다 [FAIL] exit 1.
+        --dry-run 은 sha 조회·base 대조·자격 증명 확인·쓰기 권한 확인
+        (인증 GET /repos/{deploy_repo}의 permissions.push — 계정 역할 기준, 토큰 범위는 PUT이 최종 확인. 참/거짓만 찍고 거짓이면 [FAIL])·본문 준비까지만 하고 PUT을 보내지 않는다
         (아무 파일도 쓰지 않는다 — 2026-09-26 실측). "자격 증명 확인됨(출처: token-file|git)"만 찍는다.
         --dry-run 은 --file 없이도 된다(S0 사전 점검 — sha·자격 증명·쓰기 권한만 확인).
     $PY scripts/deploy.py verify --file <index.html> [--token-file <파일>]
@@ -18,9 +21,10 @@
   - PUT은 --token-file이 있으면 그 파일, 없으면 이 PC의 git 자격 증명(`git credential fill`, github.com)을 subprocess로 얻는다
     (credential.interactive=false · GIT_TERMINAL_PROMPT=0 · GCM_INTERACTIVE=never · askpass 변수 제거 — 창·프롬프트를 띄우지 않는다). 못 얻으면 [FAIL] exit 1.
   - 자격 증명 값은 변수에만 둔다 — 출력·파일·로그·예외 문구 어디에도 남기지 않는다(한 줄 토큰 형식이 아니면 쓰지 않고,
-    요청 예외는 종류만 — 네트워크 연결 오류만 소켓 사유 문구, 헤더 값 없음). --token-file은 바이트로 읽어 UTF-16(BOM FF FE·FE FF)과
+    요청 예외는 종류만 — 네트워크 연결 오류만 소켓 사유 문구, 헤더 값 없음. 서버·프록시가 되돌려 준 오류 문구 속 자격 증명 값은 `***`로 바꾼다). --token-file은 바이트로 읽어 UTF-16(BOM FF FE·FE FF)과
     UTF-8(BOM 허용)을 가리고, 없거나 못 읽으면 "[FAIL] 자격 증명을 얻지 못함(출처: token-file)"(Traceback 없음).
-    `push --dry-run`은 값을 얻은 뒤 인증 GET(읽기)으로 배포 저장소 permissions.push까지 본다(2026-09-28 수정 회차 2 N1). 저장소는 config deploy_repo.
+    `push --dry-run`은 값을 얻은 뒤 인증 GET(읽기)으로 배포 저장소 permissions.push까지 본다(2026-09-28 수정 회차 2 N1 — 계정 역할 기준이라
+    fine-grained 토큰의 저장소·권한 범위는 PUT이 최종 확인한다). 저장소는 config deploy_repo.
 """
 import argparse
 import base64
@@ -42,6 +46,7 @@ for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)
         pass
 
 CFG = load_config()
+STAMP = "precheck_ok.md5"  # precheck.sh가 전부 통과했을 때 작업본 옆에 쓰는 도장(작업본 md5)
 REPO_API = f"https://api.github.com/repos/{CFG['deploy_repo']}"
 API = f"{REPO_API}/contents/index.html"
 
@@ -103,13 +108,17 @@ def api(token, method="GET", body=None, url=API):
         req.add_header("Cache-Control", "no-cache")  # 무인증 응답은 공용 캐시(max-age 60) — PUT 직후 verify가 옛 본문을 받지 않게
     if body:
         req.add_header("Content-Type", "application/json")
+
+    def mask(text):  # 서버·프록시가 요청 헤더를 되돌려 줘도 쓰는 자격 증명 값이 출력에 새지 않게(자른 뒤가 아니라 자르기 전에)
+        return text.replace(token, "***") if token else text
+
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             return r.status, json.loads(r.read().decode())
     except urllib.error.HTTPError as e:
-        return e.code, {"message": e.read().decode(errors="replace")[:300]}
+        return e.code, {"message": mask(e.read().decode(errors="replace"))[:300]}
     except urllib.error.URLError as e:
-        return 0, {"message": f"네트워크 오류: {e.reason}"}
+        return 0, {"message": mask(f"네트워크 오류: {e.reason}")}
     except (ValueError, OSError, http.client.HTTPException) as e:  # 예외 문구에 헤더 값이 들어갈 수 있어 종류만 찍는다
         return 0, {"message": f"요청 실패({type(e).__name__})"}
 
@@ -128,6 +137,23 @@ def get(token_file):
 
 def md5(data):
     return hashlib.md5(data).hexdigest()
+
+
+def precheck_stamp(path, data):
+    """작업본 옆 도장(precheck_ok.md5)이 --file 바이트(data — main이 한 번만 읽은 것, PUT 본문과 같은 바이트)의 md5와 같은지 → (같음, 사유).
+    도장은 precheck.sh가 전부 통과했을 때만 쓴다."""
+    sp = os.path.join(os.path.dirname(os.path.abspath(path)), STAMP)
+    cur = md5(data)
+    try:
+        with open(sp, encoding="utf-8") as f:
+            want = (f.read().split() or [""])[0]
+    except FileNotFoundError:
+        return False, f"도장 없음: {sp}"
+    except (OSError, UnicodeError) as e:  # 손으로 쓴·다른 인코딩 도장 — Traceback 대신 사유(실제 push는 [FAIL], dry-run은 [주의])
+        return False, f"도장을 읽을 수 없음({type(e).__name__}): {sp}"
+    if want != cur:
+        return False, f"도장 md5 {want[:8]} ≠ 작업본 md5 {cur[:8]} — precheck 뒤 바뀌었거나 다른 파일"
+    return True, f"precheck 도장 = 작업본 md5 {cur[:8]}… 확인"
 
 
 def push_permission_ok(tok):
@@ -155,6 +181,9 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     base = None
+    if a.base and not a.file:
+        print("[FAIL] --base는 --file과 함께만 — --file 없는 push --dry-run(S0)에는 --base를 주지 않는다. PUT 안 함")
+        return 2
     if a.cmd == "push" and a.file and not a.dry_run and not a.base:
         print("[FAIL] 실제 push에는 --base work/prev.html(4단계 fetch 파일)이 필요 — 그 뒤 배포본이 바뀌었으면 덮어쓰지 않게. PUT 안 함")
         return 2
@@ -165,10 +194,24 @@ def main():
         except OSError as e:
             print(f"[FAIL] --base 파일을 읽을 수 없음({type(e).__name__}): {a.base} — PUT 안 함")
             return 2
+    local = None
+    if a.cmd in ("push", "verify") and a.file:  # --file은 여기서 한 번만 읽는다 — 도장 대조·PUT 본문·verify가 같은 바이트(사이에 파일이 바뀌어도)
+        try:
+            with open(a.file, "rb") as f:
+                local = f.read()
+        except OSError as e:
+            print(f"[FAIL] --file을 읽을 수 없음({type(e).__name__}): {a.file} — PUT 안 함")
+            return 2
+    if a.cmd == "push" and a.file:  # precheck 통과본만 PUT — 네트워크 전에 본다
+        ok, why = precheck_stamp(a.file, local)
+        if not ok and not a.dry_run:
+            print(f"[FAIL] precheck 통과본이 아님 — PUT 안 함({why}). scripts/precheck.sh를 이 작업본으로 다시 통과시킨다")
+            return 1
+        print(why if ok else f"[주의] precheck 통과본이 아님({why}) — 실제 push는 여기서 멈춘다")
     status, res, how = get(a.token_file)
     if status != 200:
         print(f"GET {status}: {res.get('message', '')}")
-        print("무인증 GET이 막히고(403·429) 자격 증명으로도 안 되면 `git clone https://github.com/LeeKwanBeom/saero-pilates-report`로 받는다(SKILL.md 4단계).")
+        print("무인증 GET이 막히고(403·429) 자격 증명으로도 안 되면 `git clone -c core.autocrlf=false https://github.com/LeeKwanBeom/saero-pilates-report`로 받는다(SKILL.md 4단계).")
         return 1
     if how:
         print(f"GET 무인증 제한 → 자격 증명으로 다시 받음(출처: {how})")
@@ -192,8 +235,6 @@ def main():
             return 0
         print(f"{a.cmd}에는 --file 이 필요합니다")
         return 2
-    with open(a.file, "rb") as f:
-        local = f.read()
     if a.cmd == "verify":
         same = md5(local) == md5(content)
         print(f"재수령본 sha {sha} · md5 {md5(content)[:8]}… vs 로컬 {md5(local)[:8]}… → {'일치' if same else '불일치'}")
@@ -221,8 +262,18 @@ def main():
         print("[dry-run] PUT을 보내지 않음. 파일 변경 없음.")
         return 0
     status, res = api(tok, "PUT", body)
+    msg = res.get("message", "")[:200]
+    if status == 409:
+        print(f"[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨, 4단계부터 다시는 사용자(PUT 409: {msg})")
+        return 1
+    if status == 403:
+        print(f"[FAIL] PUT 403 — 쓰기 권한 없음(자격 증명 출처 {src} · 배포 저장소 {CFG['deploy_repo']}): {msg}. PUT 안 됨 — 계정·토큰 권한은 사용자가 확인")
+        return 1
+    if status == 404:
+        print(f"[FAIL] PUT 404 — 저장소·경로를 찾지 못함(config deploy_repo {CFG['deploy_repo']} · 권한이 없어도 404로 온다): {msg}. PUT 안 됨")
+        return 1
     if status not in (200, 201):
-        print(f"PUT {status}: {res.get('message', '')} — 자격 증명 출처({src})가 배포 저장소({CFG['deploy_repo']}) 쓰기 권한이 있는지 확인")
+        print(f"[FAIL] PUT {status}: {msg} — PUT 안 됨(자격 증명 출처 {src}, 배포 저장소 {CFG['deploy_repo']}). 재시도는 사용자가 정한다")
         return 1
     print(f"배포 완료 커밋 {res['commit']['sha'][:7]} · 파일 sha {res['content']['sha'][:7]} · 반영까지 1~2분")
     return 0
