@@ -1,3 +1,130 @@
+# 기능 추가 구현 기록(Code 탭 전 단계 실행 — 설계안 C 회차 1, 2026-09-28)
+세션: 데스크톱 앱 Code 탭(이 PC, `D:\saero`로 열림), Opus 5.5 — 탐색 기준선(아래 절)과 같은 세션이 조정 세션 지시(프롬프트 ② 형식)를 받아 구현. 브랜치 **`feat-code-tab`**(`b4cc8b9`에서 분기, `D:\saero\feat-code-tab` — `git -c core.autocrlf=false clone`), **main 미반영**. 커밋 1 `f0520b5`(코드·시험·references·SKILL.md·local/·.gitattributes·.gitignore) + 커밋 2(이 절 + checklist v4.7 + registry 시험 1행 — 자기 참조라 해시는 적지 않는다).
+검증용 clone: `git clone -c core.autocrlf=false -b feat-code-tab --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill <별도 폴더>`
+외부 쓰기: 스킬 저장소 = `feat-code-tab` push + 시험 브랜치 `test-push-0928` push·삭제(사용자 승인) · 네이버 = 시험 1건(`test-roundtrip`, 사용자 입회, 등록→확인→삭제) · 배포 저장소 0 · main 0 · main 작업 폴더(`D:\saero\saero-ad-report-skill`) 0 · `D:\saero` 아래 설치 = venv `D:\saero\.venv`만(사용자 승인, local/ 사본은 설치 안 함) · 토큰 수령 0(PC git 자격 증명).
+효율: 벽시계 약 75분(15:20 clone → 16:3x push, 사용자 승인 대기 3회 포함) · 도구 호출 조정자 약 200회 + 리뷰 하위 에이전트 206회 · 즉석 코드 약 50행(저장소 밖 — 리허설 2-1 대조 6·승인 목록 복사 10·masthead 변조 5·CR/펜스 검사 등; 편집 보조 파이썬 제외). 리허설 기계 단계(S0 → 7 dry-run·verify)는 약 13회·4분 — 기준선 6절 C 추정 55~70회/회차 중 서술 교체(20~28)·기록(4~5)·실제 수집 대기를 뺀 몫(약 17~26)과 같은 크기.
+표기: [실측] 이 세션에서 직접 확인 / [추론] 확인 못 함.
+
+## 항목별(지시 K1~K10 · D1~D6) — 절·함수 기준
+- **K1 `scripts/ingest.sh`**: 사용법 `PY=<venv 파이썬> scripts/ingest.sh <CSV> [...]`(토큰 인자 삭제, 인자 없으면 exit 2) · `PY="${PY:-python3}"`·`export PYTHONUTF8=1`·`OUT="$ROOT/work/combined"` · 쓰기 전 브랜치 검사(main 아니면 `[FAIL] 현재 브랜치가 main이 아님` exit 1) · git 신원이 없을 때만 `-c user.*`(`GITID` 배열) · push = `git push -q origin HEAD:main` · `synced()` = `git fetch -q origin main` 뒤 HEAD ≠ origin/main이면 `[FAIL] HEAD … ≠ origin/main` exit 1 — push 뒤와 "data/ 변경 없음" **두 분기 모두**.
+- **K2 `scripts/precheck.sh`**: PY·PYTHONUTF8 같은 방식 · `J="$(dirname "$HTML")/compute.json"` · md5 가드 메시지 = "3번째 인자에는 4단계 deploy.py fetch가 저장한 직전 배포본(work/prev.html)을 넣어라"(뜻 유지) · `run()` = 통과면 끝 3줄, 실패면 전체 출력 뒤 같은 종료 코드(validate·compare). compute 출력은 종전처럼 전부.
+- **K3 utf-8 reconfigure**(stdout·stderr, `for _s in (sys.stdout, sys.stderr): _s.reconfigure(encoding="utf-8")`): archive·compute·validate(pandas 검사 앞)·compare·deploy·tests/overflow_check.
+- **K4 `~` 확장**: `exclusions.py` `load_keys` · `deploy.py` `token_of`(`os.path.expanduser`).
+- **K5 `scripts/deploy.py`**: `--token-file` 선택 · `get()` = 무인증 GET → 403·429면 `credential()`로 1회 · `credential()` = token-file이면 그 파일, 없으면 `git_credential()`(`git credential fill`, stdin `protocol=https\nhost=github.com`, env `GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`, timeout 60, `password=` 줄만 — 값은 반환만) · PUT·`push --dry-run` 모두 자격 증명을 얻어 "자격 증명 확인됨(출처: token-file|git)"만 출력, 못 얻으면 `[FAIL] 자격 증명을 얻지 못함` exit 1 · verify 불일치 `[FAIL]` 안내(재PUT 안 함).
+- **K6** `.gitattributes`(`*.csv -text` · `*.sh text eol=lf`) · `.gitignore` += `.claude/`. renormalize: 아래 실측.
+- **K7 `tests/overflow_check.py`**: 페이지마다 `pg.route("**/*", only_file)` — `file:` 밖은 `route.abort()`, 끝에 "외부 요청 차단 N건" 출력.
+- **K8 문구**: `validate.py` pandas 없음 안내 → venv(code-tab.md 1절) · `fetch_reports.py` docstring(인자 오류 = argparse exit 2, 출력 첫 줄 `usage:`로 구분 / store 이후 = Code 탭 1단계 ingest) · 성공 뒤 `다음:` 줄 = `PY=<venv 파이썬> scripts/ingest.sh "<성공 폴더>"/*.csv`.
+- **K9** `test_fetch_reports.py` `real_period()`(실 `data/2026-09/키워드.csv` 첫 줄 HEAD_RE) — 실 데이터 검사 2곳과 `common_days = (e-s)+1`, 음성 단언은 "헤더 끝 + 1일 → 기간 = 기대 FAIL"로 보존 · `test_exclusions.py` `test_push_dry_run_zero_http_and_no_file_change`는 임시 fixture registry(새로오픈 3그룹 registered·group_id 채움, 노원역맛집출구 없음), `:377` subprocess `encoding="utf-8"`.
+- **K10 `tests/test_ingest.py`**(신규, 3개): 임시 저장소(scripts 3·config·.gitattributes·.gitignore·data/2026-08) + `git clone --bare` origin, 입력 = data/2026-09 4개를 data 밖 `in 폴더/<이름> 보고서,2580077.csv`로 복사 — test_1 정상(push → origin/main = HEAD, 원격 CSV 바이트 = 입력, 같은 입력 재실행은 변경 없음 PASS) · test_2 main 아닌 브랜치(`[FAIL]`·store 전 멈춤·커밋 0·data 변경 0) · test_3 pre-receive hook 거부로 커밋만 된 상태 → 재실행 "변경 없음"에서 `≠ origin/main` exit 1.
+- **D1 `references/code-tab.md`**(신규) 0 진입 · 1 환경 · 2 S0 블록 · 3 전 단계 순서 · 4 멈춤 표 · 5 exit 코드 판정 · 6 승인 목록 복사 규칙 · 7 금지 · 8 수동 폴백·작업 폴더 줄바꿈 · 9 리허설.
+- **D2 SKILL.md**: 맨 위 "먼저 — 실행 환경(채팅 가드)" · 배포 정보(자격 증명 하나, "서로 통하지 않는다"는 PC에서 불성립) · 작업 폴더·work/·수집 성공 폴더 · 원본 보관(파일명·이번 달·직접 입력 기간) · 1단계(fetch → ingest, `$PY`) · 2단계 FAIL 문구(프리셋·폴백) · 2-1(4단계 fetch 당김·compute masthead) · 4단계(무인증 GET) · 5-0 명령·4항(Code 탭 세션·복사 규칙·키 경로만)·6항(시험 회차) · 5·6·7단계 명령(`$PY`, work/, verify 불일치 대처) · 8단계 [PASS] 세기 · 승인 지점(순서·묶음·"등록은 나중에") · 참고 문서(code-tab.md·test_ingest).
+- **D3 references/report-fetch.md**: 1절(작업 폴더·venv) · 3절 명령 · 4절 51(ingest로) · 5절(금지 차단엔 summary·스크린샷 없음 · 세션이 partial을 재실행 전에 읽음 · 로그인 실패 산출물 안 엶 · 첨부 → 세션이 읽음) · 6절 · 8절 `$PY` · 9절 절차 삭제(기록만).
+- **D4 references/exclusion-ui.md**: 2절 키 행 · 3절 전면(정식 경로 = Code 탭 세션, 명령 `$PY`·`~` 키 경로, 결과 파일은 같은 폴더) · 4절 import-ui `$PY` · 6절 제목·승인 목록 복사 · 8절 시험 회차.
+- **D5 local/**: `saero-run/SKILL.md`(23행, frontmatter = wrapup 형식) · `CLAUDE.md`(3줄). 경로는 `D:\saero`(bash `/d/saero`)·`~`만, 토큰·키 값 0. 설치 안 함.
+- **D6 audit/checklist.md**(커밋 2): v4.7 · [시작 전 확인 ①] Code 탭 한 문장 · ② 명령 `$PY`·work/·재수집 문구 · [의도된 동작] 15·17·19·20(개정)·21·22·24(개정)·25 보강·26 신설 · [되돌리면 안 되는 것] 5행 · C① 시험 회차 · mutation 명령 `$PY`.
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **stderr까지·대상 밖 파일까지 utf-8**: K3 6개 파일에 더해 `fetch_reports.py`·`exclusions.py`(기준이던 stdout만 → stdout·stderr — SystemExit 문구가 cp949 파이프에서 깨짐)·`tests/mutation_test.py`·`tests/test_ingest.py`에도 같은 줄.
+2. **`tests/mutation_test.py` subprocess `encoding="utf-8"` 2곳** — K3 뒤 자식 출력이 utf-8이라 부모(cp949) 디코드가 깨진다. 리허설 첫 실행이 mutation_test 자신의 `—` 출력에서 UnicodeEncodeError로 멈췄고(1번과 함께 고친 뒤 전부 살아 있음) — "PYTHONUTF8 없이 mutation_test 전부 살아 있음" 조건을 채우려고.
+3. **ingest·precheck의 `"$PY" -c 'import sys'` 실행 가능 검사**(Store 스텁 exit 49를 첫 줄 `[FAIL] 파이썬을 실행할 수 없음`으로) · ingest 인자 없음 exit 2.
+4. **ingest 보강(반박 리뷰 반영)**: `GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`·`unset GIT_ASKPASS SSH_ASKPASS`·`-c credential.interactive=false`(자격 증명 창으로 멈추지 않게) · 원격 비교는 `origin/main` 대신 `FETCH_HEAD`(single-branch clone에서도 방금 받은 값) · `git commit -- data`(data/ 밖 스테이징이 `data:` 커밋에 섞이지 않게) · push 거부 `[FAIL] push 실패 — 커밋 …는 로컬에만` exit 1(종전은 git의 코드).
+5. **precheck**: compute를 `&&` 목록에서 떼어 실패하면 멈춘다(종전 `compute && compare | tail`은 compute 실패를 set -e가 못 잡아 "6단계 전부 통과"로 끝날 수 있었다 — 동작 변화) · md5 가드 `md5sum < 파일`(파일명에 `\`가 있으면 GNU md5sum이 출력 앞에 `\`를 붙여 같은 파일도 다르게 나옴 — 윈도 경로 vs 상대 경로 실측) · 가드 메시지는 뜻 유지.
+6. **deploy.py 보강**: `push --dry-run`은 `--file` 없이도(S0용 — sha·자격 증명만) · `--file` 없는 push·verify exit 2 · 요청 예외(URLError·ValueError·HTTPException·OSError) → 종류만 출력(개행이 든 토큰은 http.client가 헤더 값을 예외 문구에 담는다 — 리뷰 보안 F1) · `usable()` 한 줄 토큰 형식 검사(token-file·git 자격 증명 둘 다, 아니면 "못 얻음") · token-file `utf-8-sig`(BOM) · GET `Cache-Control: no-cache`(무인증 응답 공용 캐시 60초 — PUT 직후 verify 거짓 불일치 방지 [추론]) · verify 출력에 sha, 불일치 `[FAIL]` 안내 · `git credential fill`에 `credential.interactive=false`·askpass 변수 제거.
+7. overflow_check 끝에 "외부 요청 차단 N건" 출력(검증 11 근거).
+8. **문구**: `fetch_reports.py` `다음:` 줄 경로를 `/`로(Git Bash glob), 금지 차단·로그인 만료 안내(첨부·PowerShell 경로 → Code 탭 표현) · `exclusions.py` docstring 사용법 `$PY`·`--since`·키 문장·propose 주석.
+9. **시험 세부**: test_fetch_reports 합성 파일 검사는 고정 기간(09-01~09-26) 유지(합성 헤더가 고정), `common_days`는 "행이 있는 날짜 수"(달력 일수 대신 — 노출 0인 날 대비) · test_exclusions fixture = 새로오픈 3그룹 registered(group_id 채움)·노원역맛집출구 없음(원래 주석의 의도) · test_ingest 4번째 시험(data/만 커밋).
+10. **code-tab.md**: compute를 2-1 앞으로(masthead 문자열 대조 — 탐색 반박 검증 B) · 2-1 "같음"이면 3·5-0a를 건너뛰고 그 질문 하나만(묶음 예외 — 같은 데이터라 다른 후보 무의미) · (권장) pull로 바뀐 registry는 5-0c, 없으면 8단계에서 경로 지정 커밋 · 재개 판정 규칙 · S0 추가 검사 3개(브랜치 main·작업 트리 깨끗·줄바꿈 i/·w/ — `core.quotepath=false`) · 프로필 검사 exit 3으로 "사용 중"과 "실행 오류" 구분 · 6절 승인 목록 복사 스크립트 예(리허설에서 쓴 것).
+11. **SKILL.md**: 채팅 가드에 `/mnt/user-data`도 · 가드 밖 문서는 "컨테이너 작업 경로"로 표현(가드 외 0 규칙) · "채팅으로 보고" → "대화로" · "사용자 지정 기간" → "직접 입력(한) 기간"(SKILL·report-fetch·checklist — grep 0 규칙) · `--token-file`은 사용자 선택 폴백으로 명시 · 2-1 제목 "재계산·교체 전에 멈춘다" · compare·overflow 명령에 `$PY`.
+12. **report-fetch.md** D3 지정 행 밖: 1절 설치 블록(venv)·2절 `--login` 명령·5절 첨부 → 세션이 읽음(63·66·71행)·8절 설명.
+13. **checklist**: 점검 대상 목록 갱신(신규 + 기존 누락 파일) · 토큰 안내 272행·[마무리] 폐기 안내·"토큰을 못 받았으면"에 채팅/Code 탭 한정 · 21·22 문구 · overflow·mutation 명령 `$PY`.
+14. registry 시험 1행은 커밋 2(기록)에 넣었다.
+
+## 원래 설계·지시를 바꾼 곳(검증 15)
+- K10 "임시 clone + 로컬 bare origin" → **작업 트리 사본 + `git init` 임시 저장소 + `git clone --bare` origin**(커밋 전 작업본 ingest.sh를 시험하려고). 시험은 지시 3경로 + data/만 커밋 1 = 4개.
+- K1 "HEAD == origin/main" → **FETCH_HEAD 비교**(뜻 같음 — single-branch clone에서 origin/main이 갱신되지 않는 경우 대비, 리뷰 bugs F3).
+- K6 "renormalize 변경 0": 이 브랜치 LF clone(autocrlf=false)에서 0 [실측]. 다만 autocrlf=true로 `.gitattributes` 이전에 풀린 폴더(= 병합 직후 main 작업 폴더)에서는 CSV 8개가 CRLF 바이트로 스테이징된다 [실측 — 스크래치 clone] → 그 폴더에서는 renormalize·`git add data` 금지, code-tab.md 8절 절차(S0 줄바꿈 검사가 먼저 멈춘다).
+- D1 3 순서: 기준선 6절 공통 뼈대의 "2-1 → 3 → propose + pull + compute"에서 compute를 2-1 앞으로, 2-1 "같음"은 묶음 대신 즉시 단독 질문(임의 결정 10).
+- K5 dry-run 확인 범위: "자격 증명 확인됨"은 값을 얻었다는 뜻까지 — 유효성·배포 저장소 쓰기 권한은 첫 PUT(F11 ⑤ 대체안의 한계로 문서에 명시).
+- K2: compute를 떼어 종전 결함(compute 실패 무시)을 고쳤다 — 동작 변화(임의 결정 5).
+
+## 실측 [실측]
+- **venv**: `D:\saero\.venv`(`python -m venv --system-site-packages` → `pip install "pandas>=2.2,<3"`, 사용자 승인 뒤) = Python 3.12.10 · pandas 2.3.3 · playwright 1.63.0(시스템). 시스템 Python 불변(pandas 없음 그대로).
+- **시험**(LF clone `D:\saero\feat-code-tab`, venv, PYTHONUTF8 없이, `-W error::ResourceWarning`): test_fetch_reports **Ran 15 OK**(85초 — 이월 ② 해소, 종전 FAILED 2) · test_exclusions **Ran 29 OK**(종전 FAILED 1·ERROR 3) · test_ingest **Ran 4 OK**(32초) · 끝 줄 실제 data·config·registry md5 전/후 동일.
+- **mutation_test**(리허설 clone, venv, PYTHONUTF8 없이, 배포본 = 무인증 재수령 32d8b05 파일 sha 1c52f70·md5 a3465ec0, 합본 33일): **"전부 살아 있음"** · [OK] 43줄 · MISS/UNCOVERED/SKIP 0 · 원본 md5 전부 동일. 첫 실행은 mutation_test 자신의 `—` 출력에서 UnicodeEncodeError → 임의 결정 1·2 뒤 통과.
+- **리허설 1**(15:46:44 → 15:50:30, 스크래치 LF clone + 로컬 bare origin, 도구 약 13회, code-tab.md 순서): S0 PASS(자격 증명 확인됨(출처: git) — 값 출력 0, 프로필 검사만 스크래치 폴더) → fetch `--dry-run` 오늘(`이번달` 09.01~09.27)·`--today 2026-10-01`(`지난달` 09.01~09.30) 폴더 생성 0 → ingest(입력 = data/2026-09 사본 4개를 data 밖 `<이름> 보고서,2580077.csv`로 — 쉼표·공백·Git Bash 경로 OK, combine 33일 9,991/309/351,299원 PASS, 변경 없음 → origin/main = HEAD) → deploy fetch 무인증(sha 1c52f70, 2101행, md5 a3465ec0 = 09-28 재수령 기록) → compute → 2-1 = 같음(실운영이면 여기서 단독 질문) → propose `--since 2026-09-28` = 빈 창 0건 / `--since 2026-09-27` = 신규 1 **"노원힐링장소."**(마침표 그대로 — `_candidates.txt`는 CRLF) → 6절 복사 규칙으로 승인 목록 1줄 = N → `push --dry-run` 3그룹 "등록 예정 1 · 221 → 222 · 등록: 노원힐링장소.", HTTP 0, registry md5 불변 → precheck(작업본 = 배포본 + 주석 1줄): validate 22 PASS · compare 95 / DIFF 0 · overflow 0 · 외부 요청 차단 6건 · md5 가드 exit 1 · masthead 변조본 exit 1 + 전체 출력(22줄) → `deploy.py push --dry-run --file`(자격 증명 확인됨) → verify 같은 파일 일치 exit 0 / 바꾼 사본 불일치 exit 1.
+- **리허설 2**(반박 리뷰 반영 뒤, 16:23): 새 S0 블록 PASS · ingest 변경 없음 → FETCH_HEAD = HEAD · precheck 22/95/0 · md5 가드가 윈도 경로 vs 상대 경로로 넣은 같은 파일도 잡음 · verify 출력에 sha · 가짜 두 줄 토큰 파일 → `[FAIL] 자격 증명을 얻지 못함(출처: token-file)` exit 1, BOM 붙은 한 줄 → 확인됨, 출력 속 가짜 값 0건.
+- **전후**(리허설·시험 전체): 실제 원격 스킬 main `b4cc8b9` · 배포 `32d8b05` 불변 · main 작업 폴더 md5(data·config·registry) 4dd3b0cf·status 0·HEAD b4cc8b9 불변 · 실제 수집 폴더 생성 0.
+- **반박 리뷰**(하위 에이전트 5 — 지시 준수·자격 증명 보안·셸/엣지·문서=코드·회귀, 읽기 전용): 44건(high 0 · medium 8 · low 36), 회귀 0(되돌리면 안 되는 것 행 전부 유지). 반영하거나 이 절 임의 결정·바꾼 곳에 기록. 반영 안 한 것 2(고를 항목 4): deploy dry-run 인증 GET(유효성) · deploy 자격 증명 비출력 오프라인 시험.
+- **GitHub 시험**(사용자 승인, 15:36:11 → 15:36:18): `test-push-0928` push → `ls-remote` b4cc8b9 → `push --delete` → 0줄, main b4cc8b9 불변.
+- **네이버 시험 1건**(사용자 입회 — 상계동필라테스 제외 검색어 탭, 15:51:17, 브랜치 코드): `test-roundtrip --keyword saero제외테스트0928 --group grp-a001-01-000000072587864 --key-file ~/naver-api.keys.json --confirm`(description `saero test 09-28`) → `[test] 등록 성공 id=rst-a001-00-000002190250607` → `[test] 다시 읽어 확인: 있음(verified)` → `[test] 삭제 뒤 확인: 없음 — 원상복구` → `[test] PASS — registry에 deleted 행으로 기록` exit 0. registry 665 → 666줄(f495f03b → ca642639), diff +1행 `saero제외테스트0928,grp-a001-01-000000072587864,상계동필라테스,EXP_SEARCH,deleted,skill,2026-09-28,rst-a001-00-000002190250607,2026-09-28,2026-09-28 시험 등록→확인→삭제`. **병합 때 main registry가 바뀌어 있으면 "main 판 + 이 1행"으로 푼다.**
+- **잔존 grep**(SKILL.md·scripts/*.sh·references·checklist): `python3 `(shebang 제외) 0 · `/home/claude`·`/mnt/user-data` = 채팅 가드 1줄 · Desktop\Agent 0 · x-access-token 0(local 포함) · "사용자 지정 기간" 0 · "사용자 PC의 PowerShell"·"일반 셸" 0 · local/에 두 경로 0.
+- **문법**: py_compile 13/13 · bash -n 2 · 코드펜스 짝수(SKILL 16 · code-tab 4 · report-fetch 8 · exclusion-ui 2 · checklist 6) · UTF-8 · 변경 파일 CR 0(registry는 i/crlf 그대로).
+- **K6**: 이 브랜치 LF clone `git add --renormalize .` 변경 0 · autocrlf=true 새 clone 대조는 push 뒤(아래 마무리).
+- **불변**: config b826b388 · data/2026-08·09(키워드 5a05ca2a·1da83049 등) · reportlib f29e64fc · compute·validate·compare 계산·검사 로직 · archive store/combine 검사.
+
+변경 파일(`b4cc8b9` → 작업본; `wc -l` · md5 앞 8자리):
+
+| 파일 | 행수 | md5 |
+|---|---|---|
+| `.gitattributes`(신규) | 4 | 8071a8fe |
+| `.gitignore` | 5 → 6 | c79498bf → 1ddfa2fc |
+| `SKILL.md` | 480 → 515 | afcae73c → 8d63300e |
+| `references/code-tab.md`(신규) | 184 | 233bac4d |
+| `references/exclusion-ui.md` | 132 → 139 | 152df14e → ec88e02d |
+| `references/report-fetch.md` | 111 → 111 | 29824cc1 → bb9a5606 |
+| `scripts/archive.py` | 196 → 202 | 74ef5974 → e8fb93fc |
+| `scripts/compare.py` | 175 → 181 | 93e4c36b → 3184d1b7 |
+| `scripts/compute.py` | 244 → 251 | 75edfb5c → f2cd7f2d |
+| `scripts/deploy.py` | 92 → 182 | 0cf691c9 → feaf5ba6 |
+| `scripts/exclusions.py` | 944 → 949 | defaa980 → 5b06e469 |
+| `scripts/fetch_reports.py` | 973 → 976 | 322ffe8b → a14766bc |
+| `scripts/ingest.sh` | 15 → 44 | 60abfcf3 → 26953e48 |
+| `scripts/precheck.sh` | 17 → 26 | ecf566cd → 9fbf78e2 |
+| `scripts/validate.py` | 418 → 424 | e3d71975 → dd00bb11 |
+| `tests/mutation_test.py` | 373 → 379 | 90fbc1e8 → 0a9dc9dc |
+| `tests/overflow_check.py` | 41 → 59 | 1f41f4bb → a3ecd0f5 |
+| `tests/test_exclusions.py` | 547 → 553 | 6c2992fe → 635a2d60 |
+| `tests/test_fetch_reports.py` | 595 → 604 | 1ba3be2c → e0dc0695 |
+| `tests/test_ingest.py`(신규) | 167 | 7c2d6415 |
+| `local/CLAUDE.md`(신규) | 3 | af47cb28 |
+| `local/saero-run/SKILL.md`(신규) | 25 | b212888c |
+| `audit/checklist.md`(커밋 2) | 481 → 497 | 5b11f72c → fdcb2027 |
+| `audit/exclusions.csv`(커밋 2, 시험 1행) | 665 → 666 | f495f03b → ca642639 |
+| `audit/last-audit.md`(커밋 2) | 이 절 추가 | (재clone 대조는 보고에) |
+
+## 검증 회차가 볼 것
+1. **변경 파일 = K·D 범위**: `git diff b4cc8b9 --stat` = 위 표 + last-audit.md. data·config 불변(md5), registry는 시험 1행만(`git diff b4cc8b9 -- audit/exclusions.csv` = +1행 deleted). 지시 밖 변경은 임의 결정 1~14와 대조.
+2. **시험 3종 + mutation_test**: venv 파이썬, PYTHONUTF8 없이, LF clone — test_fetch_reports 15 OK · test_exclusions 29 OK · test_ingest 4 OK · mutation_test "전부 살아 있음"(배포본 = 32d8b05 재수령, 합본 `archive.py combine`).
+3. **grep 잔존**(SKILL.md·scripts/*.sh·references·checklist): `python3 `(shebang 제외) 0 · `/home/claude`·`/mnt/user-data` = 채팅 가드 1줄 · Desktop\Agent 0 · x-access-token 0 · "사용자 지정 기간" 0 · "사용자 PC의 PowerShell"·"일반 셸"(갱신 이력 제외) 0.
+4. **dry-run 무변경**: `fetch_reports.py --dry-run`(오늘 · `--today 2026-10-01`, 새 폴더) · `exclusions.py push --dry-run` · `deploy.py push --dry-run`(`--file` 있음·없음) 전후 md5(data·config·registry)·`git status`·두 저장소 `ls-remote` HEAD 동일, fetch 폴더 미생성.
+5. **ingest 경로**(test_ingest 4개 + 코드 대조): 정상 push → FETCH_HEAD = HEAD / main 아닌 브랜치 → store 전 `[FAIL]`·커밋 0 / push 거부 → `[FAIL] push 실패`, 재실행 "변경 없음"에서 `≠ origin/main` / data/ 밖 스테이징이 `data:` 커밋에 안 섞임.
+6. **금지 패턴 차단**: 승인 목록에 `노원역운동`·config 경쟁사명 → `push --dry-run`에 `[거부]`(test_exclusions `test_push_dry_run_zero_http_and_no_file_change` — fixture registry로 바뀐 뒤에도 `[거부] 노원역운동`·"승인 2개"·"등록 예정 1 · registry에 이미 등록 1" ×3 단언 유지).
+7. **verified:false 실패 보고**: test_exclusions `test_verified_false_is_failure`(drop_after_post) — `failed`·exit 1.
+8. **시험 1건 기록 대조**(재실행 안 함): 위 실측의 출력 원문 4줄 · registry `deleted` 1행(id `rst-a001-00-000002190250607`) · description `saero test 09-28`.
+9. **GitHub 시험 브랜치**: `test-push-0928`이 원격에 없음(`git ls-remote origin refs/heads/test-push-0928` 0줄) — push·삭제 기록은 위 실측.
+10. **.gitattributes**: `git -c core.autocrlf=true clone -b feat-code-tab …`에서 data CSV 8개·registry·*.sh 작업 파일 md5 = `git show HEAD:<파일>` md5, `git add --renormalize .` 변경 0. 단 attributes 이전에 autocrlf=true로 풀린 폴더에서는 CSV가 CRLF로 스테이징되는 것이 정상 동작(바꾼 곳 3번째 줄, code-tab.md 8절).
+11. **overflow 외부 요청 0**: `tests/overflow_check.py` `only_file` route — 출력 "외부 요청 차단 N건"(리허설 6건), 결과 PASS·넘침 0.
+12. **deploy 자격 증명 비출력**: 코드(`usable`·`git_credential`·`credential`·`api` except — 값은 반환·헤더에만, 예외는 종류만) + 실행 출력(리허설 1·2 dry-run·verify 출력, 가짜 토큰 파일 두 줄/BOM — 가짜 값 0건). `git credential fill`은 deploy.py 안에서만(`credential.interactive=false`·GCM_INTERACTIVE=never·GIT_TERMINAL_PROMPT=0·askpass 제거).
+13. **문법**: py_compile 전부 · `bash -n` ingest·precheck · 코드펜스 짝수 · UTF-8 · CR 0(registry 제외).
+14. **local/ 사본**: 토큰·키 값 0, 경로는 `~`·`D:\saero`(bash `/d/saero`)만, `saero-run/SKILL.md` frontmatter(name·description) = wrapup 형식, ≤40행(25) · CLAUDE.md 3줄. `D:\saero` 아래 설치 없음(`D:\saero\CLAUDE.md`·`D:\saero\.claude\skills\saero-run` 없음).
+15. **의도 검증**: "원래 설계·지시를 바꾼 곳" 6줄과 임의 결정 1~14를 한 줄씩 — 지시 의도와 다른 구현이 있으면 그것만.
+
+## 새로 내가 고를 항목
+1. **병합과 10/1**: 10/1(`지난달` 첫 실측)이 병합 전이면 — (a) main 작업 폴더에서 수집만(`python scripts/fetch_reports.py --debug`, pandas 불필요)하고 ②는 병합 뒤 / (b) 검증·병합을 10/1 전에.
+2. **병합 직후 main 작업 폴더 줄바꿈 정리 한 번**(code-tab.md 8절 — S0가 이름을 댄 CSV를 지우고 `git checkout -- data` / 새 LF clone으로 교체) — 사용자와 함께.
+3. **local/ 설치**: 병합 뒤 `local/CLAUDE.md` → `D:\saero\CLAUDE.md`, `local/saero-run/SKILL.md` → `D:\saero\.claude\skills\saero-run\SKILL.md` 복사(사용자, 마감 때 md5 대조).
+4. **이번에 반영하지 않은 리뷰 2건**: deploy `push --dry-run`에 인증 GET(자격 증명 유효성)을 더할지 · deploy 자격 증명 비출력 오프라인 시험(`tests/test_deploy.py` — 새 시험 파일 1개 제한으로 이번엔 안 함).
+5. **회차 2 범위 확인**: `ingest.sh --from <성공 폴더>`(summary result=ok·exit_code 0·partial 거부) + `exclusions.py push --candidates … --expect N`(K() 대조, `_candidates.txt` CR 처리) + archive store에 data/ 안 파일을 넘기는 경우 차단(같은 경로면 원본 소실 — `archive.py:96-99`)을 넣을지.
+6. **회차 1 병합 뒤 첫 실사용 범위**: 전 단계 1회(사용자 입회, 평일 01:00 KST 뒤, 10/1 피함) / 회차 2 병합 뒤로.
+7. (이월) keep 처리 주체 · "노원힐링장소."(마침표 원문, 미등록) 재상정 — 리허설에서 9/27 창이면 신규 후보로 다시 뜨는 것을 확인.
+
+## 마무리 기록(이번 회차)
+- 커밋 1 `f0520b5` + 커밋 2(이 절·checklist v4.7·registry 시험 1행), 브랜치 `feat-code-tab`만 push(이 PC git 자격 증명), main 0. push 뒤 재clone·autocrlf=true clone 대조는 채팅 보고에(이 절의 해시는 자기 참조라 적지 않는다).
+- 토큰 수령 0 · 네이버 쓰기 = 시험 1건(등록→삭제, 원상복구 확인) · 배포 저장소 0 · main 작업 폴더 0 · 설치본 부트스트랩 불변.
+
+---
+
+
 # 기능 추가 탐색 기준선(Code 탭 전 단계 실행, 2026-09-28)
 점검일: 2026-09-28 (기능 추가 회차 — **탐색·설계만**. 데스크톱 앱 Code 탭 세션, 이 PC, 작업 폴더 `D:\saero`로 열어 메모리 D--saero·wrapup이 붙은 상태. 모델 Opus 5.5 — 지시문은 Fable 기준). 기준 main `c5015c5`(시작 때 `git fetch` 뒤 `c5015c5..origin/main` 커밋 0 · 작업 트리 깨끗 · `pull --ff-only` 무변경). SKILL.md·scripts·config·tests·data·work **변경 없음**(이 절 추가만). 네이버 광고주센터·검색광고 API·배포 저장소 쓰기 0, 네이버 로그인 0, 실제 수집 프로필·다운로드 폴더 열기 0. 설치본 부트스트랩 불변(44행, md5 `97a3e194…` — 세션 중 확인). 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차.
 추가할 기능: 지금 따로 도는 ① 보고서 CSV 4개 받기(`scripts/fetch_reports.py`) ② 보관·합본·리포트 갱신·배포(SKILL.md 1단계 보관·합본·보관본 push ~ 8단계, 5-0 제외) ③ 제외 검색어 등록(5-0단계, `scripts/exclusions.py`)을 Code 탭 세션 하나에서 한 번에 잇는다. 아래 "기능 추가 탐색 기준선(보고서 자동 수집)" 절 끝 **사용자 결정(2026-09-28 저녁)** 블록이 정한 다음 순서("Code 탭 전 단계 실행": 경로 규칙·pandas/playwright 의존성·토큰 파일 규약·Code 탭 진입점)다.

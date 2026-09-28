@@ -14,7 +14,11 @@
 개선안 이월 표)로 분리하고, 저장소 SKILL.md에 "갱신 회차는 registry + updates 최근 절, 진단 회차는 셋 다"를 명시한다
 (부트스트랩은 저장소 SKILL.md를 따르므로 재업로드 불필요). 2026-09-26 회차에는 분리하지 않았다.
 
-버전: v4.6 (2026-09-28 기능 추가 회차 — 보고서 자동 수집 `scripts/fetch_reports.py`(설계안 C, PC Playwright, 브랜치 `feat-report-fetch`): [의도된 동작] 21~24 추가
+버전: v4.7 (2026-09-28 기능 추가 회차 — Code 탭 전 단계 실행(브랜치 `feat-code-tab`, 설계안 C 회차 1): [의도된 동작] 20·24 개정(Code 탭 세션이 정식 실행 주체 ·
+store·push는 같은 PC에서 ingest.sh), 15·17·19·21·22·25 보강, 26 신설(Code 탭 실행 규약 — `references/code-tab.md`), [되돌리면 안 되는 것] 5행 추가(ingest origin/main 확인 두 분기 ·
+승인 목록 복사 규칙 · SKILL.md 채팅 가드 · 자격 증명 출력 0 · `.gitattributes`), [시작 전 확인 ①]에 Code 탭 한 문장, 검증 C① 시험 회차 문구를 SKILL.md·exclusion-ui.md와 통일,
+점검 명령을 `$PY`·`work/`로. 검증은 별도 세션, main 병합 전.)
+v4.6 (2026-09-28 기능 추가 회차 — 보고서 자동 수집 `scripts/fetch_reports.py`(설계안 C, PC Playwright, 브랜치 `feat-report-fetch`): [의도된 동작] 21~24 추가
 (저장된 `이번달` 프리셋 의존 / 매월 1일 `지난달` / 재집계 WARN 비차단 / 다운로드 파일명 규칙), "되돌리면 안 되는 것" 5행 추가(설정 변경 요소 클릭 금지·자격 증명 0·
 검사 전 store 금지·부분 실패 store 금지·좌표 클릭 금지). 검증은 별도 세션, main 병합 전.
 v4.6 갱신 이력: 2026-09-28 수정 회차 2(결함 1 — 같은 프로필 2회째 실행 크래시) — [의도된 동작] 25 추가(실행 전 프로필 다운로드 기록 정리·`browser_channel` 그대로),
@@ -40,6 +44,8 @@ v4 에서 더한 것: 토큰 선요청 · 마무리 순서(push 우선) · 회�
 
 [시작 전 확인 ① — 토큰부터 확보한다]
 
+**Code 탭 회차는 토큰을 받지 않는다** — PC 작업 폴더에서 이 PC의 git 자격 증명으로 push한다(`references/code-tab.md` 1절, 2026-09-28). 아래 토큰 요청은 채팅 회차의 규칙이다.
+
 **진단을 시작하기 전에 push 토큰을 먼저 요청해라.** 마무리에 저장소로 두 파일을
 올려야 하는데, 진단이 다 끝난 뒤에 요청하면 그 사이 세션이 끊길 때 결과가
 통째로 유실된다. 2026-09-07 hometax 점검에서 실제로 그렇게 한 세션이 날아갔다 —
@@ -63,7 +69,7 @@ v4 에서 더한 것: 토큰 선요청 · 마무리 순서(push 우선) · 회�
 `data/YYYY-MM/`에 월별 보관하므로 **업로드가 아니라 합본을 쓴다**:
 
 ```bash
-python3 scripts/archive.py combine /home/claude/work/combined
+"$PY" scripts/archive.py combine work/combined     # Code 탭: 작업 폴더에서, PY = 저장소 밖 venv(code-tab.md 1절)
 ```
 
 - combine PASS → 그 합본으로 진행. 기준선 "점검 대상" 줄에 `실 CSV = 저장소 data/ 보관본 합본(기간 …, N일)`.
@@ -73,7 +79,7 @@ python3 scripts/archive.py combine /home/claude/work/combined
   합성 데이터로 대체하지 마라:
 
 > 점검을 시작하기 전에 CSV가 필요합니다. data/ 합본이 [FAIL 메시지 / 없음] 상태입니다.
-> 네이버 광고시스템에서 사용자 지정 기간(이번 달 1일 ~ 어제)으로 4종을 받아 올려주시겠어요?
+> 저장된 `이번달`(매월 1일은 `지난달`) 프리셋으로 4종을 받아 주시겠어요(Code 탭은 `fetch_reports.py` — code-tab.md 3절, 손으로는 8절)?
 > 이번 회차는 문서 점검만 하고 CSV 항목은 다음으로 넘겨도 됩니다 — 그렇게 원하시면 "CSV 없이 진행"이라고 말씀해 주세요.
 
 사용자가 "CSV 없이 진행"이라고 답한 경우에만 CSV 없이 시작한다. 그때는 CSV 관련 항목을 전부 [추론]으로
@@ -99,9 +105,11 @@ LeeKwanBeom/saero-pilates-report ← 배포본. index.html·service-worker.js·�
 1) 스킬 저장소 확인 (이 파일을 읽었다면 이미 clone돼 있다)
 git clone https://github.com/LeeKwanBeom/saero-ad-report-skill
 대상: SKILL.md(정본) / README.md / references/report-structure.md / references/css-and-layout.md /
-scripts/reportlib.py · archive.py · compute.py · validate.py · compare.py · deploy.py · ingest.sh · precheck.sh /
-tests/mutation_test.py · overflow_check.py / config/report-config.json(스크립트가 읽는 설정, 없으면 즉시 종료) /
-data/YYYY-MM/ 4종씩 / .gitignore / audit/last-audit.md / audit/checklist.md(이 파일)
+references/code-tab.md(Code 탭 실행 규약) / references/report-fetch.md / references/exclusion-ui.md /
+scripts/reportlib.py · archive.py · compute.py · validate.py · compare.py · deploy.py · ingest.sh · precheck.sh · fetch_reports.py · exclusions.py /
+tests/mutation_test.py · overflow_check.py · test_fetch_reports.py · test_exclusions.py · test_ingest.py · fixtures/ /
+config/report-config.json(스크립트가 읽는 설정, 없으면 즉시 종료) / data/YYYY-MM/ 4종씩 / .gitignore / .gitattributes /
+local/(진입 스킬·로컬 CLAUDE.md 정본 사본) / audit/exclusions.csv(registry) / audit/last-audit.md / audit/checklist.md(이 파일)
 실제 ls 결과가 이 목록과 다르면 그것부터 알려줄 것.
 
 2) 배포된 index.html 을 받아서 실제 마크업 확인
@@ -166,17 +174,18 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 12. 09번 심야 = 22·23·0~8시(09시 배타), 비중은 정수 반올림. 09번 min-width 650px은 고정(config 대상 아님). 심야 서술은 긍정 톤 유지.
 13. 시간대별 CSV 클릭은 KPI가 아니라 **제외 전 전체**와 비교(D-4). 01번 순위 그리드 민트 = 닷새 중 최솟값.
 14. 라이브 Pages는 web_fetch 결과로 판정하지 않는다(캐시). 사용자 시크릿 창 확인이 유일. 설치본 references/scripts 사본이 낡은 것은 정상(저장소 것을 쓴다). 저장소는 공개 유지(사용자 결정 2026-09-27).
-15. 11번은 12번 확정 뒤 맨 마지막에 쓴다. 상계동필라테스는 하루 30회 이상 이틀 전까지 카드 유지. 사용자 답을 기다리며 배포하는 회차는 validate.py `--pending`으로 잔존 문구 검사를 허용한다(4c08ab3 유형) — 답을 반영한 재배포는 엄격.
+15. 11번은 12번 확정 뒤 맨 마지막에 쓴다. 상계동필라테스는 하루 30회 이상 이틀 전까지 카드 유지. 사용자 답을 기다리며 배포하는 회차는 validate.py `--pending`으로 잔존 문구 검사를 허용한다(4c08ab3 유형) — 답을 반영한 재배포는 엄격. (2026-09-28 Code 탭 회차) 기본 순서는 승인·등록·확인 → 배포라 답 대기 배포가 드물다 — 사용자가 "등록은 나중에"라고 할 때만 07·11·12번에 사실형 문구("제안함 — 등록은 다음에")로 배포하고 `--pending`은 쓰지 않는다.
 16. (2026-09-26 수정 회차로 생긴 것) 5단계 숫자는 `scripts/compute.py` 출력만 쓴다 — 정의는 report-structure.md 각 절 "정의(compute.py)" 줄과 1:1. validate.py는 compute.py와 **값 계산을 공유하지 않는** 독립 검산(reportlib은 읽기·필터·일수·섹션까지). validate 검사 개수는 실행 출력을 센다(2026-09-26 기준 22개). compare.py 차이 0(2026-09-27 기준 95항목)·overflow 3폭·mutation_test(validate 22 + 0건 가드 14 + archive 7)는 배포 전·점검 때 전부 돌린다. precheck.sh 3번째 인자는 4단계 fetch 파일(직전 배포본) — 작업본과 같으면 exit 1이 정상이고, 진단 회차 재현 시험은 그 배포본의 직전 배포를 넣는다.
-17. (2026-09-27) `tests/overflow_check.py`는 컨테이너에서 cdnjs가 막혀 **Chart.js 미로드 상태**로 scrollWidth를 잰다 — 차트 canvas 폭은 validate 검사 9(min-width)가 따로 보고, 라이브에서의 차트 넘침은 사용자 시크릿 창 확인 몫이다. 결함 아님.
+17. (2026-09-27) `tests/overflow_check.py`는 컨테이너에서 cdnjs가 막혀 **Chart.js 미로드 상태**로 scrollWidth를 잰다 — 차트 canvas 폭은 validate 검사 9(min-width)가 따로 보고, 라이브에서의 차트 넘침은 사용자 시크릿 창 확인 몫이다. 결함 아님. (2026-09-28) `overflow_check.py`가 file:// 밖 요청을 전부 막아(route abort, "외부 요청 차단 N건" 출력) PC(Code 탭)에서도 같은 조건으로 잰다.
 18. (2026-09-27 기능 추가) 제외 검색어 자동화(SKILL.md 5-0단계·`references/exclusion-ui.md`)의 **등록 상태 정본은 `audit/exclusions.csv`(registry)** — 재노출된 이름은 "등록돼 있는데도 노출 / 등록 누락 → 후보 / 미확인" 셋 중 하나로 **묻지 않고** 보고한다. 대조 목록 표는 회차별 요약 행만 받는다(이름 원본은 registry). registry 초기값은 09-27 UI 전사(340행, `source=ui`·`record`, `group_id` 빈칸)라 첫 `pull` 전에는 그룹 ID 매핑이 없고 `*` 기록 행이 남아 있는 것이 정상 — pull이 채우고 지운다.
-19. (2026-09-27 기능 추가) 후보 규칙: `확장` 행·정확 일치·클릭 0·창 안 첫 등장만 신규 후보. `industry_terms`(필라테스·필테) 포함 이름은 "업종어 포함" 묶음으로만 보이고 기본 후보가 아니다(6세필라테스처럼 이미 제외한 이름이 있어도). 클릭이 있는 이름은 후보로 올리지 않는다(07번 표에서 사람이 본다). 이전 CSV에 있었던 이름은 `--all` 없이는 후보에 안 오른다. 전부 의도된 동작.
-20. (2026-09-27 기능 추가) 이 환경(브라우저 2종·컨테이너·PC 연결 셸)은 광고시스템·`api.searchad.naver.com`이 막혀 있어(탐색 기준선 0절) `pull`·`push`·`verify`·`test-roundtrip`은 **사용자 PC의 일반 셸**에서 돈다(경로 C). 스크립트가 `[FAIL] 네트워크 차단(프록시)` exit 2를 내는 것은 결함이 아니다. API `CUSTOMER_ID`(4480035)가 광고주센터 URL 계정번호(2580077)와 다른 것도 정상.
-21. (2026-09-28 기능 추가) `scripts/fetch_reports.py`는 보고서 4개의 형식에 **저장된 `이번달` 프리셋에 의존**한다(사용자가 09-28 저장, 목록 통계기간 열 전부 `이번달`) — 평일에는 열면 이미 1일~어제라 프리셋 클릭 없이 다운로드로 간다(`조회하기`는 저장된 형식의 자동 조회로 비활성이면 건너뛴다 — 왕복 2, 활성일 때만 클릭). 기간이 다르게 뜨면 프리셋(`이번달`)을 클릭해 맞추고, 그래도 다르면 그 보고서만 실패. 사용자 지정 기간을 타이핑하는 코드는 없다(의도).
-22. (2026-09-28 기능 추가) **매월 1일은 `지난달` 프리셋**(지난달 1일~말일, 31일 달도 한 파일 — 09-28 실측)으로 받는다. 헤더가 1일~말일이 아니면 "기간 = 기대" FAIL이 정상. SKILL.md 58행의 "최근 30일까지만"은 옛 전제였고(두 달 전 데이터도 조회됨), `store --chunk`는 사용자 지정 기간이 30일로 잘릴 때의 폴백으로만 남았다(archive.py 코드는 유지).
+19. (2026-09-27 기능 추가) 후보 규칙: `확장` 행·정확 일치·클릭 0·창 안 첫 등장만 신규 후보. `industry_terms`(필라테스·필테) 포함 이름은 "업종어 포함" 묶음으로만 보이고 기본 후보가 아니다(6세필라테스처럼 이미 제외한 이름이 있어도). 클릭이 있는 이름은 후보로 올리지 않는다(07번 표에서 사람이 본다). 이전 CSV에 있었던 이름은 `--all` 없이는 후보에 안 오른다. 전부 의도된 동작. (2026-09-28) 사용자가 고른 업종어 이름은 제안서 "업종어 포함" 절·합본 CSV 원문에서 **복사해** 승인 목록에 넣을 수 있다(`references/code-tab.md` 6절 — 다시 타이핑하지 않는다).
+20. (2026-09-27 기능 추가, 2026-09-28 개정) 광고시스템·`api.searchad.naver.com`은 채팅 환경(브라우저 2종·컨테이너·PC 연결 셸)에서 막혀 있고(탐색 기준선 0절), `pull`·`push`·`verify`·`test-roundtrip`은 **PC 작업 폴더를 연 Code 탭 세션**이 돌린다(사용자 PowerShell도 같은 경로 — 경로 C, exclusion-ui.md 3절). 채팅에서 스크립트가 `[FAIL] 네트워크 차단(프록시)` exit 2를 내는 것은 결함이 아니다. API `CUSTOMER_ID`(4480035)가 광고주센터 URL 계정번호(2580077)와 다른 것도 정상.
+21. (2026-09-28 기능 추가) `scripts/fetch_reports.py`는 보고서 4개의 형식에 **저장된 `이번달` 프리셋에 의존**한다(사용자가 09-28 저장, 목록 통계기간 열 전부 `이번달`) — 평일에는 열면 이미 1일~어제라 프리셋 클릭 없이 다운로드로 간다(`조회하기`는 저장된 형식의 자동 조회로 비활성이면 건너뛴다 — 왕복 2, 활성일 때만 클릭). 기간이 다르게 뜨면 프리셋(`이번달`)을 클릭해 맞추고, 그래도 다르면 그 보고서만 실패. 기간을 직접 타이핑하는 코드는 없다(의도).
+22. (2026-09-28 기능 추가) **매월 1일은 `지난달` 프리셋**(지난달 1일~말일, 31일 달도 한 파일 — 09-28 실측)으로 받는다. 헤더가 1일~말일이 아니면 "기간 = 기대" FAIL이 정상. SKILL.md 58행의 "최근 30일까지만"은 옛 전제였고(두 달 전 데이터도 조회됨), `store --chunk`는 직접 입력한 기간이 30일로 잘릴 때의 폴백으로만 남았다(archive.py 코드는 유지).
 23. (2026-09-28 기능 추가) `--prev`의 재집계 감지(겹치는 날짜의 일별 노출·클릭·비용 비교)는 **WARN이고 막지 않는다** — 실제 값 검사는 store 뒤 combine·validate가 한다. 실행 시각은 01:00 KST 이후(어제 집계 완료)가 전제라 그 전 실행의 "기간 = 기대" FAIL은 결함이 아니다.
-24. (2026-09-28 기능 추가) 다운로드 파일명은 네이버가 주는 이름 그대로 저장한다 — 스크립트로 받으면 `<이름>,2580077.csv`(예 `시간대별 보고서,2580077.csv`, 왕복 3 실측), 손으로 받으면 `<보고서명>_보고서_2580077.csv`; 둘 다 정상이고 그 밖의 이름은 내용 검사(첫 줄·컬럼·노출합)가 통과하면 WARN만. 성공 폴더는 `download_dir/YYYY-MM-DD/`, 부분 실패는 `partial/`에만(정상 폴더에 이번 실행 파일 없음)이 의도된 동작. 검사 통과 파일도 store·push는 **세션이 지금처럼** 한다(PC에서 store·push는 2회차).
-25. (2026-09-28 수정 회차 2) `scripts/fetch_reports.py`는 브라우저를 띄우기 전(`--login`·본 실행 모두) **전용 프로필의 다운로드 기록을 정리**한다(`clean_download_history`) — `Default/History`(없으면 프로필 바로 밑 `History`)의 `downloads`에서 target_path 파일이 없는 행(경로가 빈 행 포함)과 딸린 `downloads_url_chains`·`downloads_slices` 행만 지운다(결함 1: 같은 프로필 2회째 실행부터 다운로드 순간 크롬이 0xC0000005로 죽음 — 원인은 지워진 Playwright 임시 파일 경로 기록). 기록 DB가 없거나(첫 실행)·브라우저가 떠 있거나·잠김이면 `[WARN]`만 내고 계속하는 것, 크롬이 지운 기록을 같은 id·GUID로 되살려 정리 건수가 실행마다 늘어나는 것(0→4→8→12건, 크래시 없음 — 수정 회차 2 ④ 실측)은 정상. `browser_channel`은 config 값 그대로(null = 번들 크로미움 — 시험, `"chrome"` = 설치된 크롬 — 실사용).
+24. (2026-09-28 기능 추가) 다운로드 파일명은 네이버가 주는 이름 그대로 저장한다 — 스크립트로 받으면 `<이름>,2580077.csv`(예 `시간대별 보고서,2580077.csv`, 왕복 3 실측), 손으로 받으면 `<보고서명>_보고서_2580077.csv`; 둘 다 정상이고 그 밖의 이름은 내용 검사(첫 줄·컬럼·노출합)가 통과하면 WARN만. 성공 폴더는 `download_dir/YYYY-MM-DD/`, 부분 실패는 `partial/`에만(정상 폴더에 이번 실행 파일 없음)이 의도된 동작. 검사 통과 폴더만 Code 탭 세션이 같은 PC에서 `ingest.sh`로 store·combine·push 한다(2회차 = 2026-09-28 Code 탭 회차 — 업로드 없음).
+25. (2026-09-28 수정 회차 2) `scripts/fetch_reports.py`는 브라우저를 띄우기 전(`--login`·본 실행 모두) **전용 프로필의 다운로드 기록을 정리**한다(`clean_download_history`) — `Default/History`(없으면 프로필 바로 밑 `History`)의 `downloads`에서 target_path 파일이 없는 행(경로가 빈 행 포함)과 딸린 `downloads_url_chains`·`downloads_slices` 행만 지운다(결함 1: 같은 프로필 2회째 실행부터 다운로드 순간 크롬이 0xC0000005로 죽음 — 원인은 지워진 Playwright 임시 파일 경로 기록). 기록 DB가 없거나(첫 실행)·브라우저가 떠 있거나·잠김이면 `[WARN]`만 내고 계속하는 것, 크롬이 지운 기록을 같은 id·GUID로 되살려 정리 건수가 실행마다 늘어나는 것(0→4→8→12건, 크래시 없음 — 수정 회차 2 ④ 실측)은 정상. `browser_channel`은 config 값 그대로(null = 번들 크로미움 — 시험, `"chrome"` = 설치된 크롬 — 실사용). (2026-09-28 Code 탭 회차) Code 탭은 fetch를 백그라운드로 띄워 이 WARN에서 멈출 수 없다 — S0 사전 점검이 `profile_in_use`로 프로필 사용 중이면 fetch **전에** 멈춘다(code-tab.md 2절). 코드의 WARN-계속 동작은 그대로.
+26. (2026-09-28 Code 탭 회차) **Code 탭 실행 규약**(`references/code-tab.md`가 정본): 진입은 `D:\saero`로 연 Code 탭의 `/saero-run`(진입 스킬·로컬 CLAUDE.md의 정본 사본은 저장소 `local/`, 설치는 사용자), 작업 폴더는 main 하나, 파이썬은 저장소 밖 venv `$PY`(`python3` 금지 — Store 스텁), 매 Bash 호출 `PYTHONUTF8=1`, KST는 `TZ=KST-9`, 자격 증명은 이 PC git 자격 증명 하나(토큰 파일·대화창 토큰 0 — deploy.py가 `git credential fill`로 얻어 변수에만), 회차 작업물은 `work/`. 채팅 운영의 "토큰 두 종류·서로 통하지 않음"은 이 PC에서 성립하지 않는다(SKILL.md 배포 정보). 순서는 승인·등록·확인 → 배포, 승인 질문은 한 메시지. 채팅(웹·Cowork)에서 SKILL.md 채팅 가드가 멈추는 것도 의도된 동작.
 
 [되돌리면 안 되는 것 — 이게 그대로 있는지 확인해라] (2026-09-26 신설)
 
@@ -220,6 +229,11 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | 4개 중 하나라도 실패면 exit 2, 받은 파일은 `partial/`에만 두고 정상 폴더에 남기지 않는다(부분 갱신 경로 없음과 같은 규칙) | 3개만 store돼 combine이 옛 파일과 섞이거나 FAIL을 반복한다(2026-09-26 D-13 유형) | scripts/fetch_reports.py cmd_fetch · test_fetch_reports `test_2_partial_failure_wrong_name_exit2` |
 | 좌표 클릭·`mouse` API·드래그 0 — 로케이터는 role·text만(`locate`, 라벨 판정은 파이썬 `name_ok`) | 화면 배치가 조금만 바뀌어도 엉뚱한 요소(설정·삭제)를 누른다 | scripts/fetch_reports.py locate·name_ok · references/report-fetch.md 6절 |
 | 프로필 정리는 **target_path 파일이 실제로 없는 기록만** 지운다 — **실제 파일이 있는 기록 삭제 금지**, 브라우저가 떠 있으면(`SingletonLock`·Windows `lockfile`)·DB가 잠겼으면 지우지 않고 `[WARN]` | 사용자가 받은 파일의 다운로드 기록까지 사라지거나, 떠 있는 크롬이 쓰는 기록 DB를 건드려 프로필이 깨진다 | scripts/fetch_reports.py clean_download_history·profile_in_use · test_fetch_reports `test_clean_download_history_removes_only_missing_files`·`test_clean_download_history_no_db_or_locked_warns` |
+| `ingest.sh`는 main 브랜치에서만 돌고(아니면 쓰기 전 `[FAIL]` exit 1), push 뒤와 "data/ 변경 없음" **두 분기 모두** `git fetch origin main` 뒤 HEAD = 원격 main(FETCH_HEAD)이 아니면 `[FAIL]` exit 1. push 거부는 `[FAIL] push 실패` exit 1, 커밋은 `-- data`(data/만) | 커밋만 되고 push 안 된 보관본이 "변경 없음 — push 생략"으로 숨는다(옛 ingest.sh 10행) · main 아닌 브랜치의 HEAD를 main에 밀어 넣는다 | scripts/ingest.sh `synced`·브랜치 검사 · tests/test_ingest.py test_2·test_3·test_4 |
+| 승인 목록은 propose 산출물(`_candidates.txt`·제안서 업종어 절)·합본 CSV 원문에서 **복사로만** 만든다 — 줄 수 = 답의 N, `K()` 대조 + 원문 바이트 그대로, 세션이 이름을 다시 타이핑하지 않는다 | 기호·마침표가 빠진 이름이 "이미 등록"으로 건너뛰고 원문은 미등록으로 남는다(2026-09-28 "노원힐링장소." 실사고) | references/code-tab.md 6절 · SKILL.md 5-0단계 4항(회차 2에 `push --candidates … --expect N` 코드 가드 예정) |
+| SKILL.md 맨 위 **채팅 가드** — 컨테이너 작업 경로(가드 문장에 적힌 두 경로)가 있는 환경이면 아무것도 하지 않고 "PC Code 탭에서 `/saero-run`"으로 안내하고 멈춘다. 그 두 경로는 가드 문장 밖 SKILL.md·scripts·references·checklist에 0 | 부트스트랩이 채팅에서 저장소를 받아 수집·등록이 없는 반쪽 회차(옛 업로드 절차)를 돈다 | SKILL.md "먼저 — 실행 환경(채팅 가드)" |
+| 자격 증명 값은 출력·파일·로그 0 — `deploy.py`는 `git credential fill`(GIT_TERMINAL_PROMPT=0·GCM_INTERACTIVE=never)로 얻은 값을 변수에만 두고 "출처: git"만 찍는다. 세션은 `git credential fill`·토큰·키 파일을 직접 열지 않는다(키는 `--key-file` 경로만) | 공개 저장소·대화 기록·로그에 자격 증명이 남는다 | scripts/deploy.py `git_credential`·`credential`·`main` · references/code-tab.md 1·7절 |
+| `.gitattributes` = `*.csv -text` · `*.sh text eol=lf` — CSV는 바이트 그대로(data LF · registry CRLF), 작업 폴더 = 커밋 md5 | autocrlf=true인 PC에서 CSV가 CRLF로 풀려 md5 대조·`test_config_columns`가 깨지고, `git add data`가 CRLF 바이트를 커밋할 수 있다 | .gitattributes · references/code-tab.md 2절 S0 줄바꿈 검사·8절 "작업 폴더 줄바꿈" |
 
 [알려진 이월 항목]
 
@@ -257,8 +271,9 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
   **data/ 파일 형식이 바뀐 회차에만** 다시 본다.
 - compute.py + compare.py로 직전 배포본을 재현해 **차이 0**인지(합본 기간 = 배포본 기간일 때). 차이가 나면
   (a) 코드가 문서 정의와 다르게 (b) 배포본이 틀림 (c) 정의가 문서·코드 어디에도 없음 — 어느 쪽인지 원문 인용으로
-- 토큰 안내가 정확한지. 배포는 saero-pilates-report 권한,
-  기준선 push 는 saero-ad-report-skill 권한이라 서로 다르다.
+- 토큰 안내가 정확한지. (채팅 회차) 배포는 saero-pilates-report 권한,
+  기준선 push 는 saero-ad-report-skill 권한이라 서로 다르다. (Code 탭 회차, 2026-09-28~) 이 PC git 자격 증명 하나로
+  두 저장소에 쓴다 — SKILL.md 배포 정보의 "이 PC에서는 성립하지 않는다"가 맞는 서술이다.
 
 [판정 기준]
 - 결함으로 올리기 전에 스스로 반증을 한 번 시도해라. "이게 사실은 문제가 아닌
@@ -272,12 +287,12 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
   변조를 추가해라). 0건 가드·config 실험(`ctr_high_threshold`·`date_based_sections`)·
   **archive.py 파괴 실험 7종**(store 옛 다운로드·두 달 걸침 / combine 시간대별 +1·개업 달 제거·헤더 빈틈·경계 불일치·
   종류 누락 — 2026-09-26 추가, data/ 사본에서)도 포함.
-  실행: `python3 tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
+  실행: `"$PY" tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>`
   — 원본·CSV·config·data/는 임시 디렉토리로 복사해서만 건드리며, 끝에 원본 md5(data/ 포함)가 그대로임을 출력한다.
   기준 실행이 PASS가 아니면 스크립트가 멈추니 그때는 CSV·배포본 조합부터 확인해라.
   출력에 [MISS]·[UNCOVERED]·[SKIP]이 하나라도 있으면 그 검사는 죽었거나 미확인이고 결함이다.
   (스크립트가 못 잡는 것 두 가지는 손으로: config 파일 삭제→즉시 종료, `excluded_groups` 비우기→KPI 값이 바뀌며 FAIL.)
-- **가로 넘침은 `tests/overflow_check.py <index.html>`**(360·390·430px, playwright)로 — 배포본과 검증 대상 둘 다.
+- **가로 넘침은 `"$PY" tests/overflow_check.py <index.html>`**(360·390·430px, playwright, file:// 밖 요청 차단)로 — 배포본과 검증 대상 둘 다.
 - 실측한 것과 코드를 읽고 추론한 것을 구분해라. 결함 표에 [실측]/[추론] 표시를 달고,
   추론만으로 올린 항목은 왜 실측하지 못했는지 한 줄로 적어라.
 
@@ -404,7 +419,8 @@ A 는 사실 확인이라 답이 하나뿐이고, B 는 원저자만 할 수 있
 **수정하면서 원래 제안을 바꿨으면 기준선에 그 사실과 이유를 반드시 남겨라.**
 B 검증이 그 대목만 따로 볼 수 있어야 한다.
 
-**C. 외부에 쓰는 기능(제외 검색어 등록 등)의 검증에 반드시 들어가는 재현 4개(2026-09-27)**: ① 시험 등록 1건(사용자 입회, 등록→확인→삭제, `test-roundtrip --confirm`)
+**C. 외부에 쓰는 기능(제외 검색어 등록 등)의 검증에 반드시 들어가는 재현 4개(2026-09-27)**: ① 시험 등록 1건 = **구현 회차 끝**에 사용자 입회로(등록→확인→삭제, `test-roundtrip --confirm`)
+— 검증 회차는 그 기록(출력 원문·registry `deleted` 행)을 대조하고 가짜 API 시험을 돌린다(SKILL.md 5-0단계 6항·exclusion-ui.md 8절과 같은 말, 2026-09-28 통일)
 ② dry-run 무변경(`push --dry-run` 전후 registry 행수·md5 동일, HTTP 호출 0) ③ 금지 패턴 차단(승인 목록에 `노원역운동` 류를 넣어도 `[거부]`)
 ④ 확인 실패 경로(`verified:false`)가 실패로 보고되는지(`tests/test_exclusions.py`의 drop_after_post 시험). 실제 광고 계정에 쓰는 것은 ①의 1건뿐이고 나머지는 가짜 API·사본으로.
 
@@ -441,14 +457,14 @@ push 후 저장소에서 다시 받아 올린 파일이 **전부** 들어갔는�
   3. 재clone으로 행수·md5를 대조하고, "PC에서 push했다"는 사실을 보고에 적는다.
   2026-09-26 두 회차는 클라우드 push가 됐다(이 저장소는 프록시 허용) — 막힌 경우에만 이 절차.
 
-**채팅 보고의 마지막 줄에는 반드시 토큰 폐기 안내를 적어라**(토큰은 대화에 남는다). 보고 끝에 "사용자가 고를 항목"을
+**채팅 보고의 마지막 줄에는 반드시 토큰 폐기 안내를 적어라**(토큰은 대화에 남는다 — 토큰을 받은 회차만. Code 탭 회차는 토큰을 받지 않으므로 "받은 토큰 없음" 한 줄). 보고 끝에 "사용자가 고를 항목"을
 번호로 한 줄씩(결함 n / 개선안 n / 효율 En / 개정안 n / 결정 사항).
 
 **진단 전문을 파일로도 내려줘. 채팅 요약본 말고 파일 자체가 필요하다.**
 요약만 받으면 사용자가 다른 세션으로 옮길 때 절반이 유실된다 —
 2026-09-07 에 실제로 그래서 결함 하나의 절반을 놓쳤다.
 
-토큰을 못 받았으면 push를 건너뛰되 **두 파일을 반드시 파일로 내려주고**
+(채팅 회차) 토큰을 못 받았으면 push를 건너뛰되 **두 파일을 반드시 파일로 내려주고**
 "저장소에 반영되지 않았다"고 명시해라. 완료라고 말하지 마라.
 
 # 점검 기준선
