@@ -1,3 +1,200 @@
+# 수정 기록 3(Code 탭 회차 1 — 조정 재검토 W1~W14 반영, 2026-09-28)
+세션: 데스크톱 앱 Code 탭(이 PC), Opus 5.5 — 수정 회차 2와 같은 세션이 조정 지시("수정 회차 3 …")를 받아 수정. 브랜치 **`feat-code-tab`**(`77a2ba8` 위 커밋 2개: ① 코드·시험·문서 ② 이 절·checklist — 자기 참조라 해시는 적지 않는다), **main 미반영**.
+검증용 clone: `git clone -c core.autocrlf=false -b feat-code-tab --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill <별도 폴더>`
+사용자 결정(조정): W1 후보 파일 출처 검사 채택 · W3 dry-run 무쓰기 채택 · W11 precheck 도장 채택 · 2-1 명령화는 회차 2, NFKC·keep은 점검 회차로 이월.
+외부 쓰기: 스킬 저장소 = `feat-code-tab` push만 · 배포 저장소 = 무인증 읽기 GET만(리허설 fetch 1회·S0 1회) · 네이버 0 · 실제 fetch 0 · **실제 자격 증명 사용 0**(S0·배포 dry-run은 도우미 없는 임시 설정) · main·main 작업 폴더 0 · `D:\saero` 설치 0 · 토큰 수령 0.
+효율: 벽시계 약 60분(20:41 지시 → 21:4x push) · 도구 호출 약 150회(조정자) + 반박 리뷰 워크플로 하위 에이전트 4 · 즉석 코드: 리허설 약 10행(S0 추출 2·입력 복사 1·CRLF 만들기 1·가짜 urlopen 러너 20행 중 판정 6) + 변이 실험 러너 약 190행(스크래치, 검증용 — 저장소 밖).
+표기: [실측] 이 세션에서 직접 확인 / [추론] 확인 못 함. W = 조정 재검토 번호.
+
+## W별 — 절·함수 기준
+- **W1 승인 가드 우회 막기**(`scripts/exclusions.py`):
+  (a) `build_approved` — "이미 registered" FAIL과 쌍둥이 `[주의]`를 **고른 이름 전부**에(옛 `extra and`·`not extra` 제거, 문구 "추가 이름" → "이름"). registered 판정 = `registered_everywhere(rows, k) or registration_status(rows, k)[0] == "registered"`(propose와 같은 기준 — `*` 기록·pending·비대상 그룹 행 포함). 쌍둥이 블록을 먼저 돌려 쌍둥이가 있을 때만 FAIL 문구에 "위 [주의] 참고".
+  (b) 출처: `cmd_propose`가 `_candidates.txt`·`_industry.txt`의 md5를 `exclusions_proposal_<lo>_<hi>.md5`(`md5  파일명` 두 줄)에 쓴다. `check_provenance` — `--from-candidates`는 `_candidates.txt`, `--industry`는 `_industry.txt`로 끝나고 같은 폴더 `.md5`의 값 = 지금 파일 md5일 때만. 아니면 `[FAIL] [<옵션>] 후보 파일이 propose 산출물이 아님·propose 뒤 바뀜 — <사유>`.
+  (c) 참조 모드에서 `blocked_reason`(금지 패턴·경쟁사)이 나오는 이름은 `[FAIL]`(승인 파일·POST에 들어가지 않음 — `[거부]`는 `--approved` dry-run에만 남음).
+- **W2** `scripts/ingest.sh` 시작 검사: HEAD 확인 뒤·줄바꿈 검사 앞에 `git diff --quiet HEAD -- data` → 다르면 `[FAIL] data/가 HEAD와 다름(스테이징·미스테이징)` + `git status --short -- data`, exit 1(쓰기 0). 줄바꿈 검사 유지, awk = `-F'\t'` 탭 기준 경로 전체 · `w/` 빈 칸은 "(작업 폴더에 없음)" · 여러 줄은 들여써 한 줄씩. code-tab.md S0에 같은 diff 줄 + 같은 awk, 8절·4절 복구 명령 `git checkout HEAD -- data`.
+- **W3** dry-run은 승인 파일을 쓰지 않는다(`[승인 목록] N개 = --expect N … — dry-run: 파일 안 씀`). 실제 push만 `api_from_args` 뒤·등록 전에 `approved_path()` = `work/approved_<날짜>_<시분초>.txt`(있으면 `_2`…, `open(…, "x")` — 덮어쓰기 없음). docstring·code-tab.md 1·3·6절·SKILL.md 5-0 4항·exclusion-ui.md 6·7절.
+- **W4** `parse_numbers` `isdecimal()` · `read_name_file` 읽기·디코드 오류(OSError·UnicodeError) → `[FAIL] … 파일을 읽을 수 없음(<종류> — UTF-8이 아니거나 열 수 없음)` · `read_csv_terms` 같은 처리(+ csv.Error) · CSV 칸에 줄바꿈 → `[FAIL] 합본 CSV <파일>:<줄>에 줄바꿈이 든 칸이 있음`.
+- **W5** `build_proposal`이 `n_rows`(창 안 행 수)를 돌려주고 `cmd_propose`가 `lo > hi` **또는 `n_rows == 0`**이면 `[주의] 빈 창(창 lo~hi 안 검색어 행 0 — --since·--day가 데이터 끝 뒤 등)`.
+- **W6** `deploy.py` `--base`만(`--file` 없음) → `[FAIL] --base는 --file과 함께만` exit 2(요청 0). code-tab.md 9절 리허설 줄 = `deploy.py push --file work/index.html --base work/prev.html --dry-run`.
+- **W7** `deploy.py` `api()` `mask()` — HTTPError 본문·URLError 문구에서 그 요청에 쓴 자격 증명 값을 `***`로(자르기 전에).
+- **W8** PUT 409 = `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨, 4단계부터 다시 할지는 사용자가 정한다` · 403 = `[FAIL] PUT 403 — 쓰기 권한 없음(…)` · 404 = `[FAIL] PUT 404 — 저장소·경로를 찾지 못함(… 권한이 없어도 404)` · 그 밖 `[FAIL] PUT <코드>`. code-tab.md 3·4·5절.
+- **W9** `exclusions.py` `load_keys` — `api_key`·`secret_key`가 str·ASCII·공백 없음이 아니면 `SystemExit("키 파일의 <이름> 값 형식이 다릅니다(… — 값은 출력하지 않는다)")`.
+- **W10** `tests/test_deploy.py` 자식 env: `GIT_`로 시작하는 변수 전부 제거 + `GIT_CONFIG_NOSYSTEM=1`·`GIT_CONFIG_GLOBAL`·`GIT_CEILING_DIRECTORIES=<임시 폴더의 부모>`.
+- **W11** `scripts/precheck.sh` — 시작할 때 옛 도장 `rm -f`, 전부 통과하면 `$(dirname HTML)/precheck_ok.md5` = `<작업본 md5>  <파일명>`. `deploy.py` `precheck_stamp` — push에 `--file`이 있으면 네트워크 전에 도장 = `--file` md5인지: 실제 push면 아니면 `[FAIL] precheck 통과본이 아님 — PUT 안 함(<사유>)` exit 1, dry-run이면 `[주의]`. SKILL.md 6·7단계 · code-tab.md 1·3·4·5절 · checklist 행.
+- **W12** 시험(새 파일 0): `test_exclusions` `TestApprovedReference` 13개(출처 기록 도우미 `stamp()`, 실제 push 파일 `approved_files()`) — 끝 마침표·앞뒤 공백 원문(실제 push 파일 바이트) · 두 번째 실제 push가 앞 파일을 안 덮음 · 쌍둥이 대소문자·후보 파일 안 쌍둥이 · 후보·`*` 기록·업종어 이름 registered FAIL · 금지 패턴·경쟁사명 FAIL(`[거부]` 없음) · 손으로 쓴 후보·md5 불일치·industry↔candidates 바꿔 넣기·.md5 없음 FAIL · `²`·UTF-16·CSV 칸 줄바꿈 FAIL · propose `.md5` 기록 + `--day` 빈 창 + propose → push 끝까지 · `load_keys` 형식.
+  `test_deploy` 12개(+5, 리뷰 반영 1 포함): permissions 필드 없음 FAIL · 못 읽는 `--base`·`--base`만 exit 2·요청 0 · PUT 409·403 문구 + 되돌아온 헤더 값 `***` · 도장 없음·불일치 FAIL·요청 0, dry-run `[주의]` · (기존 시험에 도장 줄 단언).
+  `test_ingest` 9개(+1): test_1 `origin/main = HEAD` 2회 · test_7을 **실제 상황**(속성 없던 커밋에서 CRLF로 풀린 CSV가 blob이 같아 안 바뀌어 `status`·`diff HEAD`는 깨끗, i/lf w/crlf — 공백 경로 포함)으로 · test_8 스테이징된 CRLF(i/crlf w/crlf라 줄바꿈 검사는 통과)·미스테이징 둘 다 diff FAIL + `git checkout HEAD -- data` 복구 · PrecheckTests 도장 = 작업본 md5, 실패 실행은 옛 도장 지움.
+- **W13** 문서: "다시 계산" 흐름 4곳(SKILL.md 2-1 · code-tab.md 3절 · local/saero-run/SKILL.md · checklist 26)에 `5-0b(해당 시)` — 4곳 같은 문장(grep 각 1) · code-tab.md 5절 표(원천 없음·`--approved`와 함께·출처·registered·거부·CSV 줄바꿈·도장·409/403/404·`--base`만) · report-fetch.md 3절 export 줄 = 1절 전체 · SKILL.md 참고 목록 "승인 목록 참조 선택 모드" · exclusion-ui.md 3절 "번호 선택(승인 목록은 push가 씀)" · SKILL.md 1단계 ingest 설명에 시작 검사 3가지 · SKILL.md 4단계 폴백 `git clone -c core.autocrlf=false` · 권한 확인 = "계정 역할 기준 — 토큰 범위는 PUT이 최종 확인"(SKILL.md 배포 정보·7단계 · deploy.py docstring · checklist deploy 행 · code-tab.md 2절) · code-tab.md 4절 재시도 한 줄(같은 `--since`로 propose 다시 → 새 `_candidates.txt` → `--from-candidates … --expect <재승인 N>`).
+- **W14** 이 절 아래 "수정 기록 2" 안에서 바로잡음: 변이 표 precheck 행(옛 판은 `python3` 고정 탓 — `$PY`로 고친 옛 흐름 변이가 실제 결함을 보임) · N2·N4·검증 2가 볼 것 10의 "자격 증명 요청 0" → "(무인증 GET이 403·429면 GET용 1회)" · checklist ingest 행 시험 열(끝 확인 = test_1 2회, "변경 없음" 분기 끝 확인은 코드만 — 실행 중 원격이 바뀔 때).
+
+## 변경 파일(`77a2ba8` → 커밋 ①; `wc -l` · md5 앞 8자리) [실측]
+
+| 파일 | 행수 | md5 |
+|---|---|---|
+| `scripts/exclusions.py` | 1179 → 1246 | a1fa8a73 → 27490231 |
+| `scripts/deploy.py` | 232 → 283 | da626402 → ce49a0a2 |
+| `scripts/ingest.sh` | 51 → 57 | 3e236b1e → b4da20a2 |
+| `scripts/precheck.sh` | 26 → 30 | 9fbf78e2 → 54a869c7 |
+| `tests/test_exclusions.py` | 693 → 864 | f518c75b → 584e183a |
+| `tests/test_deploy.py` | 212 → 290 | 4865e5b3 → 56e75925 |
+| `tests/test_ingest.py` | 274 → 356 | a899fa46 → cc3c82c2 |
+| `SKILL.md` | 531 → 538 | 094d0ea7 → 7c231ccc |
+| `references/code-tab.md` | 200 → 213 | 9609163b → e77c252f |
+| `references/exclusion-ui.md` | 146 → 148 | 03564266 → 1aec4a88 |
+| `references/report-fetch.md` | 112 → 112 | 529cbf26 → a03f0ef5 |
+| `local/saero-run/SKILL.md` | 28 → 28 | a963e8eb → b80cd5ae |
+| `audit/checklist.md`(커밋 ②) | 501 → 503 | b7519fe1 → 17a5f9ba |
+| `audit/last-audit.md`(커밋 ②) | 이 절 + 수정 기록 2 정정 3곳 | (재clone 대조는 보고에) |
+
+불변: `scripts/fetch_reports.py`·`archive.py`·`compute.py`·`validate.py`·`compare.py`·`reportlib.py` · `tests/test_fetch_reports.py`·`mutation_test.py`·`overflow_check.py` · config · data/ · registry(ca642639) · `local/CLAUDE.md` · `.gitattributes`·`.gitignore`.
+
+## 임의 결정(수정 회차 3 번호)
+1. **출처 기록 형식** = `md5sum` 형식 두 줄(`<md5>  <파일명>`), 파일 이름 = 제안서 md와 같은 `<창 이름>.md5`(`--out`을 주면 그 이름). 빈 후보 파일도 적는다.
+2. **registered 판정** = `registered_everywhere or registration_status == "registered"` — 지시의 "propose와 같은 기준 포함"을 합집합으로(둘 중 하나면 FAIL).
+3. **FAIL 문구의 "위 [주의] 참고"는 쌍둥이가 있을 때만**(리허설 (b)에서 쌍둥이 없는 FAIL에 붙어 있던 것을 고침 — 그래서 쌍둥이 블록을 FAIL 판정 앞으로 옮김).
+4. **실제 push의 승인 파일은 `api_from_args` 뒤·`do_push` 앞에** 쓴다(키 파일 오류면 파일 없음, 등록 도중 실패해도 무엇을 보내려 했는지 남는다). 이름 = 로컬 시각 `%Y-%m-%d_%H%M%S`, 겹치면 `_2`부터.
+5. **CSV 칸 줄바꿈은 파일 전체를 FAIL**(그 행만 빼지 않음 — 뒤 행 번호가 전부 어긋나므로).
+6. **precheck 도장은 시작할 때 지우고 끝에서만 쓴다**(지시 밖 한 줄 — 실패한 재실행 뒤 옛 도장이 남으면 그 작업본이 통과본처럼 보인다). 도장은 작업본과 같은 폴더(`work/`)에 두고, deploy는 `--file`과 같은 폴더에서 읽는다.
+7. **도장 검사 위치** = push에 `--file`이 있으면 GET보다 먼저(실제 push FAIL은 요청 0). dry-run의 `[주의]`도 같은 자리에서 한 줄.
+8. **PUT 그 밖 코드**도 `[FAIL] PUT <코드>`로 통일(종전 "PUT <코드>: … 확인" 문구). 403·404 문구에 응답 message 앞 200자(`***` 가림 뒤).
+9. `mask()`는 `api()`를 부른 그 요청의 자격 증명 값만 가린다(무인증 GET은 가릴 값 없음).
+10. **ingest diff FAIL 때 `git status --short -- data`를 함께 찍는다**(무엇이 다른지 한 번에 보이게).
+11. **test_7 재현법**: 임시 저장소에서 `.gitattributes`를 지운 커밋 → CSV를 지우고 `checkout`(autocrlf=true → CRLF) → 1.2초 쉬고 `status`(색인 stat 갱신) → `reset --keep HEAD~1`. 검증 1 10항(`clone -n` + 두 커밋 checkout)과 같은 상태(status 0줄, i/lf w/crlf).
+12. **W10 짝 변이 시연**: 엉뚱한 `GIT_DIR`로는 `git credential fill`이 실패하지 않아(놓침 1건) 시연이 안 됐다 → 도우미 목록을 비우고(`credential.helper=` 빈 값) 다른 값을 주는 설정을 가진 저장소를 `GIT_DIR`로 → 옛 판은 그 값을 헤더에 싣고 실패, 새 판은 통과.
+13. 참조 모드의 `[승인 목록] N개` 줄에 dry-run이면 "파일 안 씀(실제 push가 … 쓴다)"를 붙였다(세션이 파일을 찾지 않게).
+14. (반박 리뷰 반영) **`--extra-csv` 출처 = 저장소 `work/combined/검색어.csv` 경로**(realpath·대소문자 무시 비교) — 손으로 쓴 CSV 하나로 실제 push·POST까지 가던 우회를 막는다. md5 기록 대신 경로로 한 것은 `--extra-csv`만 쓰는 경우(후보 0줄)에도 기준이 있게.
+15. (리뷰) **deploy는 `--file`을 한 번만 읽는다** — 도장 대조 뒤 GET을 기다리는 사이 파일이 바뀌면 다른 본문이 PUT되던 것을 막는다(PUT 본문 = 도장 찍힌 바이트). 못 읽으면 `[FAIL] --file을 읽을 수 없음` exit 2(종전 Traceback).
+16. (리뷰) **ingest 시작 검사에 추적 안 된 파일**(`ls-files --others --exclude-standard -- data`) — `git diff HEAD`는 못 보고 `git add data`는 커밋한다(store 부분 적용으로 남은 새 달 폴더 등).
+17. (리뷰) **propose 재등록 후보에서 대상 그룹 전부 등록 확인된 이름을 뺀다**(`*` missing 기록만 남은 이름 — push가 "이미 registered"로 막는 이름을 propose가 내던 어긋남).
+18. (리뷰) **test_ingest도 자식 env 정리**(`clean_env` — `GIT_*` 제거·시스템·전역 설정 끔, W10과 같은 방식). autocrlf는 임시 저장소 설정으로 켠다.
+19. (리뷰) 문구: 출처 FAIL = `[FAIL] 후보 파일이 propose 산출물이 아님·propose 뒤 바뀜(<옵션>) — <사유>`(지시 문구를 `[FAIL]` 바로 뒤에) · 409 = 지시 문구 그대로 · deploy GET 실패 안내의 폴백 clone에 `-c core.autocrlf=false` · SKILL.md·exclusion-ui.md·checklist의 "`[거부]`" 설명을 참조 모드 FAIL로 · 빈 창 설명을 코드 조건대로 · local 진입 스킬 기본 순서에 5-0b · code-tab 5절 인용을 실제 출력 앞부분으로 · 7절에 `.md5`·도장 손으로 쓰기 금지 · 시험 docstring.
+20. (리뷰) **data/가 HEAD와 다를 때의 되돌리기 = `git restore --source=HEAD --staged --worktree -- data`**(4절·ingest 메시지·S0 줄은 "4절") — `git checkout HEAD -- data`는 스테이징된 새 파일(ingest 커밋 실패로 남는 `A`)을 못 지워 FAIL이 계속 난다(리뷰 재현). 8절(줄바꿈 정리 — 추적 파일만)은 지시대로 `git checkout HEAD -- data`.
+21. (리뷰) exit 128 판정·재개 판정에 "`git status --short -- data`가 빔"을 더했다(`== push data/` 뒤 128은 커밋 실패일 수도 — HEAD = origin/main인데 보관본 미완료).
+22. (리뷰) `precheck_stamp`는 도장을 못 읽으면(UTF-8 아님 등) Traceback 대신 `도장을 읽을 수 없음(<종류>)`(실제 push FAIL·dry-run `[주의]`), 없으면 종전대로 `도장 없음`.
+23. (리뷰) propose는 줄바꿈이 든 이름을 후보·업종어 파일에 쓰지 않고 "후보에서 뺀 것"에 사유와 함께(push의 CSV 칸 줄바꿈 FAIL과 같은 기준). test_ingest의 빈 전역 git 설정은 실행마다 새 임시 파일(`mkstemp` — 공용 이름이면 남은 내용이 설정이 된다).
+
+## 원래 지시를 바꾼 곳과 이유
+- W3 "실제 push만 `work/approved_<날짜>_<시분초>.txt`" → 같은 초에 두 번이면 `_2`를 붙인다("덮어쓰기 없음"을 코드로 — `open(…, "x")`).
+- W11 "precheck가 전부 통과하면 도장" → **시작할 때 옛 도장을 지우는 줄을 더했다**(임의 결정 6).
+- W12 "test_1이 origin/main = HEAD 두 번" → 첫 실행 출력에서 정확히 2회(`count == 2`) — 시작 검사·push 뒤.
+- W12 "ingest 스테이징된 CRLF FAIL" → 미스테이징 CRLF도 같은 시험에서(둘 다 diff 검사가 잡는다). 기존 test_7(미스테이징 CRLF)은 diff 검사가 먼저 잡게 돼 **실제 상황(stat만 깨끗한 CRLF)** 재현으로 바꿨다 — 줄바꿈 검사의 짝 시험을 살리려고.
+- W1(b) 출처 검사는 지시상 `--from-candidates`·`--industry`만 — 반박 리뷰가 `--extra-csv`(손으로 쓴 CSV)로 같은 우회가 된다는 것을 재현해 **경로 검사를 더했다**(임의 결정 14).
+- W2 "`git diff --quiet HEAD -- data`" → 그 뒤에 **추적 안 된 파일 검사를 한 줄 더했다**(임의 결정 16 — diff가 못 보는 경로를 리뷰가 재현).
+- W2 "8절 복구 명령 `git checkout HEAD -- data`" → 8절(줄바꿈 정리)은 그대로 두고, **diff FAIL의 되돌리기(4절·ingest 메시지)는 `git restore --source=HEAD --staged --worktree -- data`**로 — `checkout`은 스테이징된 새 파일을 남겨 FAIL이 반복된다(임의 결정 20, 리뷰 재현).
+- W11 "도장 = --file md5일 때만 PUT" → deploy가 `--file`을 한 번만 읽게 바꿨다(임의 결정 15 — 두 번 읽으면 도장과 PUT 본문이 달라질 수 있음을 리뷰가 재현).
+- 리허설 "precheck 통과 → 도장 → deploy push --file --base --dry-run(자격 증명 없는 설정 — 권한 줄 FAIL이 정상)" → 도우미가 없으면 권한 줄 전에 "자격 증명을 얻지 못함" FAIL이 먼저 난다(권한 조회까지 가지 않음 — 실제 자격 증명 0 조건).
+
+## 실측 [실측]
+- **시험**(스크래치 LF clone = 작업본 코드 md5 같음, venv, PYTHONUTF8 없이, `-W error::ResourceWarning`, test_deploy는 `GIT_CONFIG_NOSYSTEM=1`·빈 `GIT_CONFIG_GLOBAL`): 최종(리뷰 반영 뒤) test_exclusions **Ran 41 OK** · test_deploy **Ran 12 OK**(15초) · test_ingest **Ran 9 OK**(59초) · test_fetch_reports **Ran 15 OK**(81초) — `skipped` 0 · mutation_test **"전부 살아 있음"**(`  [OK]` 43, MISS·UNCOVERED·SKIP 0, 27초). 실제 registry(ca642639)·data·config md5 전/후 동일.
+- **변이 실험 54/54 잡힘**(대조군 먼저 전부 OK · 복원 뒤 status 깨끗):
+
+  | 변이(짝 시험 파일은 러너 표 — 스크래치 `mutate3.py`) | 결과 | 짝 시험 결과 |
+  |---|---|---|
+  | E808 push return 0 | 잡힘 | Ran 1 test in 0.028s FAILED (failures=1) |
+  | E830 verify return 0 | 잡힘 | Ran 1 test in 0.040s FAILED (failures=1) |
+  | E673a split_blocked 경쟁사 거부만 빠짐 | 잡힘 | Ran 2 tests in 0.012s FAILED (failures=1) |
+  | E673b split_blocked 거부 전부 빠짐 | 잡힘 | Ran 1 test in 0.013s FAILED (failures=1) |
+  | V1 합계≠N 검사 제거 | 잡힘 | Ran 1 test in 0.025s FAILED (errors=1) |
+  | V1 이미 registered 검사 제거 | 잡힘 | Ran 1 test in 0.022s FAILED (failures=1) |
+  | V1 K() 중복 검사 제거 | 잡힘 | Ran 1 test in 0.047s FAILED (errors=1) |
+  | V1 범위 밖 검사 제거 | 잡힘 | Ran 1 test in 0.034s FAILED (failures=1) |
+  | V1 쌍둥이 [주의] 제거 | 잡힘 | Ran 1 test in 0.024s FAILED (failures=1) |
+  | V1 실제 push의 --approved 허용 | 잡힘 | Ran 1 test in 0.024s FAILED (failures=1) |
+  | .gitattributes *.csv -text 줄 삭제 | 잡힘 | Ran 1 test in 6.896s FAILED (failures=1) |
+  | .gitattributes 파일 삭제 | 잡힘 | Ran 1 test in 0.007s FAILED (errors=1) |
+  | N3 시작 HEAD 검사 제거 | 잡힘 | Ran 3 tests in 22.188s FAILED (failures=3) |
+  | N3 줄바꿈 검사 제거 | 잡힘 | Ran 1 test in 9.633s FAILED (failures=1) |
+  | precheck.sh b4cc8b9 판 통째(python3 고정) | 잡힘 | Ran 1 test in 0.667s FAILED (failures=1) |
+  | precheck 옛 흐름(compute && compare \| tail) + $PY | 잡힘 | Ran 1 test in 2.730s FAILED (failures=1) |
+  | N2 base 대조 제거 | 잡힘 | Ran 1 test in 1.114s FAILED (failures=1) |
+  | N2 --base 필수 제거 | 잡힘 | Ran 1 test in 1.109s FAILED (failures=1) |
+  | N1 perm = True | 잡힘 | Ran 1 test in 1.076s FAILED (failures=1) |
+  | V4 token_of 옛 판 | 잡힘 | Ran 1 test in 0.383s FAILED (errors=1) |
+  | W1a registered 검사를 추가 이름만(옛 판) | 잡힘 | Ran 1 test in 0.027s FAILED (failures=1) |
+  | W1a propose 기준(registration_status) 빠짐 | 잡힘 | Ran 1 test in 0.028s FAILED (failures=1) |
+  | W1a 쌍둥이를 추가 이름만(옛 판) | 잡힘 | Ran 1 test in 0.026s FAILED (failures=1) |
+  | W1b 출처 검사 끔 | 잡힘 | Ran 1 test in 0.023s FAILED (failures=1) |
+  | W1b 접미사 검사 제거 | 잡힘 | Ran 1 test in 0.029s FAILED (failures=1) |
+  | W1b md5 대조 제거 | 잡힘 | Ran 1 test in 0.030s FAILED (failures=1) |
+  | W1b propose가 md5 기록을 안 씀 | 잡힘 | Ran 1 test in 0.045s FAILED (failures=1) |
+  | W1c 참조 모드 거부 이름 FAIL 제거 | 잡힘 | Ran 1 test in 0.036s FAILED (failures=1) |
+  | W3 dry-run도 승인 파일 씀 | 잡힘 | Ran 1 test in 0.030s FAILED (failures=1) |
+  | W3 고정 이름 덮어쓰기(옛 판) | 잡힘 | Ran 1 test in 0.032s FAILED (failures=1) |
+  | W4 isdecimal → isdigit | 잡힘 | Ran 1 test in 0.063s FAILED (errors=1) |
+  | W4 후보 파일 읽기 오류를 안 잡음 | 잡힘 | Ran 1 test in 0.071s FAILED (errors=1) |
+  | W4 CSV 칸 줄바꿈 검사 제거 | 잡힘 | Ran 1 test in 0.068s FAILED (failures=1) |
+  | W5 빈 창을 lo > hi만 | 잡힘 | Ran 1 test in 0.039s FAILED (failures=1) |
+  | W9 load_keys 형식 검사 제거 | 잡힘 | Ran 1 test in 0.019s FAILED (failures=1) |
+  | W6 --base만(--file 없음) 허용 | 잡힘 | Ran 1 test in 1.660s FAILED (failures=1) |
+  | 못 읽는 --base를 안 잡음 | 잡힘 | Ran 1 test in 0.927s FAILED (failures=1) |
+  | W7 오류 문구 가림 제거 | 잡힘 | Ran 1 test in 1.103s FAILED (failures=1) |
+  | W8 409 문구 제거 | 잡힘 | Ran 1 test in 1.093s FAILED (failures=1) |
+  | W8 403 문구 제거 | 잡힘 | Ran 1 test in 1.824s FAILED (failures=1) |
+  | permissions 필드 없음을 참으로 | 잡힘 | Ran 1 test in 1.076s FAILED (failures=1) |
+  | W11 deploy 도장 검사 제거 | 잡힘 | Ran 1 test in 1.108s FAILED (failures=1) |
+  | W11 precheck 도장 안 씀 | 잡힘 | Ran 1 test in 1.304s FAILED (errors=1) |
+  | W11 precheck 옛 도장 안 지움 | 잡힘 | Ran 1 test in 2.336s FAILED (failures=1) |
+  | W2 data/ HEAD diff 검사 제거 | 잡힘 | Ran 1 test in 6.946s FAILED (failures=1) |
+  | W2 awk 옛 판($NF) | 잡힘 | Ran 1 test in 6.190s FAILED (failures=1) |
+  | 리뷰 --extra-csv 출처(work/combined) 검사 제거 | 잡힘 | Ran 1 test in 0.034s FAILED (failures=1) |
+  | 리뷰 deploy --file을 PUT 전에 다시 읽음(옛 판) | 잡힘 | Ran 1 test in 1.077s FAILED (failures=1) |
+  | 리뷰 ingest 추적 안 된 파일 검사 제거 | 잡힘 | Ran 1 test in 9.745s FAILED (failures=1) |
+  | 리뷰 propose 재등록 후보의 '전부 등록' 빼기 제거 | 잡힘 | Ran 1 test in 0.027s FAILED (failures=1) |
+  | W12 원천 줄을 strip(앞뒤 공백 원문 훼손) | 잡힘 | Ran 1 test in 0.032s FAILED (failures=1) |
+  | 리뷰 deploy 깨진 도장을 안 잡음 | 잡힘 | Ran 1 test in 2.852s FAILED (failures=1) |
+  | 리뷰 propose 줄바꿈 든 이름 빼기 제거 | 잡힘 | Ran 1 test in 0.030s FAILED (failures=1) |
+  | W10 옛 판(GIT_CONFIG*만 지움) + 호출 환경 GIT_DIR(다른 도우미) | 잡힘 | Ran 1 test in 1.032s FAILED (failures=1) |
+  (W10은 처음에 엉뚱한 `GIT_DIR`로 시연해 "놓침"이었다 — `git credential fill`은 저장소 없이도 돈다. 도우미 목록을 비우고 다른 값을 주는 설정을 가진 저장소를 `GIT_DIR`로 준 시연으로 바꿨다: 새 판 통과·옛 판 실패. precheck 옛 판 통째는 `python3` 고정 탓 실패라 결함 시연이 아니다 — 같은 표의 "옛 흐름 + $PY"가 결함 시연.)
+
+- **리허설**(20:58:46 → 약 21:10, 반박 리뷰와 겹쳐 진행, 스크래치 LF clone — 작업본 변경을 얹은 임시 main + 로컬 bare origin):
+  S0 = 2절 블록 원문(14줄, 리허설 판 md5 b1bf3946 — 뒤에 FAIL 문구 한 곳("되돌리기는 8절" → "4절")만 바뀌어 최종 8fe73c95, `bash -n` OK, 치환 = cd·프로필 경로, 도우미 없는 임시 설정) → 배포 줄만 `[FAIL] 자격 증명을 얻지 못함` + `[FAIL] 배포 저장소 점검 실패(… rc=1)`, 새 diff 줄 포함 나머지 통과, ignored 0 →
+  ingest 정상(시작 검사 → 33일 9,991/309/351,299원 PASS → push → `origin/main = HEAD` 시작·끝 2회) → **스테이징된 CRLF**(`data/2026-08/키워드.csv`, `i/crlf w/crlf`) → `[FAIL] data/가 HEAD와 다름` + `M  data/2026-08/키워드.csv`, rc 1·HEAD 불변 → `git checkout HEAD -- data`로 status 0 →
+  deploy fetch 무인증(sha 1c52f70, md5 a3465ec0) → compute → propose `--since 2026-09-27` = `.md5` 기록 2줄 →
+  (a) 후보 그대로 → 통과 + 쌍둥이 `[주의]`(registry 200·421·644행) + "dry-run: 파일 안 씀" / (b) 손으로 쓴 `hand_candidates.txt`(`노원힐링장소`) → `[FAIL] [--from-candidates] 후보 파일이 propose 산출물이 아님·propose 뒤 바뀜 — 출처 기록 …hand.md5을(를) 읽을 수 없음`(당시 문구 — 리뷰 뒤 `[FAIL] 후보 파일이 … 바뀜(--from-candidates) — …`) + `이미 registered` FAIL / (c) `.md5` 치운 뒤 → 출처 FAIL / (d) `--extra-rows 1164` → `이미 registered` FAIL(쌍둥이 1165 나란히) / (e) `--extra-rows 1165` → 통과 + `[주의]`. HTTP 0(프록시 127.0.0.1:9), registry ca642639 전후 같음, `approved_*` 0개 →
+  precheck(작업본 = 배포본 + 주석 1줄) 22 PASS · 95 / DIFF 0 · 넘침 0 · 외부 요청 차단 6건 → `== 6단계 전부 통과 — 도장 work/precheck_ok.md5(작업본 md5 523a52b6…)`(= `md5sum` 값) →
+  deploy `push --file --base --dry-run`(도우미 없음) → "precheck 도장 = 작업본 md5 523a52b6… 확인" · "배포본 = --base md5 a3465ec0… 확인" · `[FAIL] 자격 증명을 얻지 못함(출처: git)` rc 1 →
+  작업본 1바이트 덧붙임 → 실제 push 경로(가짜 urlopen) `[FAIL] precheck 통과본이 아님 — PUT 안 함(도장 md5 523a52b6 ≠ 작업본 md5 c1f75f1f …)` rc 1, **가짜 urlopen 호출 0건** / 같은 파일 dry-run은 `[주의]`만.
+- **전후**: 스킬 저장소 `ls-remote` HEAD·main b4cc8b9 · feat-code-tab 77a2ba8(push 전) · test* 0 · 배포 32d8b05 · main 작업 폴더 HEAD b4cc8b9·status 0·md5 4dd3b0cf · `~/saero-fetch/downloads` 목록 ed69f294 같음.
+- **반박 리뷰**(워크플로 `saero-r3-review`, 하위 에이전트 4 — 지시 준수·쓰기 안전·셸/엣지·문서=코드, 읽기 전용·스크래치 실행, 23분·도구 212회): 30건(high 0 · medium 5 · low 25 — 관점끼리 겹친 것 포함).
+  medium 5 = `--extra-csv` 손으로 쓴 CSV로 실제 push·POST(→ 임의 결정 14) · deploy가 `--file`을 두 번 읽어 도장과 다른 본문 PUT(→ 15) · 문서 되돌리기 명령이 스테이징된 새 파일을 못 지움(→ 20) · deploy GET 실패 안내의 폴백 clone · code-tab 5절 인용이 실제 출력과 다름(→ 19). 코드 결함은 재현 뒤 반영하고 짝 변이를 더했다.
+  low는 반영(임의 결정 16~23·문서) 또는 고를 항목 2·5·6·7(지시 밖·추론).
+- **grep 잔존**: `approved_<날짜>.txt`(시분초 없는) 0 · "추가(후보 밖) 이름이 이미" 0 · "이미 모든 대상 그룹 registered" 0 · `git checkout -- data` 0 · `print $NF` 0 · "다시 계산" 흐름 옛 문장(5-0b 없음) 0 · `--dry-run --base`(`--file` 없는 리허설 줄) 0 · "쓰기 권한은 첫" 0. 새 흐름 문장 4곳 각 1.
+- **문법**: py_compile 14/14 · `bash -n` ingest·precheck·S0 블록 · 코드펜스 짝수(SKILL 16 · code-tab 4 · report-fetch 8 · exclusion-ui 2 · checklist 6 · local 0) · 변경 파일 14개 UTF-8 · CR 0.
+
+## 검증 2가 볼 것(수정 기록 2의 16항목 중 바뀐 것 + W)
+1. **변경 파일 = W 범위**: `git diff 77a2ba8 --stat` = 위 표 + last-audit.md·checklist.md. 불변 줄 md5.
+2. **시험 4종 + mutation_test**(venv, PYTHONUTF8 없이, LF clone, test_deploy는 `GIT_CONFIG_NOSYSTEM=1`·빈 `GIT_CONFIG_GLOBAL`): 41 · 12 · 9 · 15 OK(skipped 0), "전부 살아 있음".
+3. **변이 실험**: 위 표 54쌍 중 최소 W1 여섯·W3 둘·W11 셋·W2 둘·W10(다른 도우미 GIT_DIR)·precheck 옛 흐름 `$PY`에서 짝 시험이 실패하는지(수정 기록 2 3항 대체).
+4. **W1 CLI 재현**(수정 기록 2 4항 대체): propose `--since 2026-09-27` → `.md5` 2줄 → (a)~(e) 위 리허설과 같은 결과, 승인 파일 0·HTTP 0·registry 불변. 손으로 `.md5`까지 같이 만들면 통과한다는 한계(아래 고를 항목 2).
+5. **V2 흐름 4곳**(수정 기록 2 5항 갱신): "다시 계산" 흐름에 `5-0b(해당 시)`, 4곳 글자 대조.
+6. **W2**: 스테이징된 CRLF·미스테이징 → `[FAIL] data/가 HEAD와 다름`(쓰기 0), stat만 깨끗한 CRLF → 줄바꿈 FAIL(공백 경로 전체), data/에 추적 안 된 파일 → `[FAIL]`, S0 블록 같은 두 줄, 되돌리기 4절 `git restore --source=HEAD --staged --worktree -- data`(스테이징된 새 파일까지) · 8절(줄바꿈) `git checkout HEAD -- data`.
+7. **W3**: dry-run 뒤 `work/approved_*` 0, 실제 push(가짜 API)만 `approved_<날짜>_<시분초>[_n].txt`, 두 번째가 앞 파일을 안 덮음.
+8. **W4·W5·W9**: `²`·UTF-16 후보 파일·CSV 칸 줄바꿈 → `[FAIL]`(Traceback 0) · `--day`가 데이터 끝 뒤면 `[주의] 빈 창` · 키 값 형식 SystemExit에 값 0.
+9. **W6~W8**(수정 기록 2 10항 갱신): `--base`만·못 읽는 `--base` exit 2·요청 0 · 되돌아온 헤더 값 `***` · 409·403·404 문구.
+10. **W10**: 호출 환경 `GIT_*`(GIT_DIR 등)가 자식에 안 넘어가는지.
+11. **W11**: precheck 통과 → 도장 = 작업본 md5, 실패 재실행 → 도장 없음 · 도장 없음·불일치 → 실제 push FAIL·요청 0, dry-run `[주의]`.
+12. **W13 문서**: 5절 표 새 줄 · report-fetch export · 권한 문구 3곳 · 재시도 한 줄 · 폴백 clone.
+13. **W14**: 수정 기록 2 변이 표 precheck 행 정정·"자격 증명 요청 0" 정정 3곳 · checklist ingest 행 시험 열.
+14. **checklist**: 승인 가드 행(고른 이름 전부·출처 md5·거부 FAIL·dry-run 파일 0) · precheck 도장 행(신규) · ingest 두 행 · deploy 행 · 26 흐름 · 갱신 이력 한 줄(v4.7 유지).
+15. **의도 검증**: 임의 결정 1~23·"원래 지시를 바꾼 곳" 전부(리뷰 반영으로 지시보다 넓힌 곳 — `--extra-csv` 출처·추적 안 된 파일·`--file` 한 번 읽기·되돌리기 명령).
+(수정 기록 2의 1·6·7·8·11~14·16항은 그대로 유효 — 이번에 바뀐 것은 위 항목으로 대체.)
+
+## 새로 내가 고를 항목
+1. (이월) 병합과 10/1 · 병합 직후 main 작업 폴더 줄바꿈 정리(S0·ingest 시작 검사가 멈춘다) · `local/` 설치.
+2. **출처 검사의 한계**: `.md5`는 같은 폴더의 평문 기록이라 세션이 후보 파일과 `.md5`를 **둘 다** 손으로 만들면 통과한다(막는 것은 "모르고 손으로 쓴 파일·propose 뒤 바뀐 파일"). 더 막으려면 propose 출력에 md5를 찍고 사용자 답에 그 앞 8자를 받게 하거나, `.md5`를 registry처럼 커밋할지.
+3. **권한 확인을 실제 push 직전에도**(수정 기록 2 고를 항목 5 그대로).
+4. **ingest diff FAIL 때 자동 되돌리기는 하지 않는다**(지금은 보고만 — `git restore --source=HEAD --staged --worktree -- data`는 사용자와).
+5. **(리뷰 — 추론, 지시 밖이라 안 고침)** 도장에 직전 배포본(`--base`) md5도 묶을지: 7단계 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` 뒤 세션이 `prev.html`만 다시 받고 6단계를 건너뛰면 도장·base 대조가 둘 다 통과한다(문서는 "4단계부터 = 5·6·7 다시").
+6. **(리뷰 — 추론)** exclusions.py 오류 문구의 `X-API-KEY` 가림(W7은 deploy만): 서버가 요청 헤더를 되돌려 주면 `[FAIL] … 400: {…}`에 키 값이 찍힐 수 있다(네이버가 실제로 되돌리는지는 미확인).
+7. **(리뷰 — 추론)** `--pending`으로 통과한 precheck도 같은 도장을 쓴다 — 도장에 모드를 적어 실제 push가 `--pending` 통과본을 거부할지.
+8. (이월 — 지시대로) 2-1 대조 명령화는 회차 2, NFKC·keep은 점검 회차.
+
+## 마무리 기록(이번 회차)
+- 커밋 ①(코드·시험·문서) + 커밋 ②(이 절·수정 기록 2 정정·checklist), `feat-code-tab`만 push(이 PC git 자격 증명). 재clone 대조는 보고에.
+- 토큰 수령 0 · 네이버 0 · 배포 저장소 쓰기 0 · 실제 자격 증명 사용 0(push 제외) · main·main 작업 폴더 0 · 설치본 부트스트랩 불변.
+
+---
+
 # 수정 기록 2(Code 탭 회차 1 — 검증 1·조정 재확인 반영, 2026-09-28)
 세션: 데스크톱 앱 Code 탭(이 PC), Opus 5.5 — 회차 1 구현과 같은 세션이 조정 지시("수정 회차 2 …")를 받아 수정. 브랜치 **`feat-code-tab`**(`df658f3` 위 커밋 2개: ① 코드·시험·문서 ② 이 절·checklist — 자기 참조라 해시는 적지 않는다), **main 미반영**.
 검증용 clone: `git clone -c core.autocrlf=false -b feat-code-tab --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill <별도 폴더>`
@@ -21,9 +218,9 @@
   5절 표: precheck(`[FAIL] 파이썬을 실행할 수 없음` · compute·overflow 예외는 `[FAIL]` 없이 Traceback — 마지막 `==` 줄이 멈춘 단계 · exit 2 사용법), ingest 128(`fatal:` — `== push data/` 뒤면 git fetch 뒤 HEAD = origin/main으로 다시 판정), exclusions·deploy 새 FAIL 줄.
 - **V6** `tests/test_exclusions.py` `TestApprovedReference` 5개: CLI `main([... push --from-candidates …])` + FakeSender(drop_after_post) → rc 1·"실패/미확인 3", 이어 `verify --approved` rc 1(대조: 정상이면 0) · 참조 모드 출처·LF·쌍둥이 · 9/28 유형 FAIL · 합계·범위·빈·없음·중복·짝 옵션 FAIL(dry-run·실제 둘 다, 쓰기 0) · `--approved` 실제 push FAIL. `test_push_dry_run_zero_http_and_no_file_change` 승인 목록에 `젠필라테스노원점` → `[거부] … 경쟁사명 '젠필라테스'` 단언.
 - **N1** `deploy.py` `push_permission_ok`(인증 GET `REPO_API` = `/repos/{deploy_repo}`, `permissions.push` 참/거짓만, 거짓·필드 없음·조회 실패는 `[FAIL]`) — `push --dry-run` 두 경로(`--file` 없음 = S0 · 있음 = 7단계). `api(url=…)` 인자 추가.
-- **N2** `deploy.py` `--base`: 인자 검사(실제 push에 없으면 exit 2 · 못 읽으면 exit 2) → GET 본문 md5 ≠ base면 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` exit 1(자격 증명 요청·PUT 0), 같으면 "배포본 = --base … 확인". SKILL.md 7단계·code-tab.md 3절 7행 명령에 `--base work/prev.html`.
+- **N2** `deploy.py` `--base`: 인자 검사(실제 push에 없으면 exit 2 · 못 읽으면 exit 2) → GET 본문 md5 ≠ base면 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` exit 1(자격 증명 요청 0(무인증 GET이 403·429면 GET용 1회) · PUT 0 — 수정 회차 3 정정), 같으면 "배포본 = --base … 확인". SKILL.md 7단계·code-tab.md 3절 7행 명령에 `--base work/prev.html`.
 - **N3** `scripts/ingest.sh` 시작 검사(store 전): `synced "시작 전 — store 전에 멈춤(쓰기 0) …"` · `ls-files --eol -- 'data/*.csv'` i/ ≠ w/면 `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`. 두 분기의 끝 확인은 그대로.
-- **N4** `tests/test_deploy.py`(신규 7): 자식 파이썬 + urlopen 가짜 + 가짜 도우미(`GIT_CONFIG_NOSYSTEM=1`·`GIT_CONFIG_GLOBAL`) — 값 출력 0(stdout·stderr, 전체·가운데 조각)·헤더에만 실림 · dry-run PUT 0 · base 불일치 FAIL·PUT 0·자격 증명 요청 0 · `--base` 없음 exit 2·요청 0 · 권한 거짓·401 FAIL · 도우미 없음 FAIL · token_of UTF-16LE/BE·BOM·깨짐·없음(CLI Traceback 0).
+- **N4** `tests/test_deploy.py`(신규 7): 자식 파이썬 + urlopen 가짜 + 가짜 도우미(`GIT_CONFIG_NOSYSTEM=1`·`GIT_CONFIG_GLOBAL`) — 값 출력 0(stdout·stderr, 전체·가운데 조각)·헤더에만 실림 · dry-run PUT 0 · base 불일치 FAIL·PUT 0·자격 증명 요청 0(무인증 GET이 403·429면 GET용 1회 — 수정 회차 3 정정) · `--base` 없음 exit 2·요청 0 · 권한 거짓·401 FAIL · 도우미 없음 FAIL · token_of UTF-16LE/BE·BOM·깨짐·없음(CLI Traceback 0).
   `tests/test_ingest.py`: 임시 저장소 `core.autocrlf=true` · test_5 CRLF 입력 → 원격 blob = 입력 · test_6 원격 앞섬 · test_7 줄바꿈 ≠ 커밋(둘 다 store 전 FAIL·HEAD 불변·data/2026-09 없음·스테이징 0) · test_3 두 번째 실행 기대 = 시작 검사에서 멈춤 · `PrecheckTests`(compute만 실패하는 sh 래퍼 → rc ≠ 0·"전부 통과" 없음, 통과 래퍼 대조군 rc 0).
 - **V9~V15** 이 절 아래 "기능 추가 구현 기록" 절 안 "정정(검증 1)" 블록 + checklist 22.
 - **V16~V18** docstring `python3` → `"$PY" scripts/…`(archive 2 · compare · compute · validate 2 · mutation_test · test_fetch_reports · test_exclusions) · fetch_reports.py 모드 줄(PowerShell·`python scripts\\` → Git Bash `$PY`) · archive.py 전제(프리셋 한 달 한 파일, 옛 "30일 제한"은 직접 입력 기간 — `--chunk` 폴백 설명도 SKILL.md와 같게) · test_exclusions 주석 · SKILL.md 6단계 md5 가드 인용 = `"[FAIL] 직전 배포본이 작업본과 같다 — …"` · report-fetch.md 1절 3.14 대처(playwright·venv 둘 다 `py -3.12`, 실행은 `$PY`).
@@ -96,7 +293,7 @@
   | `.gitattributes` `*.csv -text` 줄 삭제 / 파일 삭제 | test_5_crlf_input_bytes_preserved | 실패 / error(setUp 복사) |
   | N3 시작 HEAD 검사 제거 | test_6·test_3 | 둘 다 실패 |
   | N3 줄바꿈 검사 제거 | test_7 | 실패 |
-  | precheck.sh를 b4cc8b9 판으로 | PrecheckTests.test_compute_failure_stops_before_compare | 실패 |
+  | precheck.sh를 b4cc8b9 판으로 | PrecheckTests.test_compute_failure_stops_before_compare | 실패 — **(수정 회차 3 정정)** 옛 판은 `python3` 고정이라 Store 스텁에서 먼저 실패했다(결함 때문이 아님). `"$PY"`로 고친 옛 흐름(`compute && compare \| tail`) 변이가 실제 결함(compute 실패인데 "전부 통과")을 보이며 실패한다 — 수정 기록 3 변이 표 |
   | N2 base 대조 제거 / `--base` 필수 제거 | test_base_mismatch_stops_before_put / test_real_push_requires_base… | 실패 / 실패 |
   | N1 `perm = True` | test_permission_false_or_lookup_error_fails | 실패 |
   | V4 token_of 옛 판(예외 안 잡음) | test_token_file_encodings_and_missing | 실패(error) |
@@ -122,7 +319,7 @@
 7. **V4**: `--token-file` 없는 경로·UTF-16LE(PowerShell 5.1 `>`)·UTF-16BE·깨진 바이트 → `[FAIL] 자격 증명을 얻지 못함(출처: token-file)`, Traceback 0.
 8. **V5**: S0 블록 배포 줄 실패 원인별 출력(도우미 없음·PY 없음·네트워크) + `[FAIL] 배포 저장소 점검 실패(rc=…)` · `__pycache__` 0 · 2절 문구 · 5절 표 행.
 9. **N1**: 가짜 시험(참·거짓·401) + 이 기록의 실측 1회 대조(실제 자격 증명으로 다시 돌리지 않는다).
-10. **N2**: base 불일치 → exit 1·PUT 0·자격 증명 요청 0 · `--base` 없는 실제 push → exit 2·요청 0.
+10. **N2**: base 불일치 → exit 1·PUT 0·자격 증명 요청 0(무인증 GET이 403·429면 GET용 1회) · `--base` 없는 실제 push → exit 2·요청 0.
 11. **N3**: 시작 검사 두 경로(원격 앞섬·CSV CRLF) — store 전 멈춤·HEAD·data·스테이징 불변.
 12. **N4 격리**: test_deploy가 이 PC 자격 증명 관리자에 닿지 않는지(자식 env `GIT_CONFIG_NOSYSTEM=1`·`GIT_CONFIG_GLOBAL`), 가짜 값 출력 0 · 헤더에만.
 13. **V9~V15 정정 블록**: 아래 구현 기록 절 "정정(검증 1)" 9줄이 검증 1 결론 9~15·V4와 맞는지.
