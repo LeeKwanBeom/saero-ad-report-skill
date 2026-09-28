@@ -39,6 +39,9 @@ Claude in Chrome·내장 브라우저는 `ads.naver.com`·`manage.searchad.naver
 클라우드 컨테이너와 PC 연결 셸(device_bash)은 `api.searchad.naver.com` 에 프록시 CONNECT 403. 설정 화면(Claude Code·Cowork·Chrome용 Claude)에
 네트워크 허용 목록은 없다(사용자 화면 9장 [실측 09-27]). 그래서 **경로 C**: 스크립트는 저장소에, 실행은 사용자 PC의 일반 셸(PowerShell)에서.
 스크립트는 프록시 403을 `NetworkBlocked` 로 잡아 `[FAIL] 네트워크 차단(프록시)…` 를 찍고 **exit 2** — 그 명령을 PC에서 그대로 실행한다.
+- **[실측 2026-09-28] 데스크톱 앱 Code 탭(Claude Code, PC 저장소 clone, 로컬 실행)의 셸은 PC 일반 셸과 같이 `api.searchad.naver.com`이 열린다** — 읽기 전용 `pull` exit 0(3그룹 각 216) → `push` 5개 × 3그룹 등록·verify 15/15·실패 0(registry 커밋 `bf3089e`).
+  따라서 경로 C의 실행 주체는 사용자 PowerShell 또는 **Claude Code 세션**(승인 목록 파일 작성·명령 실행·registry 커밋까지 세션이 하고 사용자는 "등록 승인 N개"만 답한다). 클라우드 실행 옵션·`/sandbox`(네트워크 격리)는 쓰지 않는다. 키 파일은 종전대로 PC 로컬, 경로만 인자로.
+  Claude Code 지시문에는 **"이름은 원문 그대로(기호·마침표 포함)"** 를 명시한다 — 첫 실사용에서 세션이 `노원힐링장소.`의 마침표를 문장부호로 보고 뺐다(7절 대조 규칙과 어긋남).
 
 PowerShell(저장소 루트에서, `python` 3.9+):
 ```
