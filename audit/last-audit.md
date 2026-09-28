@@ -1,3 +1,113 @@
+# 기능 추가 구현 기준선(보고서 자동 수집 C, 2026-09-28)
+점검일: 2026-09-28 (기능 추가 회차 — **구현**, Fable, 웹 claude.ai 세션, 탐색과 다른 세션). 브랜치 **`feat-report-fetch`**(main `0a2bafb`에서 분기), **main 미반영**. 네이버 계정 접속 **0**(광고주센터·API 어느 쪽도 이 환경에서 못 연다 — 탐색 기준선 0절 그대로; 실제 화면 실행은 전부 사용자 PC). 리포트 갱신·배포 **없음**. 설치본 부트스트랩(`/mnt/skills/plugins/saero-ad-report/SKILL.md`) **불변**(44행, md5 `97a3e194388b2ee75ad8fc81f9e47f78` 세션 시작·끝 동일 [실측]).
+설계: 탐색 기준선 6-6 **C(PC Playwright, 4개 전부)** + 재집계 감지(`--prev`, API 0). A(API 교차 검증)는 이월. 기준선 1절(UI CSV 형식·store 통과 조건)·6-5(UI 실물)·6-7(금지 후보)을 그대로 따랐다.
+검증용 clone: `git clone -b feat-report-fetch --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill <별도 폴더>`
+효율: 벽시계 약 40분(00:21 UTC clone → 00:48 1차 push(코드) → 2차 push(audit)는 아래 마무리 기록) · 도구 호출 약 55회 · 즉석 코드 0행(산출물은 전부 저장소 안: 스크립트 745·시험 393·가짜 화면 199·문서 97행. 세션 안 편집용 파이썬 조각은 산출 아님).
+표기: [실측] 이 세션에서 직접 확인 / [문서] 저장소·공식 문서 원문 / [추론] 확인 못 함 / [미실측] 사용자 PC에서만 확인 가능 / [시험] 저장소 `tests/fixtures` 가짜 화면으로 확인(실제 사이트 아님).
+
+## 수정 기록 2 (2026-09-28 수정 회차 2 — 결함 1: 같은 크롬 프로필 2회째 실행 크래시)
+
+세션: Claude Code 데스크톱(사용자 Windows 11 PC, 사용자 입회), Opus 5.5. 지시 범위 = 검증 보고(2026-09-28)의 결함 1 + 기록 오류 1건, 나머지 이월. 브랜치 `feat-report-fetch`만 push, main 0. 네이버 계정·광고주센터 접속 0, 실제 프로필 `~/saero-fetch/chrome-profile` 접근 0. 커밋: **`53a1575`**(코드·시험·문서) + 이 절(기록).
+
+- **원인**(검증 보고): 설치 크롬이 전용 프로필 다운로드 기록(`Default/History` `downloads`)에 Playwright 임시 파일 경로(`…\playwright-artifacts-XXXX\<guid>`)를 남기고, 컨텍스트가 닫히면 Playwright가 그 파일을 지운다 → 같은 프로필 2회째 실행부터 `다운로드` 순간 크롬 0xC0000005. 기록만 지우면 정상, 번들 헤드리스는 기록을 안 남김. 이 회차에 더 찾은 것: 옛 `launch()`의 `rf.get("browser_channel") or "chrome"` 때문에 **시험(`browser_channel: None`)도 설치 크롬으로 돌아** 이 PC 수정 전 실행이 12개 중 실패 4(1개는 아래 CRLF, 3개는 브라우저 시험의 `TargetClosedError: Download.save_as: … has been closed` — 프로필을 두 번 쓰는 test_1·4·6 [추론]) [실측].
+- **변경 함수**(`scripts/fetch_reports.py`): 신설 `history_db`(`Default/History` → 없으면 프로필 바로 밑 `History`) · `profile_in_use`(`SingletonLock` 또는 Windows `lockfile`이 열리지 않음) · `clean_download_history`(`BEGIN IMMEDIATE`로 쓰기 잠금 → `downloads`에서 target_path 파일이 없는 행 + 딸린 `downloads_url_chains`·`downloads_slices` 삭제, 파일 있는 행 유지; DB 없음·떠 있음·잠김·오류는 `[WARN]` 뒤 계속) / 변경 `launch`(config `browser_channel` 그대로 — null이면 channel 인자 없이 번들 크로미움, `"chrome"`이면 설치 크롬 → 실패 시 번들 크로미움) · `cmd_login`·`cmd_fetch`(launch 전에 정리, 콘솔 `[profile] 다운로드 기록 정리: …` + summary.json `steps`·`profile_cleanup`). config 불변(`browser_channel "chrome"`, md5 b826b388).
+- **임의 결정**(수정 2): ① `downloads_slices`(열 `download_id`)도 함께 지운다 — 크롬이 기록을 지울 때와 같은 범위(지시는 url_chains만 명시) ② target_path가 빈 행도 "파일 없음"으로 지운다 ③ 떠 있음 판정은 잠금 파일 + DB 쓰기 잠금(1초) 두 겹 ④ 기록 DB가 없는 첫 실행의 `[WARN]` 한 줄은 지시 (다) 그대로.
+- **시험**: 12 → **15개**(`test_clean_download_history_removes_only_missing_files` — (가) 없는 경로 행·url_chains 2·slices 삭제 (나) 있는 경로 행·파일 유지, 프로필 밑 `History` 폴백, 2회째 0건 / `test_clean_download_history_no_db_or_locked_warns` — (다) DB 없음 무동작 WARN·없는 프로필 폴더 안 만듦, 잠김 WARN·행 그대로, `SingletonLock`(심볼릭 링크를 만들 수 있는 환경에서만) / `test_launch_channel_respects_config`). `python -W error::ResourceWarning tests/test_fetch_reports.py` → **Ran 15 tests · OK**(78초, 수정 전 282초) · `실제 data/2026-09·config md5 전/후 동일: True`(aade0da0·1d697d8a·024233a2·11c61476 · config b826b388) — `core.autocrlf=false`로 새로 clone한 `53a1575`에서 [실측]. 브라우저 시험 6개는 번들 크로미움(chromium-1243·Playwright 1.63.0). 이 PC 작업 폴더는 git 전역 `core.autocrlf=true`라 CSV가 CRLF로 풀려 `test_config_columns_match_real_csv`만 실패 — 저장소는 LF(i/lf), 환경 탓.
+- **④ 실측**(이 PC, 설치 크롬 154.0.8037.57 **창**, 임시 프로필 + 가짜 화면 `tests/fixtures`(127.0.0.1), `--login`(auto) 1회 뒤 같은 프로필로 본 실행 4회) [실측]:
+
+| 코드 | 1회 | 2회 | 3회 | 4회 | 성공 |
+|---|---|---|---|---|---|
+| 수정 전(`47a9f43`) | exit 0 | exit 2(다운로드 순간 창 꺼짐, `has been closed`) | exit 2 | exit 2 | **1/4** |
+| 수정 후(`53a1575`) | exit 0 · 정리 0건 | exit 0 · 4건 | exit 0 · 8건 | exit 0 · 12건 | **4/4** |
+
+  실행 전 `downloads` 행(전체/파일 없음): 수정 전 0/0 → 4/4 → 4/4 → 4/4 · 수정 후 0/0 → 4/4 → 8/8 → 12/12(끝 16/16). **발견**: 지운 행을 크롬이 다음 실행 중 **같은 id·GUID로 되살린다**(끝 DB id 1~16 = 1~4회 기록 전부, state 1) — History 밖 다운로드 캐시(`shared_proto_db` 추정 [추론])에서 복원하는 것으로 보이고, 정리 건수가 실행마다 4건씩 는다. 크래시는 없다(4/4). 가드: 같은 임시 프로필을 설치 크롬으로 띄운 상태에서 `profile_in_use` True · 정리 → `[WARN] … 브라우저가 떠 있음`·0건, 닫은 뒤 False(`lockfile`은 종료 때 사라짐).
+- 규칙 [실측]: `.click(` 1건 · `mouse.`·`.fill(`·`.type(`·`.press(`·`drag_to`·`password`·`비밀번호` 0건 · 자격 증명·토큰 문자열 0 · py_compile 2파일 · config json.load · 코드펜스 짝수(들여쓴 펜스 포함 SKILL 16·report-fetch 8·checklist 6·last-audit 4) · UTF-8 · 커밋 내용 CR 0.
+- 기록 오류 정정: 임의 결정 7 "설계 밖 config 키 4개" → **5개**.
+- 효율: 도구 호출 약 50회 · 즉석 코드 81행(④ 하네스 `measure4.py`, 저장소 밖) · 사용자 권한 대기 1회(checklist 읽기).
+- **검증 2가 볼 것**: ① 브랜치 diff(`47a9f43..`) = `53a1575`의 4파일(fetch_reports.py·test_fetch_reports.py·report-fetch.md·checklist.md) + 기록 커밋의 last-audit.md, config·data·다른 스크립트 불변 ② 시험 15 OK(아래 "검증 회차가 대조할 목록" 4의 "12 OK"를 대신한다; 브라우저 시험이 skip되면 적을 것; Windows clone은 `core.autocrlf=false`) ③ `clean_download_history`가 파일 있는 행을 지우지 않는지(시험 (나))·떠 있는 브라우저·잠김에서 0건인지·summary.json `steps`에 건수가 있는지 ④ `launch()`에 `or "chrome"`이 없고 config `browser_channel`이 `"chrome"`인지 ⑤ 위 "되살아남"이 결함인지 판단(크래시 재발 없음·건수 증가만) ⑥ 다음 실사용(실제 프로필) 첫 `[profile]` 줄 — 왕복 1~3 기록이 파일 없는 행으로 지워지고 실제 파일 있는 기록은 유지되는지 ⑦ 수정 전 1/4 → 4/4 재현은 설치 크롬 창이 있는 PC에서만 — 컨테이너 검증이면 시험 15개로 대신.
+
+## 변경 파일 (브랜치 = 0a2bafb + 아래; 행수 `wc -l` · md5 앞 8자리) [실측]
+
+| 파일 | 행수 | md5 | 무엇 |
+|---|---|---|---|
+| `scripts/fetch_reports.py` (신규) | 745 → 851(왕복 1) → 892(왕복 2) → 898(왕복 3) → **973**(수정 2) | 573d9720 → f963328f → c5e2f81b → 191fedca → **322ffe8b** | Playwright sync, PC 전용. `--dry-run`(브라우저 0·폴더 0, 할 일 표) / `--login`(전용 프로필 창, 폼 입력 0, 목록 URL 도달 확인 뒤 닫음) / 기본 실행(목록 → 링크 클릭 → 기간 읽기 → 다르면 프리셋 → `확인` → 다시 읽어 확인 → `조회하기` → `다운로드`(expect_download) → 저장 → `돌아가기` ×4 → 검사 → summary.json) / `--debug`(단계마다 스크린샷) / `--prev`(재집계 WARN) / `--today`(시험용). 클릭 호출 **`click_allowed` 한 곳**(`.click(` 1건), `allowed_actions` 밖·`forbidden_actions` 문구 → 클릭 안 하고 exit 1. 로케이터 role·text만(`locate`·`name_ok`). exit 0 성공 · 1 사용법/로그인 필요/금지 차단 · 2 보고서 하나라도 실패(`partial/`) |
+| `tests/test_fetch_reports.py` (신규) | 393 → 441 → 467 → 468 → **595**(수정 2) | 3041b685 → 9d764993 → 44e1b3bb → 33368cd8 → **1ba3be2c** | 9개 → 11개 → 12개 → **15개**(수정 2: 프로필 정리 2·channel 1) 시험(아래 실측; 왕복 1 뒤 test_4 RangePicker형·지연, test_5 왕복 1 재현, 왕복 2 뒤 test_6 `조회하기` 비활성 추가). 끝에 실제 `data/2026-09` 4파일·config md5 전/후 출력 |
+| `tests/fixtures/report-ui-fixture.html`·`login.html` (신규) | 177 → 192 → **201** · 22 | 1f0fe0d8 → 5de8b2ad → 5fe7110a → **dc4347dd** · 0614acb9 | 광고주센터 문구·흐름을 흉내 낸 로컬 가짜 화면(6-5 실물 기준: 목록 4행·`+ 새 보고서`·행마다 `삭제` / `← 돌아가기`·`보고서 형식 저장 ∨`·`다운로드`·기간 텍스트·달력·`조회하기` / 프리셋 12개·입력칸·`취소`·`확인`). 다운로드는 현재 기간으로 UI 형식 CSV(첫 줄·컬럼 원문·BOM·LF) 생성. `login.html`은 `?auto=1`이면 1.5초 뒤 "사용자가 로그인한 것"으로 처리. 실제 사이트와 무관 |
+| `references/report-fetch.md` (신규) | 97 → 100 → 103 → 110 → **111**(수정 2) | 6074d1ba → fe822828 → c73a62fb → 9bb416a4 → **29824cc1** | 값 정의 정본 — PC 설치(3.14 대처법)·`--login`·매일 실행·결과·오류 대처·codegen 녹화 명령·금지 사항·UI 실물·시험·왕복 절차 |
+| `config/report-config.json` | 140 (83→140) → **141**(왕복 2: `timeout_sec.click 15`) | bcf26fb7 → **b826b388** | `report_fetch` 블록 추가(기존 키 불변, diff 삽입만): `_comment`·`list_url`·`account_no 2580077`·`report_names`(시간대별 보고서·상세지역 보고서·검색어 보고서·필라테스 보고서 ↔ 시간대별·상세지역·검색어·키워드)·`period_rule`(other `이번달`·day1 `지난달`)·`columns`(4종 2행 원문 — `data/2026-09` 실물에서 복사)·`download_dir`·`profile_dir`(`~/saero-fetch/…`)·`browser_channel chrome`·`period_opener null`·`download_menu_item null`·`settle_sec 1.5`·`timeout_sec`(page 40·download 90·login 600)·`allowed_actions` 7·`forbidden_actions` 14 |
+| `SKILL.md` | 480 (472→480) | afcae73c | 43행 "읽는 코드"에 `fetch_reports.py`(`report_fetch`) / **58~61행** "최근 30일까지만" → "`이번달`·`지난달` 프리셋으로 받는다(31일 달도 한 파일, 두 달 전 데이터도 조회됨 — 09-28 실측; 옛 전제 설명)" / **66~68행** "이번 달" 문장 → "PC에서 `scripts/fetch_reports.py`가 받아 오면 사용자가 4개를 올린다(수동 폴백: 보고서 형식에 `이번달`이 저장돼 있어 열기 → 다운로드)" / **72~74행** chunk 규칙 → "사용자 지정 기간이 30일로 잘릴 때만 쓰는 폴백" / 참고 문서·스크립트 절에 report-fetch.md·fetch_reports.py·test_fetch_reports.py 3항목. 63·127~129(현 64·130~132)행 유지. `archive.py` 코드 불변 |
+| `audit/checklist.md` | 477 (465→477) → **481**(수정 2) | 49bc5252 → 515aa5da(왕복 2: 21 문구) → 3160128d(왕복 3: 24 파일명) → **5b11f72c**(수정 2: 갱신 이력·25·되돌리면 1행) | 버전 줄 **v4.6** / [의도된 동작] **21~24**(저장된 `이번달` 프리셋 의존 · 1일엔 `지난달`·58행 옛 전제 · 재집계 WARN 비차단·01:00 KST 이후 · 다운로드 파일명 규칙·partial·store는 세션) / [되돌리면 안 되는 것] **5행**(설정 변경 요소 클릭 금지·자격 증명 0·검사 전 store 금지·부분 실패 store 금지·좌표 클릭 금지) |
+| `audit/last-audit.md` | (커밋 뒤 보고) | | 이 절 |
+
+지시 밖 변경 0: `scripts/archive.py`·`compute.py`·`validate.py`·`compare.py`·`deploy.py`·`exclusions.py`·`data/`·`references/report-structure.md`·`exclusion-ui.md`·`css-and-layout.md` 불변(`git diff 0a2bafb --stat` = 위 8파일 + 이 파일).
+
+## 임의 결정 (번호 = 사용자가 바꿀 단위)
+
+1. **`columns`의 자리 = `report_fetch.columns`**(지시 2의 "config `columns`"를 최상위가 아니라 `report_fetch` 블록 안에). 값은 `data/2026-09` 4파일 2행에서 복사했고 시험 `test_config_columns_match_real_csv`가 실 CSV와 대조한다.
+2. **저장 폴더·프로필 = `~/saero-fetch/downloads`·`~/saero-fetch/chrome-profile`**(`~` = `C:\Users\<사용자>`) — 저장소가 공개라 Windows 사용자명을 config에 적지 않으려고 `~` 표기. CLI `--download-dir`·`--profile-dir`로 덮어쓸 수 있다.
+3. **임시 폴더 방식**: 다운로드는 먼저 `download_dir/partial/<날짜>/`에 받고, 4개 전부 검사 통과 + 노출합 일치일 때만 `download_dir/<날짜>/`로 옮긴다(지시 3의 "받은 파일은 partial/로 옮기고 정상 폴더에 남기지 않는다"와 결과 같음 — 실행 중 끊겨도 정상 폴더에 반쪽 상태가 안 남는다). 같은 날 재실행은 partial을 비우고 시작. 같은 날 앞선 **성공** 폴더는 건드리지 않는다(검사 통과본).
+4. **exit 코드**: 로그인 필요·사용법·playwright 없음·금지 클릭 시도 차단 = 1 / 보고서 하나라도 실패(이름 틀림·기간 불일치·다운로드 없음·검사 FAIL·노출합 불일치) = 2. 지시 9의 "이름 하나 틀리게 → exit 2"에 맞췄다.
+5. **라벨 판정은 파이썬 쪽 `name_ok`**: 요소 문구 = 라벨이거나 앞뒤에 기호·공백만 붙은 것(`← 돌아가기`·`다운로드 ∨`)까지 같은 요소로 본다. Playwright에 정규식을 넘기면 JS `\W`가 한글을 비단어로 취급해 `보고서 형식 저장 ∨`가 `저장`에 걸리는 것을 시험에서 확인해 이렇게 했다 [시험].
+6. **URL 폴링은 `page.evaluate("location.href")`**: sync API의 `page.url`은 다른 호출이 있어야 갱신돼 `--login` 대기가 끝나지 않았다(시험에서 실측) [시험].
+7. **설계 밖 config 키 5개**(첫 왕복에서 화면이 예상과 다를 때 코드 수정 없이 맞추려고): `period_opener`(null = 기간 텍스트 클릭, 문자열이면 달력 아이콘 등 그 이름 요소)·`download_menu_item`(null = 버튼 하나, 문자열이면 다운로드 뒤 그 메뉴 항목 — 같은 동작 키 `download`)·`settle_sec`·`timeout_sec`·`browser_channel`. 전부 `allowed_actions` 안에서만 동작한다.
+8. **시험·가짜 화면을 저장소에 넣었다**(지시 12의 산출물 2개 외 추가): 검증 회차가 네이버 접속 없이 dry-run 무변경·금지 차단·부분 실패·미로그인 경로를 재현할 수 있게. 컨테이너에 크롬 141(`/opt/google/chrome`)·번들 크로미움(`/opt/pw-browsers`)·Playwright 1.56.0이 있어 헤드리스로 돈다 [실측] — 없는 환경이면 브라우저 시험만 skip(순수 시험 6개는 돈다).
+9. **재집계 감지의 대상 = 날짜 컬럼이 있는 3종**(키워드·검색어·상세지역)의 겹치는 날짜 일별 노출·클릭·비용. 시간대별은 날짜가 없어 비교 안 함. `--prev`는 직전 다운로드 폴더(원본 이름)든 저장소 `data/YYYY-MM`(키워드.csv 이름)이든 컬럼으로 종류를 판별해 받는다.
+10. **첫 줄 이름 검사 추가**(헤더 `"<보고서 이름>(…"` = `report_names` 키) — 지시 2 목록에 없던 검사. 링크를 잘못 눌러 다른 보고서를 받았을 때 잡힌다.
+11. **`archive.py` docstring 5·16~17행의 "최근 30일까지만" 문구는 손대지 않았다**(지시 6 범위 = SKILL.md, "archive.py --chunk 코드는 유지") — 같은 옛 전제가 남아 있으니 조정에서 문구만 고칠지 결정(코드 변경 없음, 검증 회차 grep 잔존 목록에 넣었다).
+12. `_playwright()`의 `PWTimeout` import는 쓰지 않는다(noqa) — 정리는 다음 수정 때.
+
+## 실측 (이 세션, 브랜치 코드) [실측]
+
+- `python3 -m py_compile` 2파일 통과 · config `json.load` 통과(`report_fetch` 15키) · md 코드펜스 짝수(SKILL 10·report-fetch 8·checklist 6) · UTF-8·CRLF 0.
+- `python3 -W error::ResourceWarning tests/test_fetch_reports.py` → **Ran 9 tests · OK**(34초), "실제 data/2026-09·config md5 전/후 동일: True". 시험 내용: ① config `columns` = 실 CSV 4파일 2행, 계정 2580077 ② 기대 기간: 09-28 → `이번달` 09-01~09-27 · 10-01 → `지난달` 09-01~09-30 · 09-01 → 08-01~08-31 · 03-01 → 02-01~02-28 ③ `--dry-run`: 가짜 `playwright` 패키지(import 즉시 실패)를 앞에 두고 exit 0·표 4행·폴더 0개 생성, 같은 환경 `--login`은 exit 1 "playwright가 없습니다" ④ `check_file`·`cross_check`: 실 4파일(09-01~09-26) 전부 PASS·노출합 3종 동일, 기대를 09-27로 주면 "기간 = 기대" FAIL, 이름 다르면 FAIL, 합성 파일(행 0·컬럼 추가·계정 다름·헤더 형식) 전부 FAIL ⑤ `--prev`: 사본 동일 → WARN 0(겹침 26일), 9/10 노출 +1 → `[WARN] 키워드 … 2026.09.10.` 1건 ⑥ `click_allowed`: `보고서 형식 저장 ∨`·`+ 새 보고서 ∨`·`삭제`·`로그인`·`×` → SystemExit "금지 요소", 클릭 0 / 모르는 동작 `save_format` → "허용 목록 밖" / config에 모르는 동작을 넣으면 시작부터 거부 / 소스 `.click(` 1건·`mouse.`·`fill(`·`type(`·`press(`·`drag_to`·`password`·`비밀번호` 0건 ⑦ [시험] 가짜 화면: `--login`(auto) → "목록 URL 도달 · 4/4개" → 본 실행 exit 0, `2026-09-28/` 4개(원본 이름)+summary.json+debug/, partial 없음, 4개 모두 `preset_clicked false`(저장된 `이번달`), 키워드 파일 BOM·LF·첫 줄 `"필라테스 보고서(2026.09.01.~2026.09.27.),2580077"`·컬럼 원문·54행 ⑧ [시험] `--today 2026-10-01` → 기대 `지난달`, 4개 모두 프리셋 클릭 → 헤더 09-01~09-30, 노출합 일치 ⑨ [시험] `--prev` = 09-28 폴더 → WARN 0(겹침 27일), 검색어 9/10 노출을 바꾼 사본 → `[WARN] 검색어` 1건, exit 0(막지 않음) ⑩ [시험] `report_names`에 `검색어 보고서X` → **exit 2**, 정상 폴더 없음, `partial/2026-09-28/` CSV 3개+summary.json(`result partial`·`exit_code 2`·성공 3), `*_no_link.png` 스크린샷 ⑪ [시험] 로그인 안 된 프로필 → exit 1 "--login", CSV 0, `--login`도 시간 안에 실패 exit 1.
+- 수동 `--debug` 실행(가짜 화면, 10-01 경로): 스크린샷 17장(`01_list` → `_opened`·`_period_popup`·`_queried`·`_back` ×4), summary.json에 `steps`·`period_read`(how `range-text`)·검사 결과·합계. 저장소 `data/2026-09`를 `--prev`로 주면 값이 달라 WARN 3건(가짜 데이터라 정상).
+- 컨테이너에서 `pip install playwright` 성공(1.56.0), `playwright install chromium`은 경고 없이 끝났고 브라우저는 `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`의 chromium-1194 + `/opt/google/chrome`(channel chrome, 141.0.7390.37) — 이 세션 환경 [실측]. 광고주센터 접속은 시도하지 않았다(0절 차단 + 설계상 PC 실행).
+- 하지 않은 것(PC 몫): 실제 광고주센터 실행·실제 DOM 문구 확인·같은 날 손으로 받은 4개와의 바이트 대조.
+
+## PC 왕복 기록 (지시 8 — 최대 3회, 결과가 오면 여기에 추가)
+
+- **왕복 1 결과(2026-09-28, 사용자 콘솔 화면 2장)** [실측]: PC Python 3.12(cp312 휠)·pip 25.0.1·Playwright **1.63.0**·`playwright install chromium` = Chrome for Testing 153(v1243)·설치된 크롬 channel 사용. `--dry-run` 표 4행(경로 `C:\Users\<사용자>\saero-fetch\…`) OK · `--login` → `[OK] 목록 URL 도달 · 보고서 이름 4/4개 보임` · 본 실행 `--debug`: `클릭 open_report: '시간대별 보고서'` → `[시간대별] 보고서 열림`(= `돌아가기` 확인) → **`fail (기간을 읽지 못함(기간 텍스트를 찾지 못함))`** → 상세지역·검색어·키워드 **`목록에 보고서 링크 '…' 없음`** → `[FAIL] 4개 중 성공 0 · 실패 4`, partial에만, store 금지(부분 실패 경로는 의도대로 동작). 확정된 것: 목록 링크 텍스트 = `report_names` 키 · `돌아가기` 문구 존재 · 로그인 프로필 재사용 OK. 미확정: 기간 표시 DOM(텍스트가 아니거나 늦게 그려짐 [추론]) — summary.json·스크린샷은 미수령.
+- **왕복 1 뒤 수정(커밋 `0c2f51c`, 같은 브랜치)**: ① **코드 결함** — 보고서 하나가 실패하면 목록으로 돌아가지 않아 나머지가 연쇄 실패 → `back_to_list()` 신설(성공·실패 모두 다음 보고서 전에 `돌아가기` 클릭 → 목록 판정 `on_list` = 목록 URL + 보고서 링크 **2개 이상**(제목 글자는 세지 않음) → 안 되면 목록 URL로 이동). 시험 `test_5`가 이 결함을 재현(첫 보고서 기간 없음 → exit 2, 나머지 3개 다운로드). ② `read_period` 3단계(가장 짧은 기간 텍스트 → 날짜 값을 가진 보이는 input 2개(evaluate 1회) → 본문 한 줄의 날짜 2개) + 표시 지연 대기(`timeout_sec.page`) + `DATE_RE` 끝 점·`RANGE_RE` 구분자 선택(아이콘 화살표 대비). 팝업 열기 대상 `period_target`(텍스트 → 날짜 textbox → config `period_opener`). ③ 스크린샷마다 `.aria.txt`(접근성 트리)·`.inventory.json`(날짜 요소·input·button·link 목록) 저장 — 왕복 2에서 DOM 확정용, 화면 문구만. ④ `click_allowed` 가드가 `inner_text`+`aria-label`+`title`+`input_value`를 본다. ⑤ `locate(text_fallback=False)`로 링크·버튼 역할 우선. 시험 **11개 OK**(`-W error::ResourceWarning`), `.click(` 1건·입력/좌표 API 0건 유지.
+- **왕복 2 결과(2026-09-28, 콘솔 전문)** [실측]: `git pull` f059458→0bffa8f. 4개 모두 `보고서 열림` → **`기간 읽음 2026.09.01.~2026.09.27. (range-text)`** → `기간 = 기대(저장된 프리셋)` → 목록 복귀 정상(왕복 1의 두 문제 해결 확인: 기간 표시는 지연 렌더링이었고 표기는 기간 텍스트). 실패 4/4: `클릭 query: '조회하기'` → `TimeoutError: Locator.click: Timeout 30000ms exceeded.`(클릭 가능해지길 30초 대기 = 버튼 비활성 [추론]; 첫 줄만 출력해 원인이 안 보였다). partial에만·store 금지 유지. summary.json·debug는 미수령.
+- **왕복 2 뒤 수정(커밋 `08136a9`)**: ① `조회하기`는 **활성일 때만** 클릭 — 저장된 형식으로 열면 결과가 자동 조회되고 버튼이 비활성(회색)이라고 판정(6-5 "회색 — 조회 전"·수동 흐름 "열기 → 다운로드"·메모리 09-28 "열기 → 다운로드만"과 일치); 비활성이면 `조회하기 비활성 → 건너뜀`을 steps에 남기고 다운로드로. 기간을 바꿔 `확인`한 뒤(매월 1일)는 활성이면 클릭. ② 모든 클릭에 `timeout_sec.click`(기본 15초, config에 명시) — 30초 기본값 제거. ③ 클릭 실패 원인을 호출 로그에서 골라 출력(`click_reason`: 비활성/가림/안 보임/움직임/사라짐) + `summary.json` `error_detail`(호출 로그 800자). ④ 가짜 화면 `query=disabled` 모드(자동 조회·비활성·`확인` 뒤 활성, 다운로드는 **조회된 기간**으로 만들어 조회하기를 잘못 건너뛰면 기간 검사에 걸림) + `test_6`(평일 건너뜀·`queried false` / 1일 `확인` 뒤 4회 클릭·헤더 09-01~09-30). 시험 **12개 OK**. `.click(` 1건·입력/좌표 0건 유지. checklist [의도된 동작] 21 문구에 반영.
+- **왕복 3 결과(2026-09-28, 콘솔 전문) — 성공** [실측]: `git pull` 0bffa8f→68028c8 · 4개 모두 `보고서 열림 → 기간 읽음 09.01~09.27 (range-text) → 기간 = 기대 → 조회하기 비활성(저장된 형식으로 이미 조회됨) → 건너뜀 → 클릭 download → 저장 → 클릭 back → downloaded` · 검사 전부 PASS · `[PASS] 4개 다운로드·검사 통과 → C:\Users\<사용자>\saero-fetch\downloads\2026-09-28`. WARN 4건 = 파일명(실제 `시간대별 보고서,2580077.csv` ≠ 옛 기대 `_보고서_`) → 아래 수정으로 해소. (사용자가 스크립트를 Downloads 폴더에서 실행해 한 번 헛돎 → 지시문에 `cd` 추가, `68028c8`.)
+- **최종 실행 결과(왕복 3, 2026-09-28 KST 아침)**: 왕복 횟수 **3**(1: 기간 못 읽음·목록 미복귀 / 2: 조회하기 30초 초과 / 3: 성공). 4개 헤더 `"시간대별 보고서(2026.09.01.~2026.09.27.),2580077"` · `"상세지역 보고서(…)"` · `"검색어 보고서(…)"` · `"필라테스 보고서(…)"` 전부 계정 2580077 · 기간 09-01~09-27. 행수·합계(노출·클릭·비용): 시간대별 24행 7,628·259·314,904 / 상세지역 1,017행 7,628·259·314,910 / 검색어 1,532행 6,451·259·314,906 / 키워드 462행 7,628·259·314,902 — 노출합 3종 일치, 클릭 4종 모두 259, 비용은 보고서마다 몇 원 차이(행 단위 반올림, 탐색 기준선 1절 ±1원/일 실측과 같은 유형, 검사 대상 아님). 실제 DOM에서 확정한 것: 기간 = 텍스트(지연 렌더) · `돌아가기`로 보고서 화면 판정 · 자동 조회로 `조회하기` 비활성 · `다운로드` 버튼 하나(메뉴 없음) · 파일명 `<이름>,2580077.csv`. 손으로 받은 같은 날 4개와의 바이트·합계 대조(검증 목록 6)는 **미실측**(사용자가 오늘 손으로 받은 파일이 있으면 검증 회차에서).
+- **왕복 3 뒤 수정(커밋 `cb9f9e7`)**: `expected_filenames()` — 기대 파일명을 실측 `<이름>,<계정>.csv`로, 손으로 받은 `<보고서명>_보고서_<계정>.csv`도 정상(둘 밖만 WARN). 가짜 화면 다운로드 이름·시험 기대값 갱신(12개 OK). references 4·7·9절·checklist [의도된 동작] 24 갱신. 코드 흐름 변경 0.
+- 왕복 0 지시(참고, 완료됨): **왕복 1 지시**(references/report-fetch.md 1·2·3·9절): PC 저장소 폴더에서 `git fetch && git checkout feat-report-fetch && git pull` → `pip install playwright` → `python -m playwright install chromium` → `python scripts\fetch_reports.py --dry-run` → `python scripts\fetch_reports.py --login`(창에서 직접 로그인·`로그인 상태 유지`) → `python scripts\fetch_reports.py --debug` → 콘솔 출력 전문·`downloads\<날짜>\`(또는 `partial\<날짜>\`)의 `summary.json`·`debug\` 스크린샷·성공 시 CSV 4개를 세션에 첨부. 첨부에 아이디·비밀번호가 없는지 확인.
+- 최종 실행 결과(왕복 뒤 기록할 것): 왕복 횟수 __ · 4개 헤더 `…(2026.09.01.~2026.09.__.),2580077` · 노출·클릭·비용 합계 4줄 · 손으로 받은 같은 날 4개와 바이트(md5)·합계 대조 결과 · 실제 DOM에서 확정한 문구(기간 팝업 여는 요소·`돌아가기` 역할·다운로드 메뉴 유무).
+
+## 검증 회차가 대조할 목록 (브랜치 clone에서, 토큰·API 키·네이버 로그인 없음)
+
+1. 기준값: 위 표의 행수·md5, `git diff 0a2bafb --stat` = 8파일 + last-audit.md. 문법 `py_compile` 2파일·config `json.load`·코드펜스 짝수·UTF-8.
+2. **코드 grep**: `scripts/fetch_reports.py`에서 `.click(` **1건**(`click_allowed` 안), `mouse.`·`.fill(`·`.type(`·`.press(`·`drag_to`·`password`·`비밀번호` **0건**; config `forbidden_actions`에 `+ 새 보고서`·`보고서 형식 저장`·`삭제`·`×`·`로그인`·`비밀번호`가 있고 `allowed_actions` 7키가 코드 `ACTIONS`와 같음; 저장소 전체에 자격 증명·쿠키·토큰 문자열 0(`*.keys.json`·`secrets/`는 .gitignore).
+3. **dry-run 브라우저 0**: `python3 scripts/fetch_reports.py --dry-run --today 2026-09-28 --download-dir <새 폴더> --profile-dir <새 폴더>` → exit 0, 표 4행(기대 `이번달` 2026.09.01.~2026.09.27.), 두 폴더 생성 안 됨, `git status` 변경 0. `--today 2026-10-01` → `지난달` 2026.09.01.~2026.09.30. 시험 `test_dry_run_no_browser_no_files`(가짜 playwright 패키지)도 통과.
+4. `python3 -W error::ResourceWarning tests/test_fetch_reports.py` → **12 OK**(왕복 2 뒤; 왕복 1 뒤 11, 처음 9), 실제 data·config md5 동일. 왕복 2 재현 `test_6_query_button_disabled_when_already_queried`(`query=disabled`: 평일 `조회하기` 클릭 0·`queried false`·성공, 1일 `확인` 뒤 클릭 4회·헤더 09-01~09-30)가 포함됐는지. 브라우저 시험이 skip되면 그 사실을 적는다(환경에 크로미움 없음). 왕복 1 재현 `test_5_period_missing_on_one_report_others_still_downloaded`(첫 보고서 기간 없음 → exit 2·partial 3개·`_no_period.aria.txt`·`.inventory.json` 생성)와 `test_4_inputs_ui_with_delay_and_day1_preset`(input 2개형·900ms 지연 → `period_read.how == "inputs"`, 1일엔 textbox 클릭 → 프리셋)이 포함됐는지.
+5. **실행 4개 파일 첫 줄·컬럼·노출합**: (가) 가짜 화면 시험 ⑦의 파일 4개 첫 줄 `"<이름> 보고서(2026.09.01.~2026.09.27.),2580077"`·2행 = config `columns`·키워드=시간대별=상세지역 노출합 (나) PC 왕복 결과가 있으면 그 `summary.json`의 `check.checks` 전부 `ok true`·`cross.ok true`, 4개 헤더가 실행일 기준 1일~어제.
+6. **같은 날 손으로 받은 4개와 대조**(PC 결과 수령 뒤): 사용자가 같은 날 광고주센터에서 직접 받은 4개와 스크립트 결과 4개의 md5·행수·노출/클릭/비용 합계가 같은지(행 순서가 같으면 바이트 동일, 다르면 합계 동일 — 탐색 기준선 1절 "행 순서 무관").
+7. **부분 실패 시험**: config 사본에서 `report_names`의 `검색어 보고서`를 `검색어 보고서X`로 바꿔 가짜 화면 실행(시험 ⑩ `test_2_partial_failure_wrong_name_exit2`) → **exit 2**, `download_dir/<날짜>/` **없음**, `partial/<날짜>/`에 CSV 3개+summary.json, 콘솔 "성공 3 · 실패 1 … store 금지". 미로그인 → exit 1(시험 ⑪).
+8. **부트스트랩 md5 불변**: `/mnt/skills/plugins/saero-ad-report/SKILL.md` 44행 md5 `97a3e194388b2ee75ad8fc81f9e47f78`.
+9. **checklist 대조**: 버전 줄 v4.6 / [의도된 동작] 21~24 / [되돌리면 안 되는 것] 표에 fetch_reports 5행(설정 변경 요소·자격 증명 0·검사 전 store·부분 실패·좌표 클릭) — 각 행의 "위치"가 실제 함수명과 맞는지(`click_allowed`·`locate`·`name_ok`·`cmd_login`·`check_file`·`cross_check`·`cmd_fetch`).
+10. 문서 = 코드: SKILL.md 66~68행 ↔ report-fetch.md 3절 ↔ `cmd_fetch`/`fetch_one` 순서 / 옛 문구 grep: SKILL.md에 "최근 30일까지만 내려준다" 0건(59행의 "옛 전제" 설명 인용은 정상), "다음 달 1일에 한 달치(31일)가 30일 제한에 걸려" 0건 / 잔존 목록: `scripts/archive.py` 5·16~17행 docstring(임의 결정 11, 조정 판단).
+11. 지시 밖 변경 0: `data/`·`compute.py`·`validate.py`·`archive.py`·배포본 불변(md5).
+
+## 원래 제안·지시를 바꾼 곳 (B 검증이 볼 것)
+
+- `columns`를 `report_fetch` 블록 안에(임의 결정 1). 설계 밖 config 키 `period_opener`·`download_menu_item`·`settle_sec`·`timeout_sec`·`browser_channel`(7). 시험·가짜 화면 추가(8). 첫 줄 이름 검사 추가(10). SKILL.md 43행·참고 절 3항목은 지시 6의 행 목록 밖 추가(새 파일을 가리키는 자리가 없으면 고아가 되므로).
+- 지시 3 "받은 파일은 partial/로 옮기고"를 "partial/에서 받아 성공 시에만 옮김"으로(3) — 결과 상태는 같다.
+- 지시 1의 "기간 텍스트를 읽어 … 프리셋 클릭 → 확인 → 조회하기"에 **"확인 뒤 다시 읽어 기대와 같은지"** 한 단계를 넣었다(설계안 필수 "쓰기 후 다시 읽어 확인"과 같은 방향; 다르면 그 보고서는 조회·다운로드 없이 실패).
+- 탐색 기준선 6-6의 "기간 입력칸 타이핑 또는 프리셋" 중 **프리셋만** 구현(지시대로 폼 입력 0 — 두 달 걸친 기간을 만들 수 있는 코드 자체가 없다).
+
+## 다음에 볼 것 (순서대로)
+
+1. ~~PC 왕복~~ 완료(3회, 성공). 2. 검증 회차(다른 세션, 위 목록 — 브랜치 최종 해시 기준) → "합쳐도 된다" 뒤 조정에서 main 병합. 3. 병합 뒤 첫 실사용은 **수동 1회**(결정 7): 같은 날 손으로 받은 4개와 대조(목록 6) → 결과를 "첫 실사용 기록"에; **10월 1일 실행**이 `지난달` 프리셋 경로(팝업·`확인`·`조회하기` 활성)의 첫 실측이므로 그날은 `--debug`로. 4. 2회차 후보: PC에서 store·push까지 / A(API 교차 검증) / archive.py docstring 문구 / `--prev` 기본값(직전 성공 폴더 자동 선택).
+
+## 마무리 기록(이번 회차)
+
+- 커밋 1 `79ad780`(코드·config·references·tests·SKILL.md), 커밋 2 `f059458` = 이 절 + checklist v4.6, 커밋 3 `0c2f51c` = 왕복 1 반영(코드·시험·가짜 화면·references), 커밋 4 `0bffa8f` = 이 절 갱신, 커밋 5 `08136a9` = 왕복 2 반영(코드·시험·가짜 화면·references·config·checklist 21), 커밋 6 `8c697d8` = 이 절 갱신, 커밋 7 `68028c8` = 지시문 cd 줄, 커밋 8 `cb9f9e7` = 왕복 3 반영(파일명 실측), 커밋 9 = 이 절 갱신(최종)(author `LeeKwanBeom <322668067+LeeKwanBeom@users.noreply.github.com>`). 브랜치 `feat-report-fetch`만 push(클라우드 push 성공 — 프록시 403 없음 [실측]), main 0. 토큰은 첨부 파일에서 credential helper로만 읽었고(2개 줄 중 4번째 줄만 유효, 1번째 줄은 403) 옮겨 적지 않았다.
+- 네이버 계정: 읽기·쓰기 0. 배포 저장소 0. 부트스트랩 md5 불변.
+
+---
+
 # 기능 추가 탐색 기준선(보고서 자동 수집, 2026-09-28)
 점검일: 2026-09-28 (기능 추가 회차 — **탐색·설계만**, Fable, 웹 claude.ai 세션). SKILL.md·scripts·config·data·checklist.md **변경 없음**. 네이버 계정 쓰기 호출 **0**(API·UI 어느 쪽도 호출 자체가 안 됨 — 0절). 리포트 갱신·배포 **없음**. 산출물은 이 절(1차 커밋, 이 파일만)과 사용자 폴더 사본 `saero-ad-report_보고서자동수집_탐색_2026-09-28.md`, PC 실행용 프로브 `naver_report_probe.py`·대조 `compare_ab.py`(회차 폴더·사용자 폴더에만, 저장소 미포함). 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차(브랜치 `feat-report-fetch`).
 추가할 기능: 1단계 "CSV 받기"의 수동 부분(광고주센터 로그인 → 다차원 보고서 4개 기간을 이번 달 1일~어제로 조회 → CSV 다운로드)을 자동화해 사람 손 없이 4개 파일이 `data/YYYY-MM/`에 놓이게 한다. store 이후(combine·compute·배포)는 그대로.

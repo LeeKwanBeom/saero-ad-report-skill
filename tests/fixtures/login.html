@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>로그인 (시험용 가짜 화면)</title></head>
+<body>
+<!-- tests/test_fetch_reports.py 전용. 스크립트는 이 폼에 아무것도 입력하지 않는다. ?auto=1 이면 1.5초 뒤 "사용자가 로그인한 것"으로 치고 목록으로 돌아간다. -->
+<h1>네이버 로그인 (가짜)</h1>
+<form onsubmit="return false">
+  <label>아이디 <input id="id"></label>
+  <label>비밀번호 <input id="pw" type="password"></label>
+  <label><input type="checkbox" id="keep"> 로그인 상태 유지</label>
+  <button id="login">로그인</button>
+</form>
+<script>
+(function(){
+  const q = new URLSearchParams(location.search);
+  const done = () => { localStorage.setItem("saero_fixture_login", "1"); location.replace("report-ui-fixture.html" + location.search); };
+  document.getElementById("login").addEventListener("click", done);
+  if (q.get("auto") === "1") setTimeout(done, 1500);
+})();
+</script>
+</body>
+</html>

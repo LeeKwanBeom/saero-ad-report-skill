@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>다차원 보고서 (시험용 가짜 화면)</title>
+<style>
+  body{font-family:sans-serif;margin:16px}
+  .hidden{display:none}
+  table{border-collapse:collapse} td,th{border:1px solid #ccc;padding:4px 8px}
+  .popup{border:1px solid #333;padding:8px;background:#fff;position:absolute;left:200px;top:120px}
+  .preset{cursor:pointer;padding:2px 4px}
+  .band{background:#ffe8c8;padding:4px}
+  button{margin:2px}
+</style>
+</head>
+<body>
+<!--
+  tests/test_fetch_reports.py 전용 가짜 화면. 광고주센터 다차원 보고서의 문구·흐름만 흉내 낸다(탐색 기준선 6-5):
+  목록(보고서 4개 링크, `+ 새 보고서`, 행마다 `삭제`) → 보고서 화면(`← 돌아가기`·`보고서 형식 저장 ∨`·`다운로드`·기간 텍스트·달력·
+  `조회하기`) → 기간 팝업(프리셋 목록·시작/끝 입력칸·취소·확인). 다운로드는 현재 기간으로 CSV(첫 줄 기간 헤더·2행 컬럼 원문·
+  utf-8 BOM·LF)를 만든다. 쿼리: today=YYYY-MM-DD(가짜 오늘, 기본 2026-09-28) · auto=1(login.html이 1.5초 뒤 자동 로그인).
+  ui=inputs(기간을 텍스트 대신 읽기 전용 input 2개 + 아이콘으로 표시, RangePicker형) · delay=<ms>(기간 표시를 그만큼 늦게 그림) ·
+  noperiod=<보고서 이름>(그 보고서만 기간 표시 없음 — 왕복 1 실패 재현용) · query=disabled(저장된 형식으로 열면 결과가 자동 조회되고
+  `조회하기`는 비활성, 기간을 바꿔 `확인`하면 활성 — 왕복 2 실물 재현; 다운로드는 마지막으로 조회된 기간으로 만든다).
+  로그인 상태는 localStorage `saero_fixture_login`. 실제 사이트와 무관하며 네트워크 0.
+-->
+<div id="list">
+  <h1>다차원 보고서</h1>
+  <p>사전 정의된 보고서를 통해 빠르고 쉽게 조회를 할 수 있고 자주 사용하는 보고서는 직접 나만의 보고서 형식을 만들어 정기적으로 조회하실 수 있습니다. 조회일 기준 전일까지의 지표</p>
+  <p class="band">보고서는 실시간이 아닙니다. 최근 집계 완료 시간 : <span id="agg"></span></p>
+  <button id="newReport">+ 새 보고서 ∨</button>
+  <table>
+    <thead><tr><th>보고서 이름</th><th>통계기간</th><th>생성일</th><th>최근 열람일</th><th>생성자</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p>행표시: 10</p>
+</div>
+
+<div id="report" class="hidden">
+  <button id="back">← 돌아가기</button>
+  <button id="saveFormat">보고서 형식 저장 ∨</button>
+  <button id="download">다운로드</button>
+  <span id="period"></span><span id="periodInputs" class="hidden"><input id="ps" readonly size="12"> <i>🡒</i> <input id="pe" readonly size="12"></span> <button id="calendar" aria-label="달력">📅</button> <button>&lt;</button> <button>&gt;</button> <span>∧ 접기</span>
+  <h2 id="title"></h2>
+  <div>보고서 항목 목록: 캠페인 · 캠페인 유형 · 광고그룹 · 광고그룹 유형 · 키워드 · 소재 · 소재 유형 · 비즈채널</div>
+  <div>보고서 설정하기: <span id="item"></span> <button title="항목 제거">×</button></div>
+  <button id="query">조회하기</button>
+  <div id="result" class="hidden"></div>
+  <p class="band">전환 성과를 확인할 수 없습니다. '전환 추적 서비스(무료)'를 신청하면 전환 성과를 확인할 수 있습니다.</p>
+</div>
+
+<div id="popup" class="popup hidden">
+  <div id="presets"></div>
+  <input id="start" size="12"> <input id="end" size="12">
+  <div>오늘은 선택할 수 없습니다.</div>
+  <button id="cancel">취소</button> <button id="confirm">확인</button>
+</div>
+
+<script>
+(function(){
+  if (localStorage.getItem("saero_fixture_login") !== "1") {
+    location.replace("login.html" + location.search);
+    return;
+  }
+  const q = new URLSearchParams(location.search);
+  const TODAY = q.get("today") ? new Date(q.get("today") + "T00:00:00") : new Date("2026-09-28T00:00:00");
+  const ACCT = "2580077";
+  const REPORTS = [
+    ["시간대별 보고서", "시간대별"], ["상세지역 보고서", "상세지역"], ["검색어 보고서", "검색어"], ["필라테스 보고서", "키워드"]
+  ];
+  const COLS = {
+    "키워드": "캠페인,광고그룹,키워드,일별,매체이름,PC/모바일 매체,검색/콘텐츠 매체,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위",
+    "검색어": "검색어,검색 유형,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,총 전환율(%),총 전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+    "상세지역": "상세지역,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+    "시간대별": "시간대별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,총 전환율(%),총 전환매출액(원)"
+  };
+  const PRESETS = ["어제","이번주","지난주","전 영업주","최근 7일 (오늘 제외)","이번달","지난달","이번 분기","지난 분기","최근 30일 (오늘 제외)","최근 90일 (오늘 제외)","최근 365일 (오늘 제외)"];
+  const pad = n => String(n).padStart(2, "0");
+  const f = d => `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}.`;
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+  function preset(name) {
+    const y = addDays(TODAY, -1);
+    if (name === "이번달") return [new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), y];
+    if (name === "지난달") return [new Date(y.getFullYear(), y.getMonth(), 1), new Date(TODAY.getFullYear(), TODAY.getMonth(), 0)];
+    if (name === "어제") return [y, y];
+    return [addDays(y, -6), y];
+  }
+  let cur = null, period = null;
+  document.getElementById("agg").textContent = f(TODAY) + " 00:20";
+  const rows = document.getElementById("rows");
+  REPORTS.forEach(([name]) => {
+    const tr = document.createElement("tr");
+    const a = document.createElement("a"); a.href = "#"; a.textContent = name;
+    a.addEventListener("click", ev => { ev.preventDefault(); open(name); });
+    const td = document.createElement("td"); td.appendChild(a); tr.appendChild(td);
+    ["이번달", "2026.08.31.", f(TODAY), "관리자"].forEach(t => { const c = document.createElement("td"); c.textContent = t; tr.appendChild(c); });
+    const del = document.createElement("td"); const b = document.createElement("button"); b.textContent = "삭제";
+    b.addEventListener("click", () => { document.body.innerHTML = "<h1>FORBIDDEN_CLICKED 삭제</h1>"; }); del.appendChild(b); tr.appendChild(del);
+    rows.appendChild(tr);
+  });
+  ["newReport", "saveFormat"].forEach(id => document.getElementById(id).addEventListener("click", ev => {
+    document.body.innerHTML = "<h1>FORBIDDEN_CLICKED " + ev.target.textContent + "</h1>";
+  }));
+  function show(id, on) { document.getElementById(id).classList.toggle("hidden", !on); }
+  const UI = q.get("ui") || "text", DELAY = +(q.get("delay") || 0), NOPERIOD = q.get("noperiod") || "", QDIS = q.get("query") === "disabled";
+  let queried = null;  // query=disabled 모드에서 마지막으로 조회된 기간
+  function setQueryEnabled(on) { document.getElementById("query").disabled = QDIS ? !on : false; }
+  function renderPeriod() {
+    const txt = document.getElementById("period"), box = document.getElementById("periodInputs");
+    txt.textContent = ""; document.getElementById("ps").value = ""; document.getElementById("pe").value = "";
+    if (cur && cur[0] === NOPERIOD) { show("periodInputs", false); show("calendar", false); return; }
+    show("calendar", true);
+    const draw = () => {
+      if (UI === "inputs") { show("periodInputs", true); document.getElementById("ps").value = f(period[0]); document.getElementById("pe").value = f(period[1]); }
+      else { show("periodInputs", false); txt.textContent = f(period[0]) + " → " + f(period[1]); }
+    };
+    if (DELAY > 0) setTimeout(draw, DELAY); else draw();
+  }
+  function open(name) {
+    cur = REPORTS.find(r => r[0] === name);
+    period = preset("이번달");  // 보고서 형식에 `이번달`이 저장돼 있다(09-28 실측 ①)
+    document.getElementById("title").textContent = name;
+    document.getElementById("item").textContent = cur[1];
+    show("list", false); show("report", true); show("result", false); show("popup", false);
+    renderPeriod();
+    if (QDIS) { queried = period.slice(); setQueryEnabled(false); const r = document.getElementById("result");
+      r.textContent = "자동 조회 결과 " + f(period[0]) + "~" + f(period[1]) + " (" + cur[1] + ")"; show("result", true); }
+    history.replaceState(null, "", location.pathname + location.search + "#report");
+  }
+  document.getElementById("back").addEventListener("click", () => {
+    show("report", false); show("popup", false); show("list", true);
+    history.replaceState(null, "", location.pathname + location.search);
+  });
+  function openPopup() {
+    const box = document.getElementById("presets"); box.innerHTML = "";
+    PRESETS.forEach(p => { const d = document.createElement("div"); d.className = "preset"; d.textContent = p;
+      d.addEventListener("click", () => { const r = preset(p); document.getElementById("start").value = f(r[0]); document.getElementById("end").value = f(r[1]); });
+      box.appendChild(d); });
+    document.getElementById("start").value = f(period[0]); document.getElementById("end").value = f(period[1]);
+    show("popup", true);
+  }
+  document.getElementById("period").addEventListener("click", openPopup);
+  document.getElementById("calendar").addEventListener("click", openPopup);
+  document.getElementById("ps").addEventListener("click", openPopup);
+  document.getElementById("pe").addEventListener("click", openPopup);
+  document.getElementById("cancel").addEventListener("click", () => show("popup", false));
+  document.getElementById("confirm").addEventListener("click", () => {
+    const p = v => { const m = /(\d{4})\.(\d{2})\.(\d{2})\./.exec(v); return new Date(+m[1], +m[2]-1, +m[3]); };
+    period = [p(document.getElementById("start").value), p(document.getElementById("end").value)];
+    renderPeriod(); show("popup", false); setQueryEnabled(true);
+  });
+  document.getElementById("query").addEventListener("click", () => {
+    const r = document.getElementById("result");
+    r.textContent = "조회 결과 " + f(period[0]) + "~" + f(period[1]) + " (" + cur[1] + ")"; show("result", true);
+    queried = period.slice(); setQueryEnabled(false);
+  });
+  // ---- CSV 생성: 종류별 노출합이 같도록(키워드=상세지역=시간대별), 검색어는 더 적게(콘텐츠 지면 미포함)
+  function days() { const out = []; for (let d = new Date(period[0]); d <= period[1]; d = addDays(d, 1)) out.push(new Date(d)); return out; }
+  const imp = d => 100 + d.getDate() * 3, clk = d => d.getDate() % 4, cost = d => clk(d) * 1500;
+  function csv() {
+    const kind = cur[1], L = [];
+    const P = QDIS && queried ? queried : period;  // query=disabled 모드: 조회된 기간으로만 만든다(조회하기를 건너뛰면 옛 기간이 나와 검사에 걸린다)
+    const savedPeriod = period; period = P;
+    L.push(`"${cur[0]}(${f(period[0])}~${f(period[1])}),${ACCT}"`);
+    L.push(COLS[kind]);
+    const D = days();
+    if (kind === "키워드") D.forEach(d => {
+      const a = Math.floor(imp(d) * 0.6), b = imp(d) - a;
+      L.push(`새로필라테스 파워링크,노원역필라테스,노원역필라테스,${f(d)},네이버 통합검색 - 모바일,모바일,검색,${a},0,0,0,0,1.5`);
+      L.push(`플레이스#1,새로필라테스,-,${f(d)},네이버 플레이스 - 모바일,모바일,검색,${b},${clk(d)},${clk(d)?(clk(d)/b*100).toFixed(2):0},${clk(d)?cost(d)/clk(d):0},${cost(d)},2`);
+    });
+    if (kind === "검색어") D.forEach(d => {
+      L.push(`노원역필라테스,확장,${f(d)},${Math.floor(imp(d)*0.5)},0,0,0,0,0,0,0,0,0,0,0,0`);
+      L.push(`새로필라테스,일치,${f(d)},${Math.floor(imp(d)*0.3)},${clk(d)},0,0,${cost(d)},0,0,0,0,0,0,0,0`);
+    });
+    if (kind === "상세지역") D.forEach(d => {
+      const a = Math.floor(imp(d) * 0.7), b = imp(d) - a;
+      L.push(`서울특별시 노원구,${f(d)},${a},${clk(d)},0,0,${cost(d)},1.8,0,0,0,0,0,0,0,0,0,0,0,0`);
+      L.push(`서울특별시 도봉구,${f(d)},${b},0,0,0,0,2.1,0,0,0,0,0,0,0,0,0,0,0,0`);
+    });
+    if (kind === "시간대별") {
+      const tot = D.reduce((s, d) => s + imp(d), 0), tc = D.reduce((s, d) => s + clk(d), 0), tcost = D.reduce((s, d) => s + cost(d), 0);
+      let left = tot;
+      for (let h = 0; h < 24; h++) {
+        const v = h === 23 ? left : Math.floor(tot / 24); left -= v;
+        L.push(`${pad(h)}시~${pad((h+1)%24)}시,${v},${h===12?tc:0},0,0,${h===12?tcost:0},1.7,0,0,0`);
+      }
+    }
+    period = savedPeriod;
+    return "\uFEFF" + L.join("\n") + "\n";
+  }
+  document.getElementById("download").addEventListener("click", () => {
+    const blob = new Blob([csv()], {type: "text/csv"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = cur[0] + "," + ACCT + ".csv";  // 실측(왕복 3): `시간대별 보고서,2580077.csv`
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+})();
+</script>
+</body>
+</html>

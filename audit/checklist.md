@@ -14,7 +14,12 @@
 개선안 이월 표)로 분리하고, 저장소 SKILL.md에 "갱신 회차는 registry + updates 최근 절, 진단 회차는 셋 다"를 명시한다
 (부트스트랩은 저장소 SKILL.md를 따르므로 재업로드 불필요). 2026-09-26 회차에는 분리하지 않았다.
 
-버전: v4.5 (2026-09-27 기능 추가 회차 — 제외 검색어 등록 자동화 `scripts/exclusions.py`(브랜치 `feat-exclusions`): [의도된 동작] 18~20 추가(등록 여부는 registry로 판정·묻지 않음 / 후보 규칙 / 경로 C PC 실행),
+버전: v4.6 (2026-09-28 기능 추가 회차 — 보고서 자동 수집 `scripts/fetch_reports.py`(설계안 C, PC Playwright, 브랜치 `feat-report-fetch`): [의도된 동작] 21~24 추가
+(저장된 `이번달` 프리셋 의존 / 매월 1일 `지난달` / 재집계 WARN 비차단 / 다운로드 파일명 규칙), "되돌리면 안 되는 것" 5행 추가(설정 변경 요소 클릭 금지·자격 증명 0·
+검사 전 store 금지·부분 실패 store 금지·좌표 클릭 금지). 검증은 별도 세션, main 병합 전.
+v4.6 갱신 이력: 2026-09-28 수정 회차 2(결함 1 — 같은 프로필 2회째 실행 크래시) — [의도된 동작] 25 추가(실행 전 프로필 다운로드 기록 정리·`browser_channel` 그대로),
+[되돌리면 안 되는 것] 1행 추가(실제 파일 있는 기록 삭제 금지). 버전 줄은 v4.6 유지.
+v4.5 (2026-09-27 기능 추가 회차 — 제외 검색어 등록 자동화 `scripts/exclusions.py`(브랜치 `feat-exclusions`): [의도된 동작] 18~20 추가(등록 여부는 registry로 판정·묻지 않음 / 후보 규칙 / 경로 C PC 실행),
 "되돌리면 안 되는 것" 6행 추가(dry-run 무전송·금지 패턴 거부·verified:false=실패·확장 칸만·쓰기 전 읽기·시험 1건), [의도된 동작] 9 뒤 한 줄. 검증은 별도 세션, main 병합 전.
 v4.5 갱신 이력: 2026-09-27 수정 회차 2(검증 판단 요청 4건 + 참고 2건) — [되돌리면 안 되는 것] 3행 추가(registry 없으면 멈춤 · failed 이름 후보 복귀 · delete `--confirm`), 버전 줄은 v4.5 유지.
 2026-09-27 첫 실사용 — [되돌리면 안 되는 것] 1행 추가(이름 대조 대소문자 무시). 코드 변경(pandas 폴백·regTm KST·`*` 행 해소·description 3721 폴백·`K()`)은 검증 회차 밖 — 다음 점검 회차가 대조.
@@ -167,6 +172,11 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 18. (2026-09-27 기능 추가) 제외 검색어 자동화(SKILL.md 5-0단계·`references/exclusion-ui.md`)의 **등록 상태 정본은 `audit/exclusions.csv`(registry)** — 재노출된 이름은 "등록돼 있는데도 노출 / 등록 누락 → 후보 / 미확인" 셋 중 하나로 **묻지 않고** 보고한다. 대조 목록 표는 회차별 요약 행만 받는다(이름 원본은 registry). registry 초기값은 09-27 UI 전사(340행, `source=ui`·`record`, `group_id` 빈칸)라 첫 `pull` 전에는 그룹 ID 매핑이 없고 `*` 기록 행이 남아 있는 것이 정상 — pull이 채우고 지운다.
 19. (2026-09-27 기능 추가) 후보 규칙: `확장` 행·정확 일치·클릭 0·창 안 첫 등장만 신규 후보. `industry_terms`(필라테스·필테) 포함 이름은 "업종어 포함" 묶음으로만 보이고 기본 후보가 아니다(6세필라테스처럼 이미 제외한 이름이 있어도). 클릭이 있는 이름은 후보로 올리지 않는다(07번 표에서 사람이 본다). 이전 CSV에 있었던 이름은 `--all` 없이는 후보에 안 오른다. 전부 의도된 동작.
 20. (2026-09-27 기능 추가) 이 환경(브라우저 2종·컨테이너·PC 연결 셸)은 광고시스템·`api.searchad.naver.com`이 막혀 있어(탐색 기준선 0절) `pull`·`push`·`verify`·`test-roundtrip`은 **사용자 PC의 일반 셸**에서 돈다(경로 C). 스크립트가 `[FAIL] 네트워크 차단(프록시)` exit 2를 내는 것은 결함이 아니다. API `CUSTOMER_ID`(4480035)가 광고주센터 URL 계정번호(2580077)와 다른 것도 정상.
+21. (2026-09-28 기능 추가) `scripts/fetch_reports.py`는 보고서 4개의 형식에 **저장된 `이번달` 프리셋에 의존**한다(사용자가 09-28 저장, 목록 통계기간 열 전부 `이번달`) — 평일에는 열면 이미 1일~어제라 프리셋 클릭 없이 다운로드로 간다(`조회하기`는 저장된 형식의 자동 조회로 비활성이면 건너뛴다 — 왕복 2, 활성일 때만 클릭). 기간이 다르게 뜨면 프리셋(`이번달`)을 클릭해 맞추고, 그래도 다르면 그 보고서만 실패. 사용자 지정 기간을 타이핑하는 코드는 없다(의도).
+22. (2026-09-28 기능 추가) **매월 1일은 `지난달` 프리셋**(지난달 1일~말일, 31일 달도 한 파일 — 09-28 실측)으로 받는다. 헤더가 1일~말일이 아니면 "기간 = 기대" FAIL이 정상. SKILL.md 58행의 "최근 30일까지만"은 옛 전제였고(두 달 전 데이터도 조회됨), `store --chunk`는 사용자 지정 기간이 30일로 잘릴 때의 폴백으로만 남았다(archive.py 코드는 유지).
+23. (2026-09-28 기능 추가) `--prev`의 재집계 감지(겹치는 날짜의 일별 노출·클릭·비용 비교)는 **WARN이고 막지 않는다** — 실제 값 검사는 store 뒤 combine·validate가 한다. 실행 시각은 01:00 KST 이후(어제 집계 완료)가 전제라 그 전 실행의 "기간 = 기대" FAIL은 결함이 아니다.
+24. (2026-09-28 기능 추가) 다운로드 파일명은 네이버가 주는 이름 그대로 저장한다 — 스크립트로 받으면 `<이름>,2580077.csv`(예 `시간대별 보고서,2580077.csv`, 왕복 3 실측), 손으로 받으면 `<보고서명>_보고서_2580077.csv`; 둘 다 정상이고 그 밖의 이름은 내용 검사(첫 줄·컬럼·노출합)가 통과하면 WARN만. 성공 폴더는 `download_dir/YYYY-MM-DD/`, 부분 실패는 `partial/`에만(정상 폴더에 이번 실행 파일 없음)이 의도된 동작. 검사 통과 파일도 store·push는 **세션이 지금처럼** 한다(PC에서 store·push는 2회차).
+25. (2026-09-28 수정 회차 2) `scripts/fetch_reports.py`는 브라우저를 띄우기 전(`--login`·본 실행 모두) **전용 프로필의 다운로드 기록을 정리**한다(`clean_download_history`) — `Default/History`(없으면 프로필 바로 밑 `History`)의 `downloads`에서 target_path 파일이 없는 행(경로가 빈 행 포함)과 딸린 `downloads_url_chains`·`downloads_slices` 행만 지운다(결함 1: 같은 프로필 2회째 실행부터 다운로드 순간 크롬이 0xC0000005로 죽음 — 원인은 지워진 Playwright 임시 파일 경로 기록). 기록 DB가 없거나(첫 실행)·브라우저가 떠 있거나·잠김이면 `[WARN]`만 내고 계속하는 것, 크롬이 지운 기록을 같은 id·GUID로 되살려 정리 건수가 실행마다 늘어나는 것(0→4→8→12건, 크래시 없음 — 수정 회차 2 ④ 실측)은 정상. `browser_channel`은 config 값 그대로(null = 번들 크로미움 — 시험, `"chrome"` = 설치된 크롬 — 실사용).
 
 [되돌리면 안 되는 것 — 이게 그대로 있는지 확인해라] (2026-09-26 신설)
 
@@ -204,6 +214,12 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | 등록·확인에 **실패한 이름(`failed`)은 다음 propose 재등록 후보·report에 사유와 함께 다시 오른다** — 빼는 건 사용자가 `status=keep`으로 | 실패가 그 회차 채팅 보고 한 번으로 끝나고 다음 회차부터 조용히 사라진다(2026-09-27 검증 판단 2) | scripts/exclusions.py build_proposal·failure_note·cmd_report |
 | `delete`는 `--confirm` 없이는 돌지 않는다(`--dry-run`은 호출 0) — test-roundtrip과 대칭 | 절차만으로 막던 삭제가 명령 한 줄로 실행된다 | scripts/exclusions.py cmd_delete |
 | 이름 대조는 전부 `K()`(공백 제거·**대문자**) — API가 영문을 대문자로 저장·응답한다 | 영문 섞인 이름이 등록됐는데 "실패/미확인"으로 기록되고, 시험은 삭제 전에 멈춰 시험 검색어가 계정에 남는다(2026-09-27 첫 실사용 2차 시험 실사고) | scripts/exclusions.py K·do_push by_kw·do_test_roundtrip |
+| fetch_reports.py는 config `report_fetch.allowed_actions`(보고서 열기·기간·프리셋·확인·조회하기·다운로드·돌아가기) 밖 요소를 클릭하지 않고, `forbidden_actions` 문구(`+ 새 보고서`·`보고서 형식 저장`·항목 ×·`삭제`·로그인 폼·계정/충전)가 든 요소는 클릭 직전 exit 1 — 클릭 호출은 `click_allowed` **한 곳**(`.click(` 1건) | 보고서 형식이 바뀌거나 삭제돼 4개 보고서의 저장된 `이번달`·항목 구성이 깨지고, 그 뒤 다운로드 파일이 조용히 달라진다 | scripts/fetch_reports.py click_allowed·locate · test_fetch_reports `test_click_allowed_guard` |
+| fetch_reports.py에 자격 증명 입력·저장 코드 0(`fill`·`type`·`press`·`password`·`비밀번호` 0건) — 로그인은 `--login`으로 띄운 전용 프로필 창에서 사용자가 직접, config·summary·로그에 키·쿠키 없음 | 비밀번호가 저장소(공개)·채팅에 남는다 | scripts/fetch_reports.py cmd_login · references/report-fetch.md 2·6절 |
+| 검사(첫 줄 HEAD_RE·기간 = 기대·계정·2행 컬럼 = config `columns`·행 ≥ 1·3종 노출합 동일) 통과 전에는 store 하지 않는다 — 파일은 임시 폴더에서 검사한 뒤에만 성공 폴더로 옮긴다 | 기간이 어긋난 파일이 보관본을 덮어써 합본·누적이 틀린다(store 거부 규칙만으로는 같은 달 안의 짧은 기간을 못 막는다) | scripts/fetch_reports.py check_file·cross_check·cmd_fetch · SKILL.md 1단계 |
+| 4개 중 하나라도 실패면 exit 2, 받은 파일은 `partial/`에만 두고 정상 폴더에 남기지 않는다(부분 갱신 경로 없음과 같은 규칙) | 3개만 store돼 combine이 옛 파일과 섞이거나 FAIL을 반복한다(2026-09-26 D-13 유형) | scripts/fetch_reports.py cmd_fetch · test_fetch_reports `test_2_partial_failure_wrong_name_exit2` |
+| 좌표 클릭·`mouse` API·드래그 0 — 로케이터는 role·text만(`locate`, 라벨 판정은 파이썬 `name_ok`) | 화면 배치가 조금만 바뀌어도 엉뚱한 요소(설정·삭제)를 누른다 | scripts/fetch_reports.py locate·name_ok · references/report-fetch.md 6절 |
+| 프로필 정리는 **target_path 파일이 실제로 없는 기록만** 지운다 — **실제 파일이 있는 기록 삭제 금지**, 브라우저가 떠 있으면(`SingletonLock`·Windows `lockfile`)·DB가 잠겼으면 지우지 않고 `[WARN]` | 사용자가 받은 파일의 다운로드 기록까지 사라지거나, 떠 있는 크롬이 쓰는 기록 DB를 건드려 프로필이 깨진다 | scripts/fetch_reports.py clean_download_history·profile_in_use · test_fetch_reports `test_clean_download_history_removes_only_missing_files`·`test_clean_download_history_no_db_or_locked_warns` |
 
 [알려진 이월 항목]
 
