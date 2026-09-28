@@ -68,8 +68,9 @@ class FakeLocator:
     def inner_text(self):
         return self.text
 
-    def click(self):
+    def click(self, timeout=None):
         self.clicked = True
+        self.timeout = timeout
 
 
 class PureTests(unittest.TestCase):
@@ -216,6 +217,8 @@ class PureTests(unittest.TestCase):
         ok = FakeLocator("다운로드")
         F.click_allowed("download", ok, rf)
         self.assertTrue(ok.clicked)
+        self.assertEqual(ok.timeout, rf["timeout_sec"]["click"] * 1000)  # 클릭 대기 시간은 config timeout_sec.click
+        self.assertEqual(F.click_reason(Exception("Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - element is not enabled")), "Exception: 요소 비활성(disabled)")
         # config에 코드가 모르는 동작을 넣으면 시작부터 거부
         with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
@@ -398,7 +401,7 @@ class BrowserTests(unittest.TestCase):
     def test_5_period_missing_on_one_report_others_still_downloaded(self):
         """왕복 1 재현: 첫 보고서 화면에서 기간을 못 읽어 실패해도 목록으로 돌아가 나머지 3개를 받는다(exit 2, partial 3개)."""
         dl, prof = os.path.join(self.tmp, "dl5"), os.path.join(self.tmp, "prof5")
-        rf = rf_for(self.srv.url("auto=1&today=2026-09-28&noperiod=" + "시간대별 보고서"), dl, prof, timeout_sec={"page": 3, "download": 10, "login": 20})
+        rf = rf_for(self.srv.url("auto=1&today=2026-09-28&noperiod=" + "시간대별 보고서"), dl, prof, timeout_sec={"page": 3, "download": 10, "login": 20, "click": 3})
         code, out = self.run_quiet(F.cmd_fetch, rf, D(2026, 9, 28), debug=True, headless=True)
         self.assertEqual(code, 2, out)
         stage = os.path.join(dl, "partial", "2026-09-28")
@@ -420,6 +423,29 @@ class BrowserTests(unittest.TestCase):
         self.assertTrue(any("돌아가기" in c["text"] for c in inv["clickables"]))
         with open(os.path.join(stage, "debug", [f for f in dbg if f.endswith("_no_period.aria.txt")][0]), encoding="utf-8") as f:
             self.assertIn("돌아가기", f.read())
+
+    def test_6_query_button_disabled_when_already_queried(self):
+        """왕복 2 재현: 저장된 형식으로 열면 자동 조회되고 `조회하기`가 비활성 → 건너뛰고 다운로드. 1일엔 프리셋 `확인` 뒤 활성 → 클릭."""
+        dl, prof = os.path.join(self.tmp, "dl6"), os.path.join(self.tmp, "prof6")
+        rf = rf_for(self.srv.url("auto=1&today=2026-09-28&query=disabled"), dl, prof, timeout_sec={"page": 8, "download": 20, "login": 20, "click": 3})
+        code, out = self.run_quiet(F.cmd_login, rf, headless=True)
+        self.assertEqual(code, 0, out)
+        code, out = self.run_quiet(F.cmd_fetch, rf, D(2026, 9, 28), headless=True)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("클릭 query:", out)
+        summ = load_json(os.path.join(dl, "2026-09-28", "summary.json"))
+        for r in summ["reports"]:
+            self.assertEqual(r["status"], "ok", r)
+            self.assertFalse(r["queried"])
+            self.assertTrue(any("조회하기 비활성" in st for st in r["steps"]), r["steps"])
+        rf1 = rf_for(self.srv.url("auto=1&today=2026-10-01&query=disabled"), dl, prof, timeout_sec={"page": 8, "download": 20, "login": 20, "click": 3})
+        code, out = self.run_quiet(F.cmd_fetch, rf1, D(2026, 10, 1), headless=True)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.count("클릭 query:"), 4)
+        summ1 = load_json(os.path.join(dl, "2026-10-01", "summary.json"))
+        for r in summ1["reports"]:
+            self.assertTrue(r["queried"], r)
+            self.assertEqual(r["check"]["period"], ["2026.09.01.", "2026.09.30."])
 
     def test_3_not_logged_in_exit1(self):
         dl, prof = os.path.join(self.tmp, "dl3"), os.path.join(self.tmp, "prof3")

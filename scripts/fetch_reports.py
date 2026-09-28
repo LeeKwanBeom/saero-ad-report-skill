@@ -65,7 +65,7 @@ DATE_RE = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})\.?")  # 읽기용 — 끝 점�
 RANGE_RE = re.compile(r"\d{4}\.\d{2}\.\d{2}\.?\s*(?:→|~|-|–|—|>)?\s*\d{4}\.\d{2}\.\d{2}\.?")  # 화살표가 아이콘이면 구분자 없이 붙는다
 DATED = ("키워드", "검색어", "상세지역")  # `일별` 컬럼이 있는 종류(시간대별은 없다)
 ACTIONS = ("open_report", "open_period", "preset", "confirm", "query", "download", "back")  # 코드가 아는 동작 전부
-DEFAULT_TIMEOUTS = {"page": 40, "download": 90, "login": 600}
+DEFAULT_TIMEOUTS = {"page": 40, "download": 90, "login": 600, "click": 15}  # click = 클릭 가능(보임·활성·정지)해질 때까지 기다리는 초
 
 
 # ---------------------------------------------------------------- config·계획
@@ -376,8 +376,19 @@ def locate(page, label, roles=("button", "link"), text_fallback=True):
     return None
 
 
-def click_allowed(action, locator, rf, log=None):
-    """**유일한 클릭 자리.** allowed_actions 밖 동작·forbidden_actions 문구가 든 요소는 클릭하지 않고 SystemExit(1)."""
+def click_reason(ex):
+    """Playwright 클릭 예외의 원인을 한 줄로(호출 로그에서 골라냄) — 왕복 2: 첫 줄만 보면 'Timeout'뿐이라 원인을 알 수 없었다."""
+    msg = str(ex)
+    for marker, why in (("not enabled", "요소 비활성(disabled)"), ("intercepts pointer events", "다른 요소가 가림"),
+                        ("not visible", "보이지 않음"), ("not stable", "움직이는 중"), ("detached", "요소가 사라짐")):
+        if marker in msg:
+            return f"{type(ex).__name__}: {why}"
+    return f"{type(ex).__name__}: {msg.splitlines()[0][:160]}"
+
+
+def click_allowed(action, locator, rf, log=None, timeout=None):
+    """**유일한 클릭 자리.** allowed_actions 밖 동작·forbidden_actions 문구가 든 요소는 클릭하지 않고 SystemExit(1).
+    timeout(초)은 요소가 클릭 가능해질 때까지 기다리는 시간(없으면 config timeout_sec.click)."""
     if action not in rf["allowed_actions"]:
         raise SystemExit(f"[FAIL] 허용 목록 밖 동작 {action!r} — 클릭하지 않음(config report_fetch.allowed_actions: "
                          f"{list(rf['allowed_actions'])})")
@@ -397,7 +408,7 @@ def click_allowed(action, locator, rf, log=None):
                              "화면이 바뀐 것 같으니 --debug 스크린샷을 첨부해 주세요")
     if log:
         log(f"클릭 {action}: {text!r}"[:160])
-    locator.click()
+    locator.click(timeout=(timeout if timeout is not None else rf["timeout_sec"]["click"]) * 1000)
 
 
 def read_period(page):
@@ -489,6 +500,18 @@ def dump_inventory(page, path):
 
 def _d(g):
     return dt.date(int(g[0]), int(g[1]), int(g[2]))
+
+
+def _enabled(locator):
+    """버튼이 활성인지(disabled·aria-disabled 아님). 못 읽으면 활성으로 본다."""
+    try:
+        if not locator.is_enabled():
+            return False
+        if (locator.get_attribute("aria-disabled") or "").lower() == "true":
+            return False
+        return True
+    except Exception:
+        return True
 
 
 class Shot:
@@ -586,14 +609,31 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
         rec["error"] = "`조회하기` 버튼을 찾지 못함"
         shot.take(f"{kind}_no_query", force=True)
         return rec
-    click_allowed("query", query, rf, log)
+    # 저장된 형식으로 열면 결과가 자동 조회되고 `조회하기`는 비활성(회색)이다(왕복 2: 4개 모두 클릭 대기 30초 초과). 활성일 때만 누른다.
+    rec["queried"] = False
+    if _enabled(query):
+        try:
+            click_allowed("query", query, rf, log)
+            rec["queried"] = True
+            step("조회하기")
+        except SystemExit:
+            raise
+        except Exception as ex:
+            if not _enabled(query):
+                step(f"조회하기 비활성 → 건너뜀({click_reason(ex)})")
+            else:
+                rec["error"] = f"`조회하기` 클릭 실패: {click_reason(ex)}"
+                rec["error_detail"] = str(ex)[:800]
+                shot.take(f"{kind}_query_click_failed", force=True)
+                return rec
+    else:
+        step("조회하기 비활성(저장된 형식으로 이미 조회됨) → 건너뜀")
     try:
         page.wait_for_load_state("networkidle", timeout=T["page"] * 1000)
     except Exception:
         pass
     time.sleep(rf.get("settle_sec", 1.5))
     shot.take(f"{kind}_queried")
-    step("조회하기")
 
     dl_btn = locate(page, rf["allowed_actions"]["download"])
     if dl_btn is None:
@@ -611,7 +651,8 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
                     click_allowed("download", mi, rf, log)
         download = dl_info.value
     except Exception as ex:
-        rec["error"] = f"다운로드가 시작되지 않음({type(ex).__name__})"
+        rec["error"] = f"다운로드가 시작되지 않음({click_reason(ex)})"
+        rec["error_detail"] = str(ex)[:800]
         shot.take(f"{kind}_download_timeout", force=True)
         return rec
     fname = download.suggested_filename or item["expected_file"]
@@ -727,7 +768,7 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
                 raise
             except Exception as ex:  # 한 보고서의 예외는 그 보고서 실패로만
                 rec = {"name": item["name"], "kind": item["kind"], "status": "fail",
-                       "error": f"{type(ex).__name__}: {str(ex).splitlines()[0][:200]}", "file": None}
+                       "error": click_reason(ex), "error_detail": str(ex)[:800], "file": None}
                 shot.take(f"{item['kind']}_exception", force=True)
                 try:
                     page.goto(rf["list_url"])

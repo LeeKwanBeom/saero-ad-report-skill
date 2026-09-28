@@ -20,7 +20,8 @@
   `조회하기`) → 기간 팝업(프리셋 목록·시작/끝 입력칸·취소·확인). 다운로드는 현재 기간으로 CSV(첫 줄 기간 헤더·2행 컬럼 원문·
   utf-8 BOM·LF)를 만든다. 쿼리: today=YYYY-MM-DD(가짜 오늘, 기본 2026-09-28) · auto=1(login.html이 1.5초 뒤 자동 로그인).
   ui=inputs(기간을 텍스트 대신 읽기 전용 input 2개 + 아이콘으로 표시, RangePicker형) · delay=<ms>(기간 표시를 그만큼 늦게 그림) ·
-  noperiod=<보고서 이름>(그 보고서만 기간 표시 없음 — 왕복 1 실패 재현용).
+  noperiod=<보고서 이름>(그 보고서만 기간 표시 없음 — 왕복 1 실패 재현용) · query=disabled(저장된 형식으로 열면 결과가 자동 조회되고
+  `조회하기`는 비활성, 기간을 바꿔 `확인`하면 활성 — 왕복 2 실물 재현; 다운로드는 마지막으로 조회된 기간으로 만든다).
   로그인 상태는 localStorage `saero_fixture_login`. 실제 사이트와 무관하며 네트워크 0.
 -->
 <div id="list">
@@ -101,7 +102,9 @@
     document.body.innerHTML = "<h1>FORBIDDEN_CLICKED " + ev.target.textContent + "</h1>";
   }));
   function show(id, on) { document.getElementById(id).classList.toggle("hidden", !on); }
-  const UI = q.get("ui") || "text", DELAY = +(q.get("delay") || 0), NOPERIOD = q.get("noperiod") || "";
+  const UI = q.get("ui") || "text", DELAY = +(q.get("delay") || 0), NOPERIOD = q.get("noperiod") || "", QDIS = q.get("query") === "disabled";
+  let queried = null;  // query=disabled 모드에서 마지막으로 조회된 기간
+  function setQueryEnabled(on) { document.getElementById("query").disabled = QDIS ? !on : false; }
   function renderPeriod() {
     const txt = document.getElementById("period"), box = document.getElementById("periodInputs");
     txt.textContent = ""; document.getElementById("ps").value = ""; document.getElementById("pe").value = "";
@@ -120,6 +123,8 @@
     document.getElementById("item").textContent = cur[1];
     show("list", false); show("report", true); show("result", false); show("popup", false);
     renderPeriod();
+    if (QDIS) { queried = period.slice(); setQueryEnabled(false); const r = document.getElementById("result");
+      r.textContent = "자동 조회 결과 " + f(period[0]) + "~" + f(period[1]) + " (" + cur[1] + ")"; show("result", true); }
     history.replaceState(null, "", location.pathname + location.search + "#report");
   }
   document.getElementById("back").addEventListener("click", () => {
@@ -142,17 +147,20 @@
   document.getElementById("confirm").addEventListener("click", () => {
     const p = v => { const m = /(\d{4})\.(\d{2})\.(\d{2})\./.exec(v); return new Date(+m[1], +m[2]-1, +m[3]); };
     period = [p(document.getElementById("start").value), p(document.getElementById("end").value)];
-    renderPeriod(); show("popup", false);
+    renderPeriod(); show("popup", false); setQueryEnabled(true);
   });
   document.getElementById("query").addEventListener("click", () => {
     const r = document.getElementById("result");
     r.textContent = "조회 결과 " + f(period[0]) + "~" + f(period[1]) + " (" + cur[1] + ")"; show("result", true);
+    queried = period.slice(); setQueryEnabled(false);
   });
   // ---- CSV 생성: 종류별 노출합이 같도록(키워드=상세지역=시간대별), 검색어는 더 적게(콘텐츠 지면 미포함)
   function days() { const out = []; for (let d = new Date(period[0]); d <= period[1]; d = addDays(d, 1)) out.push(new Date(d)); return out; }
   const imp = d => 100 + d.getDate() * 3, clk = d => d.getDate() % 4, cost = d => clk(d) * 1500;
   function csv() {
     const kind = cur[1], L = [];
+    const P = QDIS && queried ? queried : period;  // query=disabled 모드: 조회된 기간으로만 만든다(조회하기를 건너뛰면 옛 기간이 나와 검사에 걸린다)
+    const savedPeriod = period; period = P;
     L.push(`"${cur[0]}(${f(period[0])}~${f(period[1])}),${ACCT}"`);
     L.push(COLS[kind]);
     const D = days();
@@ -178,6 +186,7 @@
         L.push(`${pad(h)}시~${pad((h+1)%24)}시,${v},${h===12?tc:0},0,0,${h===12?tcost:0},1.7,0,0,0`);
       }
     }
+    period = savedPeriod;
     return "\uFEFF" + L.join("\n") + "\n";
   }
   document.getElementById("download").addEventListener("click", () => {
