@@ -40,7 +40,7 @@ push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확�
 ## 설정값은 config/report-config.json 하나에서 읽는다
 
 개업일·제외 그룹·경쟁사 목록·타겟 지역·CTR 강조 기준·차트 폭 규칙은 전부
-`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`·`exclusions.py`(`exclusions` 블록: 대상 그룹·금지 패턴·registry 경로). **값을 정의하는 자리(판정 목록·계산 기준)는
+`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`·`exclusions.py`(`exclusions` 블록: 대상 그룹·금지 패턴·registry 경로)·`fetch_reports.py`(`report_fetch` 블록: 목록 URL·보고서 이름·기간 규칙·컬럼 원문·허용/금지 동작). **값을 정의하는 자리(판정 목록·계산 기준)는
 이 문서나 references에 값을 적지 않고 설정 파일의 키를 가리킨다.** validate.py도
 값을 하드코딩하지 않고 그 파일을 읽는다. 값이 바뀌면 그 파일만 고친다.
 
@@ -55,20 +55,23 @@ push가 403이면 다른 저장소 토큰을 받은 것은 아닌지 먼저 확�
 
 ## 원본 보관 — data/ (2026-09-26 도입)
 
-네이버 광고시스템은 보고서를 **최근 30일까지만** 내려준다. 2026-09-26에 개업일(8/26)이
-30일 창 밖으로 밀려나 누적이 깨질 뻔했다. 그래서 원본을 이 저장소에 월별로 쌓고 매 회차
+보고서는 광고주센터의 `이번달`·`지난달` 프리셋으로 받는다(31일 달도 한 파일로 받아지고 두 달 전 데이터도 조회된다 —
+2026-09-28 실측. "최근 30일까지만"은 사용자 지정 기간이 30일로 잘리는 것을 잘못 일반화한 옛 전제). 2026-09-26에 `최근 30일`
+프리셋으로 받던 창 밖으로 개업일(8/26)이 밀려나 누적이 깨질 뻔했다. 그래서 원본을 이 저장소에 월별로 쌓고 매 회차
 합쳐서 쓴다(사용자 결정 2026-09-26).
 
 - 구조: `data/YYYY-MM/키워드.csv · 검색어.csv · 상세지역.csv · 시간대별.csv`
   (네이버 원본 그대로, 첫 줄 기간 헤더 포함. 키워드 보고서 원본 파일명은 `필라테스_보고서_…`)
 - **지난달**: 확정본으로 고정. 다시 받을 필요 없다.
-- **이번 달**: 사용자가 매일 **이번 달 1일~어제**로 4개를 받아 준다. 같은 달 파일을 덮어쓴다.
+- **이번 달**: PC에서 `scripts/fetch_reports.py`가 매일 **이번 달 1일~어제**(매월 1일은 `지난달` 1일~말일)로 4개를 받아 오면
+  사용자가 그 4개를 세션에 올린다(절차 `references/report-fetch.md`; 수동 폴백: 보고서 형식에 `이번달`이 저장돼 있어
+  열기 → 다운로드). 같은 달 파일을 덮어쓴다.
 - 달끼리 기간이 겹치지 않으므로, 날짜 컬럼이 없는 시간대별 보고서도 달별로 그냥 더하면
   누적이 된다. 이게 월별로 나누는 이유다 — "최근 30일"로 받은 파일끼리는 겹치는 날을
   시간대별에서 뺄 방법이 없다.
-- **31일로 끝나는 달**: 다음 달 1일에 한 달치(31일)가 30일 제한에 걸려 안 받아질 수 있다.
-  그러면 1일~30일 파일은 그대로 두고 **말일 하루치 4개**를 따로 받아 `store --chunk`로
-  조각을 더한다. combine이 조각 경계를 4종 모두 대조한다.
+- **`store --chunk`(조각 추가)는 폴백**: `지난달` 프리셋은 31일 달도 한 파일로 준다(8/1~8/31, 2026-09-28 실측).
+  프리셋 대신 사용자 지정 기간을 써서 30일로 잘릴 때만, 1일~30일 파일은 그대로 두고 **말일 하루치 4개**를 따로 받아
+  `store --chunk`로 조각을 더한다. combine이 조각 경계를 4종 모두 대조한다.
 - 스크립트: `scripts/archive.py` (store / combine). 검사 내용은 그 파일 docstring.
 - 이 저장소는 **공개**다. 원본 CSV(검색어·지역·비용 전부)가 누구나 볼 수 있는 상태로
   올라간다는 점을 도입 회차에 사용자에게 알렸다.
@@ -465,6 +468,11 @@ config `date_based_sections`에 따라 늘고 준다):
   registry 스키마·상태, 후보·재노출 판정 규칙, PC 실행 절차, 시험 등록. 5-0단계에서 읽는다.
 - `scripts/exclusions.py`(5-0단계 `pull`/`import-ui`/`propose`/`push --dry-run`/`verify`/`delete`/`test-roundtrip`/`report`) ·
   `audit/exclusions.csv`(등록 상태 registry, 기계 정본) · `tests/test_exclusions.py`(가짜 API로 서명·판정·부분 실패·verified:false·dry-run 무전송·시험 순서 검사 — 정기 점검 때).
+- `references/report-fetch.md` — 보고서 자동 수집(설계안 C, PC Playwright)의 값 정의: PC 설치·`--login`·매일 실행·검사·오류 대처·
+  codegen 녹화·금지 사항·UI 실물. 1단계에서 읽는다.
+- `scripts/fetch_reports.py`(1단계 PC 전용 `--dry-run`/`--login`/기본 실행/`--debug`/`--prev`, config `report_fetch`) ·
+  `tests/test_fetch_reports.py`(가짜 화면 `tests/fixtures/`로 dry-run 브라우저 0·금지 차단·4개 다운로드·1일 프리셋·부분 실패 exit 2·
+  미로그인 exit 1 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에) · `scripts/compute.py`(5단계 값) ·
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·

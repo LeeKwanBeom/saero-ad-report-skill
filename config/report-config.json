@@ -79,5 +79,62 @@
     "registry": "audit/exclusions.csv",
     "api_base": "https://api.searchad.naver.com",
     "description_prefix": "saero"
+  },
+  "report_fetch": {
+    "_comment": "보고서 자동 수집(feat-report-fetch, 2026-09-28, 설계안 C = PC Playwright). scripts/fetch_reports.py가 읽는다. list_url은 광고주센터 다차원 보고서 목록(계정 2580077 = CSV 헤더 계정번호, API CUSTOMER_ID 4480035와 다름). report_names는 목록의 보고서 이름(링크 텍스트) ↔ 종류 — 4개의 보고서 형식에 기간 `이번달`이 저장돼 있어 열면 이번달로 뜬다(09-28 실측). period_rule: 평일은 `이번달`(이번 달 1일~어제), 매월 1일은 `지난달`(지난달 1일~말일, 31일 달도 한 파일 — 09-28 실측). columns는 UI CSV 2행 원문(탐색 기준선 1절) — 다운로드 파일이 이와 다르면 FAIL. download_dir·profile_dir은 저장소 밖(`~` = C:\\Users\\<사용자>); 프로필은 이 스크립트 전용 크롬 프로필로 로그인은 사용자가 창에서 직접(--login), 자격 증명은 어디에도 두지 않는다. allowed_actions는 코드가 클릭해도 되는 동작(키 = 코드의 동작 이름, 값 = 화면 문구; open_report는 report_names, open_period·preset은 기간 텍스트·프리셋 문구) — 이 밖은 클릭하지 않는다. forbidden_actions는 이 문구가 든 요소를 절대 클릭하지 않는다(설정 변경·삭제·로그인·계정/충전). period_opener는 기간 팝업을 여는 요소의 이름(null = 기간 텍스트 자체 클릭), download_menu_item은 다운로드가 메뉴로 갈릴 때 고를 항목(null = 버튼 하나). timeout_sec는 초.",
+    "list_url": "https://ads.naver.com/manage/ad-accounts/2580077/sa/reports",
+    "account_no": "2580077",
+    "report_names": {
+      "시간대별 보고서": "시간대별",
+      "상세지역 보고서": "상세지역",
+      "검색어 보고서": "검색어",
+      "필라테스 보고서": "키워드"
+    },
+    "period_rule": {
+      "other": "이번달",
+      "day1": "지난달"
+    },
+    "columns": {
+      "키워드": "캠페인,광고그룹,키워드,일별,매체이름,PC/모바일 매체,검색/콘텐츠 매체,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위",
+      "검색어": "검색어,검색 유형,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,총 전환율(%),총 전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+      "상세지역": "상세지역,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+      "시간대별": "시간대별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,총 전환율(%),총 전환매출액(원)"
+    },
+    "download_dir": "~/saero-fetch/downloads",
+    "profile_dir": "~/saero-fetch/chrome-profile",
+    "browser_channel": "chrome",
+    "period_opener": null,
+    "download_menu_item": null,
+    "settle_sec": 1.5,
+    "timeout_sec": {
+      "page": 40,
+      "download": 90,
+      "login": 600
+    },
+    "allowed_actions": {
+      "open_report": "보고서 이름 링크(report_names)",
+      "open_period": "기간 텍스트(YYYY.MM.DD. → YYYY.MM.DD.)",
+      "preset": "이번달 · 지난달",
+      "confirm": "확인",
+      "query": "조회하기",
+      "download": "다운로드",
+      "back": "돌아가기"
+    },
+    "forbidden_actions": [
+      "+ 새 보고서",
+      "새 보고서",
+      "보고서 형식 저장",
+      "형식 저장",
+      "삭제",
+      "×",
+      "로그인",
+      "비밀번호",
+      "아이디",
+      "충전",
+      "결제",
+      "계정 설정",
+      "광고 계정",
+      "비즈머니"
+    ]
   }
 }
