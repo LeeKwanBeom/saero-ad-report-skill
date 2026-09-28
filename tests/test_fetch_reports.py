@@ -55,6 +55,14 @@ def real_md5s():
 BEFORE = real_md5s()
 
 
+def real_period():
+    """실제 data/2026-09 키워드.csv 첫 줄 헤더의 기간(시작, 끝) — 이번 달 파일이 갱신될 때마다 시험이 깨지지 않게
+    기대 기간을 고정값이 아니라 헤더에서 읽는다(이월 ②, 2026-09-28 Code 탭 회차)."""
+    head = F.read_report(os.path.join(DATA, "키워드.csv"))[0]
+    g = [int(x) for x in F.HEAD_RE.search(head).groups()[:6]]
+    return D(g[0], g[1], g[2]), D(g[3], g[4], g[5])
+
+
 def rf_for(list_url, download_dir, profile_dir, **over):
     with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
         cfg = json.load(f)
@@ -169,7 +177,7 @@ class PureTests(unittest.TestCase):
 
     def test_check_file_and_cross_on_real_data(self):
         rf = F.fetch_config(download_dir="/tmp/x", profile_dir="/tmp/y")
-        s, e = D(2026, 9, 1), D(2026, 9, 26)
+        s, e = real_period()
         res = {}
         for fn, name, kind in (("키워드.csv", "필라테스 보고서", "키워드"), ("검색어.csv", "검색어 보고서", "검색어"),
                                ("상세지역.csv", "상세지역 보고서", "상세지역"), ("시간대별.csv", "시간대별 보고서", "시간대별")):
@@ -180,15 +188,16 @@ class PureTests(unittest.TestCase):
         cross = F.cross_check(list(res.values()))
         self.assertTrue(cross["ok"], cross)
         self.assertEqual(len(set(cross["values"].values())), 1)
-        self.assertEqual(res["키워드"]["dates"][0], "2026.09.01.")
-        # 기간이 기대와 다르면 FAIL(매월 1일 "1일~말일" 검사도 같은 자리)
-        r = F.check_file(os.path.join(DATA, "키워드.csv"), "필라테스 보고서", "키워드", rf, s, D(2026, 9, 27))
+        self.assertEqual(res["키워드"]["dates"][0], s.strftime("%Y.%m.%d."))
+        # 기간이 기대와 다르면 FAIL(매월 1일 "1일~말일" 검사도 같은 자리) — 음성 단언: 기대 끝 = 헤더 끝 + 1일
+        r = F.check_file(os.path.join(DATA, "키워드.csv"), "필라테스 보고서", "키워드", rf, s, e + dt.timedelta(days=1))
         self.assertFalse(r["ok"])
         self.assertIn("기간 = 기대", [c["name"] for c in r["checks"] if not c["ok"]])
         # 이름이 다르면 FAIL
         r = F.check_file(os.path.join(DATA, "키워드.csv"), "검색어 보고서", "검색어", rf, s, e)
         self.assertFalse(r["ok"])
-        # 합성: 행 0 / 컬럼 다름 / 계정 다름 / 헤더 형식
+        # 합성: 행 0 / 컬럼 다름 / 계정 다름 / 헤더 형식 — 합성 파일 헤더와 같은 고정 기간
+        ss, se = D(2026, 9, 1), D(2026, 9, 26)
         tmp = tempfile.mkdtemp()
         try:
             def w(name, text):
@@ -197,18 +206,18 @@ class PureTests(unittest.TestCase):
                     f.write(text)
                 return p
             col = rf["columns"]["시간대별"]
-            self.assertFalse(F.check_file(w("a.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col}\n'), "시간대별 보고서", "시간대별", rf, s, e)["ok"])
-            self.assertFalse(F.check_file(w("b.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col},추가열\n00시~01시,1,0,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, s, e)["ok"])
-            self.assertFalse(F.check_file(w("c.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),9999999"\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, s, e)["ok"])
-            self.assertFalse(F.check_file(w("d.csv", f'시간대별 보고서 2026-09-01~2026-09-26\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, s, e)["ok"])
-            good = F.check_file(w("e.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, s, e)
+            self.assertFalse(F.check_file(w("a.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col}\n'), "시간대별 보고서", "시간대별", rf, ss, se)["ok"])
+            self.assertFalse(F.check_file(w("b.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col},추가열\n00시~01시,1,0,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, ss, se)["ok"])
+            self.assertFalse(F.check_file(w("c.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),9999999"\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, ss, se)["ok"])
+            self.assertFalse(F.check_file(w("d.csv", f'시간대별 보고서 2026-09-01~2026-09-26\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, ss, se)["ok"])
+            good = F.check_file(w("e.csv", f'"시간대별 보고서(2026.09.01.~2026.09.26.),2580077"\n{col}\n00시~01시,1,0,0,0,0,0,0,0,0\n'), "시간대별 보고서", "시간대별", rf, ss, se)
             self.assertTrue(good["ok"], good["checks"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
     def test_compare_prev_warns_on_recount(self):
         rf = F.fetch_config(download_dir="/tmp/x", profile_dir="/tmp/y")
-        s, e = D(2026, 9, 1), D(2026, 9, 26)
+        s, e = real_period()
         now = [F.check_file(os.path.join(DATA, fn), name, kind, rf, s, e) for fn, name, kind in
                (("키워드.csv", "필라테스 보고서", "키워드"), ("검색어.csv", "검색어 보고서", "검색어"), ("상세지역.csv", "상세지역 보고서", "상세지역"))]
         tmp = tempfile.mkdtemp()
@@ -219,7 +228,7 @@ class PureTests(unittest.TestCase):
             self.assertEqual(set(prev), {"키워드", "검색어", "상세지역"})
             warns, detail = F.compare_prev(now, prev)
             self.assertEqual(warns, [])
-            self.assertEqual(detail["키워드"]["common_days"], 26)
+            self.assertEqual(detail["키워드"]["common_days"], len(now[0]["by_date"]))  # 행이 있는 날짜 수(같은 파일 사본)
             # 9/10 노출 하나를 바꾸면 WARN
             p = os.path.join(tmp, "키워드.csv")
             with open(p, encoding="utf-8-sig") as f:

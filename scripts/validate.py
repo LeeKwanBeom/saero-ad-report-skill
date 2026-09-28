@@ -50,10 +50,16 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
 import re
 import sys
 
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
+
 try:
     import pandas as pd  # noqa: F401  (reportlib이 필요로 함)
 except ImportError:
-    sys.exit("pandas가 필요합니다: pip install pandas --break-system-packages")
+    sys.exit("pandas가 필요합니다 — Code 탭은 저장소 밖 venv 파이썬(PY)으로 실행한다(references/code-tab.md 1절)")
 
 from reportlib import exclude_groups, load_config, parse_days, read_csv, read_html, section
 

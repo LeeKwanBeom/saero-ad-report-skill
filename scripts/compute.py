@@ -14,10 +14,17 @@
 import argparse
 import json
 import re
+import sys
 
 import pandas as pd
 
 from reportlib import day_list, exclude_groups, load_config, read_csv, read_html, section
+
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 WD = "월화수목금토일"
 

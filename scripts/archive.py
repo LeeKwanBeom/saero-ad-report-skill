@@ -40,6 +40,12 @@ from datetime import date, timedelta
 
 import pandas as pd
 
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:

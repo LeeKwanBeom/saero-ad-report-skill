@@ -29,30 +29,34 @@
 | 한도 | 그룹당 최대 개수 초과 = 오류 3716(숫자 미공개, UI 카운터 `0/950` 로 보아 950 [추론] → config `max_per_group`, push가 현재+예정으로 초과 예상만 경고) |
 | 오류 | 3721~3723(문자·형식), 3728, ADVoost ON 그룹 3754/4422(등록 거부) — 항목별 `resultStatus` 로 온다 |
 | 429 | 5초 쉬고 1회 재시도, 그래도 429면 중단 보고 |
-| 키 | `keys.json` `{"api_key","secret_key","customer_id"}` — **저장소·채팅 금지**. 이 세션에 연결되지 않은 PC 폴더(예 `C:\Users\<사용자>\naver-api.keys.json`)에 두고 `--key-file` 경로만 넘긴다. 채팅에 키가 찍힌 화면을 올렸으면 **재발급** |
+| 키 | `keys.json` `{"api_key","secret_key","customer_id"}` — **저장소·채팅 금지**. 저장소·채팅 밖 PC 로컬(`~/naver-api.keys.json`)에 두고 `--key-file` 경로만 넘긴다 — Code 탭 세션은 PC 파일에 닿을 수 있으므로 **세션은 키 파일을 열지도 출력하지도 않는다**(존재만 `test -f`). 채팅에 키가 찍힌 화면을 올렸으면 **재발급** |
 
 회차당 호출: pull GET 6(그룹 3 × adgroup+목록) · push POST 3(그룹당 50개씩 나눠 보냄) · verify GET 6.
 
-## 3. 환경 차단 [실측 2026-09-27] → 실행은 사용자 PC
+## 3. 실행 경로 — PC 작업 폴더를 연 Code 탭 세션(정식) [실측 2026-09-27·09-28]
 
-Claude in Chrome·내장 브라우저는 `ads.naver.com`·`manage.searchad.naver.com` 을 "safety restrictions" 로 거부하고,
+채팅 쪽은 막혀 있다 [실측 2026-09-27]: Claude in Chrome·내장 브라우저는 `ads.naver.com`·`manage.searchad.naver.com` 을 "safety restrictions" 로 거부하고,
 클라우드 컨테이너와 PC 연결 셸(device_bash)은 `api.searchad.naver.com` 에 프록시 CONNECT 403. 설정 화면(Claude Code·Cowork·Chrome용 Claude)에
-네트워크 허용 목록은 없다(사용자 화면 9장 [실측 09-27]). 그래서 **경로 C**: 스크립트는 저장소에, 실행은 사용자 PC의 일반 셸(PowerShell)에서.
-스크립트는 프록시 403을 `NetworkBlocked` 로 잡아 `[FAIL] 네트워크 차단(프록시)…` 를 찍고 **exit 2** — 그 명령을 PC에서 그대로 실행한다.
-- **[실측 2026-09-28] 데스크톱 앱 Code 탭(Claude Code, PC 저장소 clone, 로컬 실행)의 셸은 PC 일반 셸과 같이 `api.searchad.naver.com`이 열린다** — 읽기 전용 `pull` exit 0(3그룹 각 216) → `push` 5개 × 3그룹 등록·verify 15/15·실패 0(registry 커밋 `bf3089e`).
-  따라서 경로 C의 실행 주체는 사용자 PowerShell 또는 **Claude Code 세션**(승인 목록 파일 작성·명령 실행·registry 커밋까지 세션이 하고 사용자는 "등록 승인 N개"만 답한다). 클라우드 실행 옵션·`/sandbox`(네트워크 격리)는 쓰지 않는다. 키 파일은 종전대로 PC 로컬, 경로만 인자로.
-  Claude Code 지시문에는 **"이름은 원문 그대로(기호·마침표 포함)"** 를 명시한다 — 첫 실사용에서 세션이 `노원힐링장소.`의 마침표를 문장부호로 보고 뺐다(7절 대조 규칙과 어긋남).
+네트워크 허용 목록은 없다(사용자 화면 9장). 그래서 **경로 C**: 스크립트는 저장소에, 실행은 사용자 PC에서(2026-09-27 첫 실사용은 사용자가 PowerShell로 쳤다).
+스크립트는 프록시 403을 `NetworkBlocked` 로 잡아 `[FAIL] 네트워크 차단(프록시)…` 를 찍고 **exit 2** — 채팅에서 이것이 나오는 것은 결함이 아니다(PC Code 탭에서 돌린다).
+- **정식 경로 = PC 작업 폴더(`D:\saero\saero-ad-report-skill`, main)를 연 데스크톱 앱 Code 탭 세션** [실측 2026-09-28]: 그 셸은 `api.searchad.naver.com`이 열린다 —
+  읽기 전용 `pull` exit 0(3그룹 각 216) → `push` 5개 × 3그룹 등록·verify 15/15·실패 0(registry 커밋 `bf3089e`). 승인 목록 작성·명령 실행·registry 커밋까지 세션이 하고
+  사용자는 "등록 승인 N개"만 답한다. 사용자가 PowerShell로 같은 명령을 쳐도 같은 경로다. 클라우드 실행 옵션·`/sandbox`(네트워크 격리)는 쓰지 않는다.
+- **이름은 원문 그대로(기호·마침표 포함)** — 승인 목록은 propose 산출물·합본 CSV 원문에서 복사로만 만든다(`references/code-tab.md` 6절). 2026-09-28 첫 Code 탭 실행에서
+  승인 목록 파일을 다시 쓰며 `노원힐링장소.`의 마침표가 빠졌다(7절 대조 규칙과 어긋남 — 등록 전 registry 사본으로 dry-run 재현, 216 → 221 대 222).
+- 키 파일은 저장소·채팅 밖 PC 로컬(`~/naver-api.keys.json`) — 세션은 `--key-file` 경로만 넘기고 **열지도 출력하지도 않는다**(Code 탭 세션은 PC 파일에 닿을 수 있으므로 이것은 규칙이다).
 
-PowerShell(저장소 루트에서, `python` 3.9+):
+Code 탭 Git Bash(작업 폴더에서, `code-tab.md` 1절 `export PY=… PYTHONUTF8=1` 뒤):
 ```
-python scripts\exclusions.py pull --key-file C:\Users\<사용자>\naver-api.keys.json          # 첫 실행은 이것만(읽기 전용)
-python scripts\exclusions.py push --approved work\approved_<날짜>.txt --dry-run              # 할 일 목록만, 호출 0
-python scripts\exclusions.py push --approved work\approved_<날짜>.txt --key-file <keys>       # 승인 뒤에만. 등록 → 자동 verify
-python scripts\exclusions.py verify --key-file <keys>                                        # pending 재확인
-python scripts\exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys> --confirm   # 되돌리기(승인 뒤)
-python scripts\exclusions.py test-roundtrip --keyword saero제외테스트<날짜> --group <adgroup_id> --key-file <keys> --confirm
+"$PY" scripts/exclusions.py pull --key-file ~/naver-api.keys.json                                     # 읽기 전용
+"$PY" scripts/exclusions.py push --approved work/approved_<날짜>.txt --dry-run                         # 할 일 목록만, 호출 0
+"$PY" scripts/exclusions.py push --approved work/approved_<날짜>.txt --key-file ~/naver-api.keys.json   # 승인 뒤에만. 등록 → 자동 verify
+"$PY" scripts/exclusions.py verify --key-file ~/naver-api.keys.json                                   # pending 재확인
+"$PY" scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file ~/naver-api.keys.json --confirm   # 되돌리기(승인 뒤)
+"$PY" scripts/exclusions.py test-roundtrip --keyword saero제외테스트<MMDD> --group <adgroup_id> --key-file ~/naver-api.keys.json --confirm
 ```
-`pull`·`push`·`verify` 뒤의 `audit/exclusions.csv` 와 `work/exclusions_pull_<날짜>.json`(세 명령 모두 마지막으로 읽은 목록을 쓴다) 을 Claude가 읽어 판정·기록한다(사용자 폴더 경유 또는 커밋).
+`pull`·`push`·`verify` 뒤의 `audit/exclusions.csv` 와 `work/exclusions_pull_<날짜>.json`(세 명령 모두 마지막으로 읽은 목록을 쓴다)은 같은 작업 폴더에 있으므로
+세션이 그대로 읽어 판정하고, registry는 커밋해 `git push origin main` 한다(`work/`는 gitignore라 커밋하지 않는다).
 registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 없음 … (미확인)` exit 1 — 저장소를 통째로 받았는지·`--registry` 경로부터 본다.
 
 ## 4. UI 실물 [실측: 사용자 화면 23장, 2026-09-27] — API를 못 쓸 때의 읽기 폴백과 금지 요소
@@ -65,7 +69,7 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
   `이유를 입력하시겠습니까? (선택)` 라디오(API `description` 대응 [추론]) / `취소` · `저장`.
 - 이미 등록된 검색어는 `이미등록` 으로 보이고 `+ 추가` 링크가 없다 → UI에서는 중복 등록이 불가.
 - 읽기 폴백(`import-ui`): 기간의 검색어 표를 전사한 텍스트(`이미등록|검색어|확장` / `+추가|검색어|확장` 한 줄씩, 앞에 `페이지|` 허용)를
-  `python3 scripts/exclusions.py import-ui <파일> --group <그룹명> --date <날짜>` — **확장 행만** 반영, `+추가` 는 registry에 이미 있는 이름만 미등록으로 적는다(그 외 `+추가` 는 일반 검색어).
+  `"$PY" scripts/exclusions.py import-ui <파일> --group <그룹명> --date <날짜>` — **확장 행만** 반영, `+추가` 는 registry에 이미 있는 이름만 미등록으로 적는다(그 외 `+추가` 는 일반 검색어).
 
 **금지 요소(브라우저 자동화가 열려도)**: `+ 전체추가`(기간의 검색어 수백 개가 한 번에 제외됨) · `일치(유사검색어)` 칸 · 플레이스 그룹 · 좌표 클릭 · `다른 그룹으로 복사`.
 저장은 입력 칸을 read-back 해 승인 목록과 정확히 같을 때만. 이 문서를 읽는 회차가 읽기 전용이면 대화상자는 `취소` 로만 닫는다.
@@ -84,7 +88,7 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
 - 이름 판정(`registration_status`): 미등록 증거만 → `unregistered` / 등록·미등록 증거 혼재 → `partial`(일부 그룹 누락) / 등록 증거만 → `registered` / `keep` / 없음 → `unknown`.
 - 그룹명 대조는 공백만 무시(`norm_name`). pull 은 registry 그룹명이 API 그룹명과 하나도 안 맞으면 `[주의]` 를 찍는다 — 그대로 두면 상태가 영원히 어긋난다.
 
-## 6. 후보·재노출 판정 규칙 (`propose`, 쓰기 0)
+## 6. 후보·재노출 판정 규칙 (`propose` — registry·계정 쓰기 0, `work/`에 제안서·후보 파일)
 
 입력: 합본 `검색어.csv`(`--day` 하루 또는 `--since` 이후, 기본 마지막 날) 의 **`검색 유형 == "확장"` 행만**, 이름 **정확 일치**(`노원역;24시` ≠ `노원역24시`).
 1. 등록 이력이 있는 이름(registry에 있음) → **재노출 판정**(묻지 않는다):
@@ -102,7 +106,8 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
    > 제외 검색어 등록 승인 요청 — 대상: 파워링크 3그룹(…) "확장 검색" 칸 / 건수: N / 목록: 이름1 · 이름2 · … / 제외한 것: 금지 패턴·경쟁사 n · 이미 등록 m · 노출 유지(사용자 결정) k
    (m = 창 안에 나왔지만 registry에 등록 확인된 이름 수, k = `keep` 이름 수 — 2026-09-27 검증 판단 3)
    > 답: "등록 승인 N개" (뺄 이름이 있으면 적어 주세요 — 그만큼 뺀 뒤 다시 확인합니다). 답이 오기 전에는 아무것도 등록하지 않습니다.
-   승인된 이름만 `work/approved_<날짜>.txt`(한 줄에 하나, `#` 주석 허용)에 남겨 `push --approved` 에 넘긴다.
+   승인된 이름만 `work/approved_<날짜>.txt`(한 줄에 하나, `#` 주석 허용)에 남겨 `push --approved` 에 넘긴다 — 원천(`work/exclusions_proposal_<창끝>_candidates.txt`·
+   제안서 업종어 절·합본 CSV 원문)에서 **복사로만**, 줄 수 = 답의 N(`references/code-tab.md` 6절).
 
 ## 7. 등록·확인·실패 처리 (`push` → `verify`)
 
@@ -123,7 +128,9 @@ registry 파일이 없으면 `pull`·`import-ui` 외 명령은 `[FAIL] registry 
 ## 8. 시험 등록 (`test-roundtrip`, 사용자 입회, 1건)
 
 `--confirm` 없이는 돌지 않는다. 순서: 그룹 1개에서 시험 문자열(예 `saero제외테스트0927`, 실제로 검색될 리 없는 것) **없음 확인 → POST → GET 확인(없으면 `verified:false` 실패) → DELETE → GET 없음 확인** →
-registry `deleted` 행. 사용자는 같은 그룹의 제외 검색어 탭에서 생겼다 사라지는 것을 본다. 실제 이름으로 대량 시험 금지. 검증 회차는 같은 시험 1건을 재현한다.
+registry `deleted` 행. 사용자는 같은 그룹의 제외 검색어 탭에서 생겼다 사라지는 것을 본다. 실제 이름으로 대량 시험 금지.
+시험 1건은 **구현 회차 끝**에 사용자 입회로 한다. 검증 회차는 그 기록(출력 원문·registry `deleted` 행)을 대조하고 가짜 API 시험(`tests/test_exclusions.py`)을 돌린다 —
+실제 계정에 다시 쓰지 않는다(SKILL.md 5-0단계 6항·checklist C①과 같은 말).
 
 ## 9. 기록 (갱신 회차 8단계)
 

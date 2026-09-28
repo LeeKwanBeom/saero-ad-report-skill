@@ -15,6 +15,12 @@ import sys
 
 from reportlib import read_html, section as _section
 
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
+
 html = read_html(sys.argv[1])
 R = json.load(open(sys.argv[2], encoding="utf-8"))
 sec = lambda n: _section(html, n)

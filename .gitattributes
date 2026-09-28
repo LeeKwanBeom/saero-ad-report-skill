@@ -1,0 +1,4 @@
+# 줄바꿈 고정(2026-09-28 Code 탭 회차) — 이 PC처럼 core.autocrlf=true인 곳에서도 작업 폴더 = 커밋 바이트.
+# CSV는 변환하지 않는다(data/ 원본 LF, audit/exclusions.csv는 csv 모듈이 쓰는 CRLF 그대로). 셸 스크립트는 LF.
+*.csv -text
+*.sh text eol=lf

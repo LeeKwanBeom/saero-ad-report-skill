@@ -374,7 +374,7 @@ class TestCliSafety(unittest.TestCase):
         script = os.path.join(ROOT, "scripts", "exclusions.py")
         code = ("import sys, runpy; sys.modules['pandas'] = None; sys.path.insert(0, %r); sys.argv = ['exclusions.py', 'report']; "
                 "runpy.run_path(%r, run_name='__main__')" % (os.path.dirname(script), script))  # python scripts\\exclusions.py 와 같은 조건
-        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT)
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8", cwd=ROOT)
         self.assertEqual(r.returncode, 0, r.stderr[-800:])
         self.assertIn("registry", r.stdout)
         self.assertNotIn("pandas", r.stderr)
@@ -503,7 +503,13 @@ class TestCliSafety(unittest.TestCase):
 
     def test_push_dry_run_zero_http_and_no_file_change(self):
         with tempfile.TemporaryDirectory() as td:
-            reg = os.path.join(td, "r.csv"); shutil.copy(REAL_REG, reg)
+            # 실제 registry 대신 고정 fixture(이월 ③ — 실제 registry는 회차마다 바뀌어 기대값이 깨진다):
+            # 새로오픈 = 3그룹 등록 확인, 노원역맛집출구 = registry에 없음
+            reg = os.path.join(td, "r.csv")
+            fx = rows_of(*[("새로오픈", NAMES[g], "registered", "2026-09-10") for g in GIDS])
+            for r, g in zip(fx, GIDS):
+                r["group_id"] = g
+            X.save_registry(reg, fx)
             before = md5f(reg)
             ap = os.path.join(td, "approved.txt")
             write_text(ap, "노원역맛집출구\n노원역운동\n노원역맛집출구\n새로오픈\n#주석\n")  # 새로오픈 = registry에 3그룹 등록 확인된 이름

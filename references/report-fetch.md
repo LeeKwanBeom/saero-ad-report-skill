@@ -7,13 +7,13 @@
 
 ## 1. PC 설치 (한 번)
 
-PowerShell — **모든 명령은 저장소 폴더에서**(새 창은 Downloads 등에서 열리므로 먼저 이동, 왕복 3):
+**모든 명령은 작업 폴더(저장소 루트)에서** — Code 탭은 `D:\saero\saero-ad-report-skill`(main, `references/code-tab.md` 0절). 파이썬은 `$PY`(저장소 밖 venv,
+`code-tab.md` 1절 — `--system-site-packages`라 시스템에 깐 playwright를 본다). 사용자 PowerShell에서 칠 때도 같은 폴더로 먼저 이동한다(새 창은 Downloads 등에서 열림, 왕복 3):
 ```
-cd C:\Users\<사용자>\Desktop\Agent\claude\saero-ad-report-skill     # 저장소 폴더(PC마다 경로 확인)
-git pull
-pip install playwright
+cd D:\saero\saero-ad-report-skill              # 작업 폴더(main) — Desktop 사본 등 다른 clone은 쓰지 않는다
+python -m pip install playwright               # 시스템 파이썬에 한 번(venv가 이것을 본다)
 python -m playwright install chromium          # 설치된 크롬을 쓰므로 크롬이 있으면 건너뛰어도 된다(번들 크로미움은 크롬이 없을 때의 대체)
-python scripts\fetch_reports.py --dry-run      # 브라우저 0 — 할 일 표가 나오면 설치 끝
+D:\saero\.venv\Scripts\python.exe scripts\fetch_reports.py --dry-run      # 브라우저 0 — 할 일 표가 나오면 설치 끝
 ```
 - 필요한 것: Python 3.9 이상 · `playwright` 패키지 · 크롬(설치돼 있으면 `browser_channel: "chrome"`로 그것을 쓴다) — pandas 불필요(표준 라이브러리만).
 - **Python 3.14에서 `pip install playwright`가 실패하면**(휠 없음·`greenlet` 빌드 오류 등): ① `pip install --upgrade pip` 뒤 재시도 ② 그래도 안 되면 python.org에서 3.12 또는 3.13을 **추가 설치**(기존 3.14는 두고, 설치 중 "Add python.exe to PATH" 체크 불필요)하고 이후 모든 명령의 `python`을 `py -3.12`로 바꾼다:
@@ -23,7 +23,7 @@ python scripts\fetch_reports.py --dry-run      # 브라우저 0 — 할 일 표�
 ## 2. 첫 로그인 (한 번, 세션이 끝날 때마다)
 
 ```
-python scripts\fetch_reports.py --login
+"$PY" scripts/fetch_reports.py --login       # Code 탭 Git Bash(작업 폴더, code-tab.md 1절 export 뒤) — run_in_background(최대 600초 대기)
 ```
 전용 크롬 프로필(`profile_dir`)로 창이 뜨고 목록 URL로 간다. **사용자가 창에서 직접** 네이버 로그인을 하고 `로그인 상태 유지`를 체크한다(2단계 인증도 사용자가). 스크립트는 폼에 아무것도 입력하지 않으며, 목록 화면(`…/ad-accounts/2580077/sa/reports`)에 도달하면 `[OK] 목록 URL 도달 · 보고서 이름 4/4개 보임`을 찍고 창을 닫는다(닫아야 로그인 상태가 프로필에 저장된다). 최대 대기 `timeout_sec.login`(600초).
 `[FAIL] 시간 안에 목록 화면에 도달하지 못함`이면 다시 `--login`. 이 프로필은 이 스크립트 전용이다 — 평소 쓰는 크롬 프로필을 넣지 않는다.
@@ -31,9 +31,8 @@ python scripts\fetch_reports.py --login
 ## 3. 매일 실행
 
 ```
-cd C:\Users\<사용자>\Desktop\Agent\claude\saero-ad-report-skill
-git pull
-python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\downloads\<직전 날짜> [--debug]
+cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1    # Code 탭 Git Bash(code-tab.md 1절) — S0 사전 점검 뒤
+"$PY" scripts/fetch_reports.py --prev ~/saero-fetch/downloads/<직전 날짜> [--debug]                  # Code 탭은 run_in_background(3~5분, 사용자 화면에 창)
 ```
 - 시각: **01:00 KST 이후**(어제 집계 완료 — API `cycleBaseTm` 01:00·UI 띠 00:20 실측 09-28). 그 전에 돌리면 어제 행이 비거나 헤더가 그제까지로 나와 "기간 = 기대" FAIL이 난다.
 - `--prev`: 직전 성공 폴더(또는 저장소 `data/YYYY-MM`)를 주면 겹치는 날짜의 일별 노출·클릭·비용을 비교해 다르면 `[WARN]`(재집계 가능성)만 낸다 — **막지 않는다**. 첫 실행·달이 바뀐 날은 생략해도 된다.
@@ -48,7 +47,8 @@ python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\download
 
 ## 4. 결과 확인
 
-- 성공(exit 0): `download_dir\YYYY-MM-DD\`(예 `C:\Users\<사용자>\saero-fetch\downloads\2026-09-28\`)에 **`시간대별 보고서,2580077.csv`·`상세지역 보고서,2580077.csv`·`검색어 보고서,2580077.csv`·`필라테스 보고서,2580077.csv`**(네이버가 보내는 원본 이름 그대로 — 왕복 3 실측; 손으로 받을 때 보이던 `<보고서명>_보고서_2580077.csv`도 정상 이름으로 본다) + `summary.json`(+ `debug/`). 콘솔에 보고서별 표(행·노출·클릭·비용). **이 4개를 세션에 올리면** 1단계(`archive.py store` → `combine`)가 이어진다 — store·push는 지금처럼 세션이 한다(2회차에 PC로 옮길지 결정).
+- 성공(exit 0): `download_dir\YYYY-MM-DD\`(예 `C:\Users\<사용자>\saero-fetch\downloads\2026-09-28\`)에 **`시간대별 보고서,2580077.csv`·`상세지역 보고서,2580077.csv`·`검색어 보고서,2580077.csv`·`필라테스 보고서,2580077.csv`**(네이버가 보내는 원본 이름 그대로 — 왕복 3 실측; 손으로 받을 때 보이던 `<보고서명>_보고서_2580077.csv`도 정상 이름으로 본다) + `summary.json`(+ `debug/`). 콘솔에 보고서별 표(행·노출·클릭·비용)와 `다음:` 줄. **같은 Code 탭 세션이 이 폴더의 4개를 그대로** 1단계
+`scripts/ingest.sh "<성공 폴더>"/*.csv`(store → combine → push)에 넘긴다 — 업로드 없음(2026-09-28 Code 탭 회차 = 예전 "2회차에 PC로 옮길지"의 그 회차, `code-tab.md` 3절).
 - 부분 실패(exit 2): 받은 파일은 `download_dir\partial\YYYY-MM-DD\`에만 있고 정상 폴더에는 이번 실행 파일이 없다. 콘솔 표의 "비고"와 `summary.json`의 `reports[].error`·`check.checks`로 원인을 본다. **partial의 파일은 store 하지 않는다** — 원인을 고치고 다시 실행한다(같은 날 재실행은 partial을 비우고 시작한다).
 - 검사 항목(`check_file`·`cross_check`, 파일마다): 첫 줄이 `archive.py` HEAD_RE에 맞음 · 첫 줄 이름 = 보고서 이름 · **기간 = 기대**(매월 1일은 1일~말일이 아니면 FAIL) · 계정 = `account_no` / 2행 컬럼 = config `columns`의 종류별 원문 / 데이터 행 ≥ 1 / 일별 값이 헤더 기간 안. 4개 뒤: **키워드·시간대별·상세지역 노출합 동일**(combine 정합과 같은 식; 검색어는 콘텐츠 지면이 빠져 비교하지 않는다 — [의도된 동작] 5).
 - `summary.json`: `expected`(프리셋·기간) · `steps`(실행 단계 — 프로필 정리 결과 줄)·`profile_cleanup`(지운/유지 건수·DB 경로) · `reports[]`(이름·종류·상태·파일·`steps`·`period_read`(읽은 기간과 읽은 방법 `range-text`/`inputs`)·`preset_clicked`·`check`(검사 결과·행수·노출/클릭/비용 합)) · `cross` · `prev_compare`·`warnings` · `browser`·`playwright` 버전 · `log`. 자격 증명·쿠키는 없다.
@@ -57,18 +57,18 @@ python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\download
 
 | 증상 | 조치 |
 |---|---|
-| `[FAIL] 목록 URL에 도달하지 못함 … --login` (exit 1) | 로그인 세션 만료 → `python scripts\fetch_reports.py --login` 다시(사용자가 창에서 로그인) → 본 실행 |
-| `[FAIL] 허용 목록 밖 동작` / `금지 요소 클릭 시도 차단` (exit 1) | 코드가 클릭 직전에 멈춘 것(설정 변경 방지). 화면이 바뀐 신호 — 아래 "화면 변경" |
+| `[FAIL] 목록 URL에 도달하지 못함 … --login` (exit 1) | 로그인 세션 만료 → `"$PY" scripts/fetch_reports.py --login` 다시(Code 탭은 백그라운드, 사용자가 창에서 로그인) → 본 실행 |
+| `[FAIL] 허용 목록 밖 동작` / `금지 요소 클릭 시도 차단` (exit 1) | 코드가 클릭 직전에 멈춘 것(설정 변경 방지). 화면이 바뀐 신호 — 아래 "화면 변경". 이 경로엔 **summary.json이 없다**(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 스크린샷은 `--debug`일 때만 `partial/<날짜>/debug/`에 남는다 → `--debug` 재실행은 사용자 결정 |
 | `목록에 보고서 링크 '…' 없음` | 목록의 보고서 이름과 config `report_names` 키가 다른지(스크린샷 `*_no_link.png`) |
-| `… 클릭 실패: TimeoutError: 요소 비활성(disabled)` / `다른 요소가 가림` / `보이지 않음` | 클릭은 `timeout_sec.click`(15초)만 기다리고 원인을 적는다. 비활성은 화면 상태(예: 결과가 아직 없음), 가림은 팝업·공지가 떠 있는 것 — `summary.json`의 `error_detail`(Playwright 호출 로그)과 `debug/`를 첨부 |
+| `… 클릭 실패: TimeoutError: 요소 비활성(disabled)` / `다른 요소가 가림` / `보이지 않음` | 클릭은 `timeout_sec.click`(15초)만 기다리고 원인을 적는다. 비활성은 화면 상태(예: 결과가 아직 없음), 가림은 팝업·공지가 떠 있는 것 — 세션이 `summary.json`의 `error_detail`(Playwright 호출 로그)과 `debug/`를 직접 읽는다 |
 | **크래시 = 프로필 다운로드 기록**: 같은 프로필 2회째 실행부터 `다운로드` 순간 크롬 창이 꺼짐(0xC0000005) → `TargetClosedError: … has been closed`, 나머지 보고서 `링크 없음` | 원인은 프로필 다운로드 기록에 남은 **이미 지워진 Playwright 임시 파일 경로**(검증 보고 2026-09-28 — 그 기록만 지우면 정상, 번들 헤드리스는 기록을 안 남김). 실행마다 브라우저를 띄우기 전에 `clean_download_history`가 `Default/History`(없으면 프로필 바로 밑 `History`)에서 **파일이 없는 기록만** 지우고 콘솔·`summary.json` `steps`에 `[profile] 다운로드 기록 정리: 파일 없는 기록 N건 삭제 …`를 남긴다(실제 파일이 있는 기록은 유지). `[WARN] 프로필 정리: … 브라우저가 떠 있음`/`잠김`이면 이 프로필로 뜬 크롬 창을 모두 닫고 다시 실행 |
-| `보고서 화면(돌아가기 버튼)이 뜨지 않음` · `기간을 읽지 못함` · `프리셋 … 없음` · `확인/조회하기/다운로드 버튼을 찾지 못함` · `다운로드가 시작되지 않음` | **화면 변경**: `--debug`로 다시 돌려 `debug/` 전부(png·`.aria.txt`·`.inventory.json`) + `summary.json`을 세션에 첨부 → 세션이 문구·순서를 고친다(config `period_opener`·`download_menu_item`·`allowed_actions` 값으로 고칠 수 있는 범위면 config만) |
-| 위로도 셀렉터가 안 잡히면(왕복 3회) | 로그인된 전용 프로필로 **녹화**해 파일을 첨부한다(녹화 중 **로그인·비밀번호 입력 금지**, 이미 로그인된 프로필이라 필요 없다): |
+| `보고서 화면(돌아가기 버튼)이 뜨지 않음` · `기간을 읽지 못함` · `프리셋 … 없음` · `확인/조회하기/다운로드 버튼을 찾지 못함` · `다운로드가 시작되지 않음` | **화면 변경**: 세션이 `partial/<날짜>/summary.json`을 **재실행 전에** 직접 읽고(재실행이 partial을 지운다) 원인을 보고 → 사용자가 정하면 `--debug`로 다시 돌려 세션이 `debug/`(png·`.aria.txt`·`.inventory.json`)를 직접 읽는다 → 문구·순서를 고친다(config `period_opener`·`download_menu_item`·`allowed_actions` 값으로 고칠 수 있는 범위면 config만). 로그인 실패 산출물(`not_logged_in.*`)은 열지 않는다(자동 채움 입력값이 담길 수 있음) |
+| 위로도 셀렉터가 안 잡히면(왕복 3회) | 로그인된 전용 프로필로 **녹화**하고 세션이 그 파일을 읽는다(녹화 중 **로그인·비밀번호 입력 금지**, 이미 로그인된 프로필이라 필요 없다): |
 
 ```
 python -m playwright codegen --channel chrome --user-data-dir "C:\Users\<사용자>\saero-fetch\chrome-profile" --target python -o "C:\Users\<사용자>\saero-fetch\codegen_<날짜>.py" "https://ads.naver.com/manage/ad-accounts/2580077/sa/reports"
 ```
-창에서 보고서 하나만 **열기 → 기간 클릭 → 프리셋 → 확인 → 조회하기 → 다운로드 → 돌아가기**를 한 번 하고 창을 닫는다. `codegen_<날짜>.py`에 Playwright가 기록한 로케이터(`get_by_role`·`get_by_text` …)가 남고, 세션은 그것으로 `locate()`의 문구·역할을 확정한다. 녹화 파일에 아이디·비밀번호가 없는지 보고 첨부한다.
+창에서 보고서 하나만 **열기 → 기간 클릭 → 프리셋 → 확인 → 조회하기 → 다운로드 → 돌아가기**를 한 번 하고 창을 닫는다. `codegen_<날짜>.py`에 Playwright가 기록한 로케이터(`get_by_role`·`get_by_text` …)가 남고, 세션은 그것으로 `locate()`의 문구·역할을 확정한다. 세션은 녹화 파일에 아이디·비밀번호가 없는지 먼저 확인하고 읽는다.
 
 | `[WARN] … 일별 합계가 다름(재집계 가능성)` | 막지 않는다. store 뒤 combine·validate가 실제 값으로 다시 검사한다. 자주 나면 재집계 기록으로 last-audit에 남긴다 |
 |---|---|
@@ -83,7 +83,7 @@ python -m playwright codegen --channel chrome --user-data-dir "C:\Users\<사용�
 - 좌표 클릭·키 입력(`mouse`·`fill`·`type`·`press`)·드래그 0. 로케이터는 role·text만.
 - 자격 증명·API 키·쿠키를 코드·config·저장소·채팅·summary·스크린샷 파일명 어디에도 두지 않는다. 로그인은 사용자가 창에서.
 - 검사 통과 전·부분 실패에는 `archive.py store`를 하지 않는다. partial 폴더의 파일은 쓰지 않는다.
-- 두 달에 걸친 기간을 만들지 않는다(프리셋 2개만 쓰고, 사용자 지정 기간 입력 코드가 없다). `store --force`·`--chunk`를 자동으로 붙이지 않는다.
+- 두 달에 걸친 기간을 만들지 않는다(프리셋 2개만 쓰고, 기간을 직접 입력하는 코드가 없다). `store --force`·`--chunk`를 자동으로 붙이지 않는다.
 - 헤드리스로 돌리지 않는다(사용자가 보는 창). 같은 프로필로 두 실행을 동시에 돌리지 않는다.
 - 진단·검증 회차는 `--dry-run`과 `tests/test_fetch_reports.py`(가짜 화면)만 — 실제 광고주센터 실행은 사용자 PC·사용자 승인 뒤.
 
@@ -97,12 +97,12 @@ python -m playwright codegen --channel chrome --user-data-dir "C:\Users\<사용�
 
 ## 8. 시험 (검증·진단 회차용, 네트워크 0)
 
-`python3 tests/test_fetch_reports.py` — 실 CSV 4개로 검사 함수, 가짜 `playwright` 패키지로 `--dry-run` 브라우저 0·폴더 0, `click_allowed` 금지 차단·소스의 클릭 호출 1곳, `tests/fixtures/report-ui-fixture.html`(광고주센터 문구·흐름을 흉내 낸 로컬 화면, `login.html`은 `?auto=1`이면 1.5초 뒤 "사용자가 로그인한 것"으로 처리)에서 헤드리스로 `--login` 도달 → 4개 다운로드 성공(저장된 `이번달`이라 프리셋 클릭 0) → 매월 1일(`--today 2026-10-01`) `지난달` 프리셋 경로 → `--prev` WARN(막지 않음) → 보고서 이름 하나 틀리면 exit 2·정상 폴더 없음·partial 3개 → 로그인 안 됐으면 exit 1 → 프로필 정리(가짜 History DB: 파일 없는 기록만 삭제·파일 있는 기록 유지·DB 없음/잠김 WARN) → `browser_channel` 그대로(null = 번들 크로미움 — 시험은 null이라 설치 크롬을 쓰지 않는다). 끝에 실제 `data/2026-09`·config md5 전/후 출력.
+`"$PY" tests/test_fetch_reports.py` — 실 CSV 4개로 검사 함수(기대 기간은 `data/2026-09` 헤더에서 읽는다 — 이번 달 파일이 갱신돼도 안 깨짐), 가짜 `playwright` 패키지로 `--dry-run` 브라우저 0·폴더 0, `click_allowed` 금지 차단·소스의 클릭 호출 1곳, `tests/fixtures/report-ui-fixture.html`(광고주센터 문구·흐름을 흉내 낸 로컬 화면, `login.html`은 `?auto=1`이면 1.5초 뒤 "사용자가 로그인한 것"으로 처리)에서 헤드리스로 `--login` 도달 → 4개 다운로드 성공(저장된 `이번달`이라 프리셋 클릭 0) → 매월 1일(`--today 2026-10-01`) `지난달` 프리셋 경로 → `--prev` WARN(막지 않음) → 보고서 이름 하나 틀리면 exit 2·정상 폴더 없음·partial 3개 → 로그인 안 됐으면 exit 1 → 프로필 정리(가짜 History DB: 파일 없는 기록만 삭제·파일 있는 기록 유지·DB 없음/잠김 WARN) → `browser_channel` 그대로(null = 번들 크로미움 — 시험은 null이라 설치 크롬을 쓰지 않는다). 끝에 실제 `data/2026-09`·config md5 전/후 출력.
 가짜 화면은 실제 사이트와 무관하다 — 실제 DOM의 문구·구조는 첫 PC 왕복(`--debug`)으로만 확정된다.
 
-## 9. PC 왕복 절차 (구현 회차, 최대 3회)
+## 9. PC 왕복 기록 (구현 회차 — 2026-09-28 main 병합 730aa45로 끝남)
 
-세션이 브랜치를 push → 사용자 PC에서 `git pull`(브랜치 `feat-report-fetch` checkout) → 1절 설치 → `--dry-run` → `--login` → 본 실행 `--debug` → 콘솔 출력 전문·`debug/` 전부(png·`.aria.txt`·`.inventory.json`)·`summary.json`·(성공 시) 4개 CSV를 세션에 첨부 → 세션이 문구·config를 고쳐 다시 push. 3회 안에 셀렉터가 안 잡히면 5절 codegen 녹화. 왕복마다 결과를 `audit/last-audit.md` 구현 기준선 "PC 왕복 기록"에 남긴다.
+구현 회차의 브랜치 왕복 절차는 병합으로 끝났다(지금은 Code 탭 세션이 작업 폴더에서 직접 돌리므로 브랜치를 받아 첨부하는 왕복이 없다). 아래는 당시 기록이다.
 
 왕복 1(2026-09-28, PC Python 3.12·pip 25.0.1·Playwright 1.63.0·크로미움 v1243·설치된 크롬 channel) [실측: 사용자 콘솔 화면 2장]: 설치·`--dry-run`·`--login`(`[OK] 목록 URL 도달 · 4/4개`) 통과. 본 실행은 `시간대별 보고서` 링크 클릭 → `돌아가기` 확인(보고서 열림)까지 되고 **기간 텍스트를 못 읽어** 실패, 그 뒤 목록 복귀가 없어 나머지 3개가 `링크 없음`(코드 결함 → `back_to_list` 신설). 실제 기간 표시 DOM은 아직 [미실측] → 왕복 2는 `read_period` 3단계 폴백 + `.aria.txt`·`.inventory.json`으로 확정한다.
 

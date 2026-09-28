@@ -5,22 +5,25 @@
 → 기록(registry = config `exclusions.registry`, 기본 audit/exclusions.csv). "이미 등록했었냐"는 사용자에게 묻지 않고
 registry(API·UI 실물)로 판정한다. 등록·삭제는 승인 뒤에만, 읽기는 언제나.
 
-사용법(전부 저장소 루트에서):
-    python3 scripts/exclusions.py pull   --key-file <keys.json>            # 3그룹 목록 읽기 → registry 갱신(읽기 전용)
-    python3 scripts/exclusions.py import-ui <전사파일> --group <그룹명> [--date YYYY-MM-DD]
+사용법(전부 작업 폴더 = 저장소 루트에서, $PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절):
+    "$PY" scripts/exclusions.py pull   --key-file <keys.json>            # 3그룹 목록 읽기 → registry 갱신(읽기 전용)
+    "$PY" scripts/exclusions.py import-ui <전사파일> --group <그룹명> [--date YYYY-MM-DD]
                                                                             # API를 못 쓸 때: "기간의 검색어" 화면 전사로 registry 갱신
-    python3 scripts/exclusions.py propose <합본폴더> [--day YYYY-MM-DD] [--out <md>]   # 후보·재노출 판정·승인 문구(쓰기 0)
-    python3 scripts/exclusions.py push   --approved <파일> --key-file <keys.json> [--dry-run] [--reason "..."]
+    "$PY" scripts/exclusions.py propose <합본폴더> [--since YYYY-MM-DD | --day YYYY-MM-DD] [--all] [--out <md>]
+                                                                            # 후보·재노출 판정·승인 문구 — registry·계정 쓰기 0,
+                                                                            # work/exclusions_proposal_<창끝>.md·_candidates.txt를 쓴다
+    "$PY" scripts/exclusions.py push   --approved <파일> --key-file <keys.json> [--dry-run] [--reason "..."]
                                                                             # 승인 목록을 3그룹에 등록. --dry-run은 HTTP 호출 0·파일 변경 0
-    python3 scripts/exclusions.py verify --key-file <keys.json> [--approved <파일>]  # 다시 읽어 verified_at 기록, 없으면 실패
-    python3 scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys.json> --confirm [--dry-run]
-    python3 scripts/exclusions.py test-roundtrip --keyword <시험문자열> --group <adgroup_id> --key-file <keys.json> --confirm [--dry-run]
+    "$PY" scripts/exclusions.py verify --key-file <keys.json> [--approved <파일>]  # 다시 읽어 verified_at 기록, 없으면 실패
+    "$PY" scripts/exclusions.py delete --group <adgroup_id> --ids <id,id> --key-file <keys.json> --confirm [--dry-run]
+    "$PY" scripts/exclusions.py test-roundtrip --keyword <시험문자열> --group <adgroup_id> --key-file <keys.json> --confirm [--dry-run]
                                                                             # 시험 1건: 없음 확인 → 등록 → 확인 → 삭제 → 없음 확인(사용자 입회)
-    python3 scripts/exclusions.py report                                    # registry 요약
+    "$PY" scripts/exclusions.py report                                    # registry 요약
 
 keys.json: {"api_key": "<엑세스라이선스>", "secret_key": "<비밀키>", "customer_id": 4480035}
-  — 저장소·채팅에 두지 않는다. 이 세션에 연결되지 않은 PC 폴더에 두고 경로만 넘긴다. customer_id를 생략하면 config 값.
-네트워크가 막힌 환경(프록시 403)에서는 pull/push/verify가 그 사실을 출력하고 exit 2 — 같은 명령을 PC에서 실행한다.
+  — 저장소·채팅에 두지 않는다. PC 로컬(`~/naver-api.keys.json`)에 두고 경로만 넘긴다 — Code 탭 세션은 이 파일을 열지도 출력하지도 않는다.
+    customer_id를 생략하면 config 값.
+네트워크가 막힌 환경(채팅 컨테이너 — 프록시 403)에서는 pull/push/verify가 그 사실을 출력하고 exit 2 — 같은 명령을 PC Code 탭에서 실행한다.
 registry 파일이 없거나 못 읽으면 propose/push/verify/delete/test-roundtrip/report는 "[FAIL] registry 없음 … (미확인)" exit 1로 멈춘다
 (빈 registry로 판정하면 이력 있는 이름이 신규 후보로 올라오므로). 새로 만드는 명령은 pull·import-ui만.
 값의 정의(문서 = 코드): SKILL.md 5-0단계, references/exclusion-ui.md.
@@ -56,10 +59,11 @@ except ImportError as _e:  # 사용자 PC(파이썬만 있는 환경)에는 pand
         except FileNotFoundError:
             raise SystemExit(f"설정 파일이 없습니다: {cfg}\n스킬 저장소를 통째로 받았는지 확인하세요.")
 
-try:  # Windows 콘솔 한글
-    sys.stdout.reconfigure(encoding="utf-8")
-except Exception:  # pragma: no cover
-    pass
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글 — stderr(SystemExit 문구)도 utf-8
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 CFG = load_config()
 EX = CFG["exclusions"]
@@ -342,6 +346,7 @@ def default_description(kind=""):
 
 
 def load_keys(path):
+    path = os.path.expanduser(path)  # `~/…` 인자(PowerShell은 ~를 펼치지 않는다) — 값은 읽기만, 출력하지 않는다
     with open(path, encoding="utf-8") as f:
         k = json.load(f)
     for need in ("api_key", "secret_key"):
@@ -504,7 +509,7 @@ def cmd_import_ui(a):
     return 0
 
 
-# ---------------------------------------------------------------- propose (쓰기 0)
+# ---------------------------------------------------------------- propose (registry·계정 쓰기 0 — work/에 제안서·후보 파일)
 def load_search_terms(combined_dir):
     import pandas as pd
     sr = pd.read_csv(os.path.join(combined_dir, "검색어.csv"), skiprows=1)
