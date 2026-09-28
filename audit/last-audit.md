@@ -1,3 +1,39 @@
+## 검증·병합 기록 (2026-09-29 — Code 탭 전 단계 실행: 검증 1 → 수정 회차 2·3·4 → 검증 2(막음 0) → main 병합)
+
+**병합**: `feat-code-tab`(최종 `7aa54af` — b4cc8b9 위 8커밋: f0520b5 구현 · df658f3 기록 · e220079 수정 2 · 77a2ba8 기록 · 0391e0f 수정 3 · 150d059 기록 · 1f726dc 수정 4 · 7aa54af 기록)을 main(`b4cc8b9` — 분기 뒤 main 변경 0, `ls-remote` 확인)에 `git merge --no-ff` → 병합 커밋 **`2ed6bcf`**(부모 b4cc8b9 · 7aa54af, 트리 = 7aa54af와 동일 — `git diff --stat 7aa54af HEAD` 0). 충돌 0(audit/last-audit.md 포함 — main이 움직이지 않아 자동 병합). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`. clone은 `D:\saero-verify\merge-code-tab`(`git clone -c core.autocrlf=false` + 로컬 `core.autocrlf=false`). 사용자 병합 지시(2026-09-29 00:0x KST, "검증 2 통과 — feat-code-tab을 main에 합친다") 뒤 병합. 브랜치 `feat-code-tab`은 지우지 않고 둔다. 코드·문서 재수정 없음(이 절 추가만). 아래 "수정 기록 2·3·4"·"구현 기록"의 `main 미반영`·`main 0`은 당시 사실 — 원문 보존, 이 절로 정정(**2026-09-29 main 반영**). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에).
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_Code탭_2026-09-28.md`, 별도 세션 — Code 탭·이 PC, 대상 df658f3, 하위 에이전트 51): 결론 **18건**(동작·보호 장치 8 · 기록 숫자·문구 7 · 옛 문구 3) → 수정 회차 2(V1~V6·N1~N4)·3(W1~W14)·4(X1~X13)에서 전부 반영, 구현 기록 "정정(검증 1)" 블록으로 기록 정정.
+**검증 2**(`D:\saero-verify\saero-ad-report_검증2_Code탭_2026-09-28.md`, 별도 세션 — 대상 7aa54af, 하위 에이전트 5): "검증 2가 볼 것" 1~16 · checklist [되돌리면 안 되는 것] 이번 회차 행 · 검증 1 결론 1~18 전부 참·해소. 변이 50/50 잡힘 · 시험 49/15/10/15 OK · mutation_test 전부 살아 있음. **막음 0** → 병합 가. 이월 3 + 참고 1(아래 이월 목록).
+
+**병합 main에서 전체 세트 재실행** [실측] — 이 PC(Windows 11 · venv `D:\saero\.venv` Python 3.12.10 · pandas 2.3.3 · Playwright 1.63.0), PYTHONUTF8 없이, `-W error::ResourceWarning`, test_deploy는 `GIT_CONFIG_NOSYSTEM=1`·빈 `GIT_CONFIG_GLOBAL`·`GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`:
+- `tests/test_exclusions.py` **Ran 49 OK** rc 0(1.0초, 실제 registry md5 전/후 동일 ca642639) · `tests/test_deploy.py` **Ran 15 OK** rc 0(24초) · `tests/test_ingest.py` **Ran 10 OK** rc 0(67초, data/ 8파일 md5 동일) · `tests/test_fetch_reports.py` **Ran 15 OK** rc 0(80초, data/2026-09·config md5 동일). skipped 0 · ResourceWarning 0.
+- `py_compile` scripts 8 · tests 6 = **14/14** · config `json.load` · `bash -n` ingest.sh·precheck.sh 통과.
+- 합본 `archive.py combine` **PASS** — 2026.08.26.~09.27. 33일 · 9,991/309/351,299원. 배포본 무인증 재수령 `deploy.py fetch` → sha 1c52f70 · md5 a3465ec0 · 2101행(배포 저장소 HEAD `32d8b05` 그대로).
+- `tests/mutation_test.py <재수령 배포본> <합본 4종>` → rc 0 **"전부 살아 있음"**: `[OK]` 43(validate 22 + 0건 가드 14 + archive 7) · MISS/UNCOVERED/SKIP 0 · 원본 md5(html·CSV 4·data/ 8) 전부 동일.
+- data·config·registry md5 병합 전후 같음: `cat data/*/*.csv config/*.json audit/exclusions.csv | md5sum` = c0919eef(브랜치와 같음; 병합 전 main 968d7f9b와의 차이 = registry 시험 1행 f495f03b → ca642639, 666행) · config b826b388 · reportlib f29e64fc. 작업 트리 변경 0(`__pycache__`만 생겨 지움). PUT 0 · 네이버 0 · 광고주센터 0 · 실제 자격 증명 0.
+
+**부트스트랩**: 설치본(`anthropic-skills:saero-ad-report`, 97a3e194 — 사용자 확인값)은 저장소 주소·받는 방법 그대로 → **재업로드 불필요(설치본 불변)**. 채팅 가드는 저장소 SKILL.md 맨 위 절이 맡는다(부트스트랩이 채팅에서 main을 받으면 그 가드가 멈춘다). 다음 회차부터 부트스트랩 clone이 main = 병합본을 받는다.
+
+**이월 목록**(한 줄씩):
+- (검증 2) `--extra-csv` 단독 경로(후보 0줄)는 propose 뒤 합본·registry md5 대조 없음 — `check_provenance`는 `--from-candidates`·`--industry`만(exclusions.py:1026·1044), 실수 2개 조건 · deploy.py `git_credential` 자식 env가 `GIT_*`를 안 지움(deploy.py:78 — askpass 2개만; `GIT_*` 전부 제거는 시험 `clean_env`만) · `exclusions.py:26` docstring 재개 판정 문구에 "(.md5)" 누락 · 손 폴백(8절)에서 바이트 절반으로 잘린 검색어 CSV가 archive store·combine 검사를 통과(b4cc8b9 이전부터 — 정상 수집은 `fetch_reports` 검사가 앞단에서 막음).
+- (조정 대조) N 없는 답의 `--expect` 계산 · 보내는 도중(전송 단계) 타임아웃 문구(`네트워크 오류: timed out` vs `요청 결과 모름`) · 키 가림 정확 일치(부분 문자열만) · 재시도 문서 "propose부터 다시" 한 줄.
+- (수정 기록 4) 제안 ID 대조·토큰 범위 헤더(보류 — 사용자 결정) · 2-1 대조 명령화·`ingest --from`·archive data/ 경로 차단(회차 2) · NFKC·keep 처리 주체·`blocked_reason` 공백·기호 변형(점검 회차) · 재개 판정 "이번 회차" 코드 강제(지금은 문서 규칙).
+- (이전) "노원힐링장소."(마침표 원문, 미등록) 재상정(사용자) · verify note 결함 후보 · registry `verified_at` 전 행 재기록 · 탐색 기준선 5절 남은 문서 항목.
+
+**첫 실사용에서 볼 것**(main 작업 폴더, Code 탭 세션):
+1. 첫 S0(실제 자격 증명) — 배포 줄 `permissions.push: 참` · 스킬 저장소 `push --dry-run` 통과 · 줄바꿈 줄(8절 정리 뒤).
+2. 10/1 `지난달` 프리셋 첫 실측 — `--debug`로 돌려 `debug/`·summary.json을 남긴다.
+3. `[profile] 다운로드 기록 정리` 건수 추세(실행마다 summary.json `profile_cleanup`).
+4. 첫 Code 탭 `ingest.sh` — 시작 검사 4개(HEAD = origin/main · data/ = HEAD · 추적 안 된 파일 0 · 줄바꿈 = 커밋) 통과와 `origin/main = HEAD` 2회.
+5. 번호 붙은 승인 문구 → 답의 번호를 `--drop`·`--industry-lines`에 그대로, dry-run의 `[승인 목록] N개`·이름 repr을 사용자에게 보인다.
+6. 첫 참조 선택 실제 push — 승인 파일이 pull 재검사 뒤 첫 POST 전에 생기는지(`work/approved_<날짜>_<시분초>.txt`), verify 결과·registry 커밋.
+7. 첫 도장(`work/precheck_ok.md5` 3줄) → 첫 실제 PUT(자격 증명 권한 — 403이면 계정·토큰 범위) → verify 일치.
+8. wrapup(마감) — local/ 두 파일 md5 대조(LF 판 7dd534c8·af47cb28).
+
+**병합 뒤 할 일**(작업 폴더 세션 몫 — 이 병합 세션은 하지 않았다): main 작업 폴더 `D:\saero\saero-ad-report-skill`을 LF 재clone(`git clone -c core.autocrlf=false`)으로 교체(`work/` 파일은 옮겨 둔다 — 8절) · `local/CLAUDE.md` → `D:\saero\CLAUDE.md`, `local/saero-run/SKILL.md` → `D:\saero\.claude\skills\saero-run\SKILL.md` 설치(사용자) · S0 첫 실행(사용자 동의 — 실제 자격 증명 1회) · 메모리 정리(saero-merge-workflow·PC 시험 환경).
+효율: 벽시계 약 20분(00:08 ls-remote → 병합 → 전체 세트 → 기록·push) · 도구 호출 약 12회 · 즉석 코드 0행(py_compile 인라인 조각만).
+
+---
 # 수정 기록 4(Code 탭 회차 1 — 조정 재검토 3 X1~X13 반영, 2026-09-28)
 세션: 데스크톱 앱 Code 탭(이 PC), Opus 5.5 — 수정 회차 2·3과 같은 세션이 조정 지시("수정 회차 4 …")를 받아 수정. 브랜치 **`feat-code-tab`**(`150d059` 위 커밋 2개: ① 코드·시험·문서 ② 이 절·checklist — 자기 참조라 해시는 적지 않는다), **main 미반영**. 이 회차 뒤에는 조정 대조만 하고 검증 2로 간다(사용자 결정).
 검증용 clone: `git clone -c core.autocrlf=false -b feat-code-tab --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill <별도 폴더>`
