@@ -7,8 +7,10 @@
 
 ## 1. PC 설치 (한 번)
 
-PowerShell, 저장소 루트(`git pull` 뒤):
+PowerShell — **모든 명령은 저장소 폴더에서**(새 창은 Downloads 등에서 열리므로 먼저 이동, 왕복 3):
 ```
+cd C:\Users\<사용자>\Desktop\Agent\claude\saero-ad-report-skill     # 저장소 폴더(PC마다 경로 확인)
+git pull
 pip install playwright
 python -m playwright install chromium          # 설치된 크롬을 쓰므로 크롬이 있으면 건너뛰어도 된다(번들 크로미움은 크롬이 없을 때의 대체)
 python scripts\fetch_reports.py --dry-run      # 브라우저 0 — 할 일 표가 나오면 설치 끝
@@ -29,6 +31,8 @@ python scripts\fetch_reports.py --login
 ## 3. 매일 실행
 
 ```
+cd C:\Users\<사용자>\Desktop\Agent\claude\saero-ad-report-skill
+git pull
 python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\downloads\<직전 날짜> [--debug]
 ```
 - 시각: **01:00 KST 이후**(어제 집계 완료 — API `cycleBaseTm` 01:00·UI 띠 00:20 실측 09-28). 그 전에 돌리면 어제 행이 비거나 헤더가 그제까지로 나와 "기간 = 기대" FAIL이 난다.
