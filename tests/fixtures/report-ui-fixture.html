@@ -192,7 +192,7 @@
   document.getElementById("download").addEventListener("click", () => {
     const blob = new Blob([csv()], {type: "text/csv"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = cur[0].replace(" 보고서", "") + "_보고서_" + ACCT + ".csv";
+    a.download = cur[0] + "," + ACCT + ".csv";  // 실측(왕복 3): `시간대별 보고서,2580077.csv`
     document.body.appendChild(a); a.click(); a.remove();
   });
 })();

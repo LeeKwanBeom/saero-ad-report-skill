@@ -105,8 +105,14 @@ def expected_period(today, rule):
 
 
 def short_name(report_name):
-    """'시간대별 보고서' → '시간대별' (다운로드 파일명 `<보고서명>_보고서_<계정>.csv` 의 보고서명 자리, 09-28 실측)."""
+    """'시간대별 보고서' → '시간대별'."""
     return report_name[:-len(" 보고서")] if report_name.endswith(" 보고서") else report_name
+
+
+def expected_filenames(report_name, account_no):
+    """네이버가 주는 다운로드 파일명 후보 — 스크립트 실측(왕복 3, 2026-09-28) `<이름>,<계정>.csv`(예 `시간대별 보고서,2580077.csv`)가 첫째,
+    손으로 받을 때 보이던 `<보고서명>_보고서_<계정>.csv`(탐색 기준선 ③)가 둘째. 둘 다 정상, 그 밖이면 WARN(내용 검사가 통과하면 그대로 쓴다)."""
+    return [f"{report_name},{account_no}.csv", f"{short_name(report_name)}_보고서_{account_no}.csv"]
 
 
 def fmt(d):
@@ -118,8 +124,8 @@ def make_plan(rf, today):
     day_dir = os.path.join(rf["download_dir"], today.isoformat())
     items = []
     for name, kind in rf["report_names"].items():
-        items.append({"name": name, "kind": kind, "expected_file": f"{short_name(name)}_보고서_{rf['account_no']}.csv",
-                      "save_dir": day_dir})
+        names = expected_filenames(name, rf["account_no"])
+        items.append({"name": name, "kind": kind, "expected_file": names[0], "expected_files": names, "save_dir": day_dir})
     return {"today": today.isoformat(), "preset": preset, "start": fmt(s), "end": fmt(e),
             "start_date": s, "end_date": e, "day_dir": day_dir,
             "stage_dir": os.path.join(rf["download_dir"], "partial", today.isoformat()), "items": items}
@@ -661,8 +667,8 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
     rec["file"] = dest
     rec["suggested_filename"] = download.suggested_filename
     step(f"다운로드 저장 {fname}")
-    if fname != item["expected_file"]:
-        rec.setdefault("warn", []).append(f"파일명 {fname!r} ≠ 기대 {item['expected_file']!r}")
+    if fname not in item["expected_files"]:
+        rec.setdefault("warn", []).append(f"파일명 {fname!r} ≠ 기대 {item['expected_files']}")
 
     back_to_list(page, rf, log)
     shot.take(f"{kind}_back")

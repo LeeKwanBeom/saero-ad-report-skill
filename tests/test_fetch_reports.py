@@ -94,7 +94,7 @@ class PureTests(unittest.TestCase):
         self.assertEqual(F.short_name("필라테스 보고서"), "필라테스")
         plan = F.make_plan(F.fetch_config(download_dir="/tmp/x", profile_dir="/tmp/y"), D(2026, 9, 28))
         self.assertEqual([i["expected_file"] for i in plan["items"]],
-                         ["시간대별_보고서_2580077.csv", "상세지역_보고서_2580077.csv", "검색어_보고서_2580077.csv", "필라테스_보고서_2580077.csv"])
+                         ["시간대별 보고서,2580077.csv", "상세지역 보고서,2580077.csv", "검색어 보고서,2580077.csv", "필라테스 보고서,2580077.csv"])
 
     def test_dry_run_no_browser_no_files(self):
         """가짜 playwright 패키지를 앞에 두어 import되면 실패하게 하고, 저장·프로필 폴더가 생기지 않는지."""
@@ -110,7 +110,7 @@ class PureTests(unittest.TestCase):
                                capture_output=True, text=True, encoding="utf-8", env=env, cwd=tmp)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn("브라우저를 열지 않음", r.stdout)
-            self.assertEqual(r.stdout.count("_보고서_2580077.csv"), 4)
+            self.assertEqual(r.stdout.count("보고서,2580077.csv"), 4)
             self.assertIn("2026.09.01.~2026.09.27.", r.stdout)
             self.assertFalse(os.path.exists(os.path.join(tmp, "dl")))
             self.assertFalse(os.path.exists(os.path.join(tmp, "prof")))
@@ -300,7 +300,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
         day = os.path.join(dl, "2026-09-28")
         files = sorted(f for f in os.listdir(day) if f.endswith(".csv"))
-        self.assertEqual(files, sorted(["시간대별_보고서_2580077.csv", "상세지역_보고서_2580077.csv", "검색어_보고서_2580077.csv", "필라테스_보고서_2580077.csv"]))
+        self.assertEqual(files, sorted(["시간대별 보고서,2580077.csv", "상세지역 보고서,2580077.csv", "검색어 보고서,2580077.csv", "필라테스 보고서,2580077.csv"]))
         self.assertTrue(os.path.exists(os.path.join(day, "summary.json")))
         self.assertTrue(os.path.isdir(os.path.join(day, "debug")))
         self.assertFalse(os.path.exists(os.path.join(dl, "partial", "2026-09-28")))
@@ -308,15 +308,16 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(summ["result"], "ok")
         self.assertEqual(summ["expected"], {"preset": "이번달", "start": "2026.09.01.", "end": "2026.09.27."})
         self.assertTrue(summ["cross"]["ok"])
+        self.assertEqual([w for w in summ["warnings"] if "파일명" in w], [])  # 실측 이름은 WARN 대상이 아니다
         for r in summ["reports"]:
             self.assertEqual(r["status"], "ok", r)
             self.assertFalse(r["preset_clicked"])  # 저장된 `이번달`이라 프리셋 클릭 없음
             self.assertEqual(r["check"]["period"], ["2026.09.01.", "2026.09.27."])
-        with open(os.path.join(day, "필라테스_보고서_2580077.csv"), "rb") as f:
+        with open(os.path.join(day, "필라테스 보고서,2580077.csv"), "rb") as f:
             raw = f.read()
         self.assertTrue(raw.startswith(b"\xef\xbb\xbf"))
         self.assertNotIn(b"\r\n", raw)
-        head, colline, rows, _ = F.read_report(os.path.join(day, "필라테스_보고서_2580077.csv"))
+        head, colline, rows, _ = F.read_report(os.path.join(day, "필라테스 보고서,2580077.csv"))
         self.assertEqual(head, '"필라테스 보고서(2026.09.01.~2026.09.27.),2580077"')
         self.assertEqual(colline, rf["columns"]["키워드"])
         self.assertEqual(len(rows), 27 * 2)
@@ -343,7 +344,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(summ2["prev_compare"]["키워드"]["common_days"], 27)
         tampered = os.path.join(self.tmp, "prev_tampered")
         shutil.copytree(day, tampered, ignore=shutil.ignore_patterns("debug", "summary.json"))
-        p = os.path.join(tampered, "검색어_보고서_2580077.csv")
+        p = os.path.join(tampered, "검색어 보고서,2580077.csv")
         with open(p, encoding="utf-8-sig") as f:
             txt = f.read().replace(",2026.09.10.,", ",2026.09.10.,9", 1)
         with open(p, "w", encoding="utf-8-sig", newline="") as f:
@@ -365,7 +366,7 @@ class BrowserTests(unittest.TestCase):
         stage = os.path.join(dl, "partial", "2026-09-28")
         files = sorted(f for f in os.listdir(stage) if f.endswith(".csv"))
         self.assertEqual(len(files), 3)
-        self.assertNotIn("검색어_보고서_2580077.csv", files)
+        self.assertNotIn("검색어 보고서,2580077.csv", files)
         summ = load_json(os.path.join(stage, "summary.json"))
         self.assertEqual(summ["result"], "partial")
         self.assertEqual(summ["exit_code"], 2)
@@ -406,7 +407,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(code, 2, out)
         stage = os.path.join(dl, "partial", "2026-09-28")
         files = sorted(f for f in os.listdir(stage) if f.endswith(".csv"))
-        self.assertEqual(files, sorted(["상세지역_보고서_2580077.csv", "검색어_보고서_2580077.csv", "필라테스_보고서_2580077.csv"]))
+        self.assertEqual(files, sorted(["상세지역 보고서,2580077.csv", "검색어 보고서,2580077.csv", "필라테스 보고서,2580077.csv"]))
         summ = load_json(os.path.join(stage, "summary.json"))
         st = {r["kind"]: r for r in summ["reports"]}
         self.assertEqual(st["시간대별"]["status"], "fail")
