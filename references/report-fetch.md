@@ -34,10 +34,11 @@ python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\download
 - 시각: **01:00 KST 이후**(어제 집계 완료 — API `cycleBaseTm` 01:00·UI 띠 00:20 실측 09-28). 그 전에 돌리면 어제 행이 비거나 헤더가 그제까지로 나와 "기간 = 기대" FAIL이 난다.
 - `--prev`: 직전 성공 폴더(또는 저장소 `data/YYYY-MM`)를 주면 겹치는 날짜의 일별 노출·클릭·비용을 비교해 다르면 `[WARN]`(재집계 가능성)만 낸다 — **막지 않는다**. 첫 실행·달이 바뀐 날은 생략해도 된다.
 - `--debug`: 단계마다 스크린샷을 저장 폴더 `debug/`에 남긴다. 첫 실사용·왕복 확인 때 켠다. 실패한 보고서의 스크린샷 1장은 `--debug` 없이도 남는다.
+  스크린샷마다 같은 이름의 **`.aria.txt`**(접근성 트리 — 역할·이름·값)와 **`.inventory.json`**(날짜가 든 요소·input·button·link의 태그/역할/이름/클래스/문구)도 함께 저장된다 — 화면 문구만 담기고 자격 증명·쿠키는 없다. 다음 왕복에서 로케이터를 확정하는 근거(스크린샷만으로는 DOM을 알 수 없다 — 왕복 1).
 - `--today YYYY-MM-DD`: 기대 기간 계산 기준일을 바꾼다(시험용). 평소에는 쓰지 않는다.
 
 흐름(코드 `cmd_fetch`·`fetch_one`) — 목록 URL → (로그인 세션이 없으면 `[FAIL] … --login` exit 1) → 보고서마다:
-① 목록에서 이름 링크 클릭(`report_names` 키) → `돌아가기` 버튼이 보이면 보고서 화면 ② 기간 텍스트(`YYYY.MM.DD. → YYYY.MM.DD.`) 읽기 ③ 기대 기간과 다르면 기간 텍스트 클릭 → 프리셋(`이번달`/`지난달`) 클릭 → `확인` → **다시 읽어 기대와 같은지 확인**(다르면 그 보고서 실패, 조회·다운로드 안 함) ④ `조회하기` ⑤ `다운로드`(download 이벤트를 기다림) → 원본 파일명 그대로 저장 ⑥ `돌아가기`. 한 보고서의 실패는 그 보고서만 실패로 두고 다음으로 간다.
+① 목록에서 이름 링크 클릭(`report_names` 키, 링크·버튼 역할 우선) → `돌아가기` 버튼이 보이면 보고서 화면 ② 기간 읽기(`read_period`: 기간 텍스트 `YYYY.MM.DD. → YYYY.MM.DD.` → 없으면 날짜 값을 가진 보이는 input 2개(RangePicker형) → 없으면 본문 한 줄의 날짜 2개; 표시가 늦게 그려질 수 있어 `timeout_sec.page`까지 기다린다 — 왕복 1) ③ 기대 기간과 다르면 기간 표시(텍스트, 없으면 날짜 textbox, config `period_opener`가 있으면 그 이름) 클릭 → 프리셋(`이번달`/`지난달`) 클릭 → `확인` → **다시 읽어 기대와 같은지 확인**(다르면 그 보고서 실패, 조회·다운로드 안 함) ④ `조회하기` ⑤ `다운로드`(download 이벤트를 기다림) → 원본 파일명 그대로 저장 ⑥ `돌아가기`. 한 보고서의 실패는 그 보고서만 실패로 두고, **성공·실패 어느 쪽이든 목록으로 돌아간 뒤**(`back_to_list`: `돌아가기` 클릭 → 목록 URL·보고서 링크 2개 이상 확인, 안 되면 목록 URL로 이동) 다음 보고서로 간다.
 
 기대 기간(`expected_period`) [실측 09-28]: 평일 = `이번달` = 이번 달 1일~어제 · **매월 1일** = `지난달` = 지난달 1일~말일(31일 달도 한 파일, 8/1~8/31 실측 ⑤). 보고서 4개의 형식에 `이번달`이 저장돼 있어 평일에는 열면 이미 기대 기간이다(①) — 그래서 평일은 프리셋 클릭 없이 ④로 간다.
 
@@ -55,7 +56,7 @@ python scripts\fetch_reports.py --prev C:\Users\<사용자>\saero-fetch\download
 | `[FAIL] 목록 URL에 도달하지 못함 … --login` (exit 1) | 로그인 세션 만료 → `python scripts\fetch_reports.py --login` 다시(사용자가 창에서 로그인) → 본 실행 |
 | `[FAIL] 허용 목록 밖 동작` / `금지 요소 클릭 시도 차단` (exit 1) | 코드가 클릭 직전에 멈춘 것(설정 변경 방지). 화면이 바뀐 신호 — 아래 "화면 변경" |
 | `목록에 보고서 링크 '…' 없음` | 목록의 보고서 이름과 config `report_names` 키가 다른지(스크린샷 `*_no_link.png`) |
-| `보고서 화면(돌아가기 버튼)이 뜨지 않음` · `기간을 읽지 못함` · `프리셋 … 없음` · `확인/조회하기/다운로드 버튼을 찾지 못함` · `다운로드가 시작되지 않음` | **화면 변경**: `--debug`로 다시 돌려 `debug/` 스크린샷 전부 + `summary.json`을 세션에 첨부 → 세션이 문구·순서를 고친다(config `period_opener`·`download_menu_item`·`allowed_actions` 값으로 고칠 수 있는 범위면 config만) |
+| `보고서 화면(돌아가기 버튼)이 뜨지 않음` · `기간을 읽지 못함` · `프리셋 … 없음` · `확인/조회하기/다운로드 버튼을 찾지 못함` · `다운로드가 시작되지 않음` | **화면 변경**: `--debug`로 다시 돌려 `debug/` 전부(png·`.aria.txt`·`.inventory.json`) + `summary.json`을 세션에 첨부 → 세션이 문구·순서를 고친다(config `period_opener`·`download_menu_item`·`allowed_actions` 값으로 고칠 수 있는 범위면 config만) |
 | 위로도 셀렉터가 안 잡히면(왕복 3회) | 로그인된 전용 프로필로 **녹화**해 파일을 첨부한다(녹화 중 **로그인·비밀번호 입력 금지**, 이미 로그인된 프로필이라 필요 없다): |
 
 ```
@@ -94,4 +95,6 @@ python -m playwright codegen --channel chrome --user-data-dir "C:\Users\<사용�
 
 ## 9. PC 왕복 절차 (구현 회차, 최대 3회)
 
-세션이 브랜치를 push → 사용자 PC에서 `git pull`(브랜치 `feat-report-fetch` checkout) → 1절 설치 → `--dry-run` → `--login` → 본 실행 `--debug` → 콘솔 출력 전문·`debug/` 스크린샷·`summary.json`·(성공 시) 4개 CSV를 세션에 첨부 → 세션이 문구·config를 고쳐 다시 push. 3회 안에 셀렉터가 안 잡히면 5절 codegen 녹화. 왕복마다 결과를 `audit/last-audit.md` 구현 기준선 "PC 왕복 기록"에 남긴다.
+세션이 브랜치를 push → 사용자 PC에서 `git pull`(브랜치 `feat-report-fetch` checkout) → 1절 설치 → `--dry-run` → `--login` → 본 실행 `--debug` → 콘솔 출력 전문·`debug/` 전부(png·`.aria.txt`·`.inventory.json`)·`summary.json`·(성공 시) 4개 CSV를 세션에 첨부 → 세션이 문구·config를 고쳐 다시 push. 3회 안에 셀렉터가 안 잡히면 5절 codegen 녹화. 왕복마다 결과를 `audit/last-audit.md` 구현 기준선 "PC 왕복 기록"에 남긴다.
+
+왕복 1(2026-09-28, PC Python 3.12·pip 25.0.1·Playwright 1.63.0·크로미움 v1243·설치된 크롬 channel) [실측: 사용자 콘솔 화면 2장]: 설치·`--dry-run`·`--login`(`[OK] 목록 URL 도달 · 4/4개`) 통과. 본 실행은 `시간대별 보고서` 링크 클릭 → `돌아가기` 확인(보고서 열림)까지 되고 **기간 텍스트를 못 읽어** 실패, 그 뒤 목록 복귀가 없어 나머지 3개가 `링크 없음`(코드 결함 → `back_to_list` 신설). 실제 기간 표시 DOM은 아직 [미실측] → 왕복 2는 `read_period` 3단계 폴백 + `.aria.txt`·`.inventory.json`으로 확정한다.

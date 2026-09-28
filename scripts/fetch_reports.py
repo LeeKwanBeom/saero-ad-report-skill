@@ -61,8 +61,8 @@ except Exception:  # pragma: no cover
 
 KST = dt.timezone(dt.timedelta(hours=9))
 HEAD_RE = re.compile(r"\((\d{4})\.(\d{2})\.(\d{2})\.~(\d{4})\.(\d{2})\.(\d{2})\.\)\s*\"?,\s*(\d+)")  # archive.py 51행과 같은 식
-DATE_RE = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})\.")
-RANGE_RE = re.compile(r"\d{4}\.\d{2}\.\d{2}\.\s*(?:→|~|-)\s*\d{4}\.\d{2}\.\d{2}\.")
+DATE_RE = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})\.?")  # 읽기용 — 끝 점은 있어도 없어도(왕복 1: 실물 표기 미확정)
+RANGE_RE = re.compile(r"\d{4}\.\d{2}\.\d{2}\.?\s*(?:→|~|-|–|—|>)?\s*\d{4}\.\d{2}\.\d{2}\.?")  # 화살표가 아이콘이면 구분자 없이 붙는다
 DATED = ("키워드", "검색어", "상세지역")  # `일별` 컬럼이 있는 종류(시간대별은 없다)
 ACTIONS = ("open_report", "open_period", "preset", "confirm", "query", "download", "back")  # 코드가 아는 동작 전부
 DEFAULT_TIMEOUTS = {"page": 40, "download": 90, "login": 600}
@@ -352,12 +352,12 @@ def name_ok(text, label):
     return t == label or re.fullmatch(r"[\W_]*" + re.escape(label) + r"[\W_]*", t) is not None
 
 
-def locate(page, label, roles=("button", "link")):
-    """role·text 기준 로케이터 — 보이는 첫 요소. label이 문자열이면 문구 일치(name_ok), 정규식이면 그 패턴. 좌표 없음."""
-    if isinstance(label, str):
-        cands = [page.get_by_role(r, name=label) for r in roles] + [page.get_by_text(label)]
-    else:
-        cands = [page.get_by_role(r, name=label) for r in roles] + [page.get_by_text(label)]
+def locate(page, label, roles=("button", "link"), text_fallback=True):
+    """role·text 기준 로케이터 — 보이는 첫 요소. label이 문자열이면 문구 일치(name_ok), 정규식이면 그 패턴. 좌표 없음.
+    text_fallback=False면 역할(button·link…)로만 찾는다(제목 h2 같은 글자만 있는 요소를 링크로 오인하지 않게 — 왕복 2 시험)."""
+    cands = [page.get_by_role(r, name=label) for r in roles]
+    if text_fallback:
+        cands.append(page.get_by_text(label))
     for c in cands:
         try:
             n = c.count()
@@ -381,10 +381,16 @@ def click_allowed(action, locator, rf, log=None):
     if action not in rf["allowed_actions"]:
         raise SystemExit(f"[FAIL] 허용 목록 밖 동작 {action!r} — 클릭하지 않음(config report_fetch.allowed_actions: "
                          f"{list(rf['allowed_actions'])})")
-    try:
-        text = (locator.inner_text() or "").strip()
-    except Exception:
-        text = ""
+    parts = []
+    for getter in (lambda: locator.inner_text(), lambda: locator.get_attribute("aria-label"), lambda: locator.get_attribute("title"),
+                   lambda: locator.input_value()):
+        try:
+            v = getter()
+            if v:
+                parts.append(str(v).strip())
+        except Exception:
+            pass
+    text = " | ".join(parts)
     for bad in rf["forbidden_actions"]:
         if bad and bad in text:
             raise SystemExit(f"[FAIL] 금지 요소 클릭 시도 차단: 동작 {action} → 요소 문구 {text!r} (forbidden_actions {bad!r}) — "
@@ -395,24 +401,90 @@ def click_allowed(action, locator, rf, log=None):
 
 
 def read_period(page):
-    """보고서 화면의 기간 텍스트(`YYYY.MM.DD. → YYYY.MM.DD.`) → (시작, 끝, 읽은 방법). 못 읽으면 (None, None, 이유)."""
-    el = locate(page, RANGE_RE, roles=())
-    if el is not None:
-        ds = DATE_RE.findall(el.inner_text())
-        if len(ds) >= 2:
+    """보고서 화면의 기간 → (시작, 끝, 읽은 방법). 못 읽으면 (None, None, 이유). 읽기만 한다(클릭·입력 0).
+    ① 기간 텍스트 `YYYY.MM.DD. → YYYY.MM.DD.`(가장 짧은 보이는 요소) ② 날짜 값을 가진 보이는 input 두 개(RangePicker형) ③ 본문 한 줄에 날짜 2개."""
+    try:
+        cands = page.get_by_text(RANGE_RE)
+        best = None
+        for i in range(min(cands.count(), 30)):
+            el = cands.nth(i)
+            try:
+                if not el.is_visible():
+                    continue
+                t = " ".join(el.inner_text().split())
+            except Exception:
+                continue
+            if len(DATE_RE.findall(t)) >= 2 and (best is None or len(t) < len(best)):
+                best = t
+        if best:
+            ds = DATE_RE.findall(best)
             return _d(ds[0]), _d(ds[1]), "range-text"
-    try:  # 입력칸 두 개(팝업이 열려 있을 때)
-        vals = []
-        inputs = page.locator("input")
-        for i in range(min(inputs.count(), 40)):
-            v = inputs.nth(i).input_value() if inputs.nth(i).is_visible() else ""
-            if DATE_RE.fullmatch(v.strip()):
-                vals.append(v.strip())
-        if len(vals) >= 2:
-            return _d(DATE_RE.match(vals[0]).groups()), _d(DATE_RE.match(vals[1]).groups()), "inputs"
+    except Exception:
+        pass
+    try:  # ② 값이 날짜인 input(읽기 전용 표시칸·팝업 입력칸) — 한 번의 evaluate로 전부 읽는다
+        vals = page.evaluate(
+            "() => Array.from(document.querySelectorAll('input')).filter(e => e.offsetWidth || e.offsetHeight || e.getClientRects().length)"
+            ".map(e => e.value || '')")
+        ds = [DATE_RE.search(v).groups() for v in vals if DATE_RE.search(v or "")]
+        if len(ds) >= 2:
+            return _d(ds[0]), _d(ds[1]), "inputs"
+    except Exception:
+        pass
+    try:  # ③ 본문에서 날짜 2개가 한 줄에 있는 첫 줄(집계 완료 시간 띠는 날짜 1개라 걸리지 않는다)
+        for line in page.inner_text("body").splitlines():
+            ds = DATE_RE.findall(line)
+            if len(ds) >= 2:
+                return _d(ds[0]), _d(ds[1]), "body-line"
     except Exception:
         pass
     return None, None, "기간 텍스트를 찾지 못함"
+
+
+def period_target(page, rf):
+    """기간 팝업을 여는 요소 — config period_opener가 있으면 그 이름, 없으면 기간 텍스트, 그것도 없으면 날짜 값을 가진 첫 textbox."""
+    opener = rf.get("period_opener")
+    if opener:
+        return locate(page, opener)
+    el = locate(page, RANGE_RE, roles=())
+    if el is not None:
+        return el
+    try:
+        boxes = page.get_by_role("textbox")
+        for i in range(min(boxes.count(), 80)):
+            b = boxes.nth(i)
+            if b.is_visible() and DATE_RE.search(b.input_value() or ""):
+                return b
+    except Exception:
+        pass
+    return None
+
+
+def dump_inventory(page, path):
+    """실패·디버그용 읽기 전용 목록: 날짜가 든 요소·input·button·link의 태그/역할/이름/클래스/문구를 파일로(다음 왕복에서 로케이터 확정용).
+    자격 증명·쿠키는 담기지 않는다(화면 문구만)."""
+    js = r"""() => {
+      const vis = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+      const info = e => ({tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || '', id: e.id || '', cls: (e.className && e.className.baseVal !== undefined ? '' : (e.className || '')).toString().slice(0, 120),
+                          aria: e.getAttribute('aria-label') || '', text: (e.innerText || e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 120),
+                          value: e.value === undefined ? '' : String(e.value).slice(0, 60), placeholder: e.placeholder || '', type: e.type || '', visible: vis(e)});
+      const out = {url: location.href, title: document.title, dates: [], inputs: [], clickables: []};
+      const re = /\d{4}\.\d{2}\.\d{2}/;
+      for (const e of document.querySelectorAll('body *')) {
+        if (e.children.length === 0 && re.test(e.textContent || '') && vis(e)) out.dates.push(info(e));
+        if (out.dates.length > 60) break;
+      }
+      for (const e of document.querySelectorAll('input, textarea, select')) { out.inputs.push(info(e)); if (out.inputs.length > 200) break; }
+      for (const e of document.querySelectorAll('button, a, [role=button], [role=link], [role=menuitem], [role=option], li')) {
+        if (vis(e)) out.clickables.push(info(e)); if (out.clickables.length > 300) break; }
+      return out;
+    }"""
+    try:
+        data = page.evaluate(js)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+        return path
+    except Exception:
+        return None
 
 
 def _d(g):
@@ -435,6 +507,12 @@ class Shot:
             self.page.screenshot(path=path, full_page=False)
         except Exception:
             return None
+        try:  # 접근성 트리(역할·이름) — 다음 왕복에서 로케이터를 확정하는 근거. 화면 문구만 담긴다
+            with open(path[:-4] + ".aria.txt", "w", encoding="utf-8") as f:
+                f.write(self.page.locator("body").aria_snapshot())
+        except Exception:
+            pass
+        dump_inventory(self.page, path[:-4] + ".inventory.json")
         return path
 
 
@@ -452,7 +530,7 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
         rec["error"] = f"목록에 보고서 링크 {name!r} 없음"
         shot.take(f"{kind}_no_link", force=True)
         return rec
-    link = locate(page, name, roles=("link", "button"))
+    link = locate(page, name, roles=("link", "button"), text_fallback=False) or locate(page, name, roles=("link", "button"))
     click_allowed("open_report", link, rf, log)
     if not wait_until(lambda: locate(page, rf["allowed_actions"]["back"]) is not None, T["page"]):
         rec["error"] = "보고서 화면(돌아가기 버튼)이 뜨지 않음"
@@ -461,6 +539,7 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
     shot.take(f"{kind}_opened")
     step("보고서 열림")
 
+    wait_until(lambda: read_period(page)[0] is not None, T["page"])  # 기간 표시는 보고서 정의가 로드된 뒤에 그려질 수 있다(왕복 1)
     s, e, how = read_period(page)
     rec["period_read"] = {"start": fmt(s) if s else None, "end": fmt(e) if e else None, "how": how}
     if s is None:
@@ -472,8 +551,8 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
     rec["preset_clicked"] = False
     if (s, e) != want:
         step(f"기대 {plan['start']}~{plan['end']}와 다름 → 프리셋 `{plan['preset']}`")
-        opener = rf.get("period_opener")  # null이면 기간 텍스트 자체를 클릭, 문자열이면 그 이름의 버튼(예: 달력 아이콘의 접근성 이름)
-        period_el = locate(page, opener) if opener else locate(page, RANGE_RE, roles=())
+        opener = rf.get("period_opener")  # null이면 기간 텍스트(없으면 날짜 값 textbox)를 클릭, 문자열이면 그 이름의 요소(예: 달력 아이콘)
+        period_el = period_target(page, rf)
         if period_el is None:
             rec["error"] = "기간 표시 요소(팝업 열기)를 찾지 못함" + (f" — period_opener {opener!r}" if opener else "")
             shot.take(f"{kind}_no_period_el", force=True)
@@ -544,16 +623,41 @@ def fetch_one(page, item, plan, rf, stage, shot, log):
     if fname != item["expected_file"]:
         rec.setdefault("warn", []).append(f"파일명 {fname!r} ≠ 기대 {item['expected_file']!r}")
 
-    back = locate(page, rf["allowed_actions"]["back"])
-    if back is not None:
-        click_allowed("back", back, rf, log)
-        wait_until(lambda: locate(page, name, roles=("link", "button")) is not None, T["page"])
-    else:
-        page.goto(rf["list_url"])
-        wait_until(lambda: locate(page, name, roles=("link", "button")) is not None, T["page"])
+    back_to_list(page, rf, log)
     shot.take(f"{kind}_back")
     rec["status"] = "downloaded"
     return rec
+
+
+def on_list(page, rf):
+    """목록 화면인지 — 목록 URL이고 보고서 이름이 링크·버튼 역할로 2개 이상 보일 때(보고서 화면의 제목 글자는 세지 않는다)."""
+    if not at_list(page, rf):
+        return False
+    seen = sum(locate(page, n, roles=("link", "button"), text_fallback=False) is not None for n in rf["report_names"])
+    return seen >= min(2, len(rf["report_names"]))
+
+
+def back_to_list(page, rf, log=None):
+    """보고서 화면에서 목록으로 — `돌아가기`가 보이면 클릭, 아니면 목록 URL로 이동. 성공·실패 어느 경우에도 다음 보고서 전에 호출한다(왕복 1 결함: 실패 뒤 목록 복귀가 없어 나머지 3개가 '링크 없음')."""
+    T = rf["timeout_sec"]
+    if on_list(page, rf):
+        return True
+    back = locate(page, rf["allowed_actions"]["back"])
+    if back is not None:
+        try:
+            click_allowed("back", back, rf, log)
+        except SystemExit:
+            raise
+        except Exception:
+            pass
+    ok = wait_until(lambda: on_list(page, rf), T["page"] / 2)
+    if not ok:
+        try:
+            page.goto(rf["list_url"])
+        except Exception:
+            pass
+        ok = wait_until(lambda: on_list(page, rf), T["page"])
+    return ok
 
 
 def cmd_login(rf, headless=False):
@@ -631,6 +735,8 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
                     pass
             records.append(rec)
             log(f"  → {item['kind']}: {rec['status']}" + (f" ({rec.get('error')})" if rec.get("error") else ""))
+            if rec["status"] != "downloaded":  # 실패한 보고서 뒤에도 목록으로 돌아가 다음 보고서를 시도한다
+                back_to_list(page, rf, log)
         ctx.close()
 
     # ---- 검사

@@ -373,6 +373,54 @@ class BrowserTests(unittest.TestCase):
         self.assertIn("store 금지", out)
         self.assertTrue(any(f.endswith("_no_link.png") for f in os.listdir(os.path.join(stage, "debug"))))
 
+    def test_4_inputs_ui_with_delay_and_day1_preset(self):
+        """RangePicker형(기간이 input 2개 + 아이콘)이고 표시가 늦게 그려져도 읽고, 1일엔 textbox를 눌러 프리셋을 고른다."""
+        dl, prof = os.path.join(self.tmp, "dl4"), os.path.join(self.tmp, "prof4")
+        rf = rf_for(self.srv.url("auto=1&today=2026-09-28&ui=inputs&delay=900"), dl, prof)
+        code, out = self.run_quiet(F.cmd_login, rf, headless=True)
+        self.assertEqual(code, 0, out)
+        code, out = self.run_quiet(F.cmd_fetch, rf, D(2026, 9, 28), headless=True)
+        self.assertEqual(code, 0, out)
+        summ = load_json(os.path.join(dl, "2026-09-28", "summary.json"))
+        for r in summ["reports"]:
+            self.assertEqual(r["status"], "ok", r)
+            self.assertEqual(r["period_read"]["how"], "inputs", r["period_read"])
+            self.assertFalse(r["preset_clicked"])
+        rf1 = rf_for(self.srv.url("auto=1&today=2026-10-01&ui=inputs&delay=900"), dl, prof)
+        code, out = self.run_quiet(F.cmd_fetch, rf1, D(2026, 10, 1), headless=True)
+        self.assertEqual(code, 0, out)
+        summ1 = load_json(os.path.join(dl, "2026-10-01", "summary.json"))
+        for r in summ1["reports"]:
+            self.assertTrue(r["preset_clicked"], r)
+            self.assertEqual(r["check"]["period"], ["2026.09.01.", "2026.09.30."])
+        self.assertIn("클릭 open_period:", out)
+
+    def test_5_period_missing_on_one_report_others_still_downloaded(self):
+        """왕복 1 재현: 첫 보고서 화면에서 기간을 못 읽어 실패해도 목록으로 돌아가 나머지 3개를 받는다(exit 2, partial 3개)."""
+        dl, prof = os.path.join(self.tmp, "dl5"), os.path.join(self.tmp, "prof5")
+        rf = rf_for(self.srv.url("auto=1&today=2026-09-28&noperiod=" + "시간대별 보고서"), dl, prof, timeout_sec={"page": 3, "download": 10, "login": 20})
+        code, out = self.run_quiet(F.cmd_fetch, rf, D(2026, 9, 28), debug=True, headless=True)
+        self.assertEqual(code, 2, out)
+        stage = os.path.join(dl, "partial", "2026-09-28")
+        files = sorted(f for f in os.listdir(stage) if f.endswith(".csv"))
+        self.assertEqual(files, sorted(["상세지역_보고서_2580077.csv", "검색어_보고서_2580077.csv", "필라테스_보고서_2580077.csv"]))
+        summ = load_json(os.path.join(stage, "summary.json"))
+        st = {r["kind"]: r for r in summ["reports"]}
+        self.assertEqual(st["시간대별"]["status"], "fail")
+        self.assertIn("기간을 읽지 못함", st["시간대별"]["error"])
+        for k in ("상세지역", "검색어", "키워드"):
+            self.assertEqual(st[k]["status"], "ok", st[k])
+        self.assertFalse(os.path.exists(os.path.join(dl, "2026-09-28")))
+        dbg = os.listdir(os.path.join(stage, "debug"))
+        self.assertTrue(any(f.endswith("_no_period.png") for f in dbg), dbg)
+        self.assertTrue(any(f.endswith("_no_period.aria.txt") for f in dbg), dbg)
+        self.assertTrue(any(f.endswith("_no_period.inventory.json") for f in dbg), dbg)
+        inv = load_json(os.path.join(stage, "debug", [f for f in dbg if f.endswith("_no_period.inventory.json")][0]))
+        self.assertIn("clickables", inv)
+        self.assertTrue(any("돌아가기" in c["text"] for c in inv["clickables"]))
+        with open(os.path.join(stage, "debug", [f for f in dbg if f.endswith("_no_period.aria.txt")][0]), encoding="utf-8") as f:
+            self.assertIn("돌아가기", f.read())
+
     def test_3_not_logged_in_exit1(self):
         dl, prof = os.path.join(self.tmp, "dl3"), os.path.join(self.tmp, "prof3")
         rf = rf_for(self.srv.url("today=2026-09-28"), dl, prof, timeout_sec={"page": 3, "download": 10, "login": 4})

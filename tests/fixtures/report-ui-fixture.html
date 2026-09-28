@@ -19,6 +19,8 @@
   목록(보고서 4개 링크, `+ 새 보고서`, 행마다 `삭제`) → 보고서 화면(`← 돌아가기`·`보고서 형식 저장 ∨`·`다운로드`·기간 텍스트·달력·
   `조회하기`) → 기간 팝업(프리셋 목록·시작/끝 입력칸·취소·확인). 다운로드는 현재 기간으로 CSV(첫 줄 기간 헤더·2행 컬럼 원문·
   utf-8 BOM·LF)를 만든다. 쿼리: today=YYYY-MM-DD(가짜 오늘, 기본 2026-09-28) · auto=1(login.html이 1.5초 뒤 자동 로그인).
+  ui=inputs(기간을 텍스트 대신 읽기 전용 input 2개 + 아이콘으로 표시, RangePicker형) · delay=<ms>(기간 표시를 그만큼 늦게 그림) ·
+  noperiod=<보고서 이름>(그 보고서만 기간 표시 없음 — 왕복 1 실패 재현용).
   로그인 상태는 localStorage `saero_fixture_login`. 실제 사이트와 무관하며 네트워크 0.
 -->
 <div id="list">
@@ -37,7 +39,7 @@
   <button id="back">← 돌아가기</button>
   <button id="saveFormat">보고서 형식 저장 ∨</button>
   <button id="download">다운로드</button>
-  <span id="period"></span> <button id="calendar" aria-label="달력">📅</button> <button>&lt;</button> <button>&gt;</button> <span>∧ 접기</span>
+  <span id="period"></span><span id="periodInputs" class="hidden"><input id="ps" readonly size="12"> <i>🡒</i> <input id="pe" readonly size="12"></span> <button id="calendar" aria-label="달력">📅</button> <button>&lt;</button> <button>&gt;</button> <span>∧ 접기</span>
   <h2 id="title"></h2>
   <div>보고서 항목 목록: 캠페인 · 캠페인 유형 · 광고그룹 · 광고그룹 유형 · 키워드 · 소재 · 소재 유형 · 비즈채널</div>
   <div>보고서 설정하기: <span id="item"></span> <button title="항목 제거">×</button></div>
@@ -99,7 +101,18 @@
     document.body.innerHTML = "<h1>FORBIDDEN_CLICKED " + ev.target.textContent + "</h1>";
   }));
   function show(id, on) { document.getElementById(id).classList.toggle("hidden", !on); }
-  function renderPeriod() { document.getElementById("period").textContent = f(period[0]) + " → " + f(period[1]); }
+  const UI = q.get("ui") || "text", DELAY = +(q.get("delay") || 0), NOPERIOD = q.get("noperiod") || "";
+  function renderPeriod() {
+    const txt = document.getElementById("period"), box = document.getElementById("periodInputs");
+    txt.textContent = ""; document.getElementById("ps").value = ""; document.getElementById("pe").value = "";
+    if (cur && cur[0] === NOPERIOD) { show("periodInputs", false); show("calendar", false); return; }
+    show("calendar", true);
+    const draw = () => {
+      if (UI === "inputs") { show("periodInputs", true); document.getElementById("ps").value = f(period[0]); document.getElementById("pe").value = f(period[1]); }
+      else { show("periodInputs", false); txt.textContent = f(period[0]) + " → " + f(period[1]); }
+    };
+    if (DELAY > 0) setTimeout(draw, DELAY); else draw();
+  }
   function open(name) {
     cur = REPORTS.find(r => r[0] === name);
     period = preset("이번달");  // 보고서 형식에 `이번달`이 저장돼 있다(09-28 실측 ①)
@@ -123,6 +136,8 @@
   }
   document.getElementById("period").addEventListener("click", openPopup);
   document.getElementById("calendar").addEventListener("click", openPopup);
+  document.getElementById("ps").addEventListener("click", openPopup);
+  document.getElementById("pe").addEventListener("click", openPopup);
   document.getElementById("cancel").addEventListener("click", () => show("popup", false));
   document.getElementById("confirm").addEventListener("click", () => {
     const p = v => { const m = /(\d{4})\.(\d{2})\.(\d{2})\./.exec(v); return new Date(+m[1], +m[2]-1, +m[3]); };
