@@ -2,7 +2,7 @@
 """합본 4종 + config → 12개 섹션 값 JSON (5단계의 유일한 계산 출처 — 즉석 계산 금지).
 
 사용법:
-    python3 scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [-o out.json]
+    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [-o out.json]
 
 - 키는 report-structure.md 절 번호("KPI","01"~"10") + "masthead","og","minwidth","nlabels". 자리마다 값이 있어
   다음 회차의 자동 교체(E2)가 그대로 쓸 수 있게 한다. 11·12번은 계산 대상이 아니다(사람이 쓴다).
@@ -14,10 +14,17 @@
 import argparse
 import json
 import re
+import sys
 
 import pandas as pd
 
 from reportlib import day_list, exclude_groups, load_config, read_csv, read_html, section
+
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 WD = "월화수목금토일"
 

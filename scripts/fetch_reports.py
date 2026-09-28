@@ -5,11 +5,11 @@
 다르면 프리셋(`이번달`/`지난달`) 클릭 → `확인` → 다시 읽어 기대와 같은지 확인 → `조회하기` → `다운로드`(download 이벤트)
 → 저장 → `돌아가기`. 4개 반복 → 파일마다 검사 → 4개 교차 검사 → summary.json.
 
-모드(전부 저장소 루트에서, PC PowerShell):
-    python scripts\\fetch_reports.py --dry-run            브라우저 0. 할 일 표(보고서 4개·기대 기간·저장 경로)만 출력, 파일·폴더 변경 0.
-    python scripts\\fetch_reports.py --login              전용 크롬 프로필로 창을 띄우고 사용자가 직접 로그인('로그인 상태 유지')할
-                                                         때까지 기다린 뒤 목록 URL 도달을 확인하고 닫는다. 폼 입력 0.
-    python scripts\\fetch_reports.py [--prev <폴더>] [--debug]   기본 실행: 4개 다운로드 + 검사.
+모드(전부 작업 폴더 = 저장소 루트에서, Code 탭 Git Bash — $PY = 저장소 밖 venv 파이썬, references/code-tab.md 1절):
+    "$PY" scripts/fetch_reports.py --dry-run            브라우저 0. 할 일 표(보고서 4개·기대 기간·저장 경로)만 출력, 파일·폴더 변경 0.
+    "$PY" scripts/fetch_reports.py --login              전용 크롬 프로필로 창을 띄우고 사용자가 직접 로그인('로그인 상태 유지')할
+                                                       때까지 기다린 뒤 목록 URL 도달을 확인하고 닫는다. 폼 입력 0.
+    "$PY" scripts/fetch_reports.py [--prev <폴더>] [--debug]   기본 실행: 4개 다운로드 + 검사.
         --prev   직전 4개 폴더(또는 저장소 data/YYYY-MM)와 겹치는 날짜의 일별 노출·클릭·비용을 비교, 다르면 WARN(막지 않음).
         --debug  단계마다 스크린샷을 저장 폴더 debug/ 에 남긴다.
         --today YYYY-MM-DD   기대 기간 계산 기준일(시험용. 기본 = KST 오늘).
@@ -17,8 +17,9 @@
 
 결과: 성공이면 <download_dir>/<YYYY-MM-DD>/ 에 원본 이름 그대로 4개 + summary.json (exit 0).
       4개 중 하나라도 실패면 받은 파일은 <download_dir>/partial/<YYYY-MM-DD>/ 에만 두고 정상 폴더에는 남기지 않는다 (exit 2).
-      로그인 필요·사용법·환경 오류·금지 클릭 시도 차단은 exit 1.
-      store 이후(archive.py store → combine → …)는 현재 흐름 그대로 — 사용자가 4개를 세션에 올린다.
+      로그인 필요·환경 오류·금지 클릭 시도 차단은 exit 1. 인자(사용법) 오류는 argparse가 exit 2로 끝낸다 — 부분 실패와
+      같은 값이라 출력 첫 줄 `usage:`로 가른다(references/code-tab.md 5절).
+      store 이후는 Code 탭 1단계 `scripts/ingest.sh <성공 폴더의 CSV 4개>`(references/code-tab.md 3절) — 업로드 없음.
 
 규칙(값 정의는 config `report_fetch`, 문서 = `references/report-fetch.md`):
   - 로케이터는 role·text 기준만. 좌표 클릭·키 입력·드래그 0.
@@ -57,10 +58,11 @@ except ImportError as _e:  # 사용자 PC에는 pandas가 없을 수 있다(repo
         except FileNotFoundError:
             raise SystemExit(f"설정 파일이 없습니다: {cfg}\n스킬 저장소를 통째로 받았는지 확인하세요.")
 
-try:  # Windows 콘솔 한글
-    sys.stdout.reconfigure(encoding="utf-8")
-except Exception:  # pragma: no cover
-    pass
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글 — stderr(SystemExit 문구)도 utf-8
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 KST = dt.timezone(dt.timedelta(hours=9))
 HEAD_RE = re.compile(r"\((\d{4})\.(\d{2})\.(\d{2})\.~(\d{4})\.(\d{2})\.(\d{2})\.\)\s*\"?,\s*(\d+)")  # archive.py 51행과 같은 식
@@ -483,7 +485,8 @@ def click_allowed(action, locator, rf, log=None, timeout=None):
     for bad in rf["forbidden_actions"]:
         if bad and bad in text:
             raise SystemExit(f"[FAIL] 금지 요소 클릭 시도 차단: 동작 {action} → 요소 문구 {text!r} (forbidden_actions {bad!r}) — "
-                             "화면이 바뀐 것 같으니 --debug 스크린샷을 첨부해 주세요")
+                             "화면이 바뀐 것 같다 — summary.json은 없다. 단계 스크린샷은 이번 실행을 --debug로 돌렸을 때만 partial/<날짜>/debug/에 있다"
+                             "(차단 순간 컷은 없다). 재실행은 partial/<날짜>/를 지우니 먼저 읽는다 — --debug로 다시 돌릴지는 사용자가 정한다")
     if log:
         log(f"클릭 {action}: {text!r}"[:160])
     locator.click(timeout=(timeout if timeout is not None else rf["timeout_sec"]["click"]) * 1000)
@@ -838,7 +841,7 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
             shot.take("not_logged_in", force=True)
             ctx.close()
             print(f"[FAIL] 목록 URL에 도달하지 못함(현재 {current_url(page)[:100]}) — 로그인 세션이 끝난 것 같습니다. "
-                  f"`python scripts\\fetch_reports.py --login` 을 다시 실행하세요")
+                  f"`--login` 을 다시 실행하세요(Code 탭: \"$PY\" scripts/fetch_reports.py --login — 백그라운드, 사용자가 창에서 로그인)")
             return 1
         shot.take("list")
         for item in plan["items"]:
@@ -917,7 +920,8 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
         shutil.rmtree(stage, ignore_errors=True)
         print(f"[PASS] 4개 다운로드·검사 통과 → {day_dir}")
         _table(records)
-        print("다음: 이 4개를 세션에 올리면 1단계(archive.py store → combine)가 이어진다. 검사 통과 전·부분 실패에는 store 하지 않는다.")
+        print(f"다음: Code 탭 1단계 — PY=<venv 파이썬> scripts/ingest.sh \"{day_dir.replace(os.sep, '/')}\"/*.csv (references/code-tab.md 3절). "
+              "검사 통과 전·부분 실패에는 store 하지 않는다.")
         return 0
     summary["folder"] = stage
     with open(os.path.join(stage, "summary.json"), "w", encoding="utf-8") as f:

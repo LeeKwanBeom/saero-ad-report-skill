@@ -3,7 +3,7 @@
 validate.py · archive.py 검사 생존 확인(파괴 실험).
 
 사용법:
-    python3 tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
+    "$PY" tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
 
 동작:
   1. 스킬 저장소의 scripts/·config/·data/ 와 인자로 받은 index.html·CSV 4개를 임시 디렉토리에
@@ -31,6 +31,12 @@ import subprocess
 import sys
 import tempfile
 from datetime import date, timedelta
+
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — 다른 시험·스크립트와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -102,7 +108,7 @@ def archive_experiments(work):
         shutil.copytree(os.path.join(pristine, "data"), data)
 
     def run(*args):
-        r = subprocess.run([sys.executable, os.path.join(arch, "scripts", "archive.py"), *args], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, os.path.join(arch, "scripts", "archive.py"), *args], capture_output=True, text=True, encoding="utf-8")
         return r.returncode, (r.stdout + r.stderr).strip().splitlines()[-1] if (r.stdout + r.stderr).strip() else ""
 
     def write(path, text):
@@ -197,7 +203,7 @@ def main():
             with open(cfg_path, "w", encoding="utf-8") as f:
                 f.write(cfg_override if cfg_override else cfg_text)
             r = subprocess.run([sys.executable, validate, paths["html"], paths["kw"], paths["sr"], paths["hr"], paths["rg"]],
-                               capture_output=True, text=True)
+                               capture_output=True, text=True, encoding="utf-8")
             lines = r.stdout.splitlines()
             passed = [l[7:] for l in lines if l.startswith("[PASS] ")]
             failed = [l[7:] for l in lines if l.startswith("[FAIL] ")]

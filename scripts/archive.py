@@ -2,23 +2,25 @@
 """
 네이버 광고 보고서 CSV 월별 보관(store)과 합본 만들기(combine).
 
-네이버 광고시스템은 보고서를 최근 30일까지만 내려준다. 그래서 개업일부터 누적하려면
-원본을 저장소에 쌓아 두고 매 회차 합쳐서 써야 한다.
+보고서는 광고주센터의 `이번달`·`지난달` 프리셋으로 받는다(한 파일 = 한 달 안, 31일 달도 한 파일 — 2026-09-28 실측).
+개업일부터 누적하려면 달마다 받은 원본을 저장소에 쌓아 두고 매 회차 합쳐서 쓴다(SKILL.md "원본 보관 — data/").
+옛 "30일 제한" 전제는 직접 입력한 기간이 30일로 잘리는 것을 일반화한 것이었다 — 그 경우만 아래 --chunk 폴백.
 
 보관 구조:
     data/YYYY-MM/키워드.csv · 검색어.csv · 상세지역.csv · 시간대별.csv
     (네이버가 준 원본 그대로 — 첫 줄 기간 헤더 포함)
 
-사용법:
-    python3 archive.py store <업로드CSV> [<업로드CSV> ...] [--chunk] [--force]
-        업로드 파일을 컬럼으로 종류를 판별하고, 첫 줄 기간 헤더의 달 폴더에 저장한다.
+사용법(작업 폴더 = 저장소 루트에서, Code 탭 Git Bash — $PY = 저장소 밖 venv 파이썬, references/code-tab.md 1절.
+보통은 scripts/ingest.sh가 store·combine·push를 한 번에 부른다):
+    "$PY" scripts/archive.py store <수집 CSV> [<수집 CSV> ...] [--chunk] [--force]
+        수집 파일을 컬럼으로 종류를 판별하고, 첫 줄 기간 헤더의 달 폴더에 저장한다.
         같은 달·같은 종류 파일은 덮어쓴다(이번 달은 매일 1일~어제로 다시 받으므로).
-        --chunk  : 덮어쓰지 않고 조각으로 추가(<종류>_2.csv …). 31일로 끝나는 달의
-                   마지막 날처럼 한 달치를 한 번에 못 받을 때만 쓴다.
+        --chunk  : 덮어쓰지 않고 조각으로 추가(<종류>_2.csv …). 프리셋 대신 기간을 직접 입력해
+                   30일로 잘렸을 때(말일 하루치를 따로 받음)만 쓰는 폴백(SKILL.md 원본 보관).
         --force  : 새 파일 기간이 기존보다 짧아도 덮어쓴다(기본은 거부 — 옛 다운로드를
                    잘못 올려 데이터가 줄어드는 것을 막는다).
 
-    python3 archive.py combine <출력폴더>
+    "$PY" scripts/archive.py combine <출력폴더>
         data/ 아래 전부를 합쳐 <출력폴더>/키워드.csv 등 4개를 만든다. 첫 줄에 합본 기간
         헤더를 넣으므로 validate.py 등 기존 코드는 read_csv(skiprows=1) 그대로 쓴다.
 
@@ -39,6 +41,12 @@ import sys
 from datetime import date, timedelta
 
 import pandas as pd
+
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")

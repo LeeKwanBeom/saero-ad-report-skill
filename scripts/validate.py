@@ -3,7 +3,7 @@
 새로필라테스 광고 리포트 배포 전 검증 — **compute.py와 독립된 검산**.
 
 사용법:
-    python3 validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
+    "$PY" scripts/validate.py <index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
 
 설정값(제외그룹·CTR 기준·차트 폭 규칙·날짜축 섹션·경쟁사 목록)은 config/report-config.json에서 읽는다.
 이 스크립트에 값을 직접 적지 않는다. reportlib.py와 공유하는 것은 읽기·제외그룹 필터·일수·섹션 자르기까지다 —
@@ -38,7 +38,7 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      사용자 답을 기다리며 배포하는 회차(4c08ab3처럼 채팅 질문을 남긴 배포)는 `--pending`을 붙여 이 검사만 허용한다
      (건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다 — 기본은 엄격. 세 범위 중 하나라도 못 찾으면 0건 가드 FAIL.
 
-사용법(옵션): python3 validate.py ... [--pending]
+사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
 안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
@@ -50,10 +50,16 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
 import re
 import sys
 
+for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
+    try:
+        _s.reconfigure(encoding="utf-8")
+    except Exception:  # pragma: no cover
+        pass
+
 try:
     import pandas as pd  # noqa: F401  (reportlib이 필요로 함)
 except ImportError:
-    sys.exit("pandas가 필요합니다: pip install pandas --break-system-packages")
+    sys.exit("pandas가 필요합니다 — Code 탭은 저장소 밖 venv 파이썬(PY)으로 실행한다(references/code-tab.md 1절)")
 
 from reportlib import exclude_groups, load_config, parse_days, read_csv, read_html, section
 
