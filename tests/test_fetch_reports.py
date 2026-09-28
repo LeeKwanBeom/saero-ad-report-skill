@@ -4,6 +4,7 @@
 실행: python3 tests/test_fetch_reports.py   (unittest, 저장소 루트에서)
 검사: config columns = 실 CSV 2행 / 기대 기간(평일·1일) / dry-run 브라우저 0·파일 0(가짜 playwright 패키지로 import 자체를 막음) /
      check_file·cross_check(실 data/2026-09 4파일) / --prev 재집계 WARN / click_allowed 금지 차단 /
+     프로필 다운로드 기록 정리(가짜 History DB: 파일 없는 행만 삭제·파일 있는 행 유지·DB 없음/잠김 WARN) / browser_channel 그대로 /
      Playwright + 로컬 가짜 화면(tests/fixtures): --login 도달 → 4개 다운로드 성공 → 1일엔 `지난달` 프리셋 → 이름 하나 틀리면 exit 2·
      정상 폴더 없음·partial/에만 → 로그인 안 됐으면 exit 1. 브라우저(크로미움)가 없으면 브라우저 시험만 skip.
 """
@@ -16,6 +17,7 @@ import json
 import os
 import shutil
 import socketserver
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -59,6 +61,44 @@ def rf_for(list_url, download_dir, profile_dir, **over):
     cfg["report_fetch"] = {**cfg["report_fetch"], "list_url": list_url, "download_dir": download_dir, "profile_dir": profile_dir,
                            "browser_channel": None, "timeout_sec": {"page": 8, "download": 20, "login": 20}, "settle_sec": 0.2, **over}
     return F.fetch_config(cfg)
+
+
+def make_history(path, targets):
+    """가짜 크롬 History DB — downloads(id, target_path)·downloads_url_chains(id, chain_index, url)·downloads_slices(download_id, …)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    con = sqlite3.connect(path)
+    try:
+        con.execute("CREATE TABLE downloads (id INTEGER PRIMARY KEY, guid VARCHAR NOT NULL, current_path LONGVARCHAR NOT NULL, target_path LONGVARCHAR NOT NULL)")
+        con.execute("CREATE TABLE downloads_url_chains (id INTEGER NOT NULL, chain_index INTEGER NOT NULL, url LONGVARCHAR NOT NULL, PRIMARY KEY (id, chain_index))")
+        con.execute("CREATE TABLE downloads_slices (download_id INTEGER NOT NULL, offset INTEGER NOT NULL, received_bytes INTEGER, finished INTEGER DEFAULT 0, PRIMARY KEY (download_id, offset))")
+        for i, t in enumerate(targets, 1):
+            con.execute("INSERT INTO downloads VALUES (?, ?, ?, ?)", (i, f"guid-{i}", t, t))
+            con.execute("INSERT INTO downloads_url_chains VALUES (?, 0, ?)", (i, f"http://127.0.0.1/{i}.csv"))
+            con.execute("INSERT INTO downloads_url_chains VALUES (?, 1, ?)", (i, f"http://127.0.0.1/{i}-r.csv"))
+            con.execute("INSERT INTO downloads_slices VALUES (?, 0, 10, 1)", (i,))
+        con.commit()
+    finally:
+        con.close()
+
+
+def history_rows(path):
+    con = sqlite3.connect(path)
+    try:
+        return ([r[0] for r in con.execute("SELECT id FROM downloads ORDER BY id")],
+                sorted({r[0] for r in con.execute("SELECT id FROM downloads_url_chains")}),
+                sorted({r[0] for r in con.execute("SELECT download_id FROM downloads_slices")}))
+    finally:
+        con.close()
+
+
+class FakeChromium:
+    """launch()가 넘기는 인자만 기록(브라우저 0)."""
+    def __init__(self):
+        self.calls = []
+
+    def launch_persistent_context(self, profile_dir, **kw):
+        self.calls.append(kw)
+        return "ctx"
 
 
 class FakeLocator:
@@ -231,6 +271,93 @@ class PureTests(unittest.TestCase):
         self.assertEqual(src.count(".click("), 1)
         for bad in ("mouse.", ".fill(", ".type(", ".press(", "drag_to", "password", "비밀번호"):
             self.assertNotIn(bad, src, bad)
+
+    def test_clean_download_history_removes_only_missing_files(self):
+        """결함 1(2회째 실행 크래시): (가) 파일 없는 기록 → 그 행·url_chains·slices 삭제 / (나) 파일 있는 기록 → 그대로(파일도 그대로).
+        DB 자리는 Default/History, 없으면 프로필 바로 밑 History."""
+        tmp = tempfile.mkdtemp()
+        try:
+            real = os.path.join(tmp, "받은 파일.csv")
+            with open(real, "w", encoding="utf-8") as f:
+                f.write("x")
+            gone = os.path.join(tmp, "playwright-artifacts-1", "5f0c-guid")  # 이미 지워진 Playwright 임시 파일
+            for prof, db in ((os.path.join(tmp, "p1"), os.path.join(tmp, "p1", "Default", "History")),
+                             (os.path.join(tmp, "p2"), os.path.join(tmp, "p2", "History"))):
+                make_history(db, [gone, real, ""])  # id 1 = (가), 2 = (나), 3 = 경로 빈 기록(파일 없음 → 삭제)
+                lines = []
+                rec = F.clean_download_history(prof, lines.append)
+                self.assertEqual(rec["status"], "ok", rec)
+                self.assertEqual(rec["db"], db)
+                self.assertEqual((rec["deleted"], rec["chains"], rec["slices"], rec["kept"]), (2, 4, 2, 1), rec)
+                self.assertEqual(history_rows(db), ([2], [2], [2]))
+                self.assertTrue(os.path.exists(real))
+                self.assertEqual(len(lines), 1)
+                self.assertIn("파일 없는 기록 2건 삭제", lines[0])
+                self.assertIn("실제 파일 있는 기록 1건 유지", lines[0])
+                rec2 = F.clean_download_history(prof, lines.append)  # 두 번째는 지울 것이 없다
+                self.assertEqual((rec2["status"], rec2["deleted"], rec2["kept"]), ("ok", 0, 1))
+                self.assertEqual(history_rows(db), ([2], [2], [2]))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_clean_download_history_no_db_or_locked_warns(self):
+        """(다) 기록 DB 자체가 없음 → 무동작 WARN(파일·폴더를 만들지 않음) / DB가 잠겨 있음(브라우저가 잡고 있는 상태) → WARN, 아무것도 안 지움."""
+        tmp = tempfile.mkdtemp()
+        try:
+            prof = os.path.join(tmp, "empty")
+            os.makedirs(prof)
+            lines = []
+            rec = F.clean_download_history(prof, lines.append)
+            self.assertEqual((rec["status"], rec["deleted"], rec["db"]), ("skip", 0, None))
+            self.assertTrue(lines[0].startswith("[WARN]"), lines)
+            self.assertIn("없음", lines[0])
+            self.assertEqual(os.listdir(prof), [])
+            missing = os.path.join(tmp, "없는 프로필")
+            self.assertEqual(F.clean_download_history(missing, lines.append)["status"], "skip")
+            self.assertFalse(os.path.exists(missing))
+            # 잠김: 다른 연결이 쓰기 잠금을 잡고 있으면 [WARN]만, 행은 그대로
+            prof2 = os.path.join(tmp, "locked")
+            db = os.path.join(prof2, "Default", "History")
+            make_history(db, [os.path.join(tmp, "없는 파일.csv")])
+            holder = sqlite3.connect(db, isolation_level=None)
+            try:
+                holder.execute("BEGIN EXCLUSIVE")
+                lines = []
+                rec = F.clean_download_history(prof2, lines.append)
+            finally:
+                holder.close()
+            self.assertEqual((rec["status"], rec["deleted"]), ("skip", 0), rec)
+            self.assertTrue(lines[0].startswith("[WARN]"), lines)
+            self.assertIn("잠김", lines[0])
+            self.assertEqual(history_rows(db), ([1], [1], [1]))
+            # 브라우저가 떠 있다는 표시(SingletonLock)가 있으면 DB를 열지도 않는다
+            if hasattr(os, "symlink"):
+                try:
+                    os.symlink("host-123", os.path.join(prof2, "SingletonLock"))
+                except OSError:
+                    pass
+                else:
+                    lines = []
+                    self.assertEqual(F.clean_download_history(prof2, lines.append)["status"], "skip")
+                    self.assertIn("브라우저가 떠 있음", lines[0])
+                    self.assertEqual(history_rows(db), ([1], [1], [1]))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_launch_channel_respects_config(self):
+        """② config browser_channel 그대로: null → channel 인자 없음(번들 크로미움), "chrome" → channel="chrome"(설치된 크롬)."""
+        tmp = tempfile.mkdtemp()
+        try:
+            for value, want_channel, want_name in ((None, None, "chromium"), ("chrome", "chrome", "chrome")):
+                rf = rf_for("http://127.0.0.1/x", os.path.join(tmp, "dl"), os.path.join(tmp, "prof"), browser_channel=value)
+                fake = FakeChromium()
+                ctx, name = F.launch(type("P", (), {"chromium": fake})(), rf, headless=True)
+                self.assertEqual((ctx, name), ("ctx", want_name))
+                self.assertEqual(fake.calls[0].get("channel"), want_channel)
+            with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
+                self.assertEqual(json.load(f)["report_fetch"]["browser_channel"], "chrome")  # 실사용 값은 설치 크롬 유지
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 # ---------------------------------------------------------------- 브라우저(가짜 화면) 시험

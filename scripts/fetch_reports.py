@@ -25,7 +25,9 @@
   - 클릭은 `click_allowed()` 한 곳에서만 하고, config `allowed_actions` 밖 동작이나 `forbidden_actions` 문구가 든 요소는
     절대 클릭하지 않는다(그 자리에서 멈춘다).
   - 자격 증명·키는 코드·config·로그·summary 어디에도 없다. 로그인은 사용자가 창에서 직접.
-  - 헤드리스 안 씀(사용자가 보는 창). 설치된 크롬(channel=chrome)이 없으면 번들 크로미움.
+  - 헤드리스 안 씀(사용자가 보는 창). 브라우저는 config `browser_channel` 그대로(null = 번들 크로미움, "chrome" = 설치된 크롬 —
+    실행이 안 되면 번들 크로미움).
+  - 브라우저를 띄우기 전에 프로필 다운로드 기록 중 파일이 없는 행만 지운다(`clean_download_history` — 2회째 실행 크래시, 수정 회차 2).
   - 검사(첫 줄·컬럼·행·노출합)가 전부 통과하기 전에는 store 하지 않는다(부분 실패도 store 금지).
 """
 import argparse
@@ -35,6 +37,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import sys
 import time
 
@@ -307,8 +310,75 @@ def _playwright():
     return sync_playwright, PWTimeout
 
 
+def history_db(profile_dir):
+    """프로필의 다운로드 기록 DB — `Default/History`, 없으면 profile_dir 바로 밑 `History`. 둘 다 없으면 None."""
+    for p in (os.path.join(profile_dir, "Default", "History"), os.path.join(profile_dir, "History")):
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def profile_in_use(profile_dir):
+    """이 프로필을 쓰는 브라우저가 떠 있는지 — POSIX는 `SingletonLock` 링크, Windows는 크롬이 잡고 있는 `lockfile`(열리지 않음)."""
+    if os.path.lexists(os.path.join(profile_dir, "SingletonLock")):
+        return True
+    lock = os.path.join(profile_dir, "lockfile")
+    if os.name == "nt" and os.path.exists(lock):
+        try:
+            with open(lock, "a"):
+                pass
+        except OSError:
+            return True
+    return False
+
+
+def clean_download_history(profile_dir, log=print):
+    """launch() 전 프로필 정리(수정 회차 2, 결함 1): 같은 프로필 2회째 실행부터 다운로드 시작 순간 크롬이 0xC0000005로 죽는다 —
+    프로필 다운로드 기록에 이미 지워진 Playwright 임시 파일 경로가 남아 있으면 난다(검증 보고 2026-09-28). 기록 DB(`history_db`)의
+    `downloads`에서 **target_path 파일이 없는 행**과 그에 딸린 `downloads_url_chains`(있으면 `downloads_slices`) 행만 지운다.
+    실제 파일이 있는 기록은 건드리지 않는다. DB가 없거나·브라우저가 떠 있거나·잠김·오류면 [WARN]만 찍고 계속(아무것도 안 지움).
+    반환 dict(status ok/skip, deleted, chains, slices, kept, db, msg)."""
+    rec = {"status": "skip", "deleted": 0, "chains": 0, "slices": 0, "kept": 0, "db": None}
+    db = history_db(profile_dir)
+    if db is None:
+        rec["msg"] = f"[WARN] 프로필 정리: 다운로드 기록 DB(Default/History·History)가 없음 — 무동작 ({profile_dir})"
+    elif profile_in_use(profile_dir):
+        rec["msg"] = f"[WARN] 프로필 정리: 이 프로필을 쓰는 브라우저가 떠 있음 — 정리하지 않고 계속 ({profile_dir})"
+    else:
+        rec["db"] = db
+        try:
+            con = sqlite3.connect(db, timeout=1, isolation_level=None)
+            try:
+                con.execute("BEGIN IMMEDIATE")  # 쓰기 잠금 — 브라우저가 DB를 잡고 있으면 여기서 'database is locked'
+                tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+                gone = []
+                if "downloads" in tables:
+                    for i, target in con.execute("SELECT id, target_path FROM downloads").fetchall():
+                        if target and os.path.exists(target):
+                            rec["kept"] += 1
+                        else:
+                            gone.append((i,))
+                if gone:
+                    if "downloads_url_chains" in tables:
+                        rec["chains"] = con.executemany("DELETE FROM downloads_url_chains WHERE id = ?", gone).rowcount
+                    if "downloads_slices" in tables:
+                        rec["slices"] = con.executemany("DELETE FROM downloads_slices WHERE download_id = ?", gone).rowcount
+                    rec["deleted"] = con.executemany("DELETE FROM downloads WHERE id = ?", gone).rowcount
+                con.execute("COMMIT")
+            finally:
+                con.close()  # COMMIT 전에 오류가 나면 닫으면서 되돌린다
+            rec["status"] = "ok"
+            rec["msg"] = (f"[profile] 다운로드 기록 정리: 파일 없는 기록 {rec['deleted']}건 삭제(url_chains {rec['chains']}건"
+                          + (f"·slices {rec['slices']}건" if rec["slices"] else "") + f") · 실제 파일 있는 기록 {rec['kept']}건 유지")
+        except sqlite3.Error as e:
+            rec["msg"] = f"[WARN] 프로필 정리: 기록 DB 잠김·오류 — 정리하지 않고 계속 ({type(e).__name__}: {e})"
+    log(rec["msg"])
+    return rec
+
+
 def launch(p, rf, headless=False):
-    """전용 프로필(persistent context). 설치된 크롬(channel) → 없으면 번들 크로미움. 반환 (context, 브라우저 이름)."""
+    """전용 프로필(persistent context). config `browser_channel` 그대로 — null이면 번들 크로미움, "chrome"이면 설치된 크롬
+    (실행 실패 시 번들 크로미움). 반환 (context, 브라우저 이름). 프로필 정리(`clean_download_history`)는 호출하는 쪽이 이 앞에서 한다."""
     os.makedirs(rf["profile_dir"], exist_ok=True)
     kwargs = dict(headless=headless, accept_downloads=True)
     if headless:
@@ -316,7 +386,9 @@ def launch(p, rf, headless=False):
     else:
         kwargs["no_viewport"] = True  # 실제 창 크기 그대로
         kwargs["args"] = ["--start-maximized"]
-    channel = rf.get("browser_channel") or "chrome"
+    channel = rf.get("browser_channel")  # 수정 회차 2: 전에는 null도 "chrome"으로 바꿔 시험까지 설치 크롬으로 돌았다
+    if not channel:
+        return p.chromium.launch_persistent_context(rf["profile_dir"], **kwargs), "chromium"
     try:
         return p.chromium.launch_persistent_context(rf["profile_dir"], channel=channel, **kwargs), channel
     except Exception as e:  # 설치된 크롬 없음 등
@@ -711,6 +783,7 @@ def cmd_login(rf, headless=False):
     """전용 프로필로 창을 띄우고 사용자가 직접 로그인할 때까지 기다린 뒤 목록 URL 도달을 확인. 폼 입력 0."""
     sync_playwright, _ = _playwright()
     T = rf["timeout_sec"]
+    clean_download_history(rf["profile_dir"])
     with sync_playwright() as p:
         ctx, browser = launch(p, rf, headless)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
@@ -754,6 +827,7 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
         pw_version = _v("playwright")
     except Exception:
         pw_version = "?"
+    cleanup = clean_download_history(rf["profile_dir"], log)
     with sync_playwright() as p:
         ctx, browser = launch(p, rf, headless)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
@@ -820,6 +894,7 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
     summary = {"date": plan["today"], "started": started, "finished": dt.datetime.now(KST).isoformat(timespec="seconds"),
                "expected": {"preset": plan["preset"], "start": plan["start"], "end": plan["end"]},
                "account_no": rf["account_no"], "list_url": rf["list_url"], "browser": browser, "playwright": pw_version,
+               "steps": [cleanup["msg"]], "profile_cleanup": cleanup,
                "reports": [{k: v for k, v in r.items() if k not in ("check",)} | {"check": _slim(r.get("check"))} for r in records],
                "cross": cross, "prev_compare": prev_detail, "warnings": warnings, "result": result,
                "exit_code": 0 if all_ok else 2, "log": log_lines}

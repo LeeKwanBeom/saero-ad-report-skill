@@ -17,6 +17,8 @@
 버전: v4.6 (2026-09-28 기능 추가 회차 — 보고서 자동 수집 `scripts/fetch_reports.py`(설계안 C, PC Playwright, 브랜치 `feat-report-fetch`): [의도된 동작] 21~24 추가
 (저장된 `이번달` 프리셋 의존 / 매월 1일 `지난달` / 재집계 WARN 비차단 / 다운로드 파일명 규칙), "되돌리면 안 되는 것" 5행 추가(설정 변경 요소 클릭 금지·자격 증명 0·
 검사 전 store 금지·부분 실패 store 금지·좌표 클릭 금지). 검증은 별도 세션, main 병합 전.
+v4.6 갱신 이력: 2026-09-28 수정 회차 2(결함 1 — 같은 프로필 2회째 실행 크래시) — [의도된 동작] 25 추가(실행 전 프로필 다운로드 기록 정리·`browser_channel` 그대로),
+[되돌리면 안 되는 것] 1행 추가(실제 파일 있는 기록 삭제 금지). 버전 줄은 v4.6 유지.
 v4.5 (2026-09-27 기능 추가 회차 — 제외 검색어 등록 자동화 `scripts/exclusions.py`(브랜치 `feat-exclusions`): [의도된 동작] 18~20 추가(등록 여부는 registry로 판정·묻지 않음 / 후보 규칙 / 경로 C PC 실행),
 "되돌리면 안 되는 것" 6행 추가(dry-run 무전송·금지 패턴 거부·verified:false=실패·확장 칸만·쓰기 전 읽기·시험 1건), [의도된 동작] 9 뒤 한 줄. 검증은 별도 세션, main 병합 전.
 v4.5 갱신 이력: 2026-09-27 수정 회차 2(검증 판단 요청 4건 + 참고 2건) — [되돌리면 안 되는 것] 3행 추가(registry 없으면 멈춤 · failed 이름 후보 복귀 · delete `--confirm`), 버전 줄은 v4.5 유지.
@@ -174,6 +176,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 22. (2026-09-28 기능 추가) **매월 1일은 `지난달` 프리셋**(지난달 1일~말일, 31일 달도 한 파일 — 09-28 실측)으로 받는다. 헤더가 1일~말일이 아니면 "기간 = 기대" FAIL이 정상. SKILL.md 58행의 "최근 30일까지만"은 옛 전제였고(두 달 전 데이터도 조회됨), `store --chunk`는 사용자 지정 기간이 30일로 잘릴 때의 폴백으로만 남았다(archive.py 코드는 유지).
 23. (2026-09-28 기능 추가) `--prev`의 재집계 감지(겹치는 날짜의 일별 노출·클릭·비용 비교)는 **WARN이고 막지 않는다** — 실제 값 검사는 store 뒤 combine·validate가 한다. 실행 시각은 01:00 KST 이후(어제 집계 완료)가 전제라 그 전 실행의 "기간 = 기대" FAIL은 결함이 아니다.
 24. (2026-09-28 기능 추가) 다운로드 파일명은 네이버가 주는 이름 그대로 저장한다 — 스크립트로 받으면 `<이름>,2580077.csv`(예 `시간대별 보고서,2580077.csv`, 왕복 3 실측), 손으로 받으면 `<보고서명>_보고서_2580077.csv`; 둘 다 정상이고 그 밖의 이름은 내용 검사(첫 줄·컬럼·노출합)가 통과하면 WARN만. 성공 폴더는 `download_dir/YYYY-MM-DD/`, 부분 실패는 `partial/`에만(정상 폴더에 이번 실행 파일 없음)이 의도된 동작. 검사 통과 파일도 store·push는 **세션이 지금처럼** 한다(PC에서 store·push는 2회차).
+25. (2026-09-28 수정 회차 2) `scripts/fetch_reports.py`는 브라우저를 띄우기 전(`--login`·본 실행 모두) **전용 프로필의 다운로드 기록을 정리**한다(`clean_download_history`) — `Default/History`(없으면 프로필 바로 밑 `History`)의 `downloads`에서 target_path 파일이 없는 행(경로가 빈 행 포함)과 딸린 `downloads_url_chains`·`downloads_slices` 행만 지운다(결함 1: 같은 프로필 2회째 실행부터 다운로드 순간 크롬이 0xC0000005로 죽음 — 원인은 지워진 Playwright 임시 파일 경로 기록). 기록 DB가 없거나(첫 실행)·브라우저가 떠 있거나·잠김이면 `[WARN]`만 내고 계속하는 것, 크롬이 지운 기록을 같은 id·GUID로 되살려 정리 건수가 실행마다 늘어나는 것(0→4→8→12건, 크래시 없음 — 수정 회차 2 ④ 실측)은 정상. `browser_channel`은 config 값 그대로(null = 번들 크로미움 — 시험, `"chrome"` = 설치된 크롬 — 실사용).
 
 [되돌리면 안 되는 것 — 이게 그대로 있는지 확인해라] (2026-09-26 신설)
 
@@ -216,6 +219,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | 검사(첫 줄 HEAD_RE·기간 = 기대·계정·2행 컬럼 = config `columns`·행 ≥ 1·3종 노출합 동일) 통과 전에는 store 하지 않는다 — 파일은 임시 폴더에서 검사한 뒤에만 성공 폴더로 옮긴다 | 기간이 어긋난 파일이 보관본을 덮어써 합본·누적이 틀린다(store 거부 규칙만으로는 같은 달 안의 짧은 기간을 못 막는다) | scripts/fetch_reports.py check_file·cross_check·cmd_fetch · SKILL.md 1단계 |
 | 4개 중 하나라도 실패면 exit 2, 받은 파일은 `partial/`에만 두고 정상 폴더에 남기지 않는다(부분 갱신 경로 없음과 같은 규칙) | 3개만 store돼 combine이 옛 파일과 섞이거나 FAIL을 반복한다(2026-09-26 D-13 유형) | scripts/fetch_reports.py cmd_fetch · test_fetch_reports `test_2_partial_failure_wrong_name_exit2` |
 | 좌표 클릭·`mouse` API·드래그 0 — 로케이터는 role·text만(`locate`, 라벨 판정은 파이썬 `name_ok`) | 화면 배치가 조금만 바뀌어도 엉뚱한 요소(설정·삭제)를 누른다 | scripts/fetch_reports.py locate·name_ok · references/report-fetch.md 6절 |
+| 프로필 정리는 **target_path 파일이 실제로 없는 기록만** 지운다 — **실제 파일이 있는 기록 삭제 금지**, 브라우저가 떠 있으면(`SingletonLock`·Windows `lockfile`)·DB가 잠겼으면 지우지 않고 `[WARN]` | 사용자가 받은 파일의 다운로드 기록까지 사라지거나, 떠 있는 크롬이 쓰는 기록 DB를 건드려 프로필이 깨진다 | scripts/fetch_reports.py clean_download_history·profile_in_use · test_fetch_reports `test_clean_download_history_removes_only_missing_files`·`test_clean_download_history_no_db_or_locked_warns` |
 
 [알려진 이월 항목]
 
