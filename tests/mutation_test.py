@@ -3,7 +3,7 @@
 validate.py · archive.py 검사 생존 확인(파괴 실험).
 
 사용법:
-    python3 tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
+    "$PY" tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
 
 동작:
   1. 스킬 저장소의 scripts/·config/·data/ 와 인자로 받은 index.html·CSV 4개를 임시 디렉토리에

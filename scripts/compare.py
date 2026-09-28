@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """index.html(배포본 또는 작업본)에서 12개 섹션 값을 파싱해 compute.py JSON과 항목별 대조. 배포 전 차이 0이어야 한다.
 
-사용법: python3 scripts/compare.py <index.html> <compute.json>
+사용법: "$PY" scripts/compare.py <index.html> <compute.json>   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 - 표 값·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어까지 대조한다(2026-09-27 ad48222 기준 95항목 —
   09-26 99에서 잔존 문구 5항목을 validate.py 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눔).
 - 동률 자리는 "직전 순서 유지" 관행이라 집합+정렬 방향으로 대조한다(경쟁사표·클릭1건·클릭0·08 컴팩트).

@@ -2,7 +2,7 @@
 """합본 4종 + config → 12개 섹션 값 JSON (5단계의 유일한 계산 출처 — 즉석 계산 금지).
 
 사용법:
-    python3 scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [-o out.json]
+    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [-o out.json]
 
 - 키는 report-structure.md 절 번호("KPI","01"~"10") + "masthead","og","minwidth","nlabels". 자리마다 값이 있어
   다음 회차의 자동 교체(E2)가 그대로 쓸 수 있게 한다. 11·12번은 계산 대상이 아니다(사람이 쓴다).

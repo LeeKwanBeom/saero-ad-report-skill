@@ -22,23 +22,24 @@
 |---|---|
 | 파이썬 `PY` | 저장소 밖 venv `D:\saero\.venv\Scripts\python.exe`(Git Bash `/d/saero/.venv/Scripts/python.exe`) — `--system-site-packages`(시스템 playwright를 본다) + pandas 2.x. 만들기(사용자 승인 뒤 한 번): `python -m venv --system-site-packages D:\saero\.venv` → `D:\saero\.venv\Scripts\python.exe -m pip install "pandas>=2.2,<3"` |
 | 금지 | `python3`(이 PC Git Bash에선 Microsoft Store 스텁, exit 49) · 시스템 `python`으로 ② 실행(pandas 없음) |
-| 셸 상태 | Bash 도구는 호출 사이에 env가 이어지지 않는다 → **매 호출 첫머리** `export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never; unset GIT_ASKPASS SSH_ASKPASS` (자격 증명 창·프롬프트로 멈추지 않게 — push·fetch는 `git -c credential.interactive=false …`) |
+| 셸 상태 | Bash 도구는 호출 사이에 env가 이어지지 않는다 → **매 호출 첫머리** `export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never; unset GIT_ASKPASS SSH_ASKPASS` (자격 증명 창·프롬프트로 멈추지 않게 — push·fetch는 `git -c credential.interactive=false …`. `PYTHONDONTWRITEBYTECODE`는 `__pycache__`를 만들지 않게) |
 | 인코딩 | 도구 파이프는 cp949 — 스크립트는 stdout·stderr를 utf-8로 바꾸지만 인라인 파이썬·heredoc까지 덮으려고 `PYTHONUTF8=1` |
 | 시각 | KST = `TZ=KST-9 date` (이 PC Git Bash에는 zoneinfo가 없어 `TZ=Asia/Seoul`은 **UTC**를 낸다) |
 | git 신원 | 이 PC에는 없다 → 커밋은 `git -c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com commit …`(`ingest.sh`는 없을 때 스스로 붙인다) |
 | 자격 증명 | **이 PC git 자격 증명 하나**(GCM, `credential.helper=manager`) — 스킬 저장소 `git push`와 배포 PUT(`deploy.py`가 `git credential fill`로 얻어 변수에만 둔다) 둘 다. 토큰 파일·대화창 토큰 0. 세션은 `git credential fill`을 직접 치지 않는다 |
 | 네이버 API 키 | 키 파일 `~/naver-api.keys.json`(저장소 밖) — `--key-file` 경로만 넘긴다. 세션은 열지도 출력하지도 않는다(`test -f`로 존재만) |
 | 수집 폴더 | config `report_fetch.download_dir` `~/saero-fetch/downloads` · 전용 프로필 `profile_dir` `~/saero-fetch/chrome-profile`(`~` = 사용자 홈) |
-| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창끝>.md`·`_candidates.txt` · `work/approved_<날짜>.txt` · `work/exclusions_pull_<날짜>.json` |
+| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`(propose — 창이 다르면 다른 파일) · `work/approved_<날짜>.txt`(push 참조 선택 모드가 씀) · `work/exclusions_pull_<날짜>.json` |
 | 줄바꿈 | `.gitattributes`: `*.csv -text`(바이트 그대로) · `*.sh text eol=lf`. 작업 폴더가 커밋과 다르게 풀려 있으면 8절 "작업 폴더 줄바꿈" |
 
-## 2. S0 사전 점검 — Bash 한 번, 쓰기 0
+## 2. S0 사전 점검 — Bash 한 번, 외부 쓰기·작업 트리 변경 0
 
-아래 블록을 그대로 한 번에 돌린다. 줄마다 `[FAIL]`이면 다음 단계로 가지 않는다(다음 행동은 4절 ⓑ). 외부 쓰기·파일 쓰기 0
-(`git fetch`의 원격 ref 갱신만). 키 파일은 존재만 보고, 자격 증명은 값을 출력하지 않는다.
+아래 블록을 그대로 한 번에 돌린다. 줄마다 `[FAIL]`이면 다음 단계로 가지 않는다(다음 행동은 4절 ⓑ). 외부 쓰기·작업 트리 변경 0
+(git이 `.git` 안 FETCH_HEAD·ref·commit-graph·index를, 파이썬이 gitignore된 `__pycache__`를 쓸 수 있다 — 블록의 `PYTHONDONTWRITEBYTECODE=1`이 뒤쪽을 막는다).
+키 파일은 존재만 보고, 자격 증명은 값을 출력하지 않는다. 배포 저장소 줄은 인증 GET(읽기)으로 쓰기 권한(`permissions.push`)까지 본다.
 
 ```bash
-cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never && unset GIT_ASKPASS SSH_ASKPASS && F=0 && {
+cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never && unset GIT_ASKPASS SSH_ASKPASS && F=0 && {
 git -c credential.interactive=false fetch -q origin || { echo "[FAIL] git fetch"; F=1; }
 b=$(git rev-parse --abbrev-ref HEAD); [ "$b" = main ] || { echo "[FAIL] 브랜치 $b — main이어야 함"; F=1; }
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "[FAIL] HEAD ≠ origin/main — git status -sb 확인(push·pull은 사용자와)"; F=1; }
@@ -49,7 +50,7 @@ h=$(TZ=KST-9 date +%H%M); [ $((10#$h)) -ge 100 ] || { echo "[FAIL] KST $h — 01
 test -f ~/naver-api.keys.json || { echo "[FAIL] 네이버 API 키 파일 없음(존재만 봄) — ③ 불가"; F=1; }
 "$PY" -c "import sys; sys.path.insert(0,'scripts'); import fetch_reports as R; sys.exit(3 if R.profile_in_use(R.fetch_config()['profile_dir']) else 0)"; r=$?; [ "$r" -eq 0 ] || { [ "$r" -eq 3 ] && echo "[FAIL] 수집 프로필을 쓰는 크롬이 떠 있음 — 그 창을 모두 닫고 다시" || echo "[FAIL] 프로필 검사 실행 오류(rc=$r — 위 출력 확인)"; F=1; }
 timeout 90 git -c credential.interactive=false push --dry-run -q origin HEAD:main || { echo "[FAIL] 스킬 저장소 push --dry-run — 자격 증명, 또는 HEAD ≠ origin/main이면 non-fast-forward(권한 문제로 단정하지 말 것)"; F=1; }
-"$PY" scripts/deploy.py push --dry-run | tail -2; [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "[FAIL] 배포 저장소 자격 증명을 얻지 못함(deploy.py push --dry-run — 값 존재까지 확인, 쓰기 권한은 첫 PUT)"; F=1; }
+"$PY" scripts/deploy.py push --dry-run | tail -3; r=${PIPESTATUS[0]}; [ "$r" -eq 0 ] || { echo "[FAIL] 배포 저장소 점검 실패(deploy.py push --dry-run rc=$r) — 원인은 바로 위 줄(GET = 조회 / 자격 증명 / 권한 / 파이썬)"; F=1; }
 echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 ```
 
@@ -61,30 +62,37 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 |---|---|---|---|
 | S0 | 사전 점검 | 2절 블록 | ⓑ FAIL 줄 |
 | ① | 수집 | `"$PY" scripts/fetch_reports.py --prev <직전 성공 폴더 또는 data/YYYY-MM>` — **run_in_background**(사용자 화면에 크롬 창이 뜬다, 3~5분). 달의 첫날은 `--prev` 생략, 10/1처럼 `지난달` 첫 실측·화면 변경 의심 때는 `--debug` | exit 1 로그인 → `--login`을 백그라운드로 띄우고 **사용자가 창에서 로그인** → 본 실행 다시 / exit 1 차단·exit 2 → ⓑ |
-| 1 | 보관·합본·push | `scripts/ingest.sh "<성공 폴더>"/*.csv` — 성공 폴더 = fetch 출력 `[PASS] … → <폴더>`·`다음:` 줄(`partial/` 금지) | ⓑ store 거부·combine FAIL·`[FAIL] HEAD ≠ origin/main` |
+| 1 | 보관·합본·push | `scripts/ingest.sh "<성공 폴더>"/*.csv` — 성공 폴더 = fetch 출력 `[PASS] … → <폴더>`·`다음:` 줄(`partial/` 금지). 시작 검사(store 전): HEAD = origin/main · data/ CSV 줄바꿈 = 커밋 | ⓑ 시작 검사 FAIL(쓰기 0)·store 거부·combine FAIL·`[FAIL] HEAD ≠ origin/main` |
 | 4 | 배포본 받기(2-1 전에 당겨서, 읽기) | `"$PY" scripts/deploy.py fetch --out work/prev.html && cp work/prev.html work/index.html` | ⓑ GET 실패 |
 | 5a | 계산만(쓰기 = `work/compute.json`) | `"$PY" scripts/compute.py work/combined --competitors-html work/prev.html -o work/compute.json` — 2-1 대조를 형식까지 같게 하려고 당긴다(교체는 5단계) | ⓑ |
-| 2-1 | 기간 대조 | `compute.json`의 `masthead` 문자열 ↔ `work/prev.html`의 `집계 기간<b>…</b>` | **같으면 3·5-0a를 건너뛰고 곧바로 ⓐ(이 질문 하나만 — 같은 데이터라 다른 후보가 의미 없다)**: "그래도 다시 계산할까요?" |
+| 2-1 | 기간 대조 | `compute.json`의 `masthead` 문자열 ↔ `work/prev.html`의 `집계 기간<b>…</b>` | **같으면 ⓐ와 별개의 앞 질문 하나**(SKILL.md 2-1 문구) — 답에 따른 흐름은 표 아래 "2-1 같음" |
 | 3 | 제외 그룹 | 합본 키워드로 SKILL.md "제외 그룹 판정" 규칙(세션 판정) | 신규 후보 → ⓐ 묶음 |
-| 5-0a | 후보 | (권장) `"$PY" scripts/exclusions.py pull --key-file ~/naver-api.keys.json`(읽기 — registry `verified_at`이 바뀐다, 커밋은 5-0c, 5-0c가 없는 회차는 8단계에서 함께) → `"$PY" scripts/exclusions.py propose work/combined --since YYYY-MM-DD`(직전 배포 masthead 끝 날짜 + 1일을 ISO로. 기본 창은 마지막 하루뿐이라 건너뛴 날의 첫 등장 이름이 빠진다) | ⓑ registry 없음 |
+| 5-0a | 후보 | (권장) `"$PY" scripts/exclusions.py pull --key-file ~/naver-api.keys.json`(읽기 — registry `verified_at`이 바뀐다, 커밋은 5-0c, 5-0c가 없는 회차는 8단계에서 함께) → `"$PY" scripts/exclusions.py propose work/combined --since YYYY-MM-DD` — propose `--since` = 직전 배포 masthead 끝 + 1일(ISO). 직전 회차 기록이 "등록 미룸"이면 그 회차 propose 창 시작(lo) — 미룬 이름과 새 이름을 한 묶음으로 올린다(first_seen 필터 때문에 끝 + 1일로는 미룬 이름이 다시 안 오른다). 기본 창은 마지막 하루뿐이라 쓰지 않는다. 산출물은 `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`, 빈 창이면 `[주의] 빈 창` | ⓑ registry 없음 |
 | ⓐ | **승인 묶음 한 번** | (1) 새 경쟁사 · (2) 애매 후보 · (3) 제외 그룹 · (4) 제외 검색어(propose 승인 문구 원문) 중 **해당하는 것만** 한 메시지. (1)~(4)가 모두 0일 때만 묻지 않는다 | 답을 기다린다 |
 | 5-0b | 답 반영 | config(`competitors`·`excluded_groups`)가 바뀌면 → config 커밋(push는 5-0c와 함께) → compute 재실행(경쟁사가 바뀌면 propose도) | — |
-| 5-0c | 등록·확인·기록 | 승인 목록(6절 규칙) `work/approved_<날짜>.txt` → `exclusions.py push --approved … --dry-run`(호출 0, "승인 N개" = 답의 N) → `exclusions.py push --approved … --key-file ~/naver-api.keys.json`(pull → POST → verify) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ exit 1(부분 실패·verified:false) → 재시도는 ⓐ |
+| 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(호출 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → POST → verify, 승인 목록은 push가 `work/approved_<날짜>.txt`에 쓴다) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false) → 재시도는 ⓐ |
 | 5 | 교체 | compute.json 값으로 01~12(12번 먼저, 11번 마지막). 07 각주·11·12번에 **등록 n · verified n · 실패 n**을 사실 그대로 | — |
 | 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` | ⓑ 세션이 고치고 재실행 |
-| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --message "리포트 갱신: <기간>" --dry-run` → 같은 명령(dry-run 없이) → `"$PY" scripts/deploy.py verify --file work/index.html` | ⓑ PUT 실패·verify 불일치(재PUT은 사용자) |
-| 8 | 기록 | last-audit 갱신 회차 절(Edit) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
+| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(base 대조 · 자격 증명 · 쓰기 권한 참) → 같은 명령(dry-run 없이 — `--base` 필수) → `"$PY" scripts/deploy.py verify --file work/index.html` | ⓑ `[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 실패·verify 불일치(재PUT은 사용자) |
+| 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
 
 **재개·완료 판정은 대상의 현재 상태로 한다**(세션이 끊겼다 다시 시작할 때): 보관본 = `git fetch` 뒤 HEAD = origin/main(`ingest.sh`가 확인) ·
 등록 = `exclusions.py verify --key-file …`(registry note·기억으로 "등록 끝"이라 판정하지 않는다 — note는 verify 뒤에도 "확인 전"이 남는다) ·
 배포 = `deploy.py verify --file work/index.html`. state 파일·대화 기억은 근거가 아니다.
 
+**2-1 같음**: 2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0c → 5 → 6 → 7 → 8 /
+"CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만) →
+6(`--pending` 없이, 3번째 인자 = 이번 4단계 fetch) → 7 → 8.
+(2-1 질문은 ⓐ 묶음에 넣지 않는다 — "다시 계산"·"미룬 등록만"이면 그 뒤에 ⓐ 묶음을 해당하는 것만 한 번 묻는다.)
+
 **예외 "등록은 나중에"**(사용자가 그렇게 말할 때만): 07·11·12번에 "제안함 — 등록은 사용자 결정으로 다음에"처럼 사실형 문구로 배포하고
-`--pending`은 쓰지 않는다. 뒤에 등록하면 4단계를 다시 fetch(새 prev.html)하고 `--pending` 없이 precheck를 통과한 뒤 재배포한다.
+`--pending`은 쓰지 않는다. 8단계 기록에 `propose 창 lo~hi · 등록 미룸(사용자): 예`를 남긴다. 미룬 이름은 **다음 회차**(새 데이터)의 propose를
+`--since lo`(미룬 회차 창 시작)로 돌려 새 이름과 한 묶음으로 올리고, 같은 데이터로 미룬 등록만 하려면 위 2-1 답 "미룬 등록만"으로 간다
+(4단계는 이미 그 회차 배포본을 새로 받았고, precheck 3번째 인자는 그 파일 — `--pending` 없이 통과한 뒤 재배포).
 
 ## 4. 멈춤 표
 
-**ⓐ 사람 승인(남긴다)**: SKILL.md "승인이 필요한 지점" (1)~(4) · 2-1 "그래도 다시 계산할까요?" · 3단계 새 제외 그룹 ·
+**ⓐ 사람 승인(남긴다)**: SKILL.md "승인이 필요한 지점" (1)~(4) · 2-1 같음 질문(ⓐ 묶음과 별개의 앞 질문 — 답 셋: 다시 계산 / CSV 다시 / 미룬 등록만) · 3단계 새 제외 그룹 ·
 등록 실패 재시도·keep·한도 초과 재승인 · delete/test-roundtrip `--confirm`(사용자 입회) · 12번 N주 미반영 질문.
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**
@@ -93,15 +101,19 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 |---|---|---|
 | S0 줄 | 원인 한 줄 보고, 다음 단계 안 감 | 설치·창 닫기·자격 증명 로그인 |
 | fetch exit 2 부분 실패 | `partial/<날짜>/summary.json`을 **재실행 전에** 읽고(재실행이 partial을 지운다) 보고서별 원인 보고 | 다시 받을지 |
-| fetch exit 1 금지 차단·허용 밖 | summary.json은 없다(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 스크린샷은 `--debug`일 때만 `partial/<날짜>/debug/`에 → 원인 불명으로 보고 | `--debug` 재실행 여부 |
+| fetch exit 1 금지 차단·허용 밖 | summary.json은 없다(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 메시지의 동작·요소 문구를 보고 · 재실행 전에 `partial/<날짜>/`를 읽는다(재실행이 지운다) · `--debug` 없이 `debug/`가 있으면 앞 보고서 실패 컷(차단 화면 아님, 차단 순간 컷은 없다) → 원인 불명으로 보고 | `--debug` 재실행 여부 |
 | fetch exit 1 로그인 | `--login` 백그라운드 → 끝나면 본 실행 | 창에서 로그인·2단계 인증 |
 | store 거부·combine FAIL | 메시지 원문 보고. `--force`·`--chunk` 자동 금지. 월초를 놓쳐 지난달 끝이 비면 평일 fetch로는 못 채운다 → 8절 폴백 | 다시 받기·폴백 |
 | store 부분 적용 | `git status data/`로 바뀐 파일 보고(커밋 안 함) | 되돌리기(`git checkout -- data/`) |
-| ingest `[FAIL] HEAD ≠ origin/main`·브랜치 | 상태(`git status -sb`) 보고 | push·pull 결정 |
+| ingest `[FAIL] HEAD ≠ origin/main`·브랜치(시작 검사면 쓰기 0) | 상태(`git status -sb`) 보고 | push·pull 결정 |
+| ingest `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`(시작 검사, 쓰기 0) | 이름 댄 CSV 보고 → 8절 "작업 폴더 줄바꿈" | 정리 승인 |
 | push 403·거부(ingest `[FAIL] push 실패`) | 어느 저장소인지·커밋이 로컬에만 있는지 적어 보고 | 자격 증명 확인·재시도 |
 | registry 없음 | `git status`·경로 점검 | — |
+| exclusions `[FAIL] 승인 목록…`(쓰기 0) | 출력의 출처 목록·`[FAIL]`·`[주의]` 쌍둥이를 그대로 보이고 줄·행 번호를 사용자 답과 다시 맞춘다(이름을 쓰지 않는다) | 답 확인 |
 | exclusions exit 1 | 성공/실패를 그룹×이름으로 나눠 보고 | 재시도·keep |
 | precheck FAIL | 전체 출력 보고 → 원인 고쳐 재실행(배포 금지) | — |
+| deploy `[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0) | 지금 배포본 sha·md5를 보고 — 다른 배포가 있었다 | 4단계부터 다시 할지 |
+| deploy 권한 거짓·권한 조회 실패 | 출력 줄 그대로 보고(값 없음) | 계정·권한 확인 |
 | deploy verify 불일치 | 멈춤. 출력의 재수령본 sha·md5를 보고(verify를 한 번 더 — 읽기만 — 해 같은지 덧붙인다) | 재PUT 여부 |
 
 **사람만 하는 일**: 네이버 로그인·2단계 인증(`--login` 창) · 팝업·공지 닫기 · 라이브 시크릿 창 확인 · codegen 녹화 · 손 다운로드(8절).
@@ -112,45 +124,47 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 |---|---|---|
 | `fetch_reports.py` | 1 | `목록 URL에 도달하지 못함`(로그인) / `허용 목록 밖 동작`·`금지 요소 클릭 시도 차단`(화면 변경) / `playwright가 없습니다`·설정(환경) |
 | | 2 | `[FAIL] 4개 중 성공 …`(부분 실패, partial) / 첫 줄 `usage:`(인자 오류) |
-| `exclusions.py` | 1 | `[push] 완료: … 실패/미확인 n`(부분 실패) / `401`·ApiError(인증·API) / `[push] 등록할 이름이 없습니다`(전부 거부·후보 0) / `[FAIL] registry 없음` |
+| `exclusions.py` | 1 | `[FAIL] 승인 목록을 만들지 않았다`·`[FAIL] --approved는 dry-run·시험 전용`(쓰기 전 — 쓰기 0) / `[push] 완료: … 실패/미확인 n`(부분 실패) / `401`·ApiError(인증·API) / `[push] 등록할 이름이 없습니다`(전부 거부·후보 0) / `[FAIL] registry 없음` |
 | | 2 | `[FAIL] 네트워크 차단(프록시)`(Code 탭에선 나지 않아야 함) / `usage:` |
-| `ingest.sh` | 1 | `[FAIL] 현재 브랜치가 main이 아님` / `[FAIL] HEAD … ≠ origin/main` / `[FAIL] push 실패`(커밋은 로컬에만) / `[FAIL] 파이썬을 실행할 수 없음` / archive `[FAIL] …` |
+| `ingest.sh` | 1 | `[FAIL] 현재 브랜치가 main이 아님` / `[FAIL] HEAD … ≠ origin/main — 시작 전`(쓰기 0) · `— push …`(push 뒤) / `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`(쓰기 0) / `[FAIL] push 실패`(커밋은 로컬에만) / `[FAIL] 파이썬을 실행할 수 없음` / archive `[FAIL] …` |
+| | 128 | `fatal:`(git fetch 실패 — 네트워크·자격 증명, `set -e`로 멈춤). `== push data/` 뒤에 났으면 push는 됐을 수 있다 → `git fetch` 뒤 HEAD = origin/main으로 다시 판정 |
 | | 그 밖 | 2 = 사용법(인자 없음) |
-| `precheck.sh` | 1 | md5 가드 `[FAIL] 직전 배포본이 작업본과 같다` / validate·compare·overflow(전체 출력) |
-| `deploy.py` | 1 | `GET …` / `PUT …` / `불일치` / `[FAIL] 자격 증명을 얻지 못함` · 2 = 인자 |
+| `precheck.sh` | 1 | md5 가드 `[FAIL] 직전 배포본이 작업본과 같다` / `[FAIL] 파이썬을 실행할 수 없음` / validate·compare 실패(전체 출력). compute·overflow가 예외로 끝나면 `[FAIL]` 줄 없이 Traceback — **마지막 `==` 줄이 멈춘 단계** |
+| | 2 | 사용법(인자 수). 그 밖의 코드는 validate·compare가 낸 코드 그대로 |
+| `deploy.py` | 1 | `GET …` / `PUT …` / `불일치` / `[FAIL] 자격 증명을 얻지 못함` / `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` / 권한 `거짓`·`권한 조회 실패` |
+| | 2 | 인자 — `--file 이 필요` · `[FAIL] 실제 push에는 --base` · `--base 파일을 읽을 수 없음` |
 
-## 6. 승인 목록 — 복사로만 만든다
+## 6. 승인 목록 — push 참조 선택 모드(세션은 이름을 쓰지 않는다)
 
-- 원천은 셋뿐: ① `work/exclusions_proposal_<창끝>_candidates.txt`(신규·재등록 후보, propose가 씀) ② 제안서 md의 "업종어 포함" 절에서
-  사용자가 고른 줄 ③ 합본 `work/combined/검색어.csv` `검색어` 칸 원문(사용자가 07번 표에서 고른 이름·"노원힐링장소." 같은 재상정).
-- **세션은 이름을 타이핑하지 않는다.** 파이썬으로 원천 파일의 줄을 그대로 옮기고, 뺄 이름은 줄을 지운다(줄 번호로 지정).
-  `_candidates.txt`는 Windows에서 CRLF로 써진다 — 줄 끝 CR은 떼고 옮긴다. 후보 파일에서 만드는 예(2026-09-28 리허설에서 쓴 것,
-  인자 = 원천 · 출력 · 답의 N · 뺄 줄 번호…):
-  ```bash
-  "$PY" - work/exclusions_proposal_<창끝>_candidates.txt work/approved_<날짜>.txt <N> [뺄 줄 번호 …] <<'PY'
-  import sys
-  src, out, n, drop = sys.argv[1], sys.argv[2], int(sys.argv[3]), {int(x) for x in sys.argv[4:]}
-  lines = [l.rstrip("\r\n") for l in open(src, encoding="utf-8-sig")]
-  keep = [l for i, l in enumerate(lines, 1) if l.strip() and not l.startswith("#") and i not in drop]
-  K = lambda s: s.strip().upper()                      # exclusions.py K()와 같은 대조 키
-  assert len(keep) == n, f"줄 수 {len(keep)} != 답의 N {n} — 사용자에게 다시 확인"
-  assert all(any(K(k) == K(l) and k == l for l in lines) for k in keep)
-  open(out, "w", encoding="utf-8", newline="\n").write("".join(k + "\n" for k in keep))
-  print(f"승인 목록 {out}: {len(keep)}줄 = N", *[repr(k) for k in keep])
-  PY
-  ```
-  업종어·재상정 이름을 더할 때도 같은 방식으로 제안서 업종어 절·합본 `검색어.csv`의 해당 줄에서 이름 칸을 복사해 붙인다(줄 수 = N 확인은 끝에 한 번).
-- 만든 뒤 확인: 줄 수 = 답의 N · 각 줄이 원천의 한 줄과 `K()`(앞뒤 공백 제거·대문자) 일치이면서 원문 바이트 그대로 · `push --dry-run`의
-  "승인 N개" = N. 셋 중 하나라도 다르면 사용자에게 다시 확인한다.
-- 사례(2026-09-28): 승인 6개 중 **"노원힐링장소."** — 채팅이 넘긴 목록엔 마침표가 있었는데 Code 탭에서 파일을 다시 쓰며 빠졌다
-  (등록 전 registry 사본으로 dry-run 재현: 마침표 없음 216 → 221, 있음 216 → 222 = 채팅 기록 값). 원문은 미등록으로 남았다.
-  기호(`;`·`+`·`]`·`.`)도 API는 원문대로 등록한다(9/27 실측) — 원문을 바꿀 이유가 없다.
-- 회차 2에서 `exclusions.py push --candidates … --expect N` 코드 가드로 올린다(그 전까지는 이 절이 유일한 방어).
+실제 등록(`exclusions.py push` — dry-run이 아닌 것)은 **참조 선택 모드만** 된다. push가 원천 파일에서 이름을 직접 읽어 목록을 만들고,
+세션은 **줄·행 번호와 답의 N만** 넘긴다(이름을 타이핑하지도, 승인 파일을 쓰지도 않는다 — 2026-09-28 수정 회차 2).
+```bash
+"$PY" scripts/exclusions.py push --from-candidates work/exclusions_proposal_<창시작>_<창끝>_candidates.txt [--drop <줄번호,…>] \
+  [--industry work/exclusions_proposal_<창시작>_<창끝>_industry.txt --industry-lines <줄번호,…>] \
+  [--extra-csv work/combined/검색어.csv --extra-rows <행번호,…>] --expect <N> --dry-run      # 먼저 dry-run(HTTP 0) — 확인 뒤 --dry-run 대신 --key-file ~/naver-api.keys.json
+```
+- 원천 셋: ① `_candidates.txt`(신규·재등록 후보 — 뺄 이름은 `--drop` 줄 번호) ② `_industry.txt`(업종어 포함 이름, 한 줄 하나 — 사용자가 고른 줄만
+  `--industry-lines`) ③ 합본 `검색어.csv`의 `검색어` 칸(07번 표에서 고른 이름·재상정 — `--extra-rows`는 **파일 줄 번호**, 1행 기간 헤더·2행 컬럼 줄은 범위 밖.
+  찾기: `grep -n '<이름 일부>' work/combined/검색어.csv`). 줄 번호는 `cat -n`·`grep -n`과 같은 1부터. 후보가 0줄이면 `--from-candidates`를 빼고
+  `--industry`·`--extra-csv`만 쓴다(빈 원천 파일은 `[FAIL]`).
+- push가 찍는 것: 고른 이름마다 **repr + 출처(파일:줄)**, `뺀 것:`(--drop 줄), `[승인 목록] work/approved_<날짜>.txt: N줄`. 세션은 이 출력을 그대로
+  사용자 답과 대조한다.
+- **쓰기 전 `[FAIL]`(dry-run도 같다 — 승인 파일·HTTP·registry 쓰기 0)**: 합계 ≠ `--expect N` · 원천 파일 없음·빈 파일 · 줄·행 번호 범위 밖 ·
+  `K()` 중복(같은 이름을 두 번 — 대소문자·앞뒤 공백만 다른 것 포함) · **추가(후보 밖) 이름이 이미 모든 대상 그룹에 registered**(9/28 유형 신호).
+- **`[주의]` 쌍둥이**: 추가 이름과 기호·공백·대소문자만 다른 이름이 후보 파일·합본 칸·registry에 있으면 둘을 나란히 찍는다
+  (예: 고른 것 `'노원힐링장소.' ← 검색어.csv:1165` / 쌍둥이 `'노원힐링장소' ← 검색어.csv:1164·registry …행(registered 3)`). 멈추지는 않는다 —
+  사용자 답의 원문과 같은 쪽을 골랐는지 세션이 확인해 보인다.
+- `--approved <파일>`은 dry-run·시험 전용이다 — 실제 push에 쓰면 `[FAIL] --approved는 dry-run·시험 전용` exit 1(쓰기 0).
+- 사례(2026-09-28): 승인 6개 중 **"노원힐링장소."** — 채팅이 넘긴 목록엔 마침표가 있었는데 Code 탭에서 승인 파일을 다시 쓰며 빠졌다
+  (등록 전 registry 사본으로 dry-run 재현: 마침표 없음 216 → 221, 있음 216 → 222 = 채팅 기록 값). 마침표 없는 이름은 registry에 이미
+  3그룹 registered라 "건너뜀"으로 조용히 통과했고 원문은 미등록으로 남았다. 지금은 그 행(1164)을 고르면 "이미 모든 대상 그룹 registered" `[FAIL]`,
+  맞는 행(1165)을 고르면 통과하면서 1164를 쌍둥이 `[주의]`로 보인다. 기호(`;`·`+`·`]`·`.`)도 API는 원문대로 등록한다(9/27 실측) — 원문을 바꿀 이유가 없다.
 
 ## 7. 금지
 
 - `partial/`·검사 실패·summary 없는 폴더를 store에 넘기기 / `store --force`·`--chunk` 자동 부착
-- 승인 이름을 세션이 다시 타이핑하거나 기호·마침표를 지우기 / "등록 승인 N개" 전 `push`·`delete`·`test-roundtrip`
+- 승인 이름을 세션이 다시 타이핑하거나 기호·마침표를 지우기 · 승인 파일을 손으로 써서 넘기기(실제 등록은 6절 참조 선택 모드만) / "등록 승인 N개" 전 `push`·`delete`·`test-roundtrip`
+- `deploy.py push`를 `--base work/prev.html` 없이 실제로 돌리기(코드가 exit 2로 막는다) · `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` 뒤 `--base`만 새 배포본으로 바꿔 끼우기(4단계부터 다시 할지는 사용자가 정한다)
 - 실제 이름·여러 건으로 시험 / 외부 쓰기(push·POST·PUT) 자동 재시도·자동 재PUT
 - 헤드리스 실행 · 같은 프로필 동시 실행(백그라운드 fetch 중 fetch 재호출 포함) · 크래시 수정이 없는 판(Desktop 사본 `68028c8`)으로 실행
 - 로그인 폼 입력 · 로그인 실패 산출물(`not_logged_in.*` png·aria·inventory) 열기
@@ -179,6 +193,8 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 스크래치에 `git clone -c core.autocrlf=false`로 받은 저장소(또는 기능 브랜치)에서, origin을 **로컬 bare 저장소**로 바꿔 돌린다.
 입력은 `data/YYYY-MM` 4개를 data 밖 폴더에 복사한 것(같은 경로를 store에 넘기면 archive.py가 원본을 지운 뒤 복사하다 잃는다).
 순서: S0(스킬 저장소 push dry-run은 bare로) → `fetch_reports.py --dry-run`(오늘 · `--today 2026-10-01`, 수집·프로필 폴더는 스크래치) →
-`ingest.sh`(bare로 push) → `deploy.py fetch`(무인증) → `propose --since` → 6절 규칙으로 승인 목록 → `push --dry-run` → compute →
-precheck(작업본 = 배포본 사본 + 주석 1줄 — md5 가드 통과용) → `deploy.py push --dry-run` → `verify`(같은 파일 일치 · 바꾼 사본 불일치 exit 1).
+`ingest.sh`(bare로 push) → `deploy.py fetch`(무인증) → compute → 2-1 → `propose --since` → 6절 참조 선택 `push --dry-run`(틀린 행 FAIL · 맞는 행 통과 ·
+쌍둥이 `[주의]`) → precheck(작업본 = 배포본 사본 + 주석 1줄 — md5 가드 통과용) → `deploy.py push --dry-run --base work/prev.html` →
+`verify`(같은 파일 일치 · 바꾼 사본 불일치 exit 1). 배포 저장소 권한 확인(인증 GET)은 이 PC 실제 자격 증명을 쓰므로 사용자에게 묻고 한다 —
+S0를 그 전에 돌릴 때는 `GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=<도우미 없는 임시 설정>`으로 자격 증명 없이(배포 줄 FAIL이 정상).
 판정: 작업 폴더·실제 원격의 data·config·registry md5, `git status`, 두 저장소 `git ls-remote` HEAD가 전후 같다. fetch 폴더 미생성.

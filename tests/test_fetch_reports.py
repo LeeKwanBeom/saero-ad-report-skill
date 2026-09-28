@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """scripts/fetch_reports.py 오프라인 검사 — 네이버 접속 0, 네트워크 0(로컬 http.server), 실제 data/·config 불변.
 
-실행: python3 tests/test_fetch_reports.py   (unittest, 저장소 루트에서)
+실행: "$PY" tests/test_fetch_reports.py   (unittest, 저장소 루트에서 Git Bash — $PY = 저장소 밖 venv 파이썬, references/code-tab.md 1절)
 검사: config columns = 실 CSV 2행 / 기대 기간(평일·1일) / dry-run 브라우저 0·파일 0(가짜 playwright 패키지로 import 자체를 막음) /
      check_file·cross_check(실 data/2026-09 4파일) / --prev 재집계 WARN / click_allowed 금지 차단 /
      프로필 다운로드 기록 정리(가짜 History DB: 파일 없는 행만 삭제·파일 있는 행 유지·DB 없음/잠김 WARN) / browser_channel 그대로 /

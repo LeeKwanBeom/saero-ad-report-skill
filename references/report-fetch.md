@@ -16,8 +16,9 @@ python -m playwright install chromium          # 설치된 크롬을 쓰므로 �
 D:\saero\.venv\Scripts\python.exe scripts\fetch_reports.py --dry-run      # 브라우저 0 — 할 일 표가 나오면 설치 끝
 ```
 - 필요한 것: Python 3.9 이상 · `playwright` 패키지 · 크롬(설치돼 있으면 `browser_channel: "chrome"`로 그것을 쓴다) — pandas 불필요(표준 라이브러리만).
-- **Python 3.14에서 `pip install playwright`가 실패하면**(휠 없음·`greenlet` 빌드 오류 등): ① `pip install --upgrade pip` 뒤 재시도 ② 그래도 안 되면 python.org에서 3.12 또는 3.13을 **추가 설치**(기존 3.14는 두고, 설치 중 "Add python.exe to PATH" 체크 불필요)하고 이후 모든 명령의 `python`을 `py -3.12`로 바꾼다:
-  `py -0`(설치된 버전 목록) → `py -3.12 -m pip install playwright` → `py -3.12 -m playwright install chromium` → `py -3.12 scripts\fetch_reports.py --dry-run`.
+- **Python 3.14에서 `pip install playwright`가 실패하면**(휠 없음·`greenlet` 빌드 오류 등): ① `pip install --upgrade pip` 뒤 재시도 ② 그래도 안 되면 python.org에서 3.12 또는 3.13을 **추가 설치**(기존 3.14는 두고, 설치 중 "Add python.exe to PATH" 체크 불필요)하고
+  playwright는 `py -3.12 -m pip install playwright`, venv도 `py -3.12 -m venv --system-site-packages D:\saero\.venv`로 만든다(`py -0` = 설치된 버전 목록).
+  그 뒤 실행은 1절 그대로 `$PY`(venv 파이썬) — venv가 3.12 위에 서므로 명령마다 `py -3.12`로 바꿀 필요가 없다.
 - 설치는 config를 바꾸지 않는다. 저장 폴더·프로필 폴더는 config `download_dir`·`profile_dir`(기본 `~/saero-fetch/…` = `C:\Users\<사용자>\saero-fetch\`, **저장소 밖**)이고, 첫 실행 때 만들어진다(`--dry-run`은 만들지 않는다).
 
 ## 2. 첫 로그인 (한 번, 세션이 끝날 때마다)
@@ -58,7 +59,7 @@ cd /d/saero/saero-ad-report-skill && export PY=/d/saero/.venv/Scripts/python.exe
 | 증상 | 조치 |
 |---|---|
 | `[FAIL] 목록 URL에 도달하지 못함 … --login` (exit 1) | 로그인 세션 만료 → `"$PY" scripts/fetch_reports.py --login` 다시(Code 탭은 백그라운드, 사용자가 창에서 로그인) → 본 실행 |
-| `[FAIL] 허용 목록 밖 동작` / `금지 요소 클릭 시도 차단` (exit 1) | 코드가 클릭 직전에 멈춘 것(설정 변경 방지). 화면이 바뀐 신호 — 아래 "화면 변경". 이 경로엔 **summary.json이 없다**(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 스크린샷은 `--debug`일 때만 `partial/<날짜>/debug/`에 남는다 → `--debug` 재실행은 사용자 결정 |
+| `[FAIL] 허용 목록 밖 동작` / `금지 요소 클릭 시도 차단` (exit 1) | 코드가 클릭 직전에 멈춘 것(설정 변경 방지). 화면이 바뀐 신호 — 아래 "화면 변경". 이 경로엔 **summary.json이 없다**(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 메시지의 동작·요소 문구를 보고 · 재실행 전에 `partial/<날짜>/`를 읽는다(재실행이 지운다) · `--debug` 없이 `debug/`가 있으면 앞 보고서 실패 컷(차단 화면 아님 — 차단 순간 컷은 없다) → `--debug` 재실행은 사용자 결정 |
 | `목록에 보고서 링크 '…' 없음` | 목록의 보고서 이름과 config `report_names` 키가 다른지(스크린샷 `*_no_link.png`) |
 | `… 클릭 실패: TimeoutError: 요소 비활성(disabled)` / `다른 요소가 가림` / `보이지 않음` | 클릭은 `timeout_sec.click`(15초)만 기다리고 원인을 적는다. 비활성은 화면 상태(예: 결과가 아직 없음), 가림은 팝업·공지가 떠 있는 것 — 세션이 `summary.json`의 `error_detail`(Playwright 호출 로그)과 `debug/`를 직접 읽는다 |
 | **크래시 = 프로필 다운로드 기록**: 같은 프로필 2회째 실행부터 `다운로드` 순간 크롬 창이 꺼짐(0xC0000005) → `TargetClosedError: … has been closed`, 나머지 보고서 `링크 없음` | 원인은 프로필 다운로드 기록에 남은 **이미 지워진 Playwright 임시 파일 경로**(검증 보고 2026-09-28 — 그 기록만 지우면 정상, 번들 헤드리스는 기록을 안 남김). 실행마다 브라우저를 띄우기 전에 `clean_download_history`가 `Default/History`(없으면 프로필 바로 밑 `History`)에서 **파일이 없는 기록만** 지우고 콘솔·`summary.json` `steps`에 `[profile] 다운로드 기록 정리: 파일 없는 기록 N건 삭제 …`를 남긴다(실제 파일이 있는 기록은 유지). `[WARN] 프로필 정리: … 브라우저가 떠 있음`/`잠김`이면 이 프로필로 뜬 크롬 창을 모두 닫고 다시 실행 |

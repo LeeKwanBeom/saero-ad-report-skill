@@ -5,11 +5,11 @@
 다르면 프리셋(`이번달`/`지난달`) 클릭 → `확인` → 다시 읽어 기대와 같은지 확인 → `조회하기` → `다운로드`(download 이벤트)
 → 저장 → `돌아가기`. 4개 반복 → 파일마다 검사 → 4개 교차 검사 → summary.json.
 
-모드(전부 저장소 루트에서, PC PowerShell):
-    python scripts\\fetch_reports.py --dry-run            브라우저 0. 할 일 표(보고서 4개·기대 기간·저장 경로)만 출력, 파일·폴더 변경 0.
-    python scripts\\fetch_reports.py --login              전용 크롬 프로필로 창을 띄우고 사용자가 직접 로그인('로그인 상태 유지')할
-                                                         때까지 기다린 뒤 목록 URL 도달을 확인하고 닫는다. 폼 입력 0.
-    python scripts\\fetch_reports.py [--prev <폴더>] [--debug]   기본 실행: 4개 다운로드 + 검사.
+모드(전부 작업 폴더 = 저장소 루트에서, Code 탭 Git Bash — $PY = 저장소 밖 venv 파이썬, references/code-tab.md 1절):
+    "$PY" scripts/fetch_reports.py --dry-run            브라우저 0. 할 일 표(보고서 4개·기대 기간·저장 경로)만 출력, 파일·폴더 변경 0.
+    "$PY" scripts/fetch_reports.py --login              전용 크롬 프로필로 창을 띄우고 사용자가 직접 로그인('로그인 상태 유지')할
+                                                       때까지 기다린 뒤 목록 URL 도달을 확인하고 닫는다. 폼 입력 0.
+    "$PY" scripts/fetch_reports.py [--prev <폴더>] [--debug]   기본 실행: 4개 다운로드 + 검사.
         --prev   직전 4개 폴더(또는 저장소 data/YYYY-MM)와 겹치는 날짜의 일별 노출·클릭·비용을 비교, 다르면 WARN(막지 않음).
         --debug  단계마다 스크린샷을 저장 폴더 debug/ 에 남긴다.
         --today YYYY-MM-DD   기대 기간 계산 기준일(시험용. 기본 = KST 오늘).
@@ -485,7 +485,8 @@ def click_allowed(action, locator, rf, log=None, timeout=None):
     for bad in rf["forbidden_actions"]:
         if bad and bad in text:
             raise SystemExit(f"[FAIL] 금지 요소 클릭 시도 차단: 동작 {action} → 요소 문구 {text!r} (forbidden_actions {bad!r}) — "
-                             "화면이 바뀐 것 같다 — summary.json은 없다. --debug로 다시 돌릴지는 사용자가 정한다(스크린샷은 partial/<날짜>/debug/)")
+                             "화면이 바뀐 것 같다 — summary.json은 없다. 단계 스크린샷은 이번 실행을 --debug로 돌렸을 때만 partial/<날짜>/debug/에 있다"
+                             "(차단 순간 컷은 없다). 재실행은 partial/<날짜>/를 지우니 먼저 읽는다 — --debug로 다시 돌릴지는 사용자가 정한다")
     if log:
         log(f"클릭 {action}: {text!r}"[:160])
     locator.click(timeout=(timeout if timeout is not None else rf["timeout_sec"]["click"]) * 1000)

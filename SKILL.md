@@ -43,7 +43,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 채팅 운영 때의 "토큰은 용도에 따라 두 종류이고 서로 통하지 않는다"(저장소 한정 fine-grained PAT)는 **이 PC에서는 성립하지 않는다** —
 git 자격 증명은 계정 로그인 하나라 두 저장소 쓰기가 같은 자격 증명으로 간다(스킬 저장소 push는 2026-09-28 실측, 배포 PUT은 첫 실사용이 첫 실측).
 그래서 저장소를 가르는 관문은 자격 증명이 아니라 승인 자리와 쓰기 전 확인이다(S0의 `git push --dry-run`은 원격 인증까지,
-`deploy.py push --dry-run`은 자격 증명 값을 얻는지까지만 — 배포 저장소 쓰기 권한은 첫 PUT이 확인한다).
+`deploy.py push --dry-run`은 자격 증명 값을 얻은 뒤 인증 GET(읽기)으로 배포 저장소 쓰기 권한 `permissions.push`까지 — 참/거짓만 찍고 거짓이면 `[FAIL]`).
 읽기는 두 저장소 모두 공개라 자격 증명 없이 된다 — `deploy.py`는 GET을 무인증으로 먼저 보내고 403·429(무인증 rate limit,
 2026-09-11·09-21·09-26 실측)일 때만 자격 증명으로 1회 다시 보낸다. push·PUT이 403이면 어느 저장소 쓰기인지 적어 사용자에게 자격 증명 확인을 요청한다.
 
@@ -164,8 +164,12 @@ combine이 FAIL이면 **작업을 멈추고** 메시지 원문을 보고한 뒤 
 > 배포본 집계 기간이 이번 CSV와 같습니다(2026.08.26 — 09.06). 이미 반영된
 > 데이터로 보이는데, 그래도 다시 계산할까요? 아니면 새 기간으로 CSV를
 > 다시 받으시겠어요?
+> (직전 회차 기록이 "등록 미룸"일 때만 덧붙인다) 아니면 미뤄 둔 제외 검색어 등록만 할까요?
 
 답을 받기 전에 5단계로 넘어가지 않는다.
+2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0c → 5 → 6 → 7 → 8 /
+"CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만) →
+6(`--pending` 없이, 3번째 인자 = 이번 4단계 fetch) → 7 → 8. (단계 번호·ⓐ는 `references/code-tab.md` 3절 순서표.)
 
 ### 3단계. 제외 그룹 확인
 
@@ -193,11 +197,15 @@ cp work/prev.html work/index.html                    # 작업본은 이 사본
 config `exclusions`. 등록 상태의 기계 정본은 `audit/exclusions.csv`(registry) — **"이미 등록했었냐"를 사용자에게 묻지 않는다.**
 
 ```bash
-"$PY" scripts/exclusions.py propose work/combined --since YYYY-MM-DD   # 직전 배포 masthead 끝 + 1일(ISO). 후보·재노출 판정·승인 문구 — registry·계정 쓰기 0,
-                                                                                        # work/exclusions_proposal_<창끝>.md·_candidates.txt를 쓴다
-"$PY" scripts/exclusions.py push --approved work/approved_<날짜>.txt --dry-run         # 승인 뒤 할 일 목록만(호출 0)
-"$PY" scripts/exclusions.py report                                                     # registry 요약
+"$PY" scripts/exclusions.py propose work/combined --since YYYY-MM-DD   # 후보·재노출 판정·승인 문구 — registry·계정 쓰기 0,
+                                                    # work/exclusions_proposal_<창시작>_<창끝>.md·_candidates.txt·_industry.txt를 쓴다
+"$PY" scripts/exclusions.py push --from-candidates work/exclusions_proposal_<창시작>_<창끝>_candidates.txt [--drop …] \
+  [--industry …_industry.txt --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run
+                                                    # 승인 뒤 할 일 목록만(호출 0) — 참조 선택 모드(references/code-tab.md 6절)
+"$PY" scripts/exclusions.py report                  # registry 요약
 ```
+propose `--since` = 직전 배포 masthead 끝 + 1일(ISO). 직전 회차 기록이 "등록 미룸"이면 그 회차 propose 창 시작(lo) — 미룬 이름과 새 이름을
+한 묶음으로 올린다(first_seen 필터 때문에 끝 + 1일로는 미룬 이름이 다시 안 오른다). `--since`가 데이터 끝보다 뒤면 `[주의] 빈 창` — 재등록 후보만 쓴다.
 1. **재노출 판정**(propose 출력 "재노출 판정"): 등록 이력이 있는 이름이 `확장` 행에 잡히면 registry로 판정해 셋 중 하나로 **보고만** 한다 —
    "등록돼 있는데도 노출"(등록일·노출일 명시, 원인은 "~일 수 있음") / "등록 누락 → 후보"·"일부 그룹 미등록 → 후보"(다음 승인 목록에 자동 포함) /
    "미확인" = registry 파일이 없거나 못 읽은 회차 — 이때 propose·push·verify는 `[FAIL] registry 없음 … (미확인)` exit 1로 **멈추고 아무 후보도 내지 않는다**
@@ -207,8 +215,10 @@ config `exclusions`. 등록 상태의 기계 정본은 `audit/exclusions.csv`(re
    "업종어 포함"(config `industry_terms`)과 "후보에서 뺀 것"(`never_exclude_patterns`·`competitors`)은 이유와 함께 보이기만 한다.
 3. **승인 문구**는 propose 출력 마지막 절을 그대로 붙인다(전체 이름 명시 → 답 "등록 승인 N개", 뺄 이름 답 허용). **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
 4. **등록·확인**: `pull`·`push`·`verify`는 **PC 작업 폴더를 연 Code 탭 세션**이 같은 폴더에서 돌린다(API 호스트가 열린 PC 로컬 셸 — references/exclusion-ui.md 3절,
-   2026-09-28 실측). 승인 목록 `work/approved_<날짜>.txt`는 **propose 산출물(`_candidates.txt`·제안서 업종어 절)과 합본 CSV 원문에서 복사로만** 만든다 —
-   세션이 이름을 다시 타이핑하지 않는다(기호·마침표 원문 그대로, 줄 수 = 답의 N — `references/code-tab.md` 6절, 2026-09-28 "노원힐링장소." 사례).
+   2026-09-28 실측). 실제 등록은 **push 참조 선택 모드만** 된다 — push가 원천(`_candidates.txt`·`_industry.txt`·합본 `검색어.csv` `검색어` 칸)에서
+   줄·행 번호로 이름을 직접 읽어 `work/approved_<날짜>.txt`를 쓰고, 세션은 번호와 답의 N(`--expect`)만 넘긴다(이름을 쓰지 않는다 — 기호·마침표 원문 그대로).
+   합계 ≠ N·범위 밖·빈 원천·중복·이미 모든 그룹에 등록된 추가 이름은 쓰기 전 `[FAIL]`, 기호만 다른 쌍둥이는 `[주의]`(`references/code-tab.md` 6절,
+   2026-09-28 "노원힐링장소." 사례). `--approved <파일>`은 dry-run·시험 전용.
    키 파일은 `--key-file ~/naver-api.keys.json` 경로만 넘기고 열지 않는다. push는 pull → 그룹별로 없는 이름만 POST →
    verify(다시 읽어 3그룹 확인)까지 한 번에 하고, 확인 안 된 이름은 `failed`(성공이라고 쓰지 않는다). 부분 실패는 그룹×이름으로 보고, 재시도는 사용자 결정.
    push는 그룹별 `현재 N + 등록 예정 M`을 찍고 config `max_per_group`(950 추정) 초과 예상이면 `[주의]`만 낸다(차단 안 함 — 3716 오류는 항목별 `failed`로 남고 재승인 대상). `delete`도 `--confirm` 없이는 돌지 않는다.
@@ -241,7 +251,7 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 한 번에: `scripts/precheck.sh work/index.html work/combined work/prev.html [--pending]`(환경 변수 `PY` = venv 파이썬)
 — 아래 셋을 순서대로, 하나라도 실패하면 멈춘다. validate·compare는 통과면 끝 3줄(요약 `검사 N개: PASS … / FAIL 0` 포함), 실패면 전체 출력을 보인다.
 compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
-같으면 "직전 배포본이 작업본과 같다 — 4단계 fetch 파일을 넣어라"로 exit 1. `--pending`은 validate에만 넘어간다.
+같으면 "[FAIL] 직전 배포본이 작업본과 같다 — …"로 exit 1. `--pending`은 validate에만 넘어간다.
 진단 회차의 재현 시험(작업본 = 현재 배포본)은 3번째 인자에 **그 배포본의 직전 배포**(예: ad48222 → 4c08ab3)를 넣는다.
 
 1. `scripts/validate.py`(독립 검산 — 태그 짝·클릭수·CTR 강조·top5·카드·경쟁사·11·12번 등, 아래 "배포 전 검산")
@@ -260,12 +270,14 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
 ### 7단계. 배포
 
 ```bash
-"$PY" scripts/deploy.py push --file work/index.html --message "리포트 갱신: <기간>" [--dry-run]
+"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" [--dry-run]
 "$PY" scripts/deploy.py verify --file work/index.html   # 재수령본 md5 = 로컬
 ```
 
-`push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). `--dry-run`은
-sha 조회·자격 증명 확인(`자격 증명 확인됨(출처: git)`)·본문 준비까지만 하고 아무것도 보내지도 쓰지도 않는다(2026-09-26 실측). 내부는
+`push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). 그 조회 본문이 `--base`(4단계 fetch 파일)와
+md5가 다르면 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` exit 1로 PUT하지 않는다 — 그 사이 다른 배포가 있었다(4단계부터 다시 할지는 사용자). 실제 push는
+`--base` 필수(없으면 exit 2). `--dry-run`은 sha 조회·base 대조·자격 증명 확인(`자격 증명 확인됨(출처: git)`)·쓰기 권한 확인
+(인증 GET으로 `permissions.push` 참/거짓, 거짓이면 `[FAIL]`)·본문 준비까지만 하고 PUT을 보내지도 파일을 쓰지도 않는다(2026-09-26 실측). 내부는
 `PUT https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html`
 `body: { "message", "content": <base64>, "sha": <최신 sha> }`. PUT 자격 증명은 deploy.py가 이 PC git 자격 증명(`git credential fill`)에서 얻어
 변수에만 둔다 — 출력·파일·로그 0, 세션이 직접 조회하지 않는다(`--token-file`을 주면 그 파일).
@@ -289,6 +301,7 @@ validate.py 검사 N개 전부 PASS(precheck가 보이는 요약 줄 `검사 N�
 **효율: 벽시계 __분 · 도구 호출 __회 · 즉석 코드 __행**(compute/compare 밖에서 새로 쓴 코드 — 0이 목표)
 2-1단계 선확인 / 제외 그룹 신규 후보 / 01·06 min-width·라벨 / 11번 판정(유지·뒤집힘·근거 소멸) / 12번 이월 판정 / 경쟁사·제외 검색어 대조 / 사용자에게 요청한 값 / 다음 회차 대조
 제외 검색어(5-0단계): 재노출 판정 n건(등록돼 있는데도 노출 a · 등록 누락 b · 미확인 c) / 후보 n → 승인 n → 등록 n · verified n · 실패 n(description) / registry 행수
+propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n — 다음 회차 `--since` = lo)
 ```
 
 효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤 같은 재현은
@@ -300,9 +313,10 @@ validate.py 검사 N개 전부 PASS(precheck가 보이는 요약 줄 `검사 N�
 승인을 기다린다. 임의로 판단해서 넣으면 잘못된 정보가 조용히 배포된다.
 
 **순서는 승인·등록·확인 → 배포다**(사용자 결정 2026-09-28). 해당하는 (1)~(4) 질문은 **한 메시지로 한 번에** 묻고(`references/code-tab.md` 3절 —
-2-1 기간이 같으면 그 전에 그 질문 하나만),
+2-1 기간이 같으면 그 질문은 이 묶음과 별개의 앞 질문 하나다, 2-1단계),
 제외 검색어 등록·verify 결과를 07 각주·11·12번에 쓴 뒤 배포한다. 예외 "등록은 나중에"는 사용자가 그렇게 말할 때만 —
-07·11·12번에 사실형 문구("제안함 — 등록은 다음에")로 배포하고 `--pending`은 쓰지 않는다. 뒤에 등록하면 4단계를 다시 받아 `--pending` 없이 재배포한다.
+07·11·12번에 사실형 문구("제안함 — 등록은 다음에")로 배포하고 `--pending`은 쓰지 않으며, 8단계 기록에 "등록 미룸(사용자): 예"와 propose 창 lo~hi를 남긴다.
+미룬 이름은 다음 회차 propose를 `--since lo`로 돌려 새 이름과 한 묶음으로 올리고, 같은 데이터로 미룬 등록만 하려면 2-1 답 "미룬 등록만"으로 간다.
 
 **(1) 새로운 경쟁사 브랜드명 검색어**
 
@@ -500,16 +514,18 @@ config `date_based_sections`에 따라 늘고 준다):
   디자인·레이아웃을 건드려야 할 때 읽는다.
 - `references/exclusion-ui.md` — 제외 검색어 자동화의 값 정의: API 끝점·서명·오류 코드, UI 실물(탭·대화상자·`이미등록`·금지 요소 `+ 전체추가`),
   registry 스키마·상태, 후보·재노출 판정 규칙, PC 실행 절차, 시험 등록. 5-0단계에서 읽는다.
-- `scripts/exclusions.py`(5-0단계 `pull`/`import-ui`/`propose`/`push --dry-run`/`verify`/`delete`/`test-roundtrip`/`report`) ·
-  `audit/exclusions.csv`(등록 상태 registry, 기계 정본) · `tests/test_exclusions.py`(가짜 API로 서명·판정·부분 실패·verified:false·dry-run 무전송·시험 순서 검사 — 정기 점검 때).
+- `scripts/exclusions.py`(5-0단계 `pull`/`import-ui`/`propose`/`push`(참조 선택 모드·`--dry-run`)/`verify`/`delete`/`test-roundtrip`/`report`) ·
+  `audit/exclusions.csv`(등록 상태 registry, 기계 정본) · `tests/test_exclusions.py`(가짜 API로 서명·판정·부분 실패·verified:false(CLI 종료 코드 포함)·dry-run 무전송·
+  승인 목록 쓰기 전 가드·시험 순서 검사 — 정기 점검 때).
 - `references/report-fetch.md` — 보고서 자동 수집(설계안 C, PC Playwright)의 값 정의: PC 설치·`--login`·매일 실행·검사·오류 대처·
   codegen 녹화·금지 사항·UI 실물. 1단계에서 읽는다.
 - `scripts/fetch_reports.py`(1단계 PC 전용 `--dry-run`/`--login`/기본 실행/`--debug`/`--prev`, config `report_fetch`) ·
   `tests/test_fetch_reports.py`(가짜 화면 `tests/fixtures/`로 dry-run 브라우저 0·금지 차단·4개 다운로드·1일 프리셋·부분 실패 exit 2·
   미로그인 exit 1 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
-- `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
+- `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
   `scripts/compute.py`(5단계 값) · `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·
-  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run` — GET 무인증 먼저, PUT은 이 PC git 자격 증명).
+  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base` — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침, file:// 밖 요청 차단) ·
-  `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋) — 정기 점검 때.
+  `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
+  `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·token 파일 인코딩) — 정기 점검 때.
