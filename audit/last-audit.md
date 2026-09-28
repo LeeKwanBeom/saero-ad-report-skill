@@ -5,6 +5,33 @@
 효율: 벽시계 약 40분(00:21 UTC clone → 00:48 1차 push(코드) → 2차 push(audit)는 아래 마무리 기록) · 도구 호출 약 55회 · 즉석 코드 0행(산출물은 전부 저장소 안: 스크립트 745·시험 393·가짜 화면 199·문서 97행. 세션 안 편집용 파이썬 조각은 산출 아님).
 표기: [실측] 이 세션에서 직접 확인 / [문서] 저장소·공식 문서 원문 / [추론] 확인 못 함 / [미실측] 사용자 PC에서만 확인 가능 / [시험] 저장소 `tests/fixtures` 가짜 화면으로 확인(실제 사이트 아님).
 
+## 검증·병합 기록 (2026-09-28 — 보고서 자동 수집 C: 검증 1 → 수정 회차 2 → 검증 2 → main 병합)
+
+**병합**: `feat-report-fetch`(최종 `476ff7b` — 분기 뒤 11커밋: 79ad780 구현 … cb9f9e7 왕복 3 · 47a9f43 기록 · 53a1575 수정 2 · 476ff7b 기록 2)을 main(`aaa3ed7` — 분기 뒤 main 5커밋: c8d4441 data · bf3089e registry · 284c60a·aaa3ed7 audit · c5c1136 audit + `references/exclusion-ui.md` +3행)에 `git merge --no-ff` → 병합 커밋 **`730aa45`**(부모 aaa3ed7·476ff7b). **충돌 0** — `audit/last-audit.md`도 자동 병합(main 추가 32행·브랜치 추가 110행이 병합본에 전부 있음, main이 바꾼 1행은 새 문장으로; 2006 → 2147행). 병합 tree: 브랜치가 안 건드린 파일(`data/2026-09` 4·`audit/exclusions.csv`·`references/exclusion-ui.md`) = main, 그 밖 = 476ff7b(`git diff` 확인).
+clone은 `git -c core.autocrlf=false clone` + clone 로컬 설정 `core.autocrlf=false`(이 PC는 Git 시스템 설정 `C:/Program Files/Git/etc/gitconfig`가 `autocrlf=true` — 병합 체크아웃도 LF), 병합 변경 9파일 CR 0 [실측].
+사용자 병합 지시(2026-09-28, "검증이 끝난 브랜치를 main에 합쳐줘") 뒤 병합. 브랜치 `feat-report-fetch`는 지우지 않고 둔다. 코드·문서 재수정 없음(이 절 추가만). 위 표제와 "수정 기록 2"의 `main 미반영`·`main 0`은 당시 사실 — 원문 보존, 이 절로 정정(**2026-09-28 main 반영**). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+
+**검증 1**(`saero-ad-report_검증_2026-09-28.md`, 별도 세션 — 데스크톱 앱 Code 탭·사용자 PC, 대상 47a9f43): 목록 1·2·3·5·6·7·9·10·11 재현·일치(PC 수집 4개 = main `data/2026-09` 4개 md5 바이트 동일), 목록 8 확인 못 함(부트스트랩 설치본 없는 PC). **판정 2건** → ① 결함: 같은 전용 프로필 2회째 실행부터 다운로드 순간 크롬 크래시(0xC0000005 — 프로필 `History` `downloads`에 지워진 Playwright 임시 파일 경로가 남은 상태가 조건; 이 PC에서 시험 12개 중 9 OK·3 FAIL, 설치 크롬 창·같은 프로필 1회차만 성공) ② 기록 오류: 임의 결정 7 "설계 밖 config 키 4개"(실제 5개). 참고 1(main 앞선 변경에 `references/exclusion-ui.md`도 있음 — 충돌 0). "원래 제안·지시를 바꾼 곳"은 의도와 다른 구현 없음. → 사용자 지시 → **수정 회차 2**(`53a1575`·`476ff7b`, 아래 "수정 기록 2").
+**검증 2**(별도 세션, 대상 476ff7b): 보고의 최종 해시 `476ff7b`(사용자 전달) = 원격 `feat-report-fetch` HEAD [실측] → 사용자 병합 지시. 보고 전문은 이 병합 세션 폴더에 없어 세부 항목은 옮겨 적지 않았다. "수정 기록 2"의 발견(지운 기록이 같은 id로 되살아남)은 결함 판정 없이 첫 실사용 관찰 항목으로(사용자 지시, 아래 2).
+
+**병합 main에서 전체 세트 재실행** [실측] — 이 PC(Windows 11 · Python 3.12.10 · Playwright 1.63.0). PC에 pandas가 없어 합본·mutation_test는 회차 폴더의 격리 venv(`--system-site-packages` + pandas 2.3.3, 시스템 Python 불변)로:
+- `py_compile` scripts 8 · tests 4 = **12/12** 통과 · config `json.load` 통과.
+- `python -W error::ResourceWarning tests/test_fetch_reports.py` → **Ran 15 · FAILED 2**(78초). 실패 = `test_check_file_and_cross_on_real_data`(`키워드.csv` "기간 = 기대": 헤더 2026.09.01.~2026.09.27. ↔ 기대 ~09.26.) · `test_compare_prev_warns_on_recount`(`common_days` 27 ≠ 26). 원인: 시험 172·211행 `D(2026, 9, 26)`·222행 `common_days … 26`이 **실제 `data/2026-09`의 기간을 고정** — 브랜치의 data는 09-26판(f625fbc), main은 `c8d4441`(09-28 갱신 회차)에서 09-27판. 코드 결함 아님, 이번 달 파일이 갱신될 때마다 다시 깨지는 구조 → 이월(사용자 결정 2026-09-28: 기록하고 push). 나머지 13개 OK — 브라우저 시험 6개 전부(번들 크로미움, skip 0)·프로필 정리 2·channel 1 포함. 끝 줄 `실제 data/2026-09·config md5 전/후 동일: True (b826b388 등)`.
+- `tests/test_exclusions.py` → Ran 29: 시스템 Python(pandas 없음) FAILED 1·ERROR 3 / venv FAILED 1·ERROR 1 / venv + `PYTHONUTF8=1` **FAILED 1**. ERROR = Windows 기본 인코딩(cp949)에서 subprocess 출력 디코드 실패(`r.stdout` None)·pandas 없음. FAILED 1 = `test_push_dry_run_zero_http_and_no_file_change`(실제 registry 사본을 쓰는데 `노원역맛집출구`가 이미 3그룹 등록 → "등록 예정 1 · registry에 이미 등록 1" 0회). **병합 전 main(aaa3ed7)·분기점(0a2bafb) 스냅샷에서도 같은 결과** — `exclusions.py`·`test_exclusions.py`는 브랜치가 안 건드려 이번 병합과 무관 → 이월. `audit/exclusions.csv` f495f03b 전후 동일.
+- 합본 `archive.py combine`(회차 폴더) **PASS** — 2026.08.26.~09.27. 33일 · 9,991/309/351,299원(8월 조각 2,363/50/36,397 + 9월 7,628/259/314,902) = 09-28 갱신 회차 기록과 같음.
+- `tests/mutation_test.py <배포본 32d8b05 index.html> <합본 4종>`(`PYTHONUTF8=1`) → exit 0 **"전부 살아 있음"**: 기준 22 PASS / 0 FAIL → 변조 22 [OK] + 0건 가드 14 [OK] + config 실험 2 + archive 7/7 [OK], 커버리지 22/22, [MISS]/[UNCOVERED]/[SKIP] 0, 원본 md5(html·CSV 4·data/ 8) 전부 동일.
+- `data/2026-09` 4파일 md5 전후 동일(검색어 984ec818 · 상세지역 c6707c34 · 시간대별 a3b7e5c3 · 키워드 1da83049). 배포 저장소 HEAD `32d8b05` 그대로, PUT 없음. 네이버 계정·광고주센터 접속 0, 실제 프로필 `~/saero-fetch/chrome-profile` 접근 0.
+
+**부트스트랩**: 설치본 SKILL.md는 저장소 주소·받는 방법 그대로 → **재업로드 불필요(설치본 불변)**. 다음 회차부터 부트스트랩 clone이 main = 병합본(1단계 `scripts/fetch_reports.py`·`references/report-fetch.md`·config `report_fetch`)을 받는다.
+
+**첫 실사용에서 볼 것**(사용자 PC, 실제 프로필):
+1. 첫 `[profile] 다운로드 기록 정리: …` 줄 — 왕복 1~3의 파일 없는 기록이 지워지고(실제 파일 있는 기록은 유지) 크래시 없이 4개가 받아지는지.
+2. **지운 다운로드 기록이 같은 id로 되살아나는 현상 건수** — 실행마다 `[profile]` 정리 건수와 summary.json `profile_cleanup`을 적어 추세(수정 기록 2 ④: 실행마다 4건씩 증가)를 본다.
+3. **10월 1일은 `지난달` 프리셋 첫 실측**(기간 텍스트 클릭 → 팝업 → `지난달` → `확인` → `조회하기` 활성) — 그날은 `--debug`로 돌려 `debug/`·summary.json을 남긴다.
+
+**이월**: ① `.gitattributes`로 CSV CRLF 방지(이 PC Git 시스템 설정 `autocrlf=true`) → 다음 "Code 탭 전 단계 실행" 회차 ② `test_fetch_reports.py` 날짜 고정 2건(172·211·222행 — 이번 달 `data/` 갱신마다 FAIL) ③ `test_exclusions.py` 기존 실패(실제 registry 의존 1 · Windows 인코딩/pandas 없음 ERROR — 병합 전부터).
+효율: 벽시계 약 50분(12:28 clone → 병합 → 전체 세트 → 기록·push) · 도구 호출 약 35회 · 즉석 코드 0행(저장소 산출 없음 — 대조용 셸·인라인 조각만).
+
 ## 수정 기록 2 (2026-09-28 수정 회차 2 — 결함 1: 같은 크롬 프로필 2회째 실행 크래시)
 
 세션: Claude Code 데스크톱(사용자 Windows 11 PC, 사용자 입회), Opus 5.5. 지시 범위 = 검증 보고(2026-09-28)의 결함 1 + 기록 오류 1건, 나머지 이월. 브랜치 `feat-report-fetch`만 push, main 0. 네이버 계정·광고주센터 접속 0, 실제 프로필 `~/saero-fetch/chrome-profile` 접근 0. 커밋: **`53a1575`**(코드·시험·문서) + 이 절(기록).
