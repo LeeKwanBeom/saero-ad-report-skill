@@ -1,3 +1,202 @@
+# 기능 추가 탐색 기준선(Code 탭 전 단계 실행, 2026-09-28)
+점검일: 2026-09-28 (기능 추가 회차 — **탐색·설계만**. 데스크톱 앱 Code 탭 세션, 이 PC, 작업 폴더 `D:\saero`로 열어 메모리 D--saero·wrapup이 붙은 상태. 모델 Opus 5.5 — 지시문은 Fable 기준). 기준 main `c5015c5`(시작 때 `git fetch` 뒤 `c5015c5..origin/main` 커밋 0 · 작업 트리 깨끗 · `pull --ff-only` 무변경). SKILL.md·scripts·config·tests·data·work **변경 없음**(이 절 추가만). 네이버 광고주센터·검색광고 API·배포 저장소 쓰기 0, 네이버 로그인 0, 실제 수집 프로필·다운로드 폴더 열기 0. 설치본 부트스트랩 불변(44행, md5 `97a3e194…` — 세션 중 확인). 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차.
+추가할 기능: 지금 따로 도는 ① 보고서 CSV 4개 받기(`scripts/fetch_reports.py`) ② 보관·합본·리포트 갱신·배포(SKILL.md 1단계 보관·합본·보관본 push ~ 8단계, 5-0 제외) ③ 제외 검색어 등록(5-0단계, `scripts/exclusions.py`)을 Code 탭 세션 하나에서 한 번에 잇는다. 아래 "기능 추가 탐색 기준선(보고서 자동 수집)" 절 끝 **사용자 결정(2026-09-28 저녁)** 블록이 정한 다음 순서("Code 탭 전 단계 실행": 경로 규칙·pandas/playwright 의존성·토큰 파일 규약·Code 탭 진입점)다.
+방법: 읽기 + 허용 명령만 — 버전·설치 확인, `fetch_reports.py --dry-run` 2회, `exclusions.py report` 1회·`push --dry-run` 4회, 시험 2종. 명령·시험은 전부 스크래치 LF clone(`git -c core.autocrlf=false clone`)에서. 탐침(CRLF 셸 스크립트·TZ·cp949 출력)은 저장소 밖 스크래치에서. 조사 5 · 설계 3 · 반박 검증 6(checklist 충돌 / 사실·실현성) · 완결성 점검 1을 병렬 하위 에이전트로 돌리고 조정자가 서로 대조·재실측했다.
+효율: 벽시계 약 80분(13:38 fetch → 14:58 기록) · 도구 호출 조정자 약 50회 + 하위 에이전트 467회 · 즉석 코드 약 30행(결과 분리·탐침, 저장소 밖).
+표기: [실측] 이번에 파일·명령으로 확인 / [실측·기록] 저장소 기록 원문 / [추론] 확인 못 함. 행 번호는 c5015c5 파일 기준. 사용자 폴더는 `~`·`C:\Users\<사용자>\…`, 토큰·키 파일은 역할로만 적는다.
+
+## 0. 시작 확인과 환경 실측 [실측]
+
+| 항목 | 값 |
+|---|---|
+| 저장소 | main `c5015c5` = origin/main, 새 커밋 0, 작업 트리 깨끗 |
+| Desktop 사본(`references/report-fetch.md` 12·34행 cd 경로 `C:\Users\<사용자>\Desktop\Agent\claude\saero-ad-report-skill` = ① 문서상 실행 폴더) | `log -1` = `68028c8`(cd 줄 추가) · `status -sb` = `## feat-report-fetch...origin/feat-report-fetch`(원격 ref를 fetch 안 해 뒤처짐 표시 없음) · `merge-base --is-ancestor 53a1575 HEAD` → `fatal: Not a valid object name 53a1575`(exit 128) = **크래시 수정 53a1575와 파일명 수정 cb9f9e7이 없다**. 문서 절차의 `git pull`이면 feat-report-fetch `476ff7b`(수정 포함)를 받지만 main의 data·registry·exclusion-ui 3절은 못 받는다 [추론]. 결과 폴더는 두 사본 모두 `~/saero-fetch/…`(config 동일 b826b388 [실측·기록 64행]) — 다른 것은 코드 판뿐 |
+| Python | 3.12.10(`py -0`에 3.12 하나) · pandas **없음** · playwright 1.63.0(번들 chromium-1243 설치됨) |
+| `python3`(Git Bash) | WindowsApps의 Microsoft Store 스텁 → `python3 --version`·`python3 -c` exit 49. `python3` 호출: SKILL.md 10곳(89·95·160·178~180·203·226·240·241), ingest.sh 3(7·8·11), precheck.sh 4(14~16), references 2(exclusion-ui.md:68·report-fetch.md:100), checklist 2(66·275) |
+| 출력 인코딩 | 도구 파이프의 stdout·stderr = cp949 → `print('—')` UnicodeEncodeError exit 1, `PYTHONUTF8=1`이면 통과(탐침). stdout을 utf-8로 바꾸는 스크립트는 `fetch_reports.py:61`·`exclusions.py:60` 둘뿐이고, `validate.py:353`은 정상 경로에서도 `—`를 찍는다 → 6단계가 인코딩으로 죽을 수 있음 [추론] |
+| git | 시스템 설정 `core.autocrlf=true`, 저장소 로컬 설정·`.gitattributes` 없음 → 작업 폴더 34파일 i/lf w/crlf(data CSV 전 행 CRLF, `data/2026-09/키워드.csv` md5 4ebd1593 ≠ 커밋 1da83049) + `audit/exclusions.csv` i/crlf. **git 신원(user.name·email) 어느 범위에도 없음**. credential.helper = manager(시스템) |
+| 셸 | Git Bash 5.3. CRLF 셸 스크립트는 `./x.sh`·`bash x.sh` 모두 정상(탐침) → `.sh`의 CRLF는 막는 요인 아님. `/home` 없음, `/home/claude/…` 인자는 `C:\Program Files\Git\home\claude\…`로 변환됨(그 폴더 ACL: Users = RX). zoneinfo 없음 → `TZ=Asia/Seoul date`는 **UTC**(05:42 GMT), `TZ=KST-9 date`가 KST |
+| 토큰·키 | 스킬 저장소용/배포 저장소용 PAT 파일 1개(저장소 밖, **어느 저장소용인지 이름으로 모름**) · 네이버 API 키 파일(저장소 밖) · 수집 전용 프로필·다운로드 폴더(`~/saero-fetch/…`) — 존재만 이름으로 확인, 내용·폴더는 열지 않음 |
+| 진입점 | 이 Code 탭(`D:\saero`) 세션 스킬 목록에 `wrapup`과 설치본 `anthropic-skills:saero-ad-report`(설명 "광고 CSV 넣어줘 … 반드시 이 스킬을 사용할 것")가 함께 뜬다. 설치본 1절 `cd /home/claude && rm -rf saero-skill && git clone …`은 Git Bash에서 cd가 실패해 사슬이 끊긴다 [추론]. 메모리 D--saero의 링크 `[[saero-code-tab-workflow]]`는 끊김. 저장소 폴더로 열면 메모리 폴더가 새로(빈 채로) 생기고 wrapup이 안 붙는다 [추론 — `~/.claude/projects/`에 D--saero·D--saero-verify만 있음] |
+| 허용 명령(스크래치 clone) | `fetch_reports.py --dry-run`(오늘 / `--today 2026-10-01`) exit 0 · 표 4행 · 기대 `이번달` 2026.09.01.~09.27. / `지난달` 09.01.~09.30. · 두 폴더 생성 0 · `git status` 빈 출력. `exclusions.py report` exit 0(664행, 3그룹 registered 221 + deleted 1). `push --approved <9/28 승인 목록 사본> --dry-run` exit 0 "등록 예정 0 · registry에 이미 등록 6", registry md5 f495f03b 전후 동일. 둘 다 pandas 없이 돈다(폴백) |
+| 시험(스크래치 LF clone) | `test_fetch_reports.py` Ran 15 · **FAILED 2**(날짜 고정 172·211·222행 — 브라우저 시험 6개는 ok, 78초) · `test_exclusions.py` Ran 29 · **FAILED 1·ERROR 3**, `PYTHONUTF8=1`이면 FAILED 1·ERROR 2(ERROR = pandas 없음 2 + cp949 subprocess 디코드 1, FAIL = 실제 registry 의존 `:509`·`:524` — `노원역맛집출구`가 이제 3그룹 등록). data·config·registry md5 전후 동일. = 병합 기록(19~20행)과 같은 결과 |
+| registry 커밋 모양 | 9/28 `bf3089e`의 `audit/exclusions.csv` +663/−648은 줄바꿈 변경이 **아니다**(부모·자식 모두 CRLF·BOM, `--ignore-cr-at-eol`로도 같은 diff) — pull·verify가 모든 행의 `verified_at`을 그날로 다시 써서 매 회차 전 행이 바뀐다 |
+
+## 1. 세 단계 지금 상태
+
+| | ① 보고서 CSV 4개 받기 | ② 보관·합본·갱신·배포(1~8단계, 5-0 제외) | ③ 제외 검색어 등록(5-0) |
+|---|---|---|---|
+| 자동(코드) | 기대 기간 계산(평일 `이번달` 1일~어제, 1일 `지난달`) → 목록 → 보고서 4개 열기·기간 읽기·(다르면 프리셋·확인)·다운로드·돌아가기 → 검사 6종 + 3종 노출합 → 성공 폴더로 이동·summary.json (`cmd_fetch`·`fetch_one`·`check_file`·`cross_check`) [실측] | `archive.py store`(종류는 컬럼 `:69-76`, 달은 첫 줄 헤더) · `combine`(검사 5종) · `ingest.sh`(store→combine→data push) · `deploy.py fetch/push/verify` · `compute.py` · `precheck.sh`(validate·compare·overflow) [실측] | `propose`(후보·재노출 판정·승인 문구, 호출 0) · `push`(쓰기 전 pull → 그룹별로 없는 이름만 POST → verify, 금지 패턴 `[거부]`) · `verify` · `report` [실측] |
+| 사람 손 | 실행 시각 01:00 KST 이후 고르기(코드 검사 없음) · `--login` 창에서 로그인·2단계 인증 · 팝업 닫기 · `--prev` 폴더 고르기(기본값 없음 `:958`) · **4개를 세션에 올리기**(`:920`) · 실패하면 `--debug` 재실행·첨부 | **CSV 업로드**(SKILL.md:52·89 `/mnt/user-data/uploads`) · **토큰 대화창 입력**(25행) · 2-1·3단계·(1)(2) 답 · 라이브 시크릿 창. 세션 손: 2-1 대조·3단계 신규 그룹 판정(스크립트 없음), 5단계 HTML 교체·서술(즉석 코드 400~480행 — 1267·1289행), costPie title, 8단계 기록 | "등록 승인 N개" 답 · **승인 목록 파일 전달**(present_files → Code 탭) · **결과 화면 전달** · (9/27) PowerShell에서 명령 실행 |
+| 명령·절 | `python scripts\fetch_reports.py [--dry-run\|--login\|--prev <폴더>\|--debug]` · SKILL.md 66~68 · references/report-fetch.md | SKILL.md 84~100·160~161·203·219·240~241 — 전부 `python3`·`/home/claude/work/…`. `ingest.sh:6` `OUT=/home/claude/work/combined`, `:14` 토큰을 push URL에, `precheck.sh:11` `J=/home/claude/work/compute.json` | SKILL.md 171~195 · references/exclusion-ui.md 3·6·7절 |
+| 입력 → 출력 | config `report_fetch` → `~/saero-fetch/downloads/YYYY-MM-DD/<이름> 보고서,2580077.csv`×4 + summary.json(+`debug/`), 실패는 `partial/YYYY-MM-DD/`. `~` = USERPROFILE(`:85`), `--prev`·상대 인자는 cwd 기준 | 업로드 CSV → `data/YYYY-MM/<종류>.csv`(ROOT 기준) → `/home/claude/work/combined/`·`prev.html`·`index.html`·`compute.json` → 배포 저장소 `index.html` | 합본 `검색어.csv` + registry → `ROOT/work/exclusions_proposal_<창끝>.md`·`_candidates.txt`(propose) · `work/approved_<날짜>.txt` · `work/exclusions_pull_<날짜>.json`(pull·verify, 같은 날이면 덮어씀) · registry |
+| 필요한 것 | Python ≥3.9 · playwright · 설치 크롬(`browser_channel "chrome"`) · pandas 불필요(폴백 `:44-57`) · 토큰·키 없음 · 네이버 로그인(전용 프로필) | pandas(archive `:41`·compute `:18`·validate `:54-56`·compare·**deploy도 reportlib 경유 `:23`**) · playwright(overflow_check, 번들 크로미움) · bash·md5sum · 스킬 저장소 PAT(ingest)·배포 저장소 PAT(`deploy.py:54` required — fetch에도) | pandas는 propose만(`:509`) · 네이버 API 키 파일(`--key-file`, 기본값·expanduser 없음 `:344-346`) · API 호스트가 열린 셸(PC 일반 셸·Code 탭 O, 채팅 403) |
+| 실제로 돈 곳 | 사용자 PowerShell · Desktop 사본(feat-report-fetch, 왕복 3 = `68028c8`). 병합 730aa45 뒤 실사용 0, Code 탭 도구로 실제 광고주센터를 돌린 기록 0 | 채팅(claude.ai 컨테이너 `/home/claude`, 부트스트랩이 main을 매번 clone — 9/28 clone 01:45Z) | 9/27: 채팅 propose + 사용자 PowerShell(Desktop 폴더 — 당시 git 저장소 아님, Python 3.14) / 9/28: 채팅 propose·dry-run·승인 목록 → **Code 탭(작업 폴더 main, python 3.12)** pull·push·verify·registry 커밋 `bf3089e`(+0900) |
+| 결과 파일(git 밖) | `~/saero-fetch/downloads`(저장소 밖) | 컨테이너 `/home/claude/work`(세션이 끝나면 사라짐) + present_files 사본. 저장소엔 data·audit 커밋 | 작업 폴더 `work/`(`approved_2026-09-28.txt` 113B · `exclusions_pull_2026-09-28.json`) |
+| 최근 실사용 | 왕복 3 성공(9/28, 4개 PASS·노출합 7,628×3, 수집본 = `data/2026-09` md5 동일 — 14·100행) | 9/28 배포 `e1df211`(1차 `0272498` 정정) · data `c8d4441`(토큰 1개만 와 403 → 후속 push) · 재배포 `32d8b05` — 약 18분·47~52회·즉석 400행 | 9/27 33×3 verified(`871ead7`) · 9/28 5×3 verify 15/15(`bf3089e`) · "노원힐링장소." 마침표 누락(1280·1282행) |
+
+## 2. 단계 사이 이음새 — 사람이 옮기는 자리(없앨 대상) [실측]
+
+| # | 자리 | 원문(파일:행) | 누가·무엇·어디 → 어디 | 없애려면 한 곳에 있어야 하는 것 |
+|---|---|---|---|---|
+| c1 | ①→② CSV 업로드 | SKILL.md:66-67 "사용자가 그 4개를 세션에 올린다" · report-fetch.md:51 "이 4개를 세션에 올리면 … store·push는 지금처럼 세션이 한다(2회차에 PC로 옮길지 결정)" · fetch_reports.py:920 · checklist.md:178([의도된 동작] 24) | 사용자 · CSV 4개 · `~/saero-fetch/downloads/<날짜>/` → 채팅 `/mnt/user-data/uploads/` | fetch 성공 폴더 · archive.py · pandas · 실제 파이썬 · 스킬 저장소 쓰기 수단이 한 셸에 |
+| c2 | FAIL 뒤 다시 받기 | SKILL.md:91-92 "사용자에게 이번 달 1일~어제로 다시 받아 달라고 한다" · 113-114 · 128-132 "'사용자 지정 기간'을 선택하고 … 4개 파일을 다시 받아주세요"(문구도 낡음 — 표준은 프리셋, 58-59·72-73) · 147-148 | 사용자 · 손 다운로드 → 세션 | 세션이 fetch를 다시 돌릴 수 있는 곳(로그인 만료만 사람) |
+| c3 | ②→③ 옛 모양(9/27) | SKILL.md:190-191 "`pull`·`push`·`verify`는 **사용자 PC의 PowerShell**에서 돈다 — 명령을 채팅에 그대로 적어 주고, 실행 뒤 … 받아 읽는다" · exclusion-ui.md:55 "(사용자 폴더 경유 또는 커밋)" — `work/`는 `.gitignore:3`이라 커밋으로 못 옮긴다 | 세션 → 사용자(명령) → PowerShell → 사용자 → 세션(결과 파일 2개) | API가 열린 셸 · 키 파일 · registry·`work/`가 같은 폴더 |
+| c4 | ②→③ 9/28 모양 | 1280행 "승인 목록 `work/approved_2026-09-28.txt`(6줄)를 present_files로 전달. 실행은 … Code 탭" · "(사용자 화면 2장 + 세션 재pull·registry 실측)". 문서는 exclusion-ui.md:42-43만 반영(`c5c1136`), SKILL.md 5-0 4항·checklist.md:174([의도된 동작] 20)는 옛 문구 | 채팅 → present_files → 사용자 → Code 탭 세션 → 사용자 화면 → 채팅(재배포 32d8b05) | 승인 목록을 쓰는 세션 = push하는 세션 = 배포하는 세션 |
+| c5 | 이름 원문 | exclusion-ui.md:44 "Claude Code 지시문에는 "이름은 원문 그대로(기호·마침표 포함)"를 명시한다" · 7절 115 "registry·승인 목록·CSV 이름은 원문대로" | 재현: 작업 폴더 승인 목록(11:21:12, 6줄, 마침표 0)을 등록 전 registry(`871ead7`) 사본으로 dry-run → "등록 예정 5 · 이미 등록 1 · 216 → 221". 마침표 복원본 → "6 · 0 · 216 → 222" = 채팅 기록 값(1280행). **채팅이 넘긴 목록엔 마침표가 있었고 Code 탭 쪽에서 파일을 다시 쓰며 빠졌다.** `read_approved`(`exclusions.py:653-662`)는 strip·주석·중복만 처리 → 코드가 아니라 사람(세션) 이음새 탓. 원문 "노원힐링장소."는 registry에 없어 다음 propose에서 어느 목록에도 안 오른다(`:583` first_seen_only) → 1282행 "사람이 재상정" | 승인 목록을 propose 산출물·CSV 원문에서 복사로만 만드는 규칙과 코드 가드 |
+| c6 | 실행 폴더 둘 | report-fetch.md:12·34 cd = Desktop 사본(feat-report-fetch, 크래시 수정 없음) ≠ Code 탭 작업 폴더(main — ③ 9/28이 돈 곳, wrapup이 가정하는 곳) | 사람이 두 폴더를 오감. 두 사본에서 동시에 돌리면 같은 프로필을 동시에 씀(금지 report-fetch.md:87) | 작업 폴더 하나 |
+| c7 | 토큰 | SKILL.md:25 "매번 대화창에서 입력받는다" — 9/27·9/28 모두 1개만 와 data push 403 → 후속 왕복(1268·1279·1292행) | 사용자 → 채팅 → 세션이 파일로 저장 | PC의 역할별 토큰 파일과 경로 인자 규약 |
+| c8 | 첨부 | report-fetch.md:63·65 "`debug/` 전부 … + `summary.json`을 세션에 첨부" · 9절 105 | 사용자 · debug·summary → 세션 | 세션이 download_dir을 직접 읽음(로그인 실패 산출물 제외 — 4절 #15) |
+
+## 3. 멈춤 자리
+
+**ⓐ 사람 승인 = 남길 자리**(없애는 안은 내지 않는다) [실측]
+- (1) 새 경쟁사 — SKILL.md:284-286 "승인받은 뒤에만 경쟁사 표에 추가", (1-1) 296-305 config·이력 표·리포트 세 곳을 같은 회차에.
+- (2) 애매 후보 — 316 "표에 넣지 말고 짧게 언급한 뒤 확인받는다."
+- (3) 새 제외 그룹 — 155 "새로운 후보가 감지되면 **멈추고 확인한다.**", 346-347. 판정 코드 없음(세션).
+- (4) 제외 검색어 — 189·322 "'등록 승인 N개'(또는 뺄 이름) 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다." 승인 문구 = `exclusions.py:605-608`·exclusion-ui.md 6절.
+- 2-1 — 146-150 "그래도 다시 계산할까요? … 답을 받기 전에 5단계로 넘어가지 않는다." 대조 코드 없음(세션).
+- 공통 — 273 "리포트에 반영하지 말고, **배포도 하지 말고**, 채팅으로 보고한 뒤 승인을 기다린다."
+- 그 밖 — 재시도·keep·한도 재승인(186·192, exclusion-ui.md:120) · delete/test-roundtrip `--confirm`(`exclusions.py:834·887`) · 12번 N주 미반영(report-structure.md:407-409).
+- 사람만 할 수 있는 일(승인 아님, 남김) — 네이버 로그인·2단계 인증(`fetch_reports.py:791`) · 팝업 닫기(report-fetch.md:78) · 라이브 시크릿 창(checklist.md:168) · codegen 녹화.
+
+**ⓑ 자동 검사 FAIL = 멈춤은 남기되 그 뒤 사람 손은 바꿀 수 있음**
+
+| FAIL | 원문(파일:행) | 지금 그 뒤 사람 손 | Code 탭에서 바꿀 수 있는 것 |
+|---|---|---|---|
+| store 거부 | `archive.py:84` "…두 달에 걸침 — 달별로 나눠 받아야 함" · `:94-95` "…옛 다운로드로 보임. 맞으면 --force" | 손으로 다시 받아 업로드(SKILL.md:91-92) | 세션이 원인 보고 → fetch 재실행 제안(사용자 결정). `--force`·`--chunk` 자동 금지(report-fetch.md:86) |
+| store 부분 적용 | `archive.py:79-100` 파일마다 remove → copy, 중간 fail이면 앞 파일은 data/에 남음 | 없음 | 멈추고 `git status data/` 보고, 되돌리기는 사용자 |
+| combine FAIL | `archive.py:116·119·127·131·140·145·156` | "4개 파일을 다시 받아주세요"(128-132) | 위와 같음. 단 월초를 놓쳐 지난달 말일 구간이 비면 평일 fetch(`이번달`)로는 복구 불가 → 손 폴백 경로가 필요(`fetch_reports.py:102-110`) |
+| registry 없음 | `exclusions.py:938-940` exit 1 | 저장소 확인 | 같은 폴더라 드묾 |
+| precheck | `precheck.sh:12-16`(md5 가드 `:13`, validate·compare·overflow) | 세션이 고침(SKILL.md:235) | 그대로. FAIL 상세가 `tail -n 3`에 가려짐 → FAIL이면 전체 출력 |
+| deploy verify 불일치 | `deploy.py:76-77` | SKILL.md에 대처 문구 없음 | 멈추고 재GET 비교 보고, 재PUT은 사용자 |
+| fetch exit 2 부분 실패 | `fetch_reports.py:925-926` "…store 금지" | `--debug` 재실행 → summary·debug 첨부 | 세션이 `partial/<날짜>/summary.json`을 직접 읽음 — **재실행 전에**(재실행이 partial을 지움 `:812-813`) |
+| fetch exit 1 금지 차단 | `:471`·`:485-486` | debug 첨부 | `--debug` 없이는 스크린샷도 summary도 없다(`:847-848`) → `--debug` 재실행은 사용자 결정 |
+| fetch exit 1 로그인 | `:840-842` | 사용자가 `--login` | `--login` 실행은 세션(백그라운드), 로그인은 사람(ⓐ) |
+| push 부분 실패 · verified:false | `exclusions.py:800-803`·`:825` | 채팅 보고 | 그룹×이름 보고 → 재시도는 ⓐ |
+| 네트워크 차단 | `exclusions.py:271` "같은 명령을 PC에서 실행하세요" exit 2 | PowerShell로 옮김(= ⓒ) | Code 탭에선 안 남 [실측·기록 exclusion-ui.md:42] |
+| data·registry·audit push 403 | `ingest.sh:14` · 1268행 | 채팅으로 토큰 재요청 | 사용자는 토큰 파일 자리만 고침(채팅 붙여넣기 0) |
+| (코드 검사 없음) 01:00 KST · 프로필 사용 중 | report-fetch.md:38(코드는 헤더만 비교 `:225`, 일별은 ⊂ 검사 `:240` → 헤더가 어제까지면 덜 집계돼도 통과) · `:346` `[WARN]` 뒤 계속 launch | 사람이 시각을 고름 / 크롬 닫고 재실행 | 세션 사전 점검(`TZ=KST-9`·`profile_in_use`)으로 올릴 후보 |
+
+exit 코드가 겹친다: fetch exit 1 = 로그인·금지 차단·환경, exit 2 = 부분 실패·argparse 사용법 오류 / exclusions exit 1 = 부분 실패·ApiError·전부 거부(후보 0), exit 2 = 네트워크 차단·argparse → **출력 줄로 가른다** [실측 코드].
+
+**ⓒ 이음새 = 없앨 대상**: 2절 c1~c8.
+
+## 4. Code 탭에서 돌리면 걸리는 것
+
+| # | 항목 | 근거 | 막히는 곳 | 선택지(구현 안 함) |
+|---|---|---|---|---|
+| 1 | `python3` = Store 스텁 | 0절 | ②(명령 그대로면 1·4·5·6·7단계), ingest·precheck | `python` / `py -3.12` / PY 변수 |
+| 2 | pandas 없음 | `reportlib.py:11`·`archive.py:41`·`compute.py:18`·`validate.py:54-56`·`compare.py:16`·**`deploy.py:23`(폴백 없음)**·`exclusions.py:509` | ② 전부(배포 포함) · ③ propose | 저장소 밖 venv(`--system-site-packages` + pandas<3 — 병합 회차 방식 17행) / 시스템 pip / deploy에 폴백 |
+| 3 | cp949 | 0절 탐침 · `validate.py:353` · archive fail 메시지 7곳 | ② 6단계 · FAIL 메시지 · ingest 커밋 메시지(heredoc) [추론] | `PYTHONUTF8=1`(Bash 도구는 env가 이어지지 않아 **명령마다**) / 사용자 환경변수 / 로컬 settings env(사용자 설정) / 코드 reconfigure |
+| 4 | 채팅 경로 | SKILL.md:51·52·89·95·100·160·161·178·203·219 · `ingest.sh:6` · `precheck.sh:11·13` | ② 1·4·5·6단계, ③ propose | 저장소 `work/`(gitignore) 규칙 — exclusions.py가 이미 `ROOT/work`에 씀 |
+| 5 | 작업 폴더 CRLF | 0절 · test_config_columns가 작업 폴더에서 FAIL(42행) · store가 LF 파일을 섞음 · `*.csv -text` 도입 순간 기존 CRLF 파일이 modified로 보임 [추론] | 검증·md5 대조 | `.gitattributes`(`*.csv -text` + `*.sh text eol=lf`) + 작업 폴더 LF 재clone(`reset --hard`는 권한 분류기 거절 기록 — 메모리) / 로컬 `autocrlf=false`만 |
+| 6 | git 신원 없음 | `ingest.sh:14` commit에 `-c user.*` 없음 | ② data push | checklist.md:438·wrapup:46의 값(`LeeKwanBeom` · noreply) |
+| 7 | 01:00 관문 | 코드 검사 없음 · `TZ=Asia/Seoul`=UTC | ① | `TZ=KST-9` 또는 파이썬으로 KST |
+| 8 | 토큰 규약 | SKILL.md:25(대화창) · 247(파일에서만) · `deploy.py:54` required · `ingest.sh:14` 토큰을 URL에(argv 노출·GCM 저장 가능 [추론]) · exclusion-ui.md:32 "이 세션에 연결되지 않은 PC 폴더" 전제가 Code 탭에서 깨짐 | ② 배포·push, ③ | 역할별 파일 2개(저장소·수집 폴더 밖) + 경로 인자, 세션은 존재만 확인 / 스킬 저장소는 GCM(계정 범위 — SKILL.md:28 "서로 통하지 않는다" 약화 [추론]) |
+| 9 | `~` 미확장 | `exclusions.py:344-346`·`deploy.py:29-31` | ③·② (PowerShell에서 `~` 인자) | 절대 경로 / expanduser 한 줄 |
+| 10 | 진입점 | 0절 | 전체 | `D:\saero`로 열기 + 저장소 밖 진입 규약(로컬 CLAUDE.md 또는 진입 스킬) + 부트스트랩 Windows 분기(재업로드, 사용자) |
+| 11 | 사본 여럿 | 0절 Desktop 사본 | ① | 문서 cd 교체, 작업 폴더 하나 |
+| 12 | 창·장시간 | Bash 도구 최대 10분 · `--login` 대기 600초(config 112) → run_in_background 필수 · 백그라운드는 끝날 때만 알림 → 도중 `[WARN] … 떠 있음`에서 못 멈춤 · 강제 종료 시 크롬이 남아 잠금 → 크래시 조건 [추론] | ① | 실행 **전** 프로필 사용 중 검사 · 첫 실사용 = 첫 실측 |
+| 13 | 시험 이월 | 0절(②③) | 검증 | 날짜 = `data/` 헤더에서(음성 단언 183~186행 등 보존) · fixture registry · subprocess `encoding="utf-8"` |
+| 14 | overflow 측정 조건 | checklist.md:171 "Chart.js 미로드 상태" vs PC는 cdnjs 열림 [추론] | ② 6단계 | 결정 |
+| 15 | debug 산출물 | `fetch_reports.py:558` input value 60자 · 로그인 실패 때 강제 캡처 `:838` | ① | 로그인 실패 산출물(png·aria·inventory)은 열지 않기 · 마스킹은 별도 회차 |
+| 16 | `.gitignore`에 `.claude/` 없음 | 5줄 | 커밋 | 진입 설정은 저장소 밖에 / `.claude/` 추가 |
+| 17 | 권한 프롬프트 | push·pip·백그라운드마다 [추론] | 전체 | 허용 목록은 사용자 설정 — 외부 쓰기 명령은 빼는 것이 안전 |
+
+## 5. 문서와 코드가 다른 곳 [실측]
+
+1. propose "쓰기 0"(SKILL.md:178 · exclusion-ui.md:87 · `exclusions.py:12`) ↔ `ROOT/work`에 파일 2개를 씀(`:640`·`:644`), `_candidates.txt`는 문서에 없음. "쓰기 0"은 registry·계정 기준에서만 맞다.
+2. SKILL.md 5-0 4항(190-191)·checklist.md:174 "사용자 PC의 PowerShell/일반 셸" ↔ exclusion-ui.md:42-43 "Code 탭 세션".
+3. report-fetch.md:12·34 cd = Desktop 사본, :105 브랜치 checkout 절차(병합 뒤 낡음).
+4. `fetch_reports.py:20` "사용법 … exit 1" ↔ argparse exit 2(부분 실패와 겹침).
+5. report-fetch.md:38 "01:00 전이면 … FAIL" ↔ 코드는 헤더만 비교 — 헤더가 어제까지면 덜 집계돼도 통과.
+6. report-fetch.md:61·65 금지 차단도 "debug·summary 첨부" ↔ 그 경로엔 summary·스크린샷이 없음(`--debug` 없을 때).
+7. report-fetch.md:41 "자격 증명·쿠키는 없다" ↔ inventory에 input value(`:558`).
+8. SKILL.md:64 원본 파일명 `필라테스_보고서_…` ↔ 스크립트 수집본 `필라테스 보고서,2580077.csv`.
+9. SKILL.md:130-132·checklist.md:76 '사용자 지정 기간'으로 다시 받기 ↔ 프리셋 표준(58-59·72-73). `archive.py:5` docstring "최근 30일까지만"(임의 결정 11, 83행).
+10. SKILL.md:139 2-1이 배포본을 읽는데 배포본은 4단계에서 받음(순서).
+11. SKILL.md:261 "[PASS] 줄 세어" ↔ `precheck.sh:14` `tail -n 3`.
+12. SKILL.md:35 "읽기는 토큰 없이" ↔ `deploy.py fetch`도 `--token-file` 필수(무토큰은 git clone 폴백뿐).
+13. 7단계 verify 불일치 대처 문구 없음.
+14. `validate.py:56` 설치 안내가 리눅스용(`--break-system-packages`).
+15. verify가 note "등록 요청 성공(확인 전)"을 남김(1282행 ② 결함 후보 그대로).
+16. keep: SKILL.md:186 "사용자가 뺀다" ↔ wrapup:28 "registry — 손으로 고치지 않는다", keep을 쓰는 명령 없음.
+17. 시험 등록 회차: SKILL.md:195 "구현 검증 회차와 API 키가 바뀐 뒤에만. 검증·진단 회차는 propose·report·--dry-run만" ↔ exclusion-ui.md:126 "검증 회차는 같은 시험 1건을 재현" ↔ checklist.md:407 C①.
+18. 순서: SKILL.md 5-0(171) → 7(237)·273 "배포도 하지 말고" ↔ 357행 결정 문장("리포트 갱신·배포 → 제외 검색어 후보·승인·등록·확인")·9/28 실제(배포 뒤 등록 → 재배포).
+
+## 6. 설계안(≤3, 반박 검증 반영판 — 채택은 사용자)
+
+**공통 뼈대**(세 안 모두): 실행 폴더 = PC 작업 폴더(main) 하나, Code 탭은 `D:\saero`로 연다. 순서 S0 사전 점검(쓰기 0: `git fetch`·`status`, 파이썬·pandas·playwright, KST 01:00(`TZ=KST-9`), 토큰·키 파일 존재만, 수집 프로필 사용 중 아님) → ① fetch(백그라운드, `--prev` 직전 성공 폴더) → 1 store·combine·data push(쓰기 뒤 `ls-remote`·`origin/main == HEAD`) → 4단계 fetch를 당겨(읽기) → 2-1 → 3 → 5-0 propose(`--since <직전 배포 끝+1일>` — 기본 창은 마지막 하루라 건너뛴 날의 첫 등장 이름이 빠진다 `:552-556`·`:583`) + (권장) pull + compute → **ⓐ 승인 묶음 한 번**((1)~(4) 중 0개인 항목만 뺀다) → 답으로 config(competitors·excluded_groups)가 바뀌면 config 커밋 + compute(·propose) 재실행 → 승인 목록은 **propose 산출물(후보·제안서 업종어 절)과 CSV 원문에서 복사로만**(재입력 0, 대조는 `K()`, 줄 수 = N) → push(pull → POST → verify) → registry push → 5단계 교체(12 → 11 순서) → 6 precheck → 7 `--dry-run` → push → verify → 8 기록 → push → 재clone.
+**승인·등록·확인은 배포 앞**(세 안 공통): ① 배포·검증 세트 1회(9/28은 뒤에 두어 재배포 32d8b05·문구 7곳·fix2.py 14행·검증 세트 2회 — 1281행) ② 07·11·12번을 verify 숫자로 처음부터 ③ SKILL.md 순서(5-0 → 7)·273과 맞고 `--pending` 불필요 ④ 9/28에 뒤집힌 이유는 채팅의 API 403뿐, Code 탭은 등록 약 2분(11:21:12 → 11:22:48). 대가 = 배포가 답을 기다림. 예외 "등록은 나중에"(사용자가 말할 때만): 사실형 문구로 배포 → 등록 뒤 재배포는 4단계 재fetch + `--pending` 없이 엄격 검사. 357행 문장 순서와 달라 **사용자 확정 필요**.
+**공통 보정**(반박 검증에서 나온 것 — 세 안 모두 반영): git 신원(`-c user.*`) · env는 명령마다(또는 한 호출 안 `export`) · 01:00은 `TZ=KST-9` · 재개·완료 판정은 대상 현재 상태(verify·`ls-remote`·`deploy verify`)로 — state 파일·registry note로 판정하지 않음 · 프로필 사용 중 검사는 fetch **전에** · exit 코드는 출력 줄로 구분 · 로그인 실패 산출물 열지 않음 · ingest의 "data/ 변경 없음 — push 생략" 분기에서도 `origin/main == HEAD` 확인(커밋만 되고 push 안 된 상태가 숨는다 `ingest.sh:10`) · 리허설은 스크래치 clone에서만, 입력은 `data/` 밖 사본(`archive.py:96-99`가 같은 경로면 원본을 지운 뒤 복사하다 소실) · 수동 폴백(손 다운로드 4개) 입력 경로를 명시.
+**F11 ⑤(시험 1건 등록→확인→삭제)**: 네이버 = `test-roundtrip` 1건(충족) · 스킬 저장소 push = 시험 브랜치 push → `ls-remote` → 삭제 → 없음(충족 가능) · **배포 PUT = 삭제 경로 없음**(`deploy.py:26` `contents/index.html` 고정) → 대체안(배포 토큰으로 배포 저장소 `git push --dry-run` = 쓰기 권한만 확인·쓰기 0(1268행 방식) + `verify` 일치/불일치 시험 + 첫 실사용 입회 PUT 1회·재수령 md5). **세 안 모두 이 대체안의 사용자 승인이 있어야 "필수 설계 다 갖춤"이 된다.**
+
+| | A 절차서형(최소 코드) | B 오케스트레이터형 | C 진입점·회차 분할형 |
+|---|---|---|---|
+| 핵심 | 새 스크립트 0. SKILL.md "Code 탭 실행" 절 + `references/code-tab.md`에 순서·명령·멈춤을 적고 세션이 Bash로 차례로 부른다 | `scripts/run_cycle.py`(표준 라이브러리, preflight·plan·step·state·audit-draft)가 기계 단계를 잇고 사람·세션 차례에서 정해진 exit 코드로 멈췄다가 다음 호출이 이어 받는다. 외부 쓰기는 step별 따로 호출(권한 프롬프트 = 승인 단위) | 저장소 밖 진입 스킬(`D:\saero\.claude\skills\saero-run`)이 저장소 `references/code-tab.md`를 가리킨다. 가드 2개(`ingest.sh --from <성공 폴더>` — summary result=ok·exit_code 0·partial 거부 / `exclusions.py push --candidates <선택 가능 목록> --expect N` — `K()` 대조) |
+| 코드 변경 | ingest.sh·precheck.sh 경로·PY·신원·push 확인 · `.gitattributes`·`.gitignore` · (선택) 시험 이월 | run_cycle.py 신설 · exclusions.py `approve`(번호 선택, 업종어·원문 추가 허용) · precheck·ingest 변수화 · deploy.py 폴백·expanduser·API 주소 주입점(검증용) · compare 정규식은 import하지 않고 compute.json masthead 문자열 비교 | 회차 1: ingest·precheck·PY·신원·reconfigure·expanduser·`.gitattributes` / 회차 2: `ingest --from` / 회차 3: `--candidates`·`--expect`·propose `_selectable.txt` |
+| 내가 치는 말 | 시작 문구(설치본 트리거와 겹치지 않는 말) · "등록 승인 N개"(+ 뺄 이름 등) · "마감" | `/saero-cycle` · 승인 답 · "마감" | `/saero-run`(리허설은 `/saero-run 리허설`) · 승인 답 · "마감" |
+| 진입 | 로컬 `D:\saero\CLAUDE.md`(저장소 밖) | 진입 스킬 `/saero-cycle`(저장소 밖) | 진입 스킬 `/saero-run`(저장소 밖) + 부트스트랩 Windows 분기(재업로드) |
+| dry-run | 명령별 기존 dry-run + 스크래치 리허설 | `plan`(쓰기 0) + 스크래치 전용 `--rehearsal` | 기존 dry-run + `/saero-run 리허설`(스크래치) + `ingest --no-push`(스크래치 전용) |
+| 검증에서 나온 치명 → 보정 | 재개 판정이 registry에 없는 description 열 → 대상 판정 / 승인 목록 "후보에서 줄 빼기만"이 업종어·재상정을 막음 → 복사 규칙 확장 / 새 행 "성공 폴더만"이 손 폴백을 막음 → 폴백 경로 명시 / env 접두가 `&&` 사슬에 안 걸림 → export | config push 누락 → 포함 / 답 뒤 재계산 순서 없음 → 명시 / 리허설 가드 자기모순(repo 경로 없음)·`--from data/` 원본 소실 → 스크래치 marker·data 밖 사본 / V5(verified:false) 재현 불가 → 주입점 / approve 입력원 제한 → 번호 선택+추가 | `TZ=Asia/Seoul`=UTC → `TZ=KST-9` / 신원 없음 → `-c user.*` / compute 재실행 없음 → 명시 / "후보 0개면 생략" → "(1)~(4) 모두 0일 때만" / 가드 `strip()` 정확 일치가 checklist.md:216 `K()` 위반 → K() / [의도된 동작] 20 개정이 회차 3이라 회차 2 첫 실사용과 충돌 → 회차 1로 |
+| 도구 호출·소요(갱신 1회, 검증 현실값) | 약 65~85회 · 40~60분 | 약 50~70회 · 35~50분 | 약 55~70회 · 35~50분 |
+| 나눌 순서 | 회차 1 실행 기반 → 회차 2 전 단계 흐름 | 1 PC 실행 기반(preflight·plan) → 2a ①→보관·push → 2b 배포·기록 → 3 ③ 잇기 | 1 환경 기반(1A 코드·시험 / 1B 운영 규약으로 쪼갤 수 있음) → 2 ①→② → 3 ②↔③ |
+| 리스크(요지) | 즉석 코드 400행 그대로 · 명령이 길어 세션마다 시행착오 | 코드가 커 검증 부담 · state와 실물 불일치 | 진입 스킬이 정본 저장소 밖(점검 대상에서 빠짐) · 회차 3개라 완료가 늦음 |
+
+조정자 의견(한 줄, 결정은 사용자): **C를 뼈대로** — 회차 1이 357행이 이름 붙인 범위와 이월 ①에 그대로 맞아 "한 회차 기능 하나"에 가장 가깝다. 회차 1·2는 A처럼 새 스크립트 없이 하고, B의 step별 외부 쓰기 분리·state는 E2(apply.py 저장소화) 뒤 후보로 둔다.
+검증 방법(공통 재현 목록): 시험 3종(`PYTHONUTF8` 없이·venv) · mutation_test 전부 살아 있음 · dry-run 무변경(전후 data·config·registry md5, `git status`, 두 저장소 `ls-remote` HEAD, fetch 폴더 미생성) · 금지 패턴 차단(`노원역운동`·경쟁사명·일반 1 → `[거부]` 2) · verified:false 실패 보고 · 이름 원문 가드(`노원힐링장소.`) · partial 거부 · 01:00·프로필 사용 중 멈춤 · 시험 1건(`test-roundtrip`, 입회) · 문서 = 코드 grep(`python3`·`/home/claude`·Desktop cd 0건).
+
+## 7. 절대 하면 안 되는 항목 후보와 checklist 충돌
+
+**금지 후보**(근거): partial·검사 실패·summary 없는 폴더를 store(checklist.md:219·220) · `store --force`·`--chunk` 자동(report-fetch.md:86) · 승인 이름을 세션이 다시 타이핑하거나 기호·마침표를 지움(exclusion-ui.md:44·115, 1280행) · "등록 승인 N개" 전 push·delete·test-roundtrip(SKILL.md:322) · 실제 이름·여러 건 시험(checklist.md:212) · 외부 쓰기 자동 재시도·자동 재PUT(SKILL.md:192) · 헤드리스·같은 프로필 동시 실행(report-fetch.md:87 — 두 사본 포함) · 로그인 폼 입력, 로그인 실패 산출물 열기(checklist.md:218) · 토큰·키 파일 열기·출력, 토큰을 채팅에 요구(SKILL.md:247) · 세션이 registry 손 편집(wrapup:28) · 이 PC에서 부트스트랩 1절 실행·`/home/claude` 생성 · `git add -A`(work/·키·`.claude/`) · 답을 반영한 재배포에 `--pending`(checklist.md:205) · precheck 3번째 인자에 작업본(:206) · 크래시 수정 없는 판(68028c8)으로 본 실행 · 01:00 KST 전 실행 · main 아닌 브랜치에서 ingest(`HEAD:main` push, `ingest.sh:14`) · 세션이 권한 허용 목록·env 설정 파일을 바꿈(사용자 설정).
+
+**checklist 충돌**(세 안 공통, 풀려면 사용자 결정):
+
+| checklist:행 원문(짧게) | 이 기능과의 관계 | 사용자가 정할 것 |
+|---|---|---|
+| :174 [의도된 동작] 20 "`pull`·`push`·`verify`·`test-roundtrip`은 **사용자 PC의 일반 셸**에서 돈다(경로 C)" | 세 안 모두 Code 탭 세션이 실행(exclusion-ui.md:42-43·9/28 실측은 이미 그렇게) | 문안 개정 승인과 시점(첫 실사용 전) |
+| :178 [의도된 동작] 24 "검사 통과 파일도 store·push는 **세션이 지금처럼** 한다(PC에서 store·push는 2회차)" | **store·push를 누가 하나**: 지금 = 채팅 세션(업로드받아), 바뀐 뒤 = PC Code 탭 세션(수집 폴더에서 바로). 주체는 여전히 Claude 세션, 자리만 PC — 이 기능이 그 "2회차" | 357행 결정을 근거로 문안 개정 승인(report-fetch.md:51·`fetch_reports.py:21·920`도 함께) |
+| :179 [의도된 동작] 25 "`[WARN]`만 내고 계속하는 것 … 정상" | 세션 사전 점검으로 멈춤을 더함(코드 동작은 그대로) | 사전 점검 채택 여부 |
+| :171 [의도된 동작] 17 overflow "Chart.js 미로드 상태" | PC는 로드될 수 있음 | 조건 통일(외부 요청 차단) / 로드 상태 허용 |
+| :169 [의도된 동작] 15 답 대기 배포 = `--pending` | 배포 앞 등록이면 쓰이지 않음 | "등록은 나중에" 때 사실형 문구 / `--pending` |
+| :173 [의도된 동작] 19 업종어 포함은 사용자가 고르면 넣는다 | 승인 목록 가드가 막으면 안 됨 | 가드 입력원에 업종어·원문 추가 허용 |
+| :216 "이름 대조는 전부 `K()`" | 새 가드도 K()여야 함(K()로도 마침표 사례를 잡음) | (가드는 K()로 — 결정 불필요, 원안 C만 해당) |
+| :207·:219 근거 시험 | 이월 ②③을 고치면 음성 단언(예 test_fetch_reports 183~186행 기간 ≠ 기대 → FAIL)을 보존해야 함 | 이월 ②③을 이 기능 회차에 넣을지 |
+| :212 · :407 C① · SKILL.md:195 · exclusion-ui.md:126 | 시험 1건을 어느 회차에 하는지 기존 문서끼리 어긋남 | 회차(구현 끝 / 검증 회차)와 고칠 문서 |
+| SKILL.md:25·28·247 · exclusion-ui.md:32 | 토큰 대화창 입력 폐지, GCM이면 "두 토큰 서로 통하지 않음" 약화, 키 격리가 기술→정책 | 토큰 보관 방식·스킬 push 수단·격리 규칙 |
+| SKILL.md:256·305 (1-1) | config는 리포트 배포와 같은 회차에 push(B 원안이 빠뜨림) | (보정됨 — 결정 불필요) |
+| SKILL.md:273 ↔ 357행 문장 순서 | 등록→배포(세 안) vs 배포→등록(357행 문장·9/28) | 순서 확정 |
+
+## 내가 고를 항목
+1. 설계안: A 절차서형 / B 오케스트레이터형 / C 진입점·분할형(조정자 의견: C 뼈대 + 회차 1·2는 새 스크립트 없이) / 보류.
+2. 나눌 순서: A 2회차 / B 4회차(1 → 2a → 2b → 3) / C 3회차(회차 1을 1A 코드·시험 / 1B 운영 규약으로 나눌지).
+3. 단계 순서: 등록·확인 → 배포(SKILL.md 순서, 세 안 기본) / 배포 → 등록(357행 문장·9/28). "등록은 나중에" 예외 허용 여부와 그때 문구 방식(사실형 / `--pending`).
+4. 실행 폴더: PC 작업 폴더(main) 하나로(세 안 공통). Desktop 사본 처리(이름 바꿔 보관 / 삭제 / 그대로 — 사용자 손). 작업 폴더를 LF로 다시 받을지(재clone — 기존 `work/`의 9/28 파일 2개 보관).
+5. 과도기 운영(마지막 회차 병합 전, 10/1 `지난달` 첫 실측 포함): ① = Code 탭에서 main 작업 폴더 스크립트(`python`, pandas 불필요) 또는 Desktop 사본 `git pull` 뒤 PowerShell / ② = 채팅 업로드(현행) / ③ = Code 탭(9/28 방식). 10/1은 크래시 수정 판 + `--debug`.
+6. checklist [의도된 동작] 20·24 개정 문안 승인(+ 25 사전 점검, 17 overflow 조건, 15 답 대기 배포, 19 업종어 경로).
+7. pandas: 저장소 밖 venv(`--system-site-packages` + pandas<3) / 시스템 pip — 설치는 구현 회차에서 사용자 승인 뒤.
+8. 토큰: 역할별 파일 2개(저장소·수집 폴더 밖, 만료일 설정) 상주 / 회차마다 두고 폐기 / 스킬 저장소는 GCM. 기존 PAT 파일이 어느 저장소용인지 사용자 확인.
+9. 인코딩·PY: 명령마다 `PYTHONUTF8=1`·PY / 사용자 환경변수 / 로컬 settings env(영구 설정 — 사용자가 직접) / 코드 reconfigure.
+10. 진입점: Code 탭은 `D:\saero`로 연다(세 안 공통). 진입 규약 = 로컬 CLAUDE.md / 진입 스킬. 설치본 부트스트랩에 Windows 분기를 넣어 재업로드할지. 첫 말(`/saero-run` 등).
+11. `.gitattributes`: A `*.csv -text` + `*.sh text eol=lf` / B `* text=auto eol=lf` / C `*.sh`만 / D 로컬 `autocrlf=false`만.
+12. config 값(공개 저장소라 `~`만, 실제 경로는 로컬에): python 경로 · 작업 폴더(`work/` 또는 `work/run-<날짜>/`) · `download_dir`·`profile_dir` 유지 · 토큰·키 파일 자리(역할별 — 이름은 로컬에만) · 수집 시작 가능 시각 01:00 · 스킬 push 방식 · git 신원 값을 둘 곳.
+13. F11 ⑤ 대체안 승인: 배포 PUT = 배포 토큰 `git push --dry-run` + verify 일치/불일치 시험 + 첫 실사용 입회 PUT 1회 / 스킬 저장소 = 시험 브랜치 push → 확인 → 삭제.
+14. 시험 항목: 제외 검색어 `saero제외테스트<MMDD>` 1건 — 그룹(targets 첫째 노원산전 / 9/27 선례 상계동) · description `saero test MM-DD` · 사용자 입회 · 등록 → 확인 → 삭제 → 없음 · registry `deleted` 1행 · 어느 회차(문서 모순 5절 17 정리 포함) · API 키 재발급 여부(기록 없음). fixture(`노원역운동`·경쟁사명·일반 1 / `노원힐링장소.`) · fetch `--dry-run --today 2026-10-01` · 배포 verify 일치/불일치.
+15. 시험 이월 ②③을 회차 1에 넣을지 / 따로.
+16. keep 처리 주체(사용자 손 편집 / 명령 신설 — 별도 회차).
+17. 내가 칠 말(안): 첫 말 / "등록 승인 N개"(+ "빼: 이름" · "업종어 넣기: 이름" · 경쟁사 채택·보류 · 제외 그룹 예·아니오) / 2-1 "그래도 다시 계산" / 첫 실사용 "배포" / "마감".
+18. 첫 실사용 범위: 마지막 구현 회차 병합 뒤 평일 01:00 KST 이후(10/1 피함), 사용자 입회, fetch `--debug`, 배포 "배포" 확인 1회, 등록은 실제 후보가 있을 때만. 손 다운로드 대조(결정 7, 129행)를 다시 할지.
+19. "노원힐링장소."(마침표 원문, 미등록) 재상정 여부.
+20. 점검 회차로 넘길 것: verify note 결함 후보(1282행 ②) · registry 전 행 `verified_at` 재기록(매 회차 전 행 diff) · 5절 문서·코드 어긋남 18건.
+
+## 마무리 기록(이번 회차)
+- 1차 커밋 = 이 절만(`audit/last-audit.md` 경로 지정 add, author `LeeKwanBeom <322668067+LeeKwanBeom@users.noreply.github.com>`). push는 이 PC의 git 설정 그대로(토큰 수령·사용 0), 직전 `git fetch`, 뒤 스크래치 재clone으로 행수·md5 대조. 커밋 해시는 자기 참조라 적지 않는다.
+- 전문은 저장소 밖 사용자 폴더 `saero-ad-report_Code탭전단계_탐색_2026-09-28.md`(하위 에이전트 원문 부록 포함).
+- 네이버 계정 읽기·쓰기 0 · 배포 저장소 0 · SKILL.md·scripts·config·tests·data md5 불변 · 부트스트랩 불변. 이 세션에서 받은 토큰 없음.
+
+---
+
 # 기능 추가 구현 기준선(보고서 자동 수집 C, 2026-09-28)
 점검일: 2026-09-28 (기능 추가 회차 — **구현**, Fable, 웹 claude.ai 세션, 탐색과 다른 세션). 브랜치 **`feat-report-fetch`**(main `0a2bafb`에서 분기), **main 미반영**. 네이버 계정 접속 **0**(광고주센터·API 어느 쪽도 이 환경에서 못 연다 — 탐색 기준선 0절 그대로; 실제 화면 실행은 전부 사용자 PC). 리포트 갱신·배포 **없음**. 설치본 부트스트랩(`/mnt/skills/plugins/saero-ad-report/SKILL.md`) **불변**(44행, md5 `97a3e194388b2ee75ad8fc81f9e47f78` 세션 시작·끝 동일 [실측]).
 설계: 탐색 기준선 6-6 **C(PC Playwright, 4개 전부)** + 재집계 감지(`--prev`, API 0). A(API 교차 검증)는 이월. 기준선 1절(UI CSV 형식·store 통과 조건)·6-5(UI 실물)·6-7(금지 후보)을 그대로 따랐다.
