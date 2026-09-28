@@ -69,6 +69,8 @@ def fake_urlopen(req, timeout=None):
     elif m == "GET" and url.endswith("/repos/" + scen["repo"]):
         status, body = scen["repo_auth"] if auth else [200, {"name": "x"}]
     elif m == "PUT":
+        if scen.get("put_raise"):  # PUT 도중 끊김(응답 못 받음) 흉내 — 서버가 받았는지 모른다
+            raise TimeoutError("timed out")
         status, body = scen.get("put") or [200, {"commit": {"sha": "c0ffee1234"}, "content": {"sha": "f11e5ha000"}}]
         if isinstance(body.get("message"), str):  # 서버·프록시가 요청 헤더를 되돌려 주는 경우 흉내
             body = dict(body, message=body["message"].replace("{AUTH}", auth or ""))
@@ -105,20 +107,23 @@ class DeployTests(unittest.TestCase):
             with open(p(name), "wb") as f:
                 f.write(data)
         self.prev, self.work, self.other = p("prev.html"), p("work.html"), p("other.html")
-        self.stamp = p("precheck_ok.md5")                                    # precheck.sh가 전부 통과하면 쓰는 도장(작업본 md5)
+        self.stamp = p("precheck_ok.md5")                                    # precheck.sh가 전부 통과하면 쓰는 도장(작업본·직전 배포본 md5·모드)
+        self.write_stamp()
+
+    def write_stamp(self, work=WORK, prev=PREV, mode="full"):
         with open(self.stamp, "w", encoding="utf-8") as f:
-            f.write(f"{hashlib.md5(WORK).hexdigest()}  work.html\n")
+            f.write(f"{hashlib.md5(work).hexdigest()}  work.html\n{hashlib.md5(prev).hexdigest()}  prev.html\nmode {mode}\n")
 
     def tearDown(self):
         shutil.rmtree(self.td)
 
     def run_deploy(self, argv, repo_auth=(200, {"permissions": {"admin": True, "push": True, "pull": True}}),
-                   deployed=PREV, helper=True, put=None, edit_on_get=None):
+                   deployed=PREV, helper=True, put=None, edit_on_get=None, put_raise=False):
         sys.path.insert(0, SCRIPTS)
         from reportlib import load_config
         with open(self.scen, "w", encoding="utf-8") as f:
             json.dump({"content_b64": base64.b64encode(deployed).decode(), "repo": load_config()["deploy_repo"],
-                       "repo_auth": list(repo_auth), "put": list(put) if put else None, "edit_on_get": edit_on_get}, f)
+                       "repo_auth": list(repo_auth), "put": list(put) if put else None, "edit_on_get": edit_on_get, "put_raise": put_raise}, f)
         if os.path.exists(self.log):
             os.remove(self.log)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "PYTHONUTF8"))}   # 호출 환경의 GIT_DIR 등 전부 제거
@@ -210,7 +215,7 @@ class DeployTests(unittest.TestCase):
         rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"],
                                              put=(409, {"message": "sha mismatch; you sent {AUTH}"}))
         self.assertEqual(rc, 1, out + err)
-        self.assertIn("[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨", out)
+        self.assertIn("[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨, 4단계부터 다시 할지는 사용자가 정한다", out)   # 수정 기록 3 W8 문구 그대로(X13)
         self.assertIn("you sent token ***", out)                              # 되돌아온 헤더 값은 가려진다(run_deploy가 값 0건도 단언)
         rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"],
                                              put=(403, {"message": "Resource not accessible by integration {AUTH}"}))
@@ -226,7 +231,7 @@ class DeployTests(unittest.TestCase):
         self.assertIn("[FAIL] precheck 통과본이 아님 — PUT 안 함(도장 없음", out)
         self.assertEqual(reqs, [])
         with open(self.stamp, "w", encoding="utf-8") as f:
-            f.write(f"{hashlib.md5(OTHER).hexdigest()}  work.html\n")         # 다른 파일의 도장(precheck 뒤 작업본이 바뀐 경우)
+            f.write(f"{hashlib.md5(OTHER).hexdigest()}  work.html\n{hashlib.md5(PREV).hexdigest()}  prev.html\nmode full\n")   # 다른 파일의 도장
         rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
         self.assertEqual(rc, 1, out + err)
         self.assertIn("[FAIL] precheck 통과본이 아님", out)
@@ -250,6 +255,62 @@ class DeployTests(unittest.TestCase):
         self.assertEqual(rc, 0, out + err)
         puts = [q for q in reqs if q["method"] == "PUT"]
         self.assertEqual([q["body_md5"] for q in puts], [hashlib.md5(WORK).hexdigest()])   # 바뀐 파일이 아니라 도장 찍힌 바이트
+
+    def test_stamp_binds_prev_and_mode(self):
+        """X2: 도장의 직전 배포본 md5 ≠ --base면(409 뒤 prev만 다시 받음) 실제 push FAIL·요청 0, dry-run [주의] ·
+        옛 형식(1줄) 도장 FAIL · pending 도장은 막지 않고 [주의]."""
+        other_prev = os.path.join(self.td, "other.html")                      # 4단계를 다시 받아 prev가 OTHER가 된 상황
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", other_prev, "--message", "m"], deployed=OTHER)
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] precheck 통과본이 아님 — PUT 안 함(도장의 직전 배포본 md5", out)
+        self.assertIn("4단계를 다시 받았으면 5·6단계부터", out)
+        self.assertEqual(reqs, [])
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", other_prev, "--message", "m", "--dry-run"], deployed=OTHER)
+        self.assertIn("[주의] precheck 통과본이 아님(도장의 직전 배포본 md5", out)
+        with open(self.stamp, "w", encoding="utf-8") as f:
+            f.write(f"{hashlib.md5(WORK).hexdigest()}  work.html\n")         # 옛 형식(수정 회차 3) — 직전 배포본·모드 줄 없음
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("도장 형식이 옛 판", out)
+        self.assertEqual(reqs, [])
+        self.write_stamp(mode="pending")                                        # 답 대기 배포용 통과본 — 막지 않는다
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("[주의] --pending 통과본(답 대기 배포용)", out)
+        self.assertEqual([q["method"] for q in reqs].count("PUT"), 1)
+
+    def test_put_result_unknown_and_already_applied(self):
+        """X8: PUT 도중 끊김·5xx → "결과 모름 — 재PUT 금지, verify 먼저" exit 1 · 지금 배포본 = 작업본이면 "앞 PUT이 이미 반영됨" exit 0·PUT 0."""
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"], put_raise=True)
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] PUT 결과 모름(요청 실패(TimeoutError)) — 반영됐을 수 있다. 재PUT 금지, 먼저 deploy.py verify --file", out)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"],
+                                             put=(502, {"message": "Bad Gateway"}))
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] PUT 결과 모름(", out)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"], deployed=WORK)
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨(verify로 확인). PUT 안 함", out)   # 지시 문구 그대로(md5는 끝에)
+        self.assertEqual(self.methods(reqs), [("GET", "index.html", False)])       # PUT 0 · 자격 증명 요청 0
+
+    def test_argument_errors_before_network_and_token_shape(self):
+        """X9: --file·--out 없음은 GET 전에 exit 2 · --token-file ''은 git 자격 증명으로 넘어가지 않고 FAIL · 토큰은 [A-Za-z0-9_]만."""
+        for argv, want in ((["fetch"], "[FAIL] fetch에는 --out이 필요"), (["verify"], "[FAIL] verify에는 --file이 필요"),
+                           (["push", "--base", self.prev, "--message", "m"], "[FAIL] push에는 --file이 필요"),
+                           (["push", "--message", "m"], "[FAIL] push에는 --file이 필요")):
+            rc, out, err, reqs = self.run_deploy(argv)
+            self.assertEqual(rc, 2, (argv, out + err))
+            self.assertIn(want, out)
+            self.assertEqual(reqs, [], argv)                                   # GET 0
+        rc, out, err, reqs = self.run_deploy(["push", "--dry-run", "--token-file", ""])
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("[FAIL] 자격 증명을 얻지 못함(출처: token-file)", out)
+        self.assertEqual([q for q in reqs if q["auth"]], [])                   # git 도우미 값(FAKE)으로 넘어가지 않음
+        sys.path.insert(0, SCRIPTS)
+        import deploy
+        for bad in ("ab-c", "ab.c", "a/b", "tok+1"):
+            self.assertIsNone(deploy.usable(bad), bad)
+        self.assertEqual(deploy.usable("github_pat_AB12_cd"), "github_pat_AB12_cd")
 
     def test_no_credential_helper_fails_cleanly(self):
         rc, out, err, reqs = self.run_deploy(["push", "--dry-run"], helper=False)

@@ -70,15 +70,17 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | 3 | 제외 그룹 | 합본 키워드로 SKILL.md "제외 그룹 판정" 규칙(세션 판정) | 신규 후보 → ⓐ 묶음 |
 | 5-0a | 후보 | (권장) `"$PY" scripts/exclusions.py pull --key-file ~/naver-api.keys.json`(읽기 — registry `verified_at`이 바뀐다, 커밋은 5-0c, 5-0c가 없는 회차는 8단계에서 함께) → `"$PY" scripts/exclusions.py propose work/combined --since YYYY-MM-DD` — propose `--since` = 직전 배포 masthead 끝 + 1일(ISO). 직전 회차 기록이 "등록 미룸"이면 그 회차 propose 창 시작(lo) — 미룬 이름과 새 이름을 한 묶음으로 올린다(first_seen 필터 때문에 끝 + 1일로는 미룬 이름이 다시 안 오른다). 기본 창은 마지막 하루뿐이라 쓰지 않는다. 산출물은 `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`·`.md5`(출처 기록 — push가 대조), 빈 창이면 `[주의] 빈 창` | ⓑ registry 없음 |
 | ⓐ | **승인 묶음 한 번** | (1) 새 경쟁사 · (2) 애매 후보 · (3) 제외 그룹 · (4) 제외 검색어(propose 승인 문구 원문) 중 **해당하는 것만** 한 메시지. (1)~(4)가 모두 0일 때만 묻지 않는다 | 답을 기다린다 |
-| 5-0b | 답 반영 | config(`competitors`·`excluded_groups`)가 바뀌면 → config 커밋(push는 5-0c와 함께) → compute 재실행(경쟁사가 바뀌면 propose도) | — |
-| 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → POST → verify, 승인 목록은 실제 push가 `work/approved_<날짜>_<시분초>.txt`에 쓴다) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false) → 재시도는 ⓐ |
+| 5-0b | 답 반영 | config(`competitors`·`excluded_groups`)가 바뀌면 → config 커밋(push는 5-0c와 함께) → compute 재실행(경쟁사가 바뀌면 propose도 — **propose를 다시 돌리면 번호·출처 기록이 바뀌니 재승인**) | — |
+| 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(답의 번호를 그대로 `--drop`·`--industry-lines`에 · 호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 FAIL(승인 파일 안 씀) → 승인 목록을 `work/approved_<날짜>_<시분초>.txt`에 쓰고 → POST → verify) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false·요청 결과 모름·pull 뒤 이미 있음) → 재시도는 ⓐ |
 | 5 | 교체 | compute.json 값으로 01~12(12번 먼저, 11번 마지막). 07 각주·11·12번에 **등록 n · verified n · 실패 n**을 사실 그대로 | — |
-| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — 전부 통과하면 `work/precheck_ok.md5`(작업본 md5 도장) | ⓑ 세션이 고치고 재실행 |
-| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → 같은 명령(dry-run 없이 — `--base` 필수, 도장 = 작업본 md5일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html` | ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 409·403·404·verify 불일치(재PUT은 사용자) |
+| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음) | ⓑ 세션이 고치고 재실행 |
+| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html` | ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
 | 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
 
 **재개·완료 판정은 대상의 현재 상태로 한다**(세션이 끊겼다 다시 시작할 때): 보관본 = `git fetch` 뒤 HEAD = origin/main(`ingest.sh`가 확인)이고 `git status --short -- data`가 빔 ·
-등록 = `exclusions.py verify --key-file …`(registry note·기억으로 "등록 끝"이라 판정하지 않는다 — note는 verify 뒤에도 "확인 전"이 남는다) ·
+등록 = `exclusions.py verify --key-file ~/naver-api.keys.json --approved <이번 회차 propose(.md5) 뒤에 생긴 가장 최근 work/approved_*.txt>`(그런 파일이 없으면 이번 회차 실제 push는 POST 전 — 승인 파일은 pull 재검사를 통과한 뒤 첫 POST 전에 생긴다.
+registry note·기억으로 "등록 끝"이라 판정하지 않는다 —
+note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "registry에 pending 0"은 판정이 아니다. 요청 도중 끊긴 push(`요청 결과 모름`)도 이것으로) ·
 배포 = `deploy.py verify --file work/index.html`. state 파일·대화 기억은 근거가 아니다.
 
 **2-1 같음**: 2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0b(해당 시) → 5-0c → 5 → 6 → 7 → 8 /
@@ -104,7 +106,7 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | fetch exit 2 부분 실패 | `partial/<날짜>/summary.json`을 **재실행 전에** 읽고(재실행이 partial을 지운다) 보고서별 원인 보고 | 다시 받을지 |
 | fetch exit 1 금지 차단·허용 밖 | summary.json은 없다(`--debug`여도 — SystemExit가 summary 작성 전에 끝남). 메시지의 동작·요소 문구를 보고 · 재실행 전에 `partial/<날짜>/`를 읽는다(재실행이 지운다) · `--debug` 없이 `debug/`가 있으면 앞 보고서 실패 컷(차단 화면 아님, 차단 순간 컷은 없다) → 원인 불명으로 보고 | `--debug` 재실행 여부 |
 | fetch exit 1 로그인 | `--login` 백그라운드 → 끝나면 본 실행 | 창에서 로그인·2단계 인증 |
-| store 거부·combine FAIL | 메시지 원문 보고. `--force`·`--chunk` 자동 금지. 월초를 놓쳐 지난달 끝이 비면 평일 fetch로는 못 채운다 → 8절 폴백 | 다시 받기·폴백 |
+| store 거부·combine FAIL | 메시지 원문 보고. `--force`·`--chunk` 자동 금지. 월초를 놓쳐 지난달 끝이 비면 평일 fetch로는 못 채운다 → 8절 폴백. combine FAIL이면 store가 이미 바꾼 data/를 `git restore --source=HEAD --staged --worktree -- data`로 되돌리고(`??` 새 파일은 `git clean -n -- data`로 확인 뒤 정리) → 받을 폴더를 모두 모아 **한 번에** `ingest.sh` | 다시 받기·폴백 |
 | store 부분 적용 | `git status data/`로 바뀐 파일 보고(커밋 안 함) — 새 달 폴더의 추적 안 된 파일(`??`)은 되돌리기가 지우지 않는다(`git clean -n -- data`로 목록만) | 되돌리기(`git restore --source=HEAD --staged --worktree -- data` — M·A·D 전부 HEAD로, 스테이징된 새 파일은 작업 폴더에서도 지운다. 입력은 data/ 밖이라 잃지 않는다)·`??` 파일 지우기 |
 | ingest `[FAIL] HEAD ≠ origin/main`·브랜치(시작 검사면 쓰기 0) | 상태(`git status -sb`) 보고 | push·pull 결정 |
 | ingest `[FAIL] data/가 HEAD와 다름`(시작 검사, 쓰기 0) | 함께 찍힌 `git status --short data` 보고 — 누가 바꿨는지(ingest 커밋 실패로 `A`가 남은 것일 수도) | 되돌리기(`git restore --source=HEAD --staged --worktree -- data`) |
@@ -112,12 +114,17 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | ingest `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`(시작 검사, 쓰기 0) | 이름 댄 CSV 보고 → 8절 "작업 폴더 줄바꿈" | 정리 승인 |
 | push 403·거부(ingest `[FAIL] push 실패`) | 어느 저장소인지·커밋이 로컬에만 있는지 적어 보고 | 자격 증명 확인·재시도 |
 | registry 없음 | `git status`·경로 점검 | — |
-| exclusions `[FAIL] 승인 목록…`(쓰기 0) | 출력의 출처 목록·`[FAIL]`·`[주의]` 쌍둥이를 그대로 보이고 줄·행 번호를 사용자 답과 다시 맞춘다(이름을 쓰지 않는다). `후보 파일이 propose 산출물이 아님·propose 뒤 바뀜`이면 **재시도 = 같은 `--since`로 propose 다시 → 새 `_candidates.txt` → `--from-candidates … --expect <재승인 N>`** | 답 확인·재승인 |
+| exclusions `[FAIL] 승인 목록…`(쓰기 0) | 출력의 출처 목록·`[FAIL]`·`[주의]` 쌍둥이를 그대로 보이고 줄·행 번호를 사용자 답과 다시 맞춘다(이름을 쓰지 않는다). `후보 파일이 propose 산출물이 아님·propose 뒤 바뀜`·`propose 뒤 합본·registry가 바뀜`이면 **재시도 = 같은 `--since`로 propose 다시 → 새 `_candidates.txt`(`--industry`도 새 창 파일) → `--from-candidates … --expect <재승인 N>`**(번호가 바뀌니 새 승인 문구로 재승인) | 답 확인·재승인 |
+| exclusions `[FAIL] 고른 이름 중 …개가 방금 읽은(pull) 대상 그룹 전부에 이미 있음`(실제 push, POST 0) | registry가 낡았다(pull 결과는 저장됨 · 승인 파일은 안 생김) — 같은 `--since`로 propose 다시 → 재승인 | 재승인 |
+| exclusions `요청 결과 모름(<종류>)`(exit 1 — POST·GET 도중 끊김·응답을 못 읽음) | 재PUT·재등록 금지. `verify --key-file … --approved <그 승인 파일>`로 실제 상태를 읽어 보고(registry는 저장돼 있다). 첫 pull에서 났으면 `POST 전에 멈춤(POST 0 — 승인 파일 안 씀)` | 재시도 여부 |
+| exclusions `[push] 완료: … — 요청 실패·결과 모름이 있었지만 다시 읽은 목록엔 전부 있음`(exit 1) | **재시도하지 않는다** — `verify --key-file … --approved <그 승인 파일>`로 확인해 보고(등록은 됨 — 11·12번에는 verified 수 그대로) | — |
 | exclusions exit 1 | 성공/실패를 그룹×이름으로 나눠 보고 | 재시도·keep |
 | precheck FAIL | 전체 출력 보고 → 원인 고쳐 재실행(배포 금지) | — |
 | deploy `[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0) | 지금 배포본 sha·md5를 보고 — 다른 배포가 있었다 | 4단계부터 다시 할지 |
-| deploy `[FAIL] precheck 통과본이 아님`(PUT 0) | precheck가 끝난 뒤 작업본이 바뀌었다 — 6단계부터 다시 | — |
+| deploy `[FAIL] precheck 통과본이 아님`(PUT 0) | precheck가 끝난 뒤 작업본이 바뀌었거나(6단계부터), 도장의 직전 배포본 ≠ `--base`(4단계를 다시 받았으면 5·6단계부터) | — |
 | deploy PUT 409(`배포본이 GET 뒤 바뀜`)·403(쓰기 권한 없음)·404(저장소·경로) | 출력 줄 그대로 보고, 자동 재시도 금지 | 4단계부터 다시 할지·권한 확인 |
+| deploy `[FAIL] PUT 결과 모름`(요청 도중 끊김·5xx) | **재PUT 금지** — 먼저 `deploy.py verify --file work/index.html`(읽기)로 반영됐는지 보고 | 재PUT 여부 |
+| deploy `지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨`(exit 0, PUT 0) | `deploy.py verify --file work/index.html`로 확인해 보고(결과 모름이던 앞 PUT이 반영된 것) | — |
 | deploy 권한 거짓·권한 조회 실패 | 출력 줄 그대로 보고(값 없음) | 계정·권한 확인 |
 | deploy verify 불일치 | 멈춤. 출력의 재수령본 sha·md5를 보고(verify를 한 번 더 — 읽기만 — 해 같은지 덧붙인다) | 재PUT 여부 |
 
@@ -129,15 +136,16 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 |---|---|---|
 | `fetch_reports.py` | 1 | `목록 URL에 도달하지 못함`(로그인) / `허용 목록 밖 동작`·`금지 요소 클릭 시도 차단`(화면 변경) / `playwright가 없습니다`·설정(환경) |
 | | 2 | `[FAIL] 4개 중 성공 …`(부분 실패, partial) / 첫 줄 `usage:`(인자 오류) |
-| `exclusions.py` | 1 | `[FAIL] 승인 목록을 만들지 않았다`(그 위 `[FAIL]` 줄 — 합계 ≠ N · 범위 밖 · 원천 없음·빈 파일·읽을 수 없음 · `후보 파일이 propose 산출물이 아님·propose 뒤 바뀜` · `이미 registered` · 금지 패턴·경쟁사명 · K() 중복 · CSV 칸 줄바꿈) · `[FAIL] --approved는 dry-run·시험 전용` · `[FAIL] 승인 목록 원천이 없음` · `[FAIL] --approved와 참조 선택 모드(…)를 함께 쓸 수 없음` · `[FAIL] 합본 CSV가 저장소 work/combined/검색어.csv가 아님`(전부 쓰기 전 — 쓰기 0) / `[push] 완료: … 실패/미확인 n`(부분 실패) / `401`·ApiError(인증·API) / `[push] 등록할 이름이 없습니다`(전부 거부·후보 0) / `[FAIL] registry 없음` |
+| `exclusions.py` | 1 | `[FAIL] 승인 목록을 만들지 않았다`(그 위 `[FAIL]` 줄 — 합계 ≠ N · 범위 밖 · 원천 없음·빈 파일·읽을 수 없음 · `후보 파일이 propose 산출물이 아님·propose 뒤 바뀜`(work/ 밖 포함) · `같은 propose 실행이 아님` · `propose 뒤 합본·registry가 바뀜` · `이미 registered` · `registry에 keep` · 금지 패턴·경쟁사명 · K() 중복 · CSV 칸 줄바꿈 든 행) · `[FAIL] 고른 이름 중 …개가 방금 읽은(pull) 대상 그룹 전부에 이미 있음`(POST 0) · `요청 결과 모름(<종류>)`(첫 pull이면 `POST 전에 멈춤(POST 0 — 승인 파일 안 씀)`) · `[FAIL] --approved는 dry-run·시험 전용` · `[FAIL] 승인 목록 원천이 없음` · `[FAIL] --approved와 참조 선택 모드(…)를 함께 쓸 수 없음` · `[FAIL] 합본 CSV가 저장소 work/combined/검색어.csv가 아님`(전부 쓰기 전 — 쓰기 0) / `[push] 완료: … 실패/미확인 n`(부분 실패 — 끝이 `다시 읽은 목록엔 전부 있음 … 재시도 안 함`이면 등록은 됨, verify --approved로 확인) / `401`·ApiError(인증·API) / `[push] 등록할 이름이 없습니다`(전부 거부·후보 0) / `[FAIL] registry 없음` |
 | | 2 | `[FAIL] 네트워크 차단(프록시)`(Code 탭에선 나지 않아야 함) / `usage:` |
 | `ingest.sh` | 1 | `[FAIL] 현재 브랜치가 main이 아님` / `[FAIL] HEAD … ≠ origin/main — 시작 전`(쓰기 0) · `— push …`(push 뒤) / `[FAIL] data/가 HEAD와 다름`·`[FAIL] data/에 추적 안 된 파일이 있음`(쓰기 0) / `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`(쓰기 0) / `[FAIL] push 실패`(커밋은 로컬에만) / `[FAIL] 파이썬을 실행할 수 없음` / archive `[FAIL] …` |
 | | 128 | `fatal:`(git fetch 실패 — 네트워크·자격 증명, 또는 `== push data/` 뒤 커밋 실패 — `set -e`로 멈춤). `== push data/` 뒤에 났으면 `git fetch` 뒤 HEAD = origin/main **이고** `git status --short -- data`가 비어 있어야 보관본 완료 — `A`·`M`이 남았으면 커밋 실패(보관본 미완료) → 4절 되돌리기 뒤 ingest 다시 |
 | | 그 밖 | 2 = 사용법(인자 없음) |
-| `precheck.sh` | 1 | md5 가드 `[FAIL] 직전 배포본이 작업본과 같다` / `[FAIL] 파이썬을 실행할 수 없음` / validate·compare 실패(전체 출력). compute·overflow가 예외로 끝나면 `[FAIL]` 줄 없이 Traceback — **마지막 `==` 줄이 멈춘 단계** |
-| | 2 | 사용법(인자 수). 그 밖의 코드는 validate·compare가 낸 코드 그대로 |
-| `deploy.py` | 1 | `GET …` / `[FAIL] precheck 통과본이 아님`(PUT 0 — 네트워크 전) / `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` / `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`(PUT 409) · `[FAIL] PUT 403`·`PUT 404`·`[FAIL] PUT <코드>` / `불일치`(verify) / `[FAIL] 자격 증명을 얻지 못함` / 권한 `거짓`·`권한 조회 실패` |
-| | 2 | 인자 — `--file 이 필요` · `[FAIL] 실제 push에는 --base` · `--base 파일을 읽을 수 없음` · `[FAIL] --base는 --file과 함께만` |
+| `precheck.sh` | 1 | md5 가드 `[FAIL] 직전 배포본이 작업본과 같다` / `[FAIL] 파이썬을 실행할 수 없음` / `[FAIL] 작업본이 precheck 도중 바뀜`(도장 없음) / validate·compare 실패(전체 출력). compute·overflow가 예외로 끝나면 `[FAIL]` 줄 없이 Traceback — **마지막 `==` 줄이 멈춘 단계** |
+| | 2 | 사용법(인자 수) · `[FAIL] 파일 없음`(작업본·직전 배포본). 그 밖의 코드는 validate·compare가 낸 코드 그대로 |
+| `deploy.py` | 1 | `GET …` / `[FAIL] precheck 통과본이 아님`(PUT 0 — 네트워크 전) / `[FAIL] PUT 결과 모름`(재PUT 금지 — verify 먼저) / `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` / `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`(PUT 409) · `[FAIL] PUT 403`·`PUT 404`·`[FAIL] PUT <코드>` / `불일치`(verify) / `[FAIL] 자격 증명을 얻지 못함` / 권한 `거짓`·`권한 조회 실패` |
+| | 2 | 인자(전부 GET 전) — `[FAIL] push에는 --file이 필요`·`verify에는 --file이 필요`·`fetch에는 --out이 필요` · `[FAIL] 실제 push에는 --base` · `--base 파일을 읽을 수 없음` · `[FAIL] --file을 읽을 수 없음` · `[FAIL] --base는 --file과 함께만` |
+| | 0 | `지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨`(PUT 0 — verify로 확인) |
 
 ## 6. 승인 목록 — push 참조 선택 모드(세션은 이름을 쓰지 않는다)
 
@@ -148,28 +156,36 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
   [--industry work/exclusions_proposal_<창시작>_<창끝>_industry.txt --industry-lines <줄번호,…>] \
   [--extra-csv work/combined/검색어.csv --extra-rows <행번호,…>] --expect <N> --dry-run      # 먼저 dry-run(HTTP 0) — 확인 뒤 --dry-run 대신 --key-file ~/naver-api.keys.json
 ```
+- **승인 문구에 번호가 붙는다**: 목록 번호 = `_candidates.txt` 줄, 제안서 업종어 절 번호 = `_industry.txt` 줄. 답 예 — "등록 승인 N개" 그대로 /
+  "3 빼고"(→ `--drop 3`) / "업종어 2 넣기"(→ `--industry …_industry.txt --industry-lines 2`). 세션은 답의 번호를 그대로 옮긴다.
+  `--expect` = 답의 N — N이 없는 번호 답("3 빼고"·"업종어 2 넣기")이면 세션이 목록 수에서 계산하고(− 뺀 수 + 넣은 수), 실제 push 전에 dry-run의 `[승인 목록] N개`와 이름을 사용자에게 보인다.
 - 원천 셋: ① `_candidates.txt`(신규·재등록 후보 — 뺄 이름은 `--drop` 줄 번호) ② `_industry.txt`(업종어 포함 이름, 한 줄 하나 — 사용자가 고른 줄만
   `--industry-lines`) ③ 합본 `검색어.csv`의 `검색어` 칸(07번 표에서 고른 이름·재상정 — `--extra-rows`는 **파일 줄 번호**, 1행 기간 헤더·2행 컬럼 줄은 범위 밖.
-  찾기: `grep -n '<이름 일부>' work/combined/검색어.csv`). 줄 번호는 `cat -n`·`grep -n`과 같은 1부터. 후보가 0줄이면 `--from-candidates`를 빼고
+  찾기: `grep -n '<이름 일부>' work/combined/검색어.csv`). 줄 번호는 `cat -n`·`grep -n`과 같은 1부터(push는 `\n`으로만 줄을 센다 — 칸 안 CR은 줄로 안 센다). 후보가 0줄이면 `--from-candidates`를 빼고
   `--industry`·`--extra-csv`만 쓴다(빈 원천 파일은 `[FAIL]`).
 - push가 찍는 것: 고른 이름마다 **repr + 출처(파일:줄)**, `뺀 것:`(--drop 줄), `[승인 목록] N개 = --expect N`. **dry-run은 화면만**(파일 쓰기 0),
-  실제 push만 `work/approved_<날짜>_<시분초>.txt`(덮어쓰기 없음)를 쓴다. 세션은 이 출력을 그대로 사용자 답과 대조한다.
-- **출처 검사**: `--from-candidates`는 `_candidates.txt`, `--industry`는 `_industry.txt`로 끝나야 하고, propose가 같은 폴더에 쓴
-  `exclusions_proposal_<창시작>_<창끝>.md5`의 값과 지금 파일 md5가 같아야 한다 — 손으로 쓴 파일·propose 뒤 바뀐 파일·두 파일을 바꿔 넣은 것은
+  실제 push만 — pull 재검사를 통과한 뒤 첫 POST 전에 — `work/approved_<날짜>_<시분초>.txt`(덮어쓰기 없음)를 쓴다. 세션은 이 출력을 그대로 사용자 답과 대조한다.
+- **출처 검사**: `--from-candidates`는 `_candidates.txt`, `--industry`는 `_industry.txt`로 끝나고 저장소 `work/` 밑이어야 하며, 둘을 함께 주면 **같은 propose 실행**
+  (같은 폴더·같은 `<창 이름>`)이어야 한다. propose가 같은 폴더에 쓴 `exclusions_proposal_<창시작>_<창끝>.md5`의 값과 지금 파일 md5가 같아야 하고,
+  같은 기록의 `combined`(합본 검색어.csv)·`registry` md5도 지금 파일과 같아야 한다(propose 뒤 ingest·pull로 바뀌면 `propose 뒤 합본·registry가 바뀜`) — 손으로 쓴 파일·propose 뒤 바뀐 파일·두 파일을 바꿔 넣은 것은
   `[FAIL] 후보 파일이 propose 산출물이 아님·propose 뒤 바뀜(<옵션>)`. `--extra-csv`는 저장소 `work/combined/검색어.csv`(ingest가 만든 합본)만 받는다.
   다시 하려면 같은 `--since`로 propose를 다시 돌려 새 파일로 고른다(`--expect`는 재승인 N). `.md5`·도장은 우발 사고(손으로 쓴 파일·propose 뒤
   바뀐 파일) 가드다 — 보안 경계가 아니므로 **세션은 `*.md5`·`precheck_ok.md5`를 손으로 쓰거나 고치지 않는다**(다시 만들려면 propose·precheck.sh를 다시 돌린다).
 - **쓰기 전 `[FAIL]`(dry-run도 같다 — 승인 파일·HTTP·registry 쓰기 0)**: 합계 ≠ `--expect N` · 원천 파일 없음·빈 파일·읽을 수 없음(UTF-8 아님) ·
-  줄·행 번호 범위 밖(10진 숫자만) · 출처 검사 · `K()` 중복(같은 이름을 두 번 — 대소문자·앞뒤 공백만 다른 것 포함) · 합본 CSV 칸 안 줄바꿈 ·
-  **고른 이름(후보·업종어·추가 전부)이 이미 registered**(모든 대상 그룹 — 또는 propose와 같은 기준: `*` 기록·pending 포함 — 9/28 유형 신호) ·
+  줄·행 번호 범위 밖(10진 숫자만) · 출처 검사 · `K()` 중복(같은 이름을 두 번 — 대소문자·앞뒤 공백만 다른 것 포함) · 합본 CSV 칸 안에 줄바꿈이 든 행을 고름
+  (그 행만 — 칸 안 CR만 든 행 포함, 다른 행은 줄 번호 그대로 고를 수 있다. 따옴표 없는 칸의 CR은 파일 전체 `[FAIL]`) ·
+  **고른 이름 중 하나라도 이미 registered**(후보·업종어·추가 전부 — 모든 대상 그룹 또는 propose와 같은 기준: `*` 기록·pending 포함 — 9/28 유형 신호) ·
+  **registry keep**(사용자 결정 "노출 유지"를 덮지 않는다) ·
   **금지 패턴·경쟁사명**(참조 모드는 `[거부]`가 아니라 `[FAIL]` — propose가 후보로 내지 않는 이름이라 잘못 고른 신호).
-- **`[주의]` 쌍둥이**: 고른 이름과 기호·공백·대소문자만 다른 이름이 후보 파일·합본 칸·registry에 있으면 둘을 나란히 찍는다
+- **실제 push의 pull 뒤 재검사**: 쓰기 전 읽기(pull) 결과 고른 이름 중 대상 그룹 전부에 이미 있는 이름이 있으면 POST 0으로 `[FAIL]`(registry가 낡아
+  dry-run이 못 본 9/28 유형 — pull 결과는 registry에 저장, 승인 파일은 안 씀). 요청 도중 끊기거나 응답을 못 읽으면 `요청 결과 모름` — 그 묶음은 failed, verify가 실제 상태를 다시 읽고 registry는 저장된다.
+- **`[주의]` 쌍둥이**: 고른 이름과 기호·공백·대소문자만 다른 이름이 후보·업종어 파일·합본 칸·registry에 있으면 둘을 나란히 찍는다
   (예: 고른 것 `'노원힐링장소.' ← 검색어.csv:1165` / 쌍둥이 `'노원힐링장소' ← 검색어.csv:1164·registry …행(registered 3)`). 멈추지는 않는다 —
   사용자 답의 원문과 같은 쪽을 골랐는지 세션이 확인해 보인다.
-- `--approved <파일>`은 dry-run·시험 전용이다 — 실제 push에 쓰면 `[FAIL] --approved는 dry-run·시험 전용` exit 1(쓰기 0).
+- push의 `--approved <파일>`은 dry-run·시험 전용이다(verify의 `--approved`는 재개 판정용) — 실제 push에 쓰면 `[FAIL] --approved는 dry-run·시험 전용` exit 1(쓰기 0).
 - 사례(2026-09-28): 승인 6개 중 **"노원힐링장소."** — 채팅이 넘긴 목록엔 마침표가 있었는데 Code 탭에서 승인 파일을 다시 쓰며 빠졌다
   (등록 전 registry 사본으로 dry-run 재현: 마침표 없음 216 → 221, 있음 216 → 222 = 채팅 기록 값). 마침표 없는 이름은 registry에 이미
-  3그룹 registered라 "건너뜀"으로 조용히 통과했고 원문은 미등록으로 남았다. 지금은 그 행(1164)을 고르면 "이미 registered" `[FAIL]`,
+  3그룹 registered라 "건너뜀"으로 조용히 통과했고 원문은 미등록으로 남았다. 지금은 그 행(1164)을 고르면 "이미 registered" `[FAIL]`(실제 push에서 registry가 낡았어도 pull 뒤 재검사가 POST 0으로 멈춘다),
   맞는 행(1165)을 고르면 통과하면서 1164를 쌍둥이 `[주의]`로 보인다. 기호(`;`·`+`·`]`·`.`)도 API는 원문대로 등록한다(9/27 실측) — 원문을 바꿀 이유가 없다.
 
 ## 7. 금지

@@ -296,7 +296,8 @@ class IngestTests(unittest.TestCase):
 
 PYWRAP = r"""#!/bin/sh
 case "$1" in
-  *compute.py) if [ "$T_COMPUTE" = fail ]; then echo "compute 실패(시험 래퍼)" >&2; exit 1; fi; echo "compute 통과(시험 래퍼)"; exit 0 ;;
+  *compute.py) if [ "$T_COMPUTE" = fail ]; then echo "compute 실패(시험 래퍼)" >&2; exit 1; fi
+               if [ -n "$T_EDIT" ]; then printf 'x' >> "$T_EDIT"; fi; echo "compute 통과(시험 래퍼)"; exit 0 ;;
   *validate.py|*compare.py|*overflow_check.py) printf '%s\n' "가짜 1" "가짜 2" "${1##*/} 통과(시험 래퍼)"; exit 0 ;;
 esac
 exec "{py}" "$@"
@@ -321,13 +322,17 @@ class PrecheckTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.td, onerror=_rm_ro)
 
-    def precheck(self, compute):
+    def precheck(self, compute, *extra, prev="prev.html", edit=None, html="work/index.html"):
         u = lambda n: os.path.join(self.td, n).replace(os.sep, "/")
-        env = clean_env(PY=u("pywrap.sh"), T_COMPUTE=compute)
+        env = clean_env(PY=u("pywrap.sh"), T_COMPUTE=compute, T_EDIT=u(edit) if edit else "")
         r = subprocess.run([BASH, os.path.join(ROOT, "scripts", "precheck.sh").replace(os.sep, "/"),
-                            u("work/index.html"), u("combined"), u("prev.html")],
+                            u(html), u("combined"), u(prev), *extra],
                            cwd=self.td, env=env, capture_output=True, text=True, encoding="utf-8")
         return r.returncode, r.stdout + r.stderr
+
+    def md5_of(self, rel):
+        with open(os.path.join(self.td, *rel.split("/")), "rb") as f:
+            return hashlib.md5(f.read()).hexdigest()
 
     def test_compute_failure_stops_before_compare(self):
         stamp = os.path.join(self.td, "work", "precheck_ok.md5")
@@ -335,10 +340,8 @@ class PrecheckTests(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertIn("compare.py 통과(시험 래퍼)", out)
         self.assertIn("== 6단계 전부 통과", out)
-        with open(os.path.join(self.td, "work", "index.html"), "rb") as f:
-            want = hashlib.md5(f.read()).hexdigest()
-        with open(stamp, encoding="utf-8") as f:
-            self.assertEqual(f.read(), f"{want}  index.html\n")
+        with open(stamp, encoding="utf-8") as f:                        # X2: 작업본 md5 · 직전 배포본 md5 · 모드
+            self.assertEqual(f.read(), f"{self.md5_of('work/index.html')}  index.html\n{self.md5_of('prev.html')}  prev.html\nmode full\n")
         rc, out = self.precheck("fail")
         self.assertNotEqual(rc, 0, out)
         self.assertIn("== compute", out)
@@ -347,6 +350,30 @@ class PrecheckTests(unittest.TestCase):
         self.assertNotIn("== overflow", out)
         self.assertNotIn("전부 통과", out)
         self.assertFalse(os.path.exists(stamp))                        # 실패한 실행은 옛 도장도 지운다
+
+    def test_stamp_pending_mode_edit_during_run_and_missing_file(self):
+        """X2·X11: --pending 통과면 도장 모드 pending · precheck 도중 작업본이 바뀌면 [FAIL]·도장 없음 ·
+        파일 없음(직전 배포본·작업본 둘 다)은 md5 가드 전에 exit 2 — 그때도 옛 도장은 지운다."""
+        stamp = os.path.join(self.td, "work", "precheck_ok.md5")
+        rc, out = self.precheck("ok", "--pending")
+        self.assertEqual(rc, 0, out)
+        with open(stamp, encoding="utf-8") as f:
+            self.assertTrue(f.read().endswith("mode pending\n"))
+        rc, out = self.precheck("ok", edit="work/index.html")          # compute 도중 작업본이 바뀜(편집기 저장 등)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("[FAIL] 작업본이 precheck 도중 바뀜", out)
+        self.assertNotIn("전부 통과", out)
+        self.assertFalse(os.path.exists(stamp))
+        for kw in ({"prev": "없는.html"}, {"html": "work/없는.html"}):
+            rc, out = self.precheck("ok", "--pending")                    # 통과(도장 생김) 뒤에
+            self.assertEqual(rc, 0, out)
+            self.assertTrue(os.path.exists(stamp))
+            rc, out = self.precheck("ok", **kw)                           # 파일 없음 — 옛 도장(mode pending)이 남지 않는다
+            self.assertEqual(rc, 2, out)
+            self.assertIn("[FAIL] 파일 없음:", out)
+            self.assertIn("없는.html", out)
+            self.assertNotIn("== validate", out)
+            self.assertFalse(os.path.exists(stamp), kw)
 
 
 if __name__ == "__main__":

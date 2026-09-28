@@ -5,7 +5,8 @@
 가짜 API(FakeSender)로 pull/push/verify/test-roundtrip 경로를 돌리고, dry-run이 HTTP를 0회 호출하는지,
 금지 패턴·경쟁사명이 승인 목록에 있어도 거부되는지, 등록 응답은 성공인데 다시 읽으면 없는 경우(verified:false)가 실패로
 보고되는지(함수 결과와 CLI 종료 코드 둘 다), 승인 목록 참조 선택 모드의 쓰기 전 가드(합계 ≠ N·범위 밖·빈·못 읽는 원천·중복·
-출처 md5·고른 이름 전부의 이미 registered·금지 패턴·경쟁사명 FAIL·쌍둥이 [주의]·dry-run 파일 0·실제 push의 --approved 거부)를 확인한다. 끝에 실제 audit/exclusions.csv md5가 그대로인지 출력한다.
+출처 md5·고른 이름 하나하나의 이미 registered·keep·금지 패턴·경쟁사명 FAIL·쌍둥이 [주의]·dry-run 파일 0·실제 push의 --approved 거부·
+실제 push의 pull 뒤 재검사 — 고른 이름 중 하나라도 3그룹 전부에 있으면 POST 0)와 요청 도중 끊김·응답 못 읽음(요청 결과 모름)·키 가림을 확인한다. 끝에 실제 audit/exclusions.csv md5가 그대로인지 출력한다.
 """
 import base64
 import hashlib
@@ -46,7 +47,8 @@ NAMES = {GIDS[0]: "그룹A", GIDS[1]: "그룹B", GIDS[2]: "그룹C"}
 class FakeSender:
     """api.searchad.naver.com 흉내 — 광고그룹 3개, 제외 검색어 메모리 저장."""
 
-    def __init__(self, fail_keywords=(), drop_after_post=False, blocked=False, advoost=None, auth_fail=False, desc_max=None):
+    def __init__(self, fail_keywords=(), drop_after_post=False, blocked=False, advoost=None, auth_fail=False, desc_max=None,
+                 raise_on_post=None, apply_then_raise=False, echo_key_status=None):
         self.kws = {g: {} for g in GIDS}
         self.seq = 0
         self.calls = []
@@ -57,6 +59,9 @@ class FakeSender:
         self.auth_fail = auth_fail
         self.desc_max = desc_max  # description 글자 수 한도 흉내(실서버 한도는 미공개, 29자에서 3721 실측)
         self.descriptions = []    # 등록에 실제로 쓰인 description
+        self.raise_on_post = raise_on_post        # POST 때 이 예외를 올린다(TimeoutError 등 — 요청 도중 끊김 흉내)
+        self.apply_then_raise = apply_then_raise  # True면 저장까지 한 뒤 올린다(서버엔 반영됐는데 응답만 잃은 경우)
+        self.echo_key_status = echo_key_status    # POST에 이 상태 코드로 요청 헤더(X-API-KEY)를 되돌려 준다(가림 시험)
 
     def __call__(self, method, url, headers, data):
         if self.blocked:
@@ -75,6 +80,14 @@ class FakeSender:
                              for k, i in self.kws[gid].items()]
             if method == "POST":
                 body = json.loads(data.decode("utf-8"))
+                if self.echo_key_status:
+                    return self.echo_key_status, {"code": 9999, "message": f"bad request; X-API-KEY={headers['X-API-KEY']}"}
+                if self.raise_on_post is not None:
+                    if self.apply_then_raise:
+                        for it in body:
+                            self.seq += 1
+                            self.kws[gid][it["keyword"].upper()] = f"rk-{self.seq}"
+                    raise self.raise_on_post
                 if self.desc_max is not None and any(len(it.get("description", "")) > self.desc_max for it in body):
                     return 400, {"code": 3721, "status": 400, "title": "The description of the negative search terms has reached its maximum length."}
                 self.descriptions += [it.get("description") for it in body]
@@ -185,6 +198,9 @@ class TestProposal(unittest.TestCase):
         self.assertEqual(judged["노원역세"], "등록 누락 → 후보")
         self.assertEqual(p["candidates"], ["노원역맛집출구", "노원역세"])
         self.assertIn("건수: 2", p["approval_text"])
+        self.assertIn("목록(번호 = 후보 파일 줄): 1 노원역맛집출구 · 2 노원역세", p["approval_text"])   # X5: 답의 번호 = _candidates.txt 줄
+        self.assertIn('"3 빼고"', p["approval_text"])
+        self.assertIn("- 1 노원필라테스주말 — 노출", X.render_proposal(p))                               # 업종어 절 번호 = _industry.txt 줄
         self.assertIn("이미 등록 1 · 노출 유지(사용자 결정) 0", p["approval_text"])   # 노원역카페(등록됨)가 "이미 등록"으로 셈(검증 판단 3)
         self.assertEqual(p["n_registered"], 1)
         self.assertNotIn("클릭있음", json.dumps(p, ensure_ascii=False, default=str))
@@ -565,9 +581,12 @@ class TestApprovedReference(unittest.TestCase):
     def setUp(self):
         self.td = tempfile.mkdtemp()
         p = lambda n: os.path.join(self.td, n)
-        self.reg, self.cand, self.ind, self.kf = p("r.csv"), p("x_candidates.txt"), p("x_industry.txt"), p("k.keys.json")
-        self.csv = os.path.join(self.td, "work", "combined", "검색어.csv")    # 출처 검사: 저장소(ROOT=td) work/combined/검색어.csv만 받는다
+        self.w = p("work")                                                     # 원천은 저장소(ROOT=td) work/ 밑만 받는다(X4)
+        self.reg, self.kf = p("r.csv"), p("k.keys.json")
+        self.cand, self.ind = os.path.join(self.w, "x_candidates.txt"), os.path.join(self.w, "x_industry.txt")
+        self.csv = os.path.join(self.w, "combined", "검색어.csv")              # 출처 검사: 저장소 work/combined/검색어.csv만 받는다
         os.makedirs(os.path.dirname(self.csv))
+        write_text(self.csv, self.CSV)
         fx = rows_of(*[("노원힐링장소", NAMES[g], "registered", "2026-09-17") for g in GIDS],
                      *[("필테등록됨", NAMES[g], "registered", "2026-09-20") for g in GIDS],
                      ("별기록", "*", "registered", "2026-09-10"))          # 그룹 미확인 기록 — propose 기준으로는 registered
@@ -579,7 +598,6 @@ class TestApprovedReference(unittest.TestCase):
             f.write("새이름1\n뺄이름\nabc\n")
         write_text(self.ind, "노원필라테스주말\n필테등록됨\n")
         self.stamp()
-        write_text(self.csv, self.CSV)
         write_text(self.kf, json.dumps({"api_key": "K", "secret_key": "S"}))
         self.orig = (X._default_sender, X.ROOT)
         X._default_sender, X.ROOT = boom, self.td          # 승인 파일·스냅샷은 임시 폴더 work/에, 기본은 HTTP 금지
@@ -588,17 +606,19 @@ class TestApprovedReference(unittest.TestCase):
         X._default_sender, X.ROOT = self.orig
         shutil.rmtree(self.td)
 
-    def stamp(self, base="x"):
-        """propose가 쓰는 출처 기록(<창 이름>.md5)과 같은 형식으로 후보·업종어 파일 md5를 적는다."""
+    def stamp(self, base="x", folder=None):
+        """propose가 쓰는 출처 기록(<창 이름>.md5)과 같은 형식 — 후보·업종어 파일 md5 + 지금 합본(combined)·registry md5."""
+        folder = folder or self.w
         lines = []
         for suffix in ("_candidates.txt", "_industry.txt"):
-            f = os.path.join(self.td, base + suffix)
+            f = os.path.join(folder, base + suffix)
             if os.path.exists(f):
                 lines.append(f"{md5f(f)}  {base + suffix}\n")
-        write_text(os.path.join(self.td, base + ".md5"), "".join(lines))
+        lines += [f"{md5f(self.csv)}  combined\n", f"{md5f(self.reg)}  registry\n"]
+        write_text(os.path.join(folder, base + ".md5"), "".join(lines))
 
-    def write_cand(self, text, name="x_candidates.txt", crlf=True):
-        path = os.path.join(self.td, name)
+    def write_cand(self, text, name="x_candidates.txt", crlf=True, folder=None):
+        path = os.path.join(folder or self.w, name)
         with open(path, "w", encoding="utf-8", newline="\r\n" if crlf else "\n") as f:
             f.write(text)
         return path
@@ -639,7 +659,12 @@ class TestApprovedReference(unittest.TestCase):
         self.assertIn(f"쌍둥이  '노원힐링장소' ← {self.csv}:4·registry 3·5·7행(registered 3)", out)
 
     def test_real_push_writes_raw_names_to_new_timestamped_file(self):
-        """W3·W12: 실제 push만 승인 파일을 쓰고(시각 이름, 덮어쓰기 없음), 끝 마침표·앞뒤 공백까지 원문 그대로."""
+        """W3·W12: 실제 push만 승인 파일을 쓰고(시각 이름, 덮어쓰기 없음), 끝 마침표·앞뒤 공백까지 원문 그대로.
+        X12: 시계를 고정해 두 번째 파일이 반드시 `_2.txt`."""
+        import datetime as _dt
+        orig_now = X.NOW
+        X.NOW = lambda: _dt.datetime(2026, 9, 28, 12, 0, 0)
+        self.addCleanup(setattr, X, "NOW", orig_now)
         self.write_cand(" 앞뒤공백 \n끝마침표.\n")
         write_text(self.ind, "업종필테끝.\n 업종 필테 \n")
         self.stamp()
@@ -657,7 +682,8 @@ class TestApprovedReference(unittest.TestCase):
         self.stamp()
         rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)   # 두 번째 실제 push — 앞 파일을 덮지 않는다
         self.assertEqual(rc, 0, out)
-        self.assertEqual(len(self.approved_files()), 2)
+        self.assertEqual([os.path.basename(f) for f in self.approved_files()],
+                         ["approved_2026-09-28_120000.txt", "approved_2026-09-28_120000_2.txt"])   # 시계 고정 — 같은 초면 반드시 _2
         self.assertEqual(self.read_bytes(files[0]), " 앞뒤공백 \n끝마침표.\n업종필테끝.\n 업종 필테 \n".encode())
 
     def test_9_28_type_extra_row_already_registered_everywhere_fails(self):
@@ -687,6 +713,11 @@ class TestApprovedReference(unittest.TestCase):
 
     def test_provenance_hand_written_changed_or_swapped_fails(self):
         """W1(b): propose 산출물(이름 접미사 + 같은 폴더 .md5 기록)만 받는다."""
+        outside = self.write_cand("새이름1\n", name="o_candidates.txt", folder=self.td)   # work/ 밖(출처 기록까지 있어도)
+        self.stamp(base="o", folder=self.td)
+        rc, out = self.push("--from-candidates", outside, "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("저장소 work/ 밑 파일만 받는다", out)
         hand = self.write_cand("노원힐링장소.\n", name="hand_candidates.txt")   # 손으로 쓴 후보 파일 — 출처 기록 없음
         rc, out = self.push("--from-candidates", hand, "--expect", "1", "--dry-run")
         self.assert_nothing_written(rc, out)
@@ -705,6 +736,12 @@ class TestApprovedReference(unittest.TestCase):
         rc, out = self.push("--industry", self.cand, "--industry-lines", "1", "--expect", "1", "--dry-run")  # 후보 파일을 업종어 자리에
         self.assert_nothing_written(rc, out)
         self.assertIn("_industry.txt로 끝나야 한다", out)
+        o_ind = os.path.join(self.td, "o_industry.txt")                        # 업종어 파일도 work/ 밖이면(출처 기록까지 있어도) FAIL
+        write_text(o_ind, "노원필라테스주말\n")
+        self.stamp(base="o", folder=self.td)
+        rc, out = self.push("--industry", o_ind, "--industry-lines", "1", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn(f"{o_ind}: 저장소 work/ 밑 파일만 받는다", out)
         hand_csv = os.path.join(self.td, "mine.csv")                           # 손으로 쓴 CSV — --extra-csv 하나만으로도 막는다(리뷰 반영)
         write_text(hand_csv, "검색어\n손으로쓴이름.\n")
         X._default_sender = FakeSender()
@@ -717,7 +754,7 @@ class TestApprovedReference(unittest.TestCase):
         rc, out = self.push("--industry", self.cand, "--industry-lines", "1", "--expect", "1", "--dry-run")
         self.assert_nothing_written(rc, out)
         self.assertIn("_industry.txt로 끝나야 한다", out)
-        os.remove(os.path.join(self.td, "x.md5"))                             # 출처 기록을 지우면
+        os.remove(os.path.join(self.w, "x.md5"))                              # 출처 기록을 지우면
         rc, out = self.push("--from-candidates", self.cand, "--expect", "4", "--dry-run")
         self.assert_nothing_written(rc, out)
         self.assertIn("x.md5을(를) 읽을 수 없음", out)
@@ -766,9 +803,22 @@ class TestApprovedReference(unittest.TestCase):
         self.assert_nothing_written(rc, out)
         self.assertIn("파일을 읽을 수 없음(UnicodeDecodeError", out)
         write_text(self.csv, self.CSV + '"줄\n바꿈",확장,2026.09.27.,1,0\n')   # W4: 칸 안 줄바꿈 → 행 번호가 파일 줄과 어긋남
-        rc, out = self.push("--extra-csv", self.csv, "--extra-rows", "3", "--expect", "1", "--dry-run")
+        self.stamp()
+        for row in ("7", "8"):                                                   # 줄바꿈 든 행(7~8 두 파일 줄) — 고르면 FAIL
+            rc, out = self.push("--extra-csv", self.csv, "--extra-rows", row, "--expect", "1", "--dry-run")
+            self.assert_nothing_written(rc, out)
+            self.assertIn(f"--extra-rows {row}: 합본 CSV {self.csv}:{row}은 칸 안에 줄바꿈이 든 행", out)
+        rc, out = self.push("--extra-csv", self.csv, "--extra-rows", "3", "--expect", "1", "--dry-run")   # 다른 행은 줄 번호 그대로 고를 수 있다
+        self.assertEqual(rc, 0, out)
+        self.assertIn(f"'노원역카페' ← {self.csv}:3", out)
+        write_text(self.csv, self.CSV + '"다\r라",확장,2026.09.27.,1,0\n마바,확장,2026.09.27.,1,0\n')   # 칸 안 CR만(따옴표 칸) — grep -n은 CR을 줄로 안 센다
+        self.stamp()
+        rc, out = self.push("--extra-csv", self.csv, "--extra-rows", "8", "--expect", "1", "--dry-run")   # grep -n 8행 = 마바(이웃 행이 아님)
+        self.assertEqual(rc, 0, out)
+        self.assertIn(f"'마바' ← {self.csv}:8", out)
+        rc, out = self.push("--extra-csv", self.csv, "--extra-rows", "7", "--expect", "1", "--dry-run")
         self.assert_nothing_written(rc, out)
-        self.assertIn("줄바꿈이 든 칸", out)
+        self.assertIn(f"--extra-rows 7: 합본 CSV {self.csv}:7은 칸 안에 줄바꿈이 든 행", out)
 
     def test_approved_file_only_for_dry_run(self):
         ap = os.path.join(self.td, "a.txt"); write_text(ap, "새이름1\n")
@@ -810,7 +860,7 @@ class TestApprovedReference(unittest.TestCase):
     def test_propose_writes_md5_record_and_warns_empty_window(self):
         """W1(b)·W5: propose는 후보·업종어 파일의 출처 기록(.md5)을 쓰고, 창에 행이 없으면(--day가 데이터 끝 뒤) [주의] 빈 창.
         그 산출물은 push 출처 검사를 그대로 통과한다(propose → push 끝까지)."""
-        out_md = os.path.join(self.td, "p.md")
+        out_md = os.path.join(self.w, "p.md")
         with redirect_stdout(io.StringIO()) as buf:
             rc = X.main(["--registry", self.reg, "propose", os.path.dirname(self.csv), "--day", "2026-09-30", "--out", out_md])
         self.assertEqual(rc, 0)
@@ -819,12 +869,13 @@ class TestApprovedReference(unittest.TestCase):
             rc = X.main(["--registry", self.reg, "propose", os.path.dirname(self.csv), "--since", "2026-09-27", "--out", out_md])
         self.assertEqual(rc, 0)
         self.assertNotIn("[주의] 빈 창", buf.getvalue())
-        rec = os.path.join(self.td, "p.md5")
+        rec = os.path.join(self.w, "p.md5")
         with open(rec, encoding="utf-8") as f:
             got = dict(ln.split()[::-1] for ln in f)
-        self.assertEqual(got, {"p_candidates.txt": md5f(os.path.join(self.td, "p_candidates.txt")),
-                               "p_industry.txt": md5f(os.path.join(self.td, "p_industry.txt"))})
-        rc, out = self.push("--from-candidates", os.path.join(self.td, "p_candidates.txt"), "--expect", "2", "--dry-run")
+        self.assertEqual(got, {"p_candidates.txt": md5f(os.path.join(self.w, "p_candidates.txt")),
+                               "p_industry.txt": md5f(os.path.join(self.w, "p_industry.txt")),
+                               "combined": md5f(self.csv), "registry": md5f(self.reg)})         # X4(b): 합본·registry md5도
+        rc, out = self.push("--from-candidates", os.path.join(self.w, "p_candidates.txt"), "--expect", "2", "--dry-run")
         self.assertEqual(rc, 0, out)
         self.assertIn("'노원힐링장소.' ← ", out)
 
@@ -845,10 +896,194 @@ class TestApprovedReference(unittest.TestCase):
         self.assertEqual([k for k, _, _ in p["rereg"]], ["반등록"])
         self.assertNotIn("다등록", p["candidates"])
         self.assertNotIn("노원\n힐링", p["candidates"])                        # 줄바꿈이 든 이름은 후보 파일에 쓸 수 없어 "뺀 것"으로(리뷰 반영)
-        self.assertIn("줄바꿈이 든 이름", dict((k, w) for k, _, w in p["blocked"])["노원\n힐링"])
+        self.assertEqual(p["newline"], [("노원\n힐링", 1)])                       # "줄바꿈 이름 n"으로 따로 센다(X13)
+        self.assertIn("줄바꿈 이름 1", p["approval_text"])
+        self.assertIn("- '노원\\n힐링' — 노출 1", X.render_proposal(p))
+
+
+    def registry_rows(self):
+        with open(self.reg, encoding="utf-8-sig", newline="") as f:
+            return list(__import__("csv").DictReader(f))
+
+    def test_post_timeout_saves_registry_marks_failed_and_exit_1(self):
+        """X1: POST 도중 TimeoutError → "요청 결과 모름" — 그 묶음은 failed, verify가 실제 상태를 다시 읽고, registry는 저장, exit 1.
+        서버엔 반영됐는데 응답만 잃은 경우(apply_then_raise)는 verify가 registered로 바로잡는다. 재개 판정은 verify --approved <승인 파일>."""
+        self.write_cand("새이름1\n")
+        self.stamp()
+        X._default_sender = FakeSender(raise_on_post=TimeoutError("timed out"))
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("요청 결과 모름(TimeoutError) — 반영됐을 수 있다, verify로 확인", out)
+        st = {(r["keyword"], r["group_id"]): r["status"] for r in self.registry_rows()}
+        self.assertEqual([st[("새이름1", g)] for g in GIDS], ["failed"] * 3)            # registry 저장됨(verify도 없음 확인)
+        self.write_cand("새이름2\n")
+        self.stamp()
+        fake = FakeSender(raise_on_post=TimeoutError("timed out"), apply_then_raise=True)
+        X._default_sender = fake
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
+        self.assertEqual(rc, 1, out)                                                    # 요청은 실패로 센다
+        st = {(r["keyword"], r["group_id"]): r["status"] for r in self.registry_rows()}
+        self.assertEqual([st[("새이름2", g)] for g in GIDS], ["registered"] * 3)        # verify가 실제 상태(반영됨)로 바로잡음
+        fake.raise_on_post = None
+        with redirect_stdout(io.StringIO()) as buf:                                     # 재개 판정: verify --approved <이번 회차의 가장 최근 승인 파일>
+            rc = X.main(["--registry", self.reg, "verify", "--key-file", self.kf, "--approved", self.approved_files()[-1]])
+        self.assertEqual(rc, 0, buf.getvalue())
+        self.assertIn("전부 확인", buf.getvalue())
+        with redirect_stdout(io.StringIO()) as buf:                                     # --approved 없이 pending 0이면 판정이 아님을 말한다
+            rc = X.main(["--registry", self.reg, "verify", "--key-file", self.kf])
+        self.assertIn("registry에 pending 0 — 등록 여부 판정 아님(--approved <승인 파일>로 확인)", buf.getvalue())
+
+    def test_unexpected_error_still_saves_registry(self):
+        """X1: 예상 못 한 예외에도(try/finally) pull 결과가 registry에 남는다."""
+        self.write_cand("새이름1\n")
+        self.stamp()
+        fake = FakeSender(raise_on_post=RuntimeError("뜻밖의 오류"))
+        for g in GIDS:
+            fake.kws[g]["서버에만있음"] = f"rk-{g}"
+        X._default_sender = fake
+        with self.assertRaises(RuntimeError):
+            with redirect_stdout(io.StringIO()):
+                X.main(["--registry", self.reg, "push", "--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf])
+        self.assertIn("서버에만있음", {r["keyword"] for r in self.registry_rows()})       # pull 결과 저장됨
+
+    def test_industry_file_twins_shown(self):
+        """X3: 쌍둥이 [주의]가 _industry.txt 줄도 본다."""
+        write_text(self.ind, "업종필테X\n업종필테x.\n")
+        self.stamp()
+        rc, out = self.push("--industry", self.ind, "--industry-lines", "1", "--expect", "1", "--dry-run")
+        self.assertEqual(rc, 0, out)
+        self.assertIn(f"고른 것 '업종필테X' ← {self.ind}:1", out)
+        self.assertIn(f"쌍둥이  '업종필테x.' ← {self.ind}:2", out)
+
+    def test_sources_must_be_one_run_and_unchanged_since_propose(self):
+        """X4: 후보·업종어는 같은 propose 실행 · propose 뒤 합본·registry가 바뀌면 FAIL."""
+        other_ind = os.path.join(self.w, "y_industry.txt")
+        write_text(other_ind, "노원필라테스주말\n")
+        self.stamp(base="y")
+        rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--industry", other_ind, "--industry-lines", "1",
+                            "--expect", "2", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("--from-candidates와 --industry가 같은 propose 실행이 아님", out)
+        with open(self.csv, "a", encoding="utf-8") as f:                                # propose 뒤 합본이 바뀜(ingest 다시 등)
+            f.write("새검색어,확장,2026.09.27.,1,0\n")
+        rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("propose 뒤 합본·registry가 바뀜 — propose부터 다시·재승인(combined", out)
+        self.stamp()
+        X.save_registry(self.reg, self.registry_rows() + [dict(keyword="새행", group_id="", group_name="*", type="EXP_SEARCH",
+                                                                status="unregistered", source="ui", registered_at="",
+                                                                restrict_kwd_id="", verified_at="", note="")])
+        self.reg_md5 = md5f(self.reg)
+        rc, out = self.push("--from-candidates", self.cand, "--drop", "2,3", "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("propose 뒤 합본·registry가 바뀜 — propose부터 다시·재승인(registry", out)
+
+    def test_real_push_stops_when_pull_shows_all_present(self):
+        """X6: 실제 push는 pull 직후 고른 이름이 대상 그룹 전부에 이미 있으면(registry가 낡음) POST 0으로 FAIL — pull 결과는 저장."""
+        self.write_cand("새이름1\n새이름2\n")
+        self.stamp()
+        fake = FakeSender()
+        for g in GIDS:
+            fake.kws[g]["새이름1"] = f"rk-{g}"
+        X._default_sender = fake
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "2", "--key-file", self.kf)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("[FAIL] 고른 이름 중 1개가 방금 읽은(pull) 대상 그룹 전부에 이미 있음: '새이름1'", out)
+        self.assertEqual([c[0] for c in fake.calls].count("POST"), 0)                   # 새이름2도 보내지 않는다
+        st = {(r["keyword"], r["group_id"]): r["status"] for r in self.registry_rows()}
+        self.assertEqual([st[("새이름1", g)] for g in GIDS], ["registered"] * 3)        # pull 결과 저장
+        self.assertEqual(self.approved_files(), [])                                     # POST 0이면 승인 파일도 없다(재개 판정이 헷갈리지 않게)
+        self.stamp()                                                                    # (pull 결과 저장으로 registry md5가 바뀜)
+        self.write_cand("새이름2\n")
+        self.stamp()
+        X._default_sender = FakeSender(auth_fail=True)                                  # 첫 pull부터 실패 — POST 0
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("POST 전에 멈춤(POST 0 — 승인 파일 안 씀)", out)
+        self.assertEqual(self.approved_files(), [])
+
+    def test_post_cut_mid_response_or_unreadable_body_is_result_unknown(self):
+        """X1(리뷰 반영): 응답 도중 끊김(http.client.IncompleteRead — OSError 아님)·응답 본문을 못 읽음(JSONDecodeError)도 "요청 결과 모름" —
+        그 묶음은 failed, 나머지 그룹도 시도, verify가 실제 상태를 다시 읽고, registry 저장·exit 1(Traceback 아님)."""
+        import http.client
+        for n, (exc, applied) in enumerate(((http.client.IncompleteRead(b""), False),
+                                            (json.JSONDecodeError("Expecting value", "<html>OK</html>", 0), True)), 1):
+            self.write_cand(f"새끊김{n}\n")
+            self.stamp()
+            fake = FakeSender(raise_on_post=exc, apply_then_raise=applied)
+            X._default_sender = fake
+            rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
+            self.assertEqual(rc, 1, out)
+            self.assertIn(f"요청 결과 모름({type(exc).__name__}) — 반영됐을 수 있다, verify로 확인", out)
+            self.assertEqual([c[0] for c in fake.calls].count("POST"), 3)               # 나머지 그룹도 시도
+            st = {(r["keyword"], r["group_id"]): r["status"] for r in self.registry_rows()}
+            self.assertEqual([st[(f"새끊김{n}", g)] for g in GIDS], ["registered" if applied else "failed"] * 3)
+        real = self.orig[0]                                                             # 기본 sender: 200인데 JSON이 아닌 본문
+        orig_open = X.urllib.request.urlopen
+        self.addCleanup(setattr, X.urllib.request, "urlopen", orig_open)
+
+        class Resp:
+            status = 200
+
+            def read(self):
+                return b"<html>OK</html>"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        X.urllib.request.urlopen = lambda req, timeout=None: Resp()
+        with self.assertRaises(X.ApiError) as cm:
+            X.NaverApi("K", "S", 1, sender=real).request("POST", "/ncc/restricted-keywords", body=[{"keyword": "새이름"}])
+        self.assertIn("요청 결과 모름(JSONDecodeError)", str(cm.exception))
+
+    def test_keep_name_fails(self):
+        """X7: registry keep(사용자 결정 '노출 유지') 이름은 참조 모드에서 FAIL."""
+        rows = self.registry_rows() + [dict(keyword="유지이름", group_id="", group_name="*", type="EXP_SEARCH", status="keep",
+                                            source="ui", registered_at="", restrict_kwd_id="", verified_at="", note="")]
+        X.save_registry(self.reg, rows)
+        self.reg_md5 = md5f(self.reg)
+        self.write_cand("유지이름\n")
+        self.stamp()
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--dry-run")
+        self.assert_nothing_written(rc, out)
+        self.assertIn("[FAIL] 이름 '유지이름' ← ", out)
+        self.assertIn("registry에 keep(사용자 결정 '노출 유지')", out)
+
+    def test_api_key_masked_in_error_output_and_registry(self):
+        """X10: 서버가 요청 헤더(X-API-KEY)를 되돌려 줘도 출력·registry note에 키 값이 없다(***)."""
+        key = "FAKEKEY0928echo"
+        write_text(self.kf, json.dumps({"api_key": key, "secret_key": "S3CRETecho"}))
+        self.write_cand("새이름1\n")
+        self.stamp()
+        X._default_sender = FakeSender(echo_key_status=400)
+        rc, out = self.push("--from-candidates", self.cand, "--expect", "1", "--key-file", self.kf)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("X-API-KEY=***", out)
+        self.assertNotIn(key, out)
+        with open(self.reg, encoding="utf-8-sig") as f:
+            self.assertNotIn(key, f.read())
+        api = X.NaverApi(key, "S3CRETecho", 1, sender=lambda m, u, h, d: (401, {"message": f"denied {h['X-API-KEY']}"}))
+        with self.assertRaises(X.ApiError) as cm:
+            api.adgroup(GIDS[0])
+        self.assertIn("denied ***", str(cm.exception))
+        self.assertNotIn(key, str(cm.exception))
+        long_key = "0100000000" + "ab12cd34" * 8                                       # JSON 아닌 오류 본문 500자 경계에 걸친 키 — 가린 뒤에 자른다
+        orig_open = X.urllib.request.urlopen
+        self.addCleanup(setattr, X.urllib.request, "urlopen", orig_open)
+
+        def raise_400(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 400, "bad", {}, io.BytesIO(("x" * 440 + "X-API-KEY: " + long_key).encode()))
+        X.urllib.request.urlopen = raise_400
+        st, resp = X.NaverApi(long_key, "S3CRETecho", 1, sender=self.orig[0]).request("POST", "/ncc/restricted-keywords", body=[])
+        self.assertEqual(st, 400)
+        self.assertIn("X-API-KEY: ***", resp["message"])
+        self.assertNotIn(long_key[:20], resp["message"])
+        self.assertLessEqual(len(resp["message"]), 500)
 
     def test_load_keys_rejects_values_not_usable_as_header(self):
-        """W9: 키 값이 한 줄·ASCII·공백 없음이 아니면 SystemExit — 값은 출력하지 않는다(deploy.usable과 같은 기준)."""
+        """W9: 키 값이 한 줄·ASCII·공백 없음이 아니면 SystemExit — 값은 출력하지 않는다(deploy.usable보다 넓다 — 비밀키엔 +/= 같은 글자가 있을 수 있다)."""
         for bad in ("K Y", "키값", "K\nY"):
             write_text(self.kf, json.dumps({"api_key": bad, "secret_key": "S"}))
             with self.assertRaises(SystemExit) as cm:

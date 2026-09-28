@@ -8,7 +8,9 @@
         sha를 **다시 조회**한 뒤 PUT. 그 조회 본문 md5 ≠ --base md5면 "[FAIL] 배포본이 4단계 fetch 뒤 바뀜" exit 1(PUT 0).
         실제 push는 --base 필수(없으면 exit 2, --file 없이 --base만 줘도 exit 2) · 작업본 옆 precheck 도장(precheck_ok.md5 — precheck.sh가
         전부 통과했을 때 쓴 작업본 md5) = --file md5일 때만 PUT(아니면 "[FAIL] precheck 통과본이 아님" exit 1, dry-run은 [주의]).
-        PUT 409 = 배포본이 GET 뒤 바뀜(sha 불일치) · 403 = 쓰기 권한 없음 · 404 = 저장소·경로 없음(권한 부족도 404) — 셋 다 [FAIL] exit 1.
+        도장 = 작업본 md5 · 직전 배포본 md5(= --base여야) · 모드(pending이면 [주의]만). PUT 결과 모름(요청 예외·5xx) = 재PUT 금지·verify 먼저,
+        PUT 409 = 배포본이 GET 뒤 바뀜(sha 불일치) · 403 = 쓰기 권한 없음 · 404 = 저장소·경로 없음(권한 부족도 404) — 넷 다 [FAIL] exit 1.
+        GET 본문이 --base와 다른데 작업본과 같으면 "앞 PUT이 이미 반영됨" exit 0(PUT 안 함). 인자 오류(--file·--out 없음)는 GET 전에 exit 2.
         --dry-run 은 sha 조회·base 대조·자격 증명 확인·쓰기 권한 확인
         (인증 GET /repos/{deploy_repo}의 permissions.push — 계정 역할 기준, 토큰 범위는 PUT이 최종 확인. 참/거짓만 찍고 거짓이면 [FAIL])·본문 준비까지만 하고 PUT을 보내지 않는다
         (아무 파일도 쓰지 않는다 — 2026-09-26 실측). "자격 증명 확인됨(출처: token-file|git)"만 찍는다.
@@ -32,6 +34,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -46,15 +49,15 @@ for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)
         pass
 
 CFG = load_config()
-STAMP = "precheck_ok.md5"  # precheck.sh가 전부 통과했을 때 작업본 옆에 쓰는 도장(작업본 md5)
+STAMP = "precheck_ok.md5"  # precheck.sh가 전부 통과했을 때 작업본 옆에 쓰는 도장(작업본 md5 · 직전 배포본 md5 · 모드 full|pending)
 REPO_API = f"https://api.github.com/repos/{CFG['deploy_repo']}"
 API = f"{REPO_API}/contents/index.html"
 
 
 def usable(tok):
-    """헤더에 넣을 수 있는 한 줄 토큰인지(공백·개행·비 ASCII 없음). 아니면 None — 값은 어디에도 찍지 않는다
-    (개행이 든 값을 헤더에 넣으면 http.client가 값 전체를 예외 문구에 담는다)."""
-    return tok if tok and tok.isascii() and not any(c.isspace() for c in tok) else None
+    """헤더에 넣을 수 있는 GitHub 토큰 모양인지(`[A-Za-z0-9_]+` — ghp_·gho_·github_pat_ 모두). 아니면 None — 값은 어디에도 찍지 않는다
+    (개행이 든 값을 헤더에 넣으면 http.client가 값 전체를 예외 문구에 담고, 기호가 섞이면 *** 가림이 덜 된다)."""
+    return tok if tok and re.fullmatch(r"[A-Za-z0-9_]+", tok) else None
 
 
 def token_of(path):
@@ -89,12 +92,12 @@ def git_credential():
 
 
 HINT = {"git": "이 PC git 자격 증명(github.com 로그인)을 사용자가 확인",
-        "token-file": "토큰 파일이 한 줄 토큰(공백·개행 없음)인지 사용자가 확인"}
+        "token-file": "토큰 파일이 한 줄 토큰(영문·숫자·밑줄만)인지 사용자가 확인"}
 
 
 def credential(token_file):
     """(값, 출처). 출처 = "token-file" | "git". 값이 None이면 못 얻은 것."""
-    if token_file:
+    if token_file is not None:  # --token-file ''(빈 문자열)도 token-file — git 자격 증명으로 몰래 넘어가지 않는다
         return token_of(token_file), "token-file"
     return git_credential(), "git"
 
@@ -139,21 +142,31 @@ def md5(data):
     return hashlib.md5(data).hexdigest()
 
 
-def precheck_stamp(path, data):
-    """작업본 옆 도장(precheck_ok.md5)이 --file 바이트(data — main이 한 번만 읽은 것, PUT 본문과 같은 바이트)의 md5와 같은지 → (같음, 사유).
-    도장은 precheck.sh가 전부 통과했을 때만 쓴다."""
+def precheck_stamp(path, data, base=None):
+    """작업본 옆 도장(precheck_ok.md5 — 1줄 `<작업본 md5>  <이름>` · 2줄 `<직전 배포본 md5>  <이름>` · 3줄 `mode full|pending`)을 본다
+    → (통과, 사유, pending). data = main이 한 번만 읽은 --file 바이트(PUT 본문과 같은 바이트), base = --base 바이트(있으면).
+    통과 = 작업본 md5 같음 + 형식(직전 배포본·모드 줄) + 직전 배포본 md5 = --base md5(4단계를 다시 받았으면 precheck도 다시).
+    pending = --pending으로 통과한 도장(막지 않고 호출한 쪽이 [주의]). 도장은 precheck.sh가 전부 통과했을 때만 쓴다."""
     sp = os.path.join(os.path.dirname(os.path.abspath(path)), STAMP)
     cur = md5(data)
     try:
         with open(sp, encoding="utf-8") as f:
-            want = (f.read().split() or [""])[0]
+            rows = [ln.split() for ln in f.read().splitlines() if ln.strip()]
     except FileNotFoundError:
-        return False, f"도장 없음: {sp}"
+        return False, f"도장 없음: {sp}", False
     except (OSError, UnicodeError) as e:  # 손으로 쓴·다른 인코딩 도장 — Traceback 대신 사유(실제 push는 [FAIL], dry-run은 [주의])
-        return False, f"도장을 읽을 수 없음({type(e).__name__}): {sp}"
+        return False, f"도장을 읽을 수 없음({type(e).__name__}): {sp}", False
+    want = rows[0][0] if rows else ""
+    prev = rows[1][0] if len(rows) > 1 else None
+    mode = rows[2][-1] if len(rows) > 2 else None
+    pending = mode == "pending"
     if want != cur:
-        return False, f"도장 md5 {want[:8]} ≠ 작업본 md5 {cur[:8]} — precheck 뒤 바뀌었거나 다른 파일"
-    return True, f"precheck 도장 = 작업본 md5 {cur[:8]}… 확인"
+        return False, f"도장 md5 {want[:8]} ≠ 작업본 md5 {cur[:8]} — precheck 뒤 바뀌었거나 다른 파일", pending
+    if prev is None or mode not in ("full", "pending"):
+        return False, "도장 형식이 옛 판(직전 배포본·모드 줄 없음) — precheck.sh를 다시", pending
+    if base is not None and prev != md5(base):
+        return False, f"도장의 직전 배포본 md5 {prev[:8]} ≠ --base md5 {md5(base)[:8]} — 4단계를 다시 받았으면 5·6단계부터", pending
+    return True, f"precheck 도장 = 작업본 md5 {cur[:8]}… · 직전 배포본 {prev[:8]}… 확인", pending
 
 
 def push_permission_ok(tok):
@@ -181,6 +194,16 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     base = None
+    # 인자 오류는 네트워크 전에(GET 0)
+    if a.cmd == "fetch" and not a.out:
+        print("[FAIL] fetch에는 --out이 필요 — GET 안 함")
+        return 2
+    if a.cmd == "verify" and not a.file:
+        print("[FAIL] verify에는 --file이 필요 — GET 안 함")
+        return 2
+    if a.cmd == "push" and not a.file and not a.dry_run:
+        print("[FAIL] push에는 --file이 필요(--file 없는 push는 --dry-run — S0 사전 점검만) — GET 안 함")
+        return 2
     if a.base and not a.file:
         print("[FAIL] --base는 --file과 함께만 — --file 없는 push --dry-run(S0)에는 --base를 주지 않는다. PUT 안 함")
         return 2
@@ -203,11 +226,13 @@ def main():
             print(f"[FAIL] --file을 읽을 수 없음({type(e).__name__}): {a.file} — PUT 안 함")
             return 2
     if a.cmd == "push" and a.file:  # precheck 통과본만 PUT — 네트워크 전에 본다
-        ok, why = precheck_stamp(a.file, local)
+        ok, why, pending = precheck_stamp(a.file, local, base)
         if not ok and not a.dry_run:
-            print(f"[FAIL] precheck 통과본이 아님 — PUT 안 함({why}). scripts/precheck.sh를 이 작업본으로 다시 통과시킨다")
+            print(f"[FAIL] precheck 통과본이 아님 — PUT 안 함({why}). scripts/precheck.sh를 이 작업본·이 --base로 다시 통과시킨다")
             return 1
         print(why if ok else f"[주의] precheck 통과본이 아님({why}) — 실제 push는 여기서 멈춘다")
+        if pending:
+            print("[주의] --pending 통과본(답 대기 배포용) — 답을 반영한 재배포라면 --pending 없이 precheck를 다시")
     status, res, how = get(a.token_file)
     if status != 200:
         print(f"GET {status}: {res.get('message', '')}")
@@ -242,6 +267,9 @@ def main():
             print("[FAIL] 불일치 — 다시 PUT하지 않는다. 위 sha·md5를 보고하고 재PUT은 사용자가 정한다(SKILL.md 7단계)")
         return 0 if same else 1
     if base is not None:  # PUT에 쓸 sha를 준 바로 그 GET 본문이 4단계 fetch 파일과 같아야 한다(그 사이 다른 배포가 있었으면 덮어쓰지 않는다)
+        if md5(content) != md5(base) and md5(content) == md5(local):  # 결과 모름이던 앞 PUT이 실제로 반영된 경우 — 다시 PUT하지 않는다
+            print(f"지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨(verify로 확인). PUT 안 함 (md5 {md5(local)[:8]}…)")
+            return 0
         if md5(content) != md5(base):
             print(f"[FAIL] 배포본이 4단계 fetch 뒤 바뀜 — 지금 배포본 sha {sha} · md5 {md5(content)[:8]}… ≠ --base {a.base} md5 {md5(base)[:8]}…. "
                   "PUT 안 함 — 새 배포본으로 4단계부터 다시 할지는 사용자가 정한다")
@@ -263,8 +291,11 @@ def main():
         return 0
     status, res = api(tok, "PUT", body)
     msg = res.get("message", "")[:200]
+    if status == 0 or status >= 500:  # 요청 예외(타임아웃·연결 끊김)·서버 오류 — 서버가 PUT을 받았는지 모른다
+        print(f"[FAIL] PUT 결과 모름({msg}) — 반영됐을 수 있다. 재PUT 금지, 먼저 deploy.py verify --file {a.file}")
+        return 1
     if status == 409:
-        print(f"[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨, 4단계부터 다시는 사용자(PUT 409: {msg})")
+        print(f"[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치) — PUT 안 됨, 4단계부터 다시 할지는 사용자가 정한다(PUT 409: {msg})")
         return 1
     if status == 403:
         print(f"[FAIL] PUT 403 — 쓰기 권한 없음(자격 증명 출처 {src} · 배포 저장소 {CFG['deploy_repo']}): {msg}. PUT 안 됨 — 계정·토큰 권한은 사용자가 확인")

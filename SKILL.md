@@ -215,15 +215,21 @@ propose `--since` = 직전 배포 masthead 끝 + 1일(ISO). 직전 회차 기록
    어느 경우도 탭 목록 확인을 요청하지 않는다. 등록·확인에 **실패한 이름(`failed`)은 재노출이 없어도 다음 propose 재등록 후보에 실패 사유와 함께 다시 오른다** — 반복 실패(문자 제한 등)는 registry `status=keep`으로 사용자가 뺀다.
 2. **후보 제시**: 신규 후보(클릭 0·첫 등장·금지 패턴·경쟁사·업종어 아님)는 무관/애매/키즈로 분류해 채팅에 제안(결정은 사용자), 재등록 후보(registry 미등록·일부 누락)는 그대로,
    "업종어 포함"(config `industry_terms`)과 "후보에서 뺀 것"(`never_exclude_patterns`·`competitors`)은 이유와 함께 보이기만 한다.
-3. **승인 문구**는 propose 출력 마지막 절을 그대로 붙인다(전체 이름 명시 → 답 "등록 승인 N개", 뺄 이름 답 허용). **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
+3. **승인 문구**는 propose 출력 마지막 절을 그대로 붙인다(전체 이름에 번호 — 번호 = `_candidates.txt` 줄, 제안서 업종어 절 번호 = `_industry.txt` 줄).
+   답 예: "등록 승인 N개" 그대로 · "3 빼고"(→ `--drop 3`) · "업종어 2 넣기"(→ `--industry …_industry.txt --industry-lines 2`) — 세션은 답의 번호를 그대로 옮긴다. **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
 4. **등록·확인**: `pull`·`push`·`verify`는 **PC 작업 폴더를 연 Code 탭 세션**이 같은 폴더에서 돌린다(API 호스트가 열린 PC 로컬 셸 — references/exclusion-ui.md 3절,
    2026-09-28 실측). 실제 등록은 **push 참조 선택 모드만** 된다 — push가 원천(`_candidates.txt`·`_industry.txt`·합본 `검색어.csv` `검색어` 칸)에서
-   줄·행 번호로 이름을 직접 읽고(실제 push만 `work/approved_<날짜>_<시분초>.txt`를 남긴다 — dry-run은 화면만), 세션은 번호와 답의 N(`--expect`)만 넘긴다
-   (이름을 쓰지 않는다 — 기호·마침표 원문 그대로). 후보·업종어 파일은 propose가 쓴 출처 기록(`<창 이름>.md5`)과 같아야 하고,
-   합계 ≠ N·범위 밖·빈 원천·중복·이미 registered인 이름(고른 이름 전부)·금지 패턴·경쟁사명은 쓰기 전 `[FAIL]`, 기호만 다른 쌍둥이는 `[주의]`
-   (`references/code-tab.md` 6절, 2026-09-28 "노원힐링장소." 사례). `--approved <파일>`은 dry-run·시험 전용.
+   줄·행 번호로 이름을 직접 읽고(실제 push만 — pull 재검사를 통과한 뒤 첫 POST 전에 — `work/approved_<날짜>_<시분초>.txt`를 남긴다 — dry-run은 화면만), 세션은 번호와 N만 넘긴다
+   (`--expect` = 답의 N — N이 없는 번호 답("3 빼고"·"업종어 2 넣기")이면 세션이 목록 수에서 계산하고(− 뺀 수 + 넣은 수), 실제 push 전에 dry-run의 `[승인 목록] N개`와 이름을 사용자에게 보인다)
+   (이름을 쓰지 않는다 — 기호·마침표 원문 그대로). 후보·업종어 파일은 `work/` 밑·같은 propose 실행이어야 하고 propose가 쓴 출처 기록(`<창 이름>.md5` —
+   파일·합본·registry md5)과 지금이 같아야 한다. 합계 ≠ N·범위 밖·빈 원천·중복·고른 이름 중 하나라도 이미 registered·keep·금지 패턴·경쟁사명은 쓰기 전 `[FAIL]`,
+   실제 push는 pull 뒤 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 `[FAIL]`(승인 파일 안 씀), 기호만 다른 쌍둥이는 `[주의]`
+   (`references/code-tab.md` 6절, 2026-09-28 "노원힐링장소." 사례). push의 `--approved <파일>`은 dry-run·시험 전용(verify의 `--approved`는 재개 판정용).
    키 파일은 `--key-file ~/naver-api.keys.json` 경로만 넘기고 열지 않는다. push는 pull → 그룹별로 없는 이름만 POST →
    verify(다시 읽어 3그룹 확인)까지 한 번에 하고, 확인 안 된 이름은 `failed`(성공이라고 쓰지 않는다). 부분 실패는 그룹×이름으로 보고, 재시도는 사용자 결정.
+   요청 도중 끊기거나 응답을 못 읽으면(`요청 결과 모름` — 반영됐을 수 있다) 그 묶음은 `failed`로 두고 verify가 실제 상태를 다시 읽으며, 어떤 예외에도 registry는 저장된다
+   (다시 읽은 목록에 전부 있으면 끝 줄 `… 전부 있음 — … 재시도 안 함` exit 1 — 등록은 됨) —
+   재개·확인은 `verify --key-file … --approved <이번 회차 propose(.md5) 뒤에 생긴 가장 최근 work/approved_*.txt>`(없으면 이번 회차 push는 POST 전 · `--approved` 없는 verify의 "pending 0"은 판정이 아니다).
    push는 그룹별 `현재 N + 등록 예정 M`을 찍고 config `max_per_group`(950 추정) 초과 예상이면 `[주의]`만 낸다(차단 안 함 — 3716 오류는 항목별 `failed`로 남고 재승인 대상). `delete`도 `--confirm` 없이는 돌지 않는다.
 5. **기록**: registry가 정본. `audit/last-audit.md` "등록 제외 검색어 대조 목록" 표에는 **회차별 요약 행만**(등록 n · verified n · 실패 n · description). 07번 각주·12번 1번에는 판정 결과 문구 그대로.
 6. 시험 등록(`test-roundtrip`, 1건·사용자 입회·등록→확인→삭제)은 **구현 회차 끝**(과 API 키가 바뀐 뒤)에만 한다. 검증 회차는 그 기록(출력 원문·registry `deleted` 행)을
@@ -255,7 +261,9 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 — 아래 셋을 순서대로, 하나라도 실패하면 멈춘다. validate·compare는 통과면 끝 3줄(요약 `검사 N개: PASS … / FAIL 0` 포함), 실패면 전체 출력을 보인다.
 compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
 같으면 "[FAIL] 직전 배포본이 작업본과 같다 — …"로 exit 1. `--pending`은 validate에만 넘어간다. 전부 통과하면 작업본 옆에
-도장 `work/precheck_ok.md5`(작업본 md5)를 쓴다 — 7단계 실제 push는 이 값 = 작업본 md5일 때만 PUT한다(시작할 때 옛 도장을 지운다).
+도장 `work/precheck_ok.md5`(1줄 작업본 md5 · 2줄 직전 배포본 md5 · 3줄 `mode full|pending`)를 쓴다 — 7단계 실제 push는 작업본 md5 = `--file`·
+직전 배포본 md5 = `--base`일 때만 PUT한다(pending이면 `[주의]`만). 인자 수가 맞으면 무엇보다 먼저(파일 없음 FAIL에도) 옛 도장을 지우고, 작업본 md5를 시작·끝에 재 다르면
+`[FAIL] 작업본이 precheck 도중 바뀜`(도장 없음). 작업본·직전 배포본 파일이 없으면 `[FAIL] 파일 없음` exit 2.
 진단 회차의 재현 시험(작업본 = 현재 배포본)은 3번째 인자에 **그 배포본의 직전 배포**(예: ad48222 → 4c08ab3)를 넣는다.
 
 1. `scripts/validate.py`(독립 검산 — 태그 짝·클릭수·CTR 강조·top5·카드·경쟁사·11·12번 등, 아래 "배포 전 검산")
@@ -280,8 +288,10 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
 
 `push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). 그 조회 본문이 `--base`(4단계 fetch 파일)와
 md5가 다르면 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` exit 1로 PUT하지 않는다 — 그 사이 다른 배포가 있었다(4단계부터 다시 할지는 사용자). 실제 push는
-`--base` 필수(없으면 exit 2), 6단계 도장(`work/precheck_ok.md5`) = 작업본 md5일 때만 PUT(아니면 `[FAIL] precheck 통과본이 아님` exit 1 —
-precheck 뒤 작업본을 고쳤으면 6단계부터). PUT 409 = `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`, 403 = 쓰기 권한 없음, 404 = 저장소·경로 — 자동 재시도 금지.
+`--base` 필수(없으면 exit 2), 6단계 도장(`work/precheck_ok.md5`)의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT(아니면
+`[FAIL] precheck 통과본이 아님` exit 1 — precheck 뒤 작업본을 고쳤으면 6단계부터, 4단계를 다시 받았으면 5·6단계부터). PUT 409 = `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`,
+403 = 쓰기 권한 없음, 404 = 저장소·경로, 요청 도중 끊김·5xx = `[FAIL] PUT 결과 모름(…) — 반영됐을 수 있다. 재PUT 금지, 먼저 deploy.py verify` — 자동 재시도 금지.
+GET 본문이 `--base`와 다른데 작업본과 같으면 "앞 PUT이 이미 반영됨" exit 0(PUT 안 함 — verify로 확인). 인자 오류(`--file`·`--out` 없음)는 GET 전에 exit 2.
 `--dry-run`은 도장(없으면 `[주의]`)·sha 조회·base 대조·자격 증명 확인(`자격 증명 확인됨(출처: git)`)·쓰기 권한 확인
 (인증 GET으로 `permissions.push` 참/거짓, 거짓이면 `[FAIL]` — 계정 역할 기준, 토큰 범위는 PUT이 최종 확인)·본문 준비까지만 하고 PUT을 보내지도 파일을 쓰지도 않는다(2026-09-26 실측). 내부는
 `PUT https://api.github.com/repos/LeeKwanBeom/saero-pilates-report/contents/index.html`
@@ -370,7 +380,7 @@ propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n —
 
 **(3) 새로운 제외 그룹 후보** — 아래 참고
 
-**(4) 제외 검색어 등록** — 5-0단계의 승인 문구에 "등록 승인 N개"(또는 뺄 이름) 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다.
+**(4) 제외 검색어 등록** — 5-0단계의 승인 문구에 "등록 승인 N개"(또는 번호 — "3 빼고"·"업종어 2 넣기") 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다.
 등록 여부 자체는 묻지 않는다(registry가 답한다). 금지 패턴(config `never_exclude_patterns`)·경쟁사 이름은 코드가 막는다(실제 등록 = 참조 선택 모드는 쓰기 전 `[FAIL]`, `--approved` dry-run은 `[거부]`).
 
 일반 지역+필라테스 조합(예: "노원구필라테스", "노원역근처필라테스")은 경쟁사가
@@ -522,7 +532,7 @@ config `date_based_sections`에 따라 늘고 준다):
   registry 스키마·상태, 후보·재노출 판정 규칙, PC 실행 절차, 시험 등록. 5-0단계에서 읽는다.
 - `scripts/exclusions.py`(5-0단계 `pull`/`import-ui`/`propose`/`push`(참조 선택 모드·`--dry-run`)/`verify`/`delete`/`test-roundtrip`/`report`) ·
   `audit/exclusions.csv`(등록 상태 registry, 기계 정본) · `tests/test_exclusions.py`(가짜 API로 서명·판정·부분 실패·verified:false(CLI 종료 코드 포함)·dry-run 무전송·
-  승인 목록 쓰기 전 가드·시험 순서 검사 — 정기 점검 때).
+  승인 목록 쓰기 전 가드·pull 뒤 재검사·요청 결과 모름·키 가림·시험 순서 검사 — 정기 점검 때).
 - `references/report-fetch.md` — 보고서 자동 수집(설계안 C, PC Playwright)의 값 정의: PC 설치·`--login`·매일 실행·검사·오류 대처·
   codegen 녹화·금지 사항·UI 실물. 1단계에서 읽는다.
 - `scripts/fetch_reports.py`(1단계 PC 전용 `--dry-run`/`--login`/기본 실행/`--debug`/`--prev`, config `report_fetch`) ·
@@ -535,4 +545,4 @@ config `date_based_sections`에 따라 늘고 준다):
 - `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침, file:// 밖 요청 차단) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
   `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·필드 없음·token 파일 인코딩·
-  precheck 도장·PUT 본문 = 도장 바이트·PUT 409/403·`***` 가림·`--base` 인자 exit 2) — 정기 점검 때.
+  precheck 도장(직전 배포본·모드)·PUT 본문 = 도장 바이트·PUT 409/403·PUT 결과 모름·이미 반영 exit 0·`***` 가림·인자 오류 GET 0(exit 2)·토큰 모양) — 정기 점검 때.

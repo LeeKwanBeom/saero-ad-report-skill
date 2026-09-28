@@ -597,8 +597,11 @@ class BrowserTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    ok = False
     try:
-        unittest.main(exit=False, verbosity=2)
+        r = unittest.main(exit=False, verbosity=2)
+        ok = r.result.wasSuccessful()
     finally:
         after = real_md5s()
         print(f"실제 data/2026-09·config md5 전/후 동일: {after == BEFORE} ({BEFORE['config'][:8]} 등)")
+    sys.exit(0 if ok and after == BEFORE else 1)   # 실패하면 rc ≠ 0(수정 회차 4 X12 — 종전엔 exit=False라 늘 0)

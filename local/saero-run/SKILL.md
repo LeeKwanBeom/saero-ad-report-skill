@@ -12,7 +12,7 @@ description: saero 광고 리포트 전 단계 실행(/saero-run, 광고 리포�
 3. code-tab.md 2절 **S0 사전 점검 블록**을 그대로 한 번 돌린다. `[FAIL]` 줄이 있으면 거기서 멈추고 보고한다.
 4. S0 PASS면 code-tab.md 3절 순서대로: ① 수집(백그라운드) → 1 ingest → 4 fetch → compute(계산만) → 2-1
    → 3 → 5-0 propose → **승인 묶음 한 번** → (config가 바뀌면 5-0b) → 등록·확인·registry 기록 → 5 교체 → 6 precheck → 7 배포(`--base work/prev.html`) → 8 기록.
-   세션이 끊겼다 다시 시작하면 "했었냐"는 대상 현재 상태(ingest의 origin/main 확인·`exclusions.py verify`·`deploy.py verify`)로 판정한다.
+   세션이 끊겼다 다시 시작하면 "했었냐"는 대상 현재 상태(ingest의 origin/main 확인·`exclusions.py verify --key-file … --approved <이번 회차 propose(.md5) 뒤에 생긴 가장 최근 work/approved_*.txt>` — 없으면 이번 회차 push는 POST 전·`deploy.py verify`)로 판정한다.
 
 지키는 것(전체 목록은 code-tab.md 7절):
 - 매 Bash 호출 첫머리 `export PY=/d/saero/.venv/Scripts/python.exe PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1 GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never; unset GIT_ASKPASS SSH_ASKPASS`.
