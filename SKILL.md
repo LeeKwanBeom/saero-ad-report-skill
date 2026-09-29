@@ -216,7 +216,9 @@ propose `--since` = 직전 배포 masthead 끝 + 1일(ISO). 직전 회차 기록
 2. **후보 제시**: 신규 후보(클릭 0·첫 등장·금지 패턴·경쟁사·업종어 아님)는 무관/애매/키즈로 분류해 채팅에 제안(결정은 사용자), 재등록 후보(registry 미등록·일부 누락)는 그대로,
    "업종어 포함"(config `industry_terms`)과 "후보에서 뺀 것"(`never_exclude_patterns`·`competitors`)은 이유와 함께 보이기만 한다.
 3. **승인 문구**는 propose 출력 마지막 절을 그대로 붙인다(전체 이름에 번호 — 번호 = `_candidates.txt` 줄, 제안서 업종어 절 번호 = `_industry.txt` 줄).
-   답 예: "등록 승인 N개" 그대로 · "3 빼고"(→ `--drop 3`) · "업종어 2 넣기"(→ `--industry …_industry.txt --industry-lines 2`) — 세션은 답의 번호를 그대로 옮긴다. **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
+   답 예: "등록 승인 12개"(N은 숫자로 쓴다) · "3 빼고"(→ `--drop 3`) · "업종어 2 넣기"(→ `--industry …_industry.txt --industry-lines 2`) — 세션은 답의 번호를 그대로 옮긴다. **답이 오기 전에는 등록하지 않는다**(아래 "승인이 필요한 지점" (4)).
+   N을 숫자로 쓰지 않았거나("등록 승인 N개" 글자 그대로) "위 2가지만"처럼 둘 이상으로 읽히면 세션은 글자에 가장 가까운 해석의 `push … --dry-run` 목록(`[승인 목록] N개`·이름)을 보이고
+   다른 해석을 한 줄로 붙여 되묻는다 — 확인 답 전에는 실제 push 0(2026-09-29 실측, `references/code-tab.md` 6절).
 4. **등록·확인**: `pull`·`push`·`verify`는 **PC 작업 폴더를 연 Code 탭 세션**이 같은 폴더에서 돌린다(API 호스트가 열린 PC 로컬 셸 — references/exclusion-ui.md 3절,
    2026-09-28 실측). 실제 등록은 **push 참조 선택 모드만** 된다 — push가 원천(`_candidates.txt`·`_industry.txt`·합본 `검색어.csv` `검색어` 칸)에서
    줄·행 번호로 이름을 직접 읽고(실제 push만 — pull 재검사를 통과한 뒤 첫 POST 전에 — `work/approved_<날짜>_<시분초>.txt`를 남긴다 — dry-run은 화면만), 세션은 번호와 N만 넘긴다
@@ -283,8 +285,15 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
 
 ```bash
 "$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" [--dry-run]
-"$PY" scripts/deploy.py verify --file work/index.html   # 재수령본 md5 = 로컬
+"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>   # 그 커밋의 재수령본 md5 = 로컬
 ```
+
+**배포 질문(고정)**: `--dry-run` 결과를 보인 뒤 **"배포할까요? — 배포 / 보류(오늘 배포 안 함)"** 로 묻고, 답이 **"배포"일 때만** 실제 push(dry-run 없이)를 돌린다.
+"보류"·"마감"이나 그 밖의 답은 배포 승인이 아니다 — PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup, 배포 커밋 칸에 `보류(사용자 답 "<원문>")`).
+그 뒤 사용자가 배포를 원하면 dry-run부터 다시 보이고 같은 질문을 한 번 더 한다(2026-09-29 첫 실사용: 답 "마감" → 배포 없이 기록 → 이어 "배포 해야해").
+
+**verify는 `--ref <push가 찍은 커밋>`으로** — push 성공 줄(`배포 완료 커밋 <sha> …`)과 다음 줄(`다음(읽기): deploy.py verify … --ref <sha>`)의 값.
+ref 없는 contents GET은 PUT 직후 약 1분 옛 본문을 돌려줄 수 있다(2026-09-29 실측 2회 — 요청의 no-cache로도 안 막힘). `--ref`는 `?ref=`로 그 커밋의 본문을 받는다(16진 7~40자, verify 전용 — 아니면 GET 전에 exit 2).
 
 `push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). 그 조회 본문이 `--base`(4단계 fetch 파일)와
 md5가 다르면 `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` exit 1로 PUT하지 않는다 — 그 사이 다른 배포가 있었다(4단계부터 다시 할지는 사용자). 실제 push는
@@ -298,7 +307,8 @@ GET 본문이 `--base`와 다른데 작업본과 같으면 "앞 PUT이 이미 �
 `body: { "message", "content": <base64>, "sha": <최신 sha> }`. PUT 자격 증명은 deploy.py가 이 PC git 자격 증명(`git credential fill`)에서 얻어
 변수에만 둔다 — 출력·파일·로그 0, 세션이 직접 조회하지 않는다(`--token-file`을 주면 그 파일).
 
-**verify가 불일치(exit 1)면 멈춘다** — 다시 GET해 현재 배포본 sha·md5를 보고하고, 다시 PUT할지는 사용자가 정한다(자동 재PUT 금지).
+**verify가 불일치(exit 1)면 멈춘다** — 재PUT 금지. ref 없이 돌린 verify면(`[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다`) `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD`와
+`--ref <push가 찍은 커밋 — 없으면 그 HEAD>`로 다시 verify(읽기)한다. `--ref`로도 불일치(`커밋 고정 조회라 캐시 아님`)면 재수령본 sha·md5를 보고하고, 다시 PUT할지는 사용자가 정한다(자동 재PUT 금지).
 
 반영까지 1~2분 걸린다는 점과 공개 링크를 함께 안내한다.
 
@@ -382,6 +392,9 @@ propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n —
 
 **(4) 제외 검색어 등록** — 5-0단계의 승인 문구에 "등록 승인 N개"(또는 번호 — "3 빼고"·"업종어 2 넣기") 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다.
 등록 여부 자체는 묻지 않는다(registry가 답한다). 금지 패턴(config `never_exclude_patterns`)·경쟁사 이름은 코드가 막는다(실제 등록 = 참조 선택 모드는 쓰기 전 `[FAIL]`, `--approved` dry-run은 `[거부]`).
+
+**배포(7단계 실제 PUT)** — 위 묶음과 별개로, 7단계 `--dry-run` 결과를 보인 뒤 **"배포할까요? — 배포 / 보류(오늘 배포 안 함)"** 로 묻는다. 답이 "배포"일 때만 PUT.
+"마감"이나 다른 답은 배포 승인이 아니다 — 배포 없이 기록하고 끝낸다(7단계).
 
 일반 지역+필라테스 조합(예: "노원구필라테스", "노원역근처필라테스")은 경쟁사가
 아니라 일반 검색어다. 이 절차 대상이 아니며 정식 표나 클릭1건 목록에 그대로 둔다.
@@ -541,7 +554,7 @@ config `date_based_sections`에 따라 늘고 준다):
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ = HEAD·추적 안 된 파일 0·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
   `scripts/compute.py`(5단계 값) · `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·
-  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base` — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
+  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>` — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침, file:// 밖 요청 차단) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
   `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·필드 없음·token 파일 인코딩·
