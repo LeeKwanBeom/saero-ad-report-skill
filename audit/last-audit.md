@@ -1,3 +1,29 @@
+## 수정 기록(2026-09-29 후속 — 첫 실사용 후속 작은 수정 3건) · 브랜치 `fix-20260929`, **main 미반영**
+세션: 데스크톱 앱 Code 탭(이 PC), Opus 5.5. 기준 = 아래 "첫 실사용 회차" 절 "다음에 볼 것(후보)" + checklist v4.7 [되돌리면 안 되는 것]. clone `D:\saero\fix-20260929`(`git clone -c core.autocrlf=false`, `a944423` 위 커밋 2개: ① `af81b1b` 코드·시험·문서 ② 이 절·checklist — 자기 참조라 해시는 채팅 보고에).
+외부 쓰기: 스킬 저장소 = `fix-20260929` push만 · 배포 저장소 = **무인증 읽기 GET 4회**(mutation_test용 fetch 1 + 새 `verify --ref` 실측 3) + `git ls-remote` 1 · PUT 0 · 네이버 0 · 실제 자격 증명 0 · main·main 작업 폴더·registry·data 변경 0 · `D:\saero` 설치 0(local/ 두 파일 중 saero-run만 바뀜 — 설치는 병합 뒤 사용자).
+효율: 벽시계 약 25분(09:59 clone → 10:2x push KST) · 도구 호출 약 50회 · 즉석 코드: 변이 확인 러너 약 20행(스크래치 사본 — bash 함수 + 문자열 치환 파이썬).
+
+**항목별**
+1. **deploy verify 캐시**(09-29 실측 2회 — PUT 직후 ref 없는 contents GET이 옛 본문): `deploy.py` push 성공 줄 = `배포 완료 커밋 <전체 sha> · 파일 sha … ` + `다음(읽기): deploy.py verify --file <작업본> --ref <sha>` · `verify --ref <커밋>` → `get(token_file, url)`이 `…/contents/index.html?ref=<커밋>`(무인증 먼저, 403·429면 자격 증명 1회 — 종전 규칙 그대로) · `--ref`는 16진 7~40자(소문자로 바꿔 조회)·verify 전용 — 아니면 GET 전 exit 2(`[FAIL] --ref는 커밋 sha…`·`[FAIL] --ref는 verify에만`) · ref 404 = `[FAIL] ref …의 index.html을 찾지 못함` exit 1 · 불일치 문구 둘: ref 없이 = `[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다: ls-remote HEAD와 --ref로 다시 verify(읽기). 재PUT 금지 (…)` + 확인 명령 줄, ref 조회 = `[FAIL] 불일치 — ref …의 본문이 로컬과 다름(커밋 고정 조회라 캐시 아님)…`. 요청의 `Cache-Control: no-cache` 주석을 실측대로 고침. 문서: code-tab.md 3절 7단계(push → `verify --ref <push가 찍은 커밋>`)·재개 판정(배포 = `verify --ref`)·4절 PUT 결과 모름·verify 불일치 행·5절 exit 1·2 / SKILL.md 7단계(명령·불일치 문단)·참고 목록 / local/saero-run 4항.
+2. **배포 질문 고정**: 7단계 dry-run 결과를 보인 뒤 **"배포할까요? — 배포 / 보류(오늘 배포 안 함)"**, 답 "배포"일 때만 PUT — "마감"·다른 답은 배포 승인이 아니다(배포 없이 기록하고 끝냄, 배포 커밋 칸 `보류(사용자 답 "<원문>")`), 그 뒤 배포를 원하면 dry-run부터 다시 보이고 같은 질문. code-tab.md 3절 7단계 행·4절 ⓐ / SKILL.md 7단계·"승인이 필요한 지점"(묶음과 별개 단락) / local/saero-run 지키는 것. 문서 규칙(코드 강제 없음 — 아래 이월).
+3. **승인 답 예시**: `build_proposal` 승인 문구 `답: "등록 승인 N개" — N은 숫자로 씁니다(예 "등록 승인 12개", 이 목록 그대로면 "등록 승인 <건수>개")`(후보 0이면 뒤 절 없음) + `N을 숫자로 쓰지 않았거나 "위 2가지만"처럼 둘 이상으로 읽히면 글자 그대로 읽은 dry-run 목록을 보이고 다시 묻습니다`. 문서: SKILL.md 5-0 3항 · code-tab.md 6절(새 항목 "답이 모호하면 되묻는다" — 09-29 실측 흐름) · exclusion-ui.md 6절 3항(인용 문구 = 코드) · local/saero-run.
+
+**변경 파일**(`a944423` → `af81b1b`; `wc -l` · md5 앞 8자리) [실측]: scripts/deploy.py 314→338 9a5a7bee→6b72ed5e · scripts/exclusions.py 1355→1357 e3904e68→ee1e621c · tests/test_deploy.py 351→399 0d419c2e→9dd58641 · tests/test_exclusions.py 1099→1105 aed40d4b→336a4125 · SKILL.md 548→561 29b22c35→fabeb850 · references/code-tab.md 229→235 464fc9ad→0a0541bf · references/exclusion-ui.md 158→160 ee6033c8→fa554d87 · **local/saero-run/SKILL.md 28→31 7dd534c8→8f8c5908**(설치본 갱신 대상 — 병합 뒤 사용자) · local/CLAUDE.md 불변 af47cb28.
+
+**실측** [실측] — venv `D:\saero\.venv`(Python 3.12.10), **PYTHONUTF8 없이**, `-W error::ResourceWarning`, test_deploy는 `GIT_CONFIG_NOSYSTEM=1`·`GIT_CONFIG_GLOBAL=/dev/null`·`GIT_TERMINAL_PROMPT=0`·`GCM_INTERACTIVE=never`(격리 env — 시험 자체도 `GIT_*` 제거·가짜 도우미):
+- `test_exclusions` **Ran 49 OK**(1초, 실제 registry md5 전/후 동일 6f58bf0c) · `test_deploy` **Ran 17 OK**(31초 — 15 + 새 2) · `test_ingest` **Ran 10 OK**(69초) · `test_fetch_reports` **Ran 15 OK**(106초). skip·ResourceWarning·Traceback 0. `compile` scripts 8·tests 6 = 14/14(pyc 안 씀) · config json · `bash -n` ingest.sh·precheck.sh.
+- data·config·registry 합 md5 시험 전후 `0a961bd7` 같음 · 작업 트리 변경은 커밋 대상 8파일뿐.
+- `tests/mutation_test.py <배포본 재수령(7846ddf, md5 e869c1e8, 2121행)> <합본 4종 — archive combine PASS 2026.08.26.~09.28. 34일 · 10,352/326/372,749원>` → rc 0 **"전부 살아 있음"** `[OK]` 43 · MISS/UNCOVERED/SKIP 0 · 원본 md5 전부 동일.
+- 새 시험 변이 확인(스크래치 사본): deploy 7종(ref 무시·ref 형식 검사 제거·verify 밖 `--ref` 허용·커밋 7자만·ref 불일치에도 캐시 문구·캐시 문구 제거·소문자화 제거) + 승인 문구 3종(숫자 예 제거·후보 0에도 "그대로면"·모호 문장 제거) = **10/10 잡힘**.
+- 실제 배포 저장소 읽기(무인증): `verify --file <재수령본> --ref 7846ddf…(40자)` 일치 rc 0 · `--ref 7846ddf`(7자) 일치 rc 0 · `--ref 32d8b05`(직전 배포) 파일 sha 1c52f70·md5 a3465ec0 → 불일치 "커밋 고정 조회라 캐시 아님" rc 1. `git ls-remote` 배포 저장소 HEAD = `7846ddf`.
+
+**검토(검토 깊이 규칙 — 이번 회차에 바뀐 것만, 조정 세션 자체 검토 1회, 하위 에이전트 0)**: 판정 — checklist [되돌리면 안 되는 것] deploy 행(base 대조·`--base` 필수·권한·409/403/404·`***`·결과 모름·이미 반영·인자 오류 GET 전·`--token-file ''`·토큰 모양·dry-run PUT 0)·비출력 시험 행·승인 목록 행(참조 선택 모드·번호 = 줄)·요청 중단 행 **전부 여전히 참**(코드 경로 불변 + 시험 49/17 OK, 새 시험도 `run_deploy`의 값 0건 단언을 거친다). `--ref`는 읽기 전용 GET의 URL만 바꾸고 값은 16진만(쿼리 주입 없음), 자격 증명 경로·가림 불변. **막음 0** → 다음 단계로 가도 된다.
+**이월 목록**(한 줄씩):
+- `verify --ref`는 그 커밋의 본문만 본다 — 배포 저장소 HEAD·Pages가 그 커밋인지는 문서의 `ls-remote`(코드는 안 봄). 몇 분 안에 다른 배포가 겹칠 때만, 읽기 · 다음 4단계 `--base` 대조가 잡음.
+- 배포 질문 "배포만 승인"은 문서 규칙 — `deploy.py push`는 질문·답을 모른다(코드 강제 예: `--confirm 배포`는 사용자 결정 몫).
+- 승인 답 모호 시 되묻기도 문서 규칙 — 코드 가드는 종전대로 `--expect N` 합계 대조(N이 틀리면 쓰기 전 `[FAIL]`).
+- (지시 범위 밖 — 그대로 이월) "다음에 볼 것" E2: 교체용 즉석 코드(apply.py) 저장소에 두기.
+
 ## 첫 실사용 회차 (2026-09-29 09:27~09:52 KST — Code 탭 `/saero-run`, main 작업 폴더) · **배포 완료 `7846ddf`(09:51, 마감 뒤 후속)**
 상세 = 아래 "## 2026-09-29 갱신 회차" 절(대조 목록 표 아래). 사용자 입회("배포 전 dry-run을 보이고 '배포' 답을 기다려라"). 사용자가 처음엔 "배포" 대신 "마감"을 답해 PUT 없이 마감 기록(`94c8298`)을 올렸고, 이어 "배포 해야해"로 승인 → **7단계 실제 PUT 완료: 배포 커밋 `7846ddf`(직전 `32d8b05`, 파일 sha 1c52f70 → e755fc9)**. **첫 실제 PUT 실측**: 이 PC git 자격 증명으로 PUT 성공(403 없음). 직후 `verify` 2회(09:51)는 재수령본 sha 1c52f70 = 옛 본문으로 **불일치 exit 1** — `git ls-remote` HEAD = 7846ddf, `?ref=7846ddf` 조회 sha e755fc9·raw 본문 md5 e869c1e8 = 로컬이라 반영은 됨(ref 없는 contents GET 캐시로 보임) → 재PUT 없이 09:52:01 verify 3회째 **일치**. 아래 "남은 것"은 해소(당시 원문 보존).
 - **완료**: S0 PASS(09:29) → ① 수집 PASS(9/1~9/28, 4개 노출합 7,989 일치) → 1 ingest(시작 검사 4개 통과, origin/main = HEAD 2회) `610864c` → 4 fetch → compute → 2-1 다름 → 3 신규 0 → 5-0a pull·propose(창 9/28) → ⓐ 승인 → 참조 선택 push 12개 × 3그룹 verified 36/36 `676359f` → 5 교체 → 6 precheck 통과(도장 mode full) → 7 dry-run 통과(권한 참).
