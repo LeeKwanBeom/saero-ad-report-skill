@@ -15,8 +15,11 @@
         (인증 GET /repos/{deploy_repo}의 permissions.push — 계정 역할 기준, 토큰 범위는 PUT이 최종 확인. 참/거짓만 찍고 거짓이면 [FAIL])·본문 준비까지만 하고 PUT을 보내지 않는다
         (아무 파일도 쓰지 않는다 — 2026-09-26 실측). "자격 증명 확인됨(출처: token-file|git)"만 찍는다.
         --dry-run 은 --file 없이도 된다(S0 사전 점검 — sha·자격 증명·쓰기 권한만 확인).
-    $PY scripts/deploy.py verify --file <index.html> [--token-file <파일>]
+    $PY scripts/deploy.py verify --file <index.html> [--ref <커밋 sha>] [--token-file <파일>]
         배포 후 재수령본 md5 = 로컬 md5 인지. 다르면 exit 1 — 다시 PUT하지 않는다(재PUT은 사용자 결정).
+        --ref = push 성공 줄이 찍은 커밋 sha(16진 7~40자, 아니면 GET 전에 exit 2) — 있으면 `?ref=`로 그 커밋의 본문을 받는다.
+        ref 없는 contents GET은 PUT 직후 약 1분 옛 본문을 돌려줄 수 있다(2026-09-29 실측 2회 — 요청의 no-cache로도 안 막힘).
+        그래서 7단계는 push → verify --ref <push가 찍은 커밋>. ref 없이 불일치면 캐시일 수 있다는 문구(ls-remote HEAD와 --ref로 다시 verify — 읽기, 재PUT 금지).
 
 자격 증명(2026-09-28 Code 탭 회차):
   - GET(fetch·verify·push 전 sha)은 무인증으로 먼저 보내고, 403·429(무인증 rate limit)일 때만 자격 증명으로 1회 다시 보낸다.
@@ -108,7 +111,7 @@ def api(token, method="GET", body=None, url=API):
         req.add_header("Authorization", f"token {token}")
     req.add_header("Accept", "application/vnd.github+json")
     if method == "GET":
-        req.add_header("Cache-Control", "no-cache")  # 무인증 응답은 공용 캐시(max-age 60) — PUT 직후 verify가 옛 본문을 받지 않게
+        req.add_header("Cache-Control", "no-cache")  # 무인증 응답은 공용 캐시(max-age 60). 이것으로도 PUT 직후 옛 본문이 왔다(2026-09-29 2회) — verify는 --ref
     if body:
         req.add_header("Content-Type", "application/json")
 
@@ -126,14 +129,14 @@ def api(token, method="GET", body=None, url=API):
         return 0, {"message": f"요청 실패({type(e).__name__})"}
 
 
-def get(token_file):
-    """무인증 GET → 403·429면 자격 증명으로 1회. (status, res, 인증 출처 또는 None)."""
-    status, res = api(None)
+def get(token_file, url=API):
+    """무인증 GET → 403·429면 자격 증명으로 1회. (status, res, 인증 출처 또는 None). url = API 또는 API?ref=<커밋>(verify --ref)."""
+    status, res = api(None, url=url)
     if status in (403, 429):
         tok, src = credential(token_file)
         if not tok:
             return status, res, None
-        status, res = api(tok)
+        status, res = api(tok, url=url)
         return status, res, src
     return status, res, None
 
@@ -192,9 +195,18 @@ def main():
     ap.add_argument("--message")
     ap.add_argument("--base", help="push: 4단계 fetch가 저장한 직전 배포본(work/prev.html) — PUT 직전 배포본이 이것과 같아야 한다. 실제 push는 필수")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--ref", help="verify: push 성공 줄이 찍은 커밋 sha — 그 커밋의 본문을 ?ref=로 받는다(ref 없는 GET은 PUT 직후 캐시로 옛 본문일 수 있다)")
     a = ap.parse_args()
     base = None
     # 인자 오류는 네트워크 전에(GET 0)
+    if a.ref is not None and a.cmd != "verify":
+        print("[FAIL] --ref는 verify에만 — push는 늘 최신 sha를 다시 조회한다. GET 안 함")
+        return 2
+    if a.ref is not None and not re.fullmatch(r"[0-9a-fA-F]{7,40}", a.ref):
+        print("[FAIL] --ref는 커밋 sha(16진 7~40자 — push 성공 줄 `배포 완료 커밋 …`의 값)만 — GET 안 함")
+        return 2
+    if a.ref:
+        a.ref = a.ref.lower()
     if a.cmd == "fetch" and not a.out:
         print("[FAIL] fetch에는 --out이 필요 — GET 안 함")
         return 2
@@ -233,9 +245,12 @@ def main():
         print(why if ok else f"[주의] precheck 통과본이 아님({why}) — 실제 push는 여기서 멈춘다")
         if pending:
             print("[주의] --pending 통과본(답 대기 배포용) — 답을 반영한 재배포라면 --pending 없이 precheck를 다시")
-    status, res, how = get(a.token_file)
+    status, res, how = get(a.token_file, f"{API}?ref={a.ref}" if a.ref else API)
     if status != 200:
-        print(f"GET {status}: {res.get('message', '')}")
+        print(f"GET {status}{f' (ref {a.ref})' if a.ref else ''}: {res.get('message', '')}")
+        if a.ref and status == 404:
+            print(f"[FAIL] ref {a.ref}의 index.html을 찾지 못함 — push 성공 줄의 커밋 sha를 그대로 넣었는지 확인(재PUT 금지)")
+            return 1
         print("무인증 GET이 막히고(403·429) 자격 증명으로도 안 되면 `git clone -c core.autocrlf=false https://github.com/LeeKwanBeom/saero-pilates-report`로 받는다(SKILL.md 4단계).")
         return 1
     if how:
@@ -262,9 +277,16 @@ def main():
         return 2
     if a.cmd == "verify":
         same = md5(local) == md5(content)
-        print(f"재수령본 sha {sha} · md5 {md5(content)[:8]}… vs 로컬 {md5(local)[:8]}… → {'일치' if same else '불일치'}")
-        if not same:
-            print("[FAIL] 불일치 — 다시 PUT하지 않는다. 위 sha·md5를 보고하고 재PUT은 사용자가 정한다(SKILL.md 7단계)")
+        at = f"(ref {a.ref} 기준) " if a.ref else ""
+        print(f"재수령본 {at}sha {sha} · md5 {md5(content)[:8]}… vs 로컬 {md5(local)[:8]}… → {'일치' if same else '불일치'}")
+        if not same and a.ref:  # 커밋에 고정된 본문 — 캐시로 설명되지 않는다
+            print(f"[FAIL] 불일치 — ref {a.ref}의 본문이 로컬과 다름(커밋 고정 조회라 캐시 아님). 다시 PUT하지 않는다. "
+                  "위 sha·md5를 보고하고 재PUT은 사용자가 정한다(SKILL.md 7단계)")
+        elif not same:
+            print("[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다: ls-remote HEAD와 --ref로 다시 verify(읽기). 재PUT 금지 "
+                  "(위 sha·md5를 보고 — 재PUT은 사용자가 정한다, SKILL.md 7단계)")
+            print(f"  확인(읽기): git ls-remote https://github.com/{CFG['deploy_repo']} HEAD → "
+                  f"deploy.py verify --file {a.file} --ref <push 성공 줄의 커밋 — 없으면 ls-remote HEAD 값>")
         return 0 if same else 1
     if base is not None:  # PUT에 쓸 sha를 준 바로 그 GET 본문이 4단계 fetch 파일과 같아야 한다(그 사이 다른 배포가 있었으면 덮어쓰지 않는다)
         if md5(content) != md5(base) and md5(content) == md5(local):  # 결과 모름이던 앞 PUT이 실제로 반영된 경우 — 다시 PUT하지 않는다
@@ -306,7 +328,9 @@ def main():
     if status not in (200, 201):
         print(f"[FAIL] PUT {status}: {msg} — PUT 안 됨(자격 증명 출처 {src}, 배포 저장소 {CFG['deploy_repo']}). 재시도는 사용자가 정한다")
         return 1
-    print(f"배포 완료 커밋 {res['commit']['sha'][:7]} · 파일 sha {res['content']['sha'][:7]} · 반영까지 1~2분")
+    commit = res["commit"]["sha"]  # 전체 sha — verify --ref에 그대로(ref 없는 GET은 PUT 직후 캐시로 옛 본문일 수 있다)
+    print(f"배포 완료 커밋 {commit} · 파일 sha {res['content']['sha'][:7]} · 반영까지 1~2분")
+    print(f"다음(읽기): deploy.py verify --file {a.file} --ref {commit}")
     return 0
 
 

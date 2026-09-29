@@ -669,8 +669,10 @@ def build_proposal(rows, sr, day=None, since=None, first_seen_only=True):
     text = ("제외 검색어 등록 승인 요청 — 대상: 파워링크 3그룹(" + ", ".join(names) + ') "확장 검색" 칸 / '
             f"건수: {len(cands)} / 목록(번호 = 후보 파일 줄): " + " · ".join(f"{i} {k}" for i, k in enumerate(cands, 1)) +
             f" / 제외한 것: 금지 패턴·경쟁사 {len(blocked)} · 이미 등록 {n_registered} · 노출 유지(사용자 결정) {len(already)} · 줄바꿈 이름 {len(newline)}\n"
-            '답: "등록 승인 N개" 그대로 · 뺄 이름은 번호로(예 "3 빼고") · 업종어 포함 이름을 넣으려면 제안서 업종어 절 번호로(예 "업종어 2 넣기") '
-            '— 그만큼 고쳐 다시 확인합니다. 답이 오기 전에는 아무것도 등록하지 않습니다.')
+            '답: "등록 승인 N개" — N은 숫자로 씁니다(예 "등록 승인 12개"' + (f', 이 목록 그대로면 "등록 승인 {len(cands)}개"' if cands else "") + ') · '
+            '뺄 이름은 번호로(예 "3 빼고") · 업종어 포함 이름을 넣으려면 제안서 업종어 절 번호로(예 "업종어 2 넣기") '
+            '— 그만큼 고쳐 다시 확인합니다. N을 숫자로 쓰지 않았거나 "위 2가지만"처럼 둘 이상으로 읽히면 글자 그대로 읽은 dry-run 목록을 보이고 다시 묻습니다. '
+            '답이 오기 전에는 아무것도 등록하지 않습니다.')
     return dict(window=(lo, hi), new=new, industry=industry, rereg=rereg, blocked=blocked, already=already, newline=newline,
                 reexposed=reexposed, candidates=cands, approval_text=text, n_registered=n_registered, n_rows=len(win))
 

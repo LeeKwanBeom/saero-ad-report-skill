@@ -13,6 +13,9 @@
   6 token_of: 없는 파일 → None(Traceback 없음) · UTF-16LE·BE(BOM) · UTF-8 BOM · 깨진 바이트
   (수정 회차 3) 7 permissions 필드 없음 → [FAIL] · 못 읽는 --base·--file 없는 --base → exit 2 · PUT 409·403 문구(오류 문구가 헤더 값을
   되돌려 줘도 `***`) · precheck 도장 없음·불일치 → 실제 push [FAIL]·PUT 0, dry-run은 [주의]
+  (2026-09-29 후속) 8 push 성공 줄 = 커밋 전체 sha + `verify --ref` 다음 명령 · ref 없는 GET이 옛 본문(캐시)이면 verify 불일치에
+  "캐시일 수 있다 … 재PUT 금지" 문구, `--ref`는 `?ref=` 조회로 새 본문 → 일치(PUT 0) · 커밋 본문 자체가 다르면 캐시 문구 없이 불일치 ·
+  없는 커밋 404 · `--ref` 인자 오류(verify 밖·16진 7~40자 아님)는 GET 전에 exit 2
 """
 import base64
 import hashlib
@@ -61,11 +64,16 @@ def fake_urlopen(req, timeout=None):
         rec["body_md5"] = hashlib.md5(base64.b64decode(json.loads(req.data)["content"])).hexdigest()
     with open(os.environ["T_LOG"], "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
-    if m == "GET" and url.endswith("/contents/index.html"):
+    path, _, query = url.partition("?")
+    if m == "GET" and path.endswith("/contents/index.html"):
         if scen.get("edit_on_get"):  # GET을 기다리는 사이 작업본이 바뀌는 경우 흉내(편집기 저장·다른 세션)
             with open(scen["edit_on_get"], "wb") as f:
                 f.write(b"<html>edited AFTER precheck</html>\n")
-        status, body = 200, {"sha": "sha0prev", "content": scen["content_b64"]}
+        if query.startswith("ref="):  # 커밋 고정 조회 — 그 커밋의 본문(없는 커밋이면 404)
+            ref = scen.get("refs", {}).get(query[len("ref="):])
+            status, body = (200, {"sha": "sha1ref", "content": ref}) if ref else (404, {"message": "No commit found for the ref"})
+        else:  # ref 없는 조회 — PUT 직후 캐시가 옛 본문을 돌려주는 경우는 content_b64에 옛 본문을 둔다(2026-09-29 실측)
+            status, body = 200, {"sha": "sha0prev", "content": scen["content_b64"]}
     elif m == "GET" and url.endswith("/repos/" + scen["repo"]):
         status, body = scen["repo_auth"] if auth else [200, {"name": "x"}]
     elif m == "PUT":
@@ -118,12 +126,13 @@ class DeployTests(unittest.TestCase):
         shutil.rmtree(self.td)
 
     def run_deploy(self, argv, repo_auth=(200, {"permissions": {"admin": True, "push": True, "pull": True}}),
-                   deployed=PREV, helper=True, put=None, edit_on_get=None, put_raise=False):
+                   deployed=PREV, helper=True, put=None, edit_on_get=None, put_raise=False, refs=None):
         sys.path.insert(0, SCRIPTS)
         from reportlib import load_config
         with open(self.scen, "w", encoding="utf-8") as f:
             json.dump({"content_b64": base64.b64encode(deployed).decode(), "repo": load_config()["deploy_repo"],
-                       "repo_auth": list(repo_auth), "put": list(put) if put else None, "edit_on_get": edit_on_get, "put_raise": put_raise}, f)
+                       "repo_auth": list(repo_auth), "put": list(put) if put else None, "edit_on_get": edit_on_get, "put_raise": put_raise,
+                       "refs": {k: base64.b64encode(v).decode() for k, v in (refs or {}).items()}}, f)
         if os.path.exists(self.log):
             os.remove(self.log)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "PYTHONUTF8"))}   # 호출 환경의 GIT_DIR 등 전부 제거
@@ -190,10 +199,49 @@ class DeployTests(unittest.TestCase):
         self.assertEqual(reqs, [])                                            # 요청 0
         rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
         self.assertEqual(rc, 0, out + err)
-        self.assertIn("배포 완료 커밋 c0ffee1", out)
+        self.assertIn("배포 완료 커밋 c0ffee1234 · 파일 sha", out)                # 커밋 전체 sha(verify --ref에 그대로)
+        self.assertIn(f"다음(읽기): deploy.py verify --file {self.work} --ref c0ffee1234", out)
         puts = [q for q in reqs if q["method"] == "PUT"]
         self.assertEqual(len(puts), 1)
         self.assertEqual(puts[0]["auth"], f"token {FAKE}")
+
+    def test_verify_ref_reads_commit_not_stale_cache(self):
+        """2026-09-29 후속 1: PUT 직후 ref 없는 contents GET이 옛 본문(캐시)을 돌려줘 verify가 거짓 불일치 —
+        ref 없이 불일치면 "캐시일 수 있다" 문구·재PUT 금지, --ref <커밋>이면 ?ref= 조회로 새 본문 → 일치. PUT 0."""
+        refs = {"c0ffee1234": WORK}                                              # PUT이 만든 커밋 = 작업본
+        rc, out, err, reqs = self.run_deploy(["verify", "--file", self.work], deployed=PREV, refs=refs)   # 캐시가 옛 본문
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("→ 불일치", out)
+        self.assertIn("[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다: ls-remote HEAD와 --ref로 다시 verify(읽기). 재PUT 금지", out)
+        self.assertEqual([(q["method"], q["url"].endswith("/contents/index.html")) for q in reqs], [("GET", True)])
+        rc, out, err, reqs = self.run_deploy(["verify", "--file", self.work, "--ref", "c0ffee1234"], deployed=PREV, refs=refs)
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("재수령본 (ref c0ffee1234 기준) sha", out)
+        self.assertIn("→ 일치", out)
+        self.assertEqual([q["url"].rsplit("/", 1)[-1] for q in reqs], ["index.html?ref=c0ffee1234"])   # ref 조회 1회뿐
+        self.assertEqual([q for q in reqs if q["method"] != "GET" or q["auth"]], [])                   # PUT 0 · 자격 증명 0
+        rc, out, err, reqs = self.run_deploy(["verify", "--file", self.work, "--ref", "C0FFEE1"], refs={"c0ffee1": WORK})
+        self.assertEqual(rc, 0, out + err)                                        # 짧은 sha·대문자(소문자로 조회)
+        self.assertTrue(reqs[0]["url"].endswith("?ref=c0ffee1"))
+        rc, out, err, reqs = self.run_deploy(["verify", "--file", self.work, "--ref", "c0ffee1234"], refs={"c0ffee1234": OTHER})
+        self.assertEqual(rc, 1, out + err)                                        # 커밋 본문 자체가 다름 — 캐시 문구가 아니다
+        self.assertIn("[FAIL] 불일치 — ref c0ffee1234의 본문이 로컬과 다름(커밋 고정 조회라 캐시 아님)", out)
+        self.assertNotIn("캐시일 수 있다", out)
+        rc, out, err, reqs = self.run_deploy(["verify", "--file", self.work, "--ref", "deadbee"], refs=refs)
+        self.assertEqual(rc, 1, out + err)                                        # 없는 커밋
+        self.assertIn("[FAIL] ref deadbee의 index.html을 찾지 못함", out)
+
+    def test_ref_argument_errors_before_network(self):
+        """--ref는 verify에만·16진 7~40자만 — 아니면 GET 전에 exit 2(요청 0). URL에 &·# 같은 값이 들어가지 않는다."""
+        for argv, want in ((["verify", "--file", self.work, "--ref", "main"], "[FAIL] --ref는 커밋 sha"),
+                           (["verify", "--file", self.work, "--ref", "c0ffee1&x=1"], "[FAIL] --ref는 커밋 sha"),
+                           (["verify", "--file", self.work, "--ref", "abc12"], "[FAIL] --ref는 커밋 sha"),
+                           (["push", "--file", self.work, "--base", self.prev, "--message", "m", "--ref", "c0ffee1234"], "[FAIL] --ref는 verify에만"),
+                           (["fetch", "--out", os.path.join(self.td, "x.html"), "--ref", "c0ffee1234"], "[FAIL] --ref는 verify에만")):
+            rc, out, err, reqs = self.run_deploy(argv)
+            self.assertEqual(rc, 2, (argv, out + err))
+            self.assertIn(want, out)
+            self.assertEqual(reqs, [], argv)
 
     def test_permission_field_missing_fails(self):
         rc, out, err, reqs = self.run_deploy(["push", "--dry-run"], repo_auth=(200, {"name": "x"}))   # 응답에 permissions 없음

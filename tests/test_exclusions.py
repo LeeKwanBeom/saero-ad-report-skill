@@ -200,6 +200,8 @@ class TestProposal(unittest.TestCase):
         self.assertIn("건수: 2", p["approval_text"])
         self.assertIn("목록(번호 = 후보 파일 줄): 1 노원역맛집출구 · 2 노원역세", p["approval_text"])   # X5: 답의 번호 = _candidates.txt 줄
         self.assertIn('"3 빼고"', p["approval_text"])
+        self.assertIn('N은 숫자로 씁니다(예 "등록 승인 12개", 이 목록 그대로면 "등록 승인 2개")', p["approval_text"])   # 2026-09-29 후속 3: N 미기입 답
+        self.assertIn('"위 2가지만"처럼 둘 이상으로 읽히면 글자 그대로 읽은 dry-run 목록을 보이고 다시 묻습니다', p["approval_text"])
         self.assertIn("- 1 노원필라테스주말 — 노출", X.render_proposal(p))                               # 업종어 절 번호 = _industry.txt 줄
         self.assertIn("이미 등록 1 · 노출 유지(사용자 결정) 0", p["approval_text"])   # 노원역카페(등록됨)가 "이미 등록"으로 셈(검증 판단 3)
         self.assertEqual(p["n_registered"], 1)
@@ -441,6 +443,10 @@ class TestCliSafety(unittest.TestCase):
         self.assertIn("**직전 실패**: 2026-09-27 등록 실패: 3723", md)
         rows[0]["status"] = "keep"                                                  # 사용자가 제외하면 사라진다
         self.assertEqual(X.build_proposal(rows, sr, day="2026-09-26")["rereg"], [])
+        p0 = X.build_proposal(rows, sr.assign(클릭수=1), day="2026-09-26")           # 후보 0 — "이 목록 그대로면 … 0개" 없이 숫자 예만
+        self.assertEqual(p0["candidates"], [])
+        self.assertIn('N은 숫자로 씁니다(예 "등록 승인 12개")', p0["approval_text"])
+        self.assertNotIn("이 목록 그대로면", p0["approval_text"])
         with tempfile.TemporaryDirectory() as td:
             reg = os.path.join(td, "r.csv"); rows[0]["status"] = "failed"; X.save_registry(reg, rows)
             with redirect_stdout(io.StringIO()) as buf:
