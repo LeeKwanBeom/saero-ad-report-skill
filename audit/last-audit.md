@@ -1,3 +1,17 @@
+## 검증·병합 기록(2026-09-29 후속 — 첫 실사용 후속 3건: 검증(막음 0) → main 병합)
+
+**검증**(`D:\saero-verify\saero-ad-report_검증_0929후속.md`, 별도 세션 — Code 탭·이 PC, 대상 `93026f5`(a944423 위 2커밋 af81b1b·93026f5), 하위 에이전트 0 — 조정자 직접 실행): 수정 기록 3항목(verify `--ref` · 배포 질문 고정 · 승인 답 예시) 전부 코드·시험·문서로 참 · checklist [되돌리면 안 되는 것] deploy·승인 목록·비출력 시험 행 여전히 참. 시험 49/17/10/15 OK rc 0 · mutation_test(무인증 재수령 7846ddf e869c1e8 + combine 34일) "전부 살아 있음" · 변이 7/7 잡힘(ref 무시·ref 형식 검사 제거·캐시 문구 제거·승인 숫자 예 제거·verify 밖 --ref 허용·커밋 7자만·후보 0에도 "그대로면") · `verify --ref` 실측(읽기) — `7846ddf…`(40자)·`7846ddf`(7자) 일치 rc 0, `32d8b05` 불일치 "커밋 고정 조회라 캐시 아님" rc 1, `--ref main`·`push --ref` GET 전 exit 2 · 배포 질문 문장 SKILL.md 2곳·code-tab.md 2곳·local·checklist 26 같은 뜻 · exclusion-ui 6절 승인 문구 인용 = `build_proposal` 출력(후보 0이면 "이 목록 그대로면" 없음 — 실측). **막음 0** → 병합.
+
+**병합**: `fix-20260929`(`93026f5`)를 main(`a944423` — 분기 뒤 main 변경 0, `ls-remote` 확인)에 `git merge --no-ff` → 병합 커밋 **`d8fca3d`**(부모 a944423 · 93026f5, 트리 = 93026f5와 동일). 충돌 0. clone `D:\saero-verify\merge-0929`(`git clone -c core.autocrlf=false`). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`. 사용자 병합 지시(2026-09-29 10:1x KST, "막음 0이면 이어서 main에 병합한다") 뒤 병합. 브랜치 `fix-20260929`는 둔다. 코드·문서 재수정 없음(이 절만). 위 "수정 기록(2026-09-29 후속)"의 `main 미반영`은 당시 사실 — 이 절로 정정(**2026-09-29 main 반영**).
+
+**병합 main에서 재실행** [실측] — venv, PYTHONUTF8 없이, `-W error::ResourceWarning`, test_deploy 격리 env: test_exclusions **49 OK**(1.1초, registry 6f58bf0c 전/후 동일) · test_deploy **17 OK**(33초) · test_ingest **10 OK**(69초, data/ 8파일 동일) · test_fetch_reports **15 OK** rc 0(81초) · py_compile 14/14 · `bash -n` 2 · combine PASS(2026.08.26.~09.28. 34일 · 10,352/326/372,749원) · mutation_test(재수령 배포본 7846ddf) rc 0 `[OK]` 43 · MISS/UNCOVERED/SKIP 0 · "전부 살아 있음" · data·config·registry 합 md5 병합 전후 `0a961bd7` 같음(registry 702행 6f58bf0c · config b826b388). 배포 저장소 HEAD `7846ddf` 그대로(PUT 0) · 네이버 0 · 실제 자격 증명 0 · main 작업 폴더 0.
+
+**이월**(한 줄씩): `verify --ref`는 그 커밋의 본문만 본다(배포 저장소 HEAD·Pages 반영은 문서의 `ls-remote`) · 배포 질문 "배포"만 승인은 문서 규칙(코드 강제 없음) · 승인 답 모호 시 되묻기도 문서 규칙(코드 가드는 `--expect N`) · "다음에 볼 것" E2 교체용 즉석 코드(apply.py) 저장소에 두기.
+
+**병합 뒤**: 설치본 `D:\saero\.claude\skills\saero-run\SKILL.md`를 `local/saero-run/SKILL.md`(31행 8f8c5908)로 갱신 + main 작업 폴더 `git pull --ff-only`(작업 폴더 세션 몫 — 이 병합 세션은 하지 않았다).
+효율: 벽시계 약 25분(10:19 clone → 검증 → 10:3x 병합·push) · 도구 호출 약 15회 · 즉석 코드 약 30행(변이 7건 문자열 치환 — 스크래치).
+
+---
 ## 수정 기록(2026-09-29 후속 — 첫 실사용 후속 작은 수정 3건) · 브랜치 `fix-20260929`, **main 미반영**
 세션: 데스크톱 앱 Code 탭(이 PC), Opus 5.5. 기준 = 아래 "첫 실사용 회차" 절 "다음에 볼 것(후보)" + checklist v4.7 [되돌리면 안 되는 것]. clone `D:\saero\fix-20260929`(`git clone -c core.autocrlf=false`, `a944423` 위 커밋 2개: ① `af81b1b` 코드·시험·문서 ② 이 절·checklist — 자기 참조라 해시는 채팅 보고에).
 외부 쓰기: 스킬 저장소 = `fix-20260929` push만 · 배포 저장소 = **무인증 읽기 GET 4회**(mutation_test용 fetch 1 + 새 `verify --ref` 실측 3) + `git ls-remote` 1 · PUT 0 · 네이버 0 · 실제 자격 증명 0 · main·main 작업 폴더·registry·data 변경 0 · `D:\saero` 설치 0(local/ 두 파일 중 saero-run만 바뀜 — 설치는 병합 뒤 사용자).
