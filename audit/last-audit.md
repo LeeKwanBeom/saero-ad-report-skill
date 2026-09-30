@@ -3,6 +3,9 @@
 **변경 파일**(`8c8630e` → 커밋 ①, 코드 0): SKILL.md 7단계 문단·"승인이 필요한 지점" 배포 단락 · references/code-tab.md 3절 7단계 행(명령·멈춤 칸)·4절 ⓐ 배포 단락 · **local/saero-run/SKILL.md 31행 → md5 cbfc63c4**(설치본 `D:\saero\.claude\skills\saero-run\SKILL.md` 갱신 대상 — 사용자) · audit/checklist.md 26번·갱신 이력 · 이 절.
 **확인**: 옛 문구 "배포할까요"는 "옛 규칙 … 대체" 설명 2곳과 checklist 26번 이력에만 남음(grep) · tests/·scripts/에 배포 질문 의존 0(grep) · test_exclusions 49 OK(registry md5 동일) · deploy.py는 원래 질문·답을 모름(가드 = precheck 도장·base 대조·권한 — 그대로). **검토 판정(막음/같이/이월)**: 막음 0(외부 쓰기 가드 코드 불변, 사람 확인 한 단계만 사용자 결정으로 뺌) · 이월 1 — 자동 배포는 문서 규칙이라 세션이 남은 질문을 놓치면 배포될 수 있음(코드 강제 예: `deploy.py push --require-no-pending` 같은 표지는 없음, 두 가지 이상 겹쳐야 남).
 **병합**: 사용자 요청에 따른 바로 병합(`git merge --no-ff`, 분기 뒤 main 변경 0). 병합 뒤 main 작업 폴더 `git pull --ff-only`.
+**결과(2026-10-01 마감 때 채움)**: 커밋 ① `307767b`(브랜치 `fix-20260930` push) → 병합 커밋 **`db3d791`**(부모 8c8630e · 307767b, 충돌 0) → main 작업 폴더 pull(`db3d791`, 작업 트리 깨끗). 설치본 `D:\saero\.claude\skills\saero-run\SKILL.md`를 사용자 지시("복사해")로 `local/saero-run/SKILL.md`로 교체 — md5 8f8c5908 → **cbfc63c4**(같음 확인). `D:\saero\CLAUDE.md` = `local/CLAUDE.md` af47cb28(변경 없음). clone `D:\saero\fix-20260930`은 둔다.
+**경위(권한)**: 첫 병합 시도(커밋·push·merge 한 명령)는 Claude Code **자동 모드 판단기가 거부**(사람 확인 단계를 없애는 규칙 변경의 main 반영으로 보임) → 세션은 우회하지 않고 멈춰 보고 → 사용자가 권한 모드를 "수동"으로 바꿔 명령마다 "한 번만 허용" → 커밋·push·병합·pull 완료. 사용자 질문 "매일 수동/자동 반복해야 해?" → 아니오(이번 한 번), 다만 **자동 모드에서 사람 답 없는 첫 자동 배포 PUT을 판단기가 막을 수 있음 — 막히면 세션이 멈추고 사용자가 "배포" 한마디**(다음 회차 실측 대상).
+**다음 회차(2026-10-01, 월초)**: `/saero-run` — `fetch_reports.py`(`--prev` 생략, `지난달` 프리셋 9/1~9/30 확정본, `--debug` 권장)로 `data/2026-09` 덮어쓰기, propose `--since 2026-09-30`, 배포는 새 규칙(자동). 볼 것: 자동 배포 PUT이 자동 모드에서 막히는지.
 
 ---
 ## 갱신 회차 (2026-09-30 07:49~08:34 KST — Code 탭 `/saero-run`, main 작업 폴더) · **배포 완료 `961789d`**
