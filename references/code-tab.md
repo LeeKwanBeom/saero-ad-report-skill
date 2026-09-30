@@ -74,7 +74,7 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(답의 번호를 그대로 `--drop`·`--industry-lines`에 · 호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 FAIL(승인 파일 안 씀) → 승인 목록을 `work/approved_<날짜>_<시분초>.txt`에 쓰고 → POST → verify) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false·요청 결과 모름·pull 뒤 이미 있음) → 재시도는 ⓐ |
 | 5 | 교체 | compute.json 값으로 01~12(12번 먼저, 11번 마지막). 07 각주·11·12번에 **등록 n · verified n · 실패 n**을 사실 그대로 | — |
 | 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음) | ⓑ 세션이 고치고 재실행 |
-| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run 결과와 함께 **배포 질문(고정): "배포할까요? — 배포 / 보류(오늘 배포 안 함)"** → 답이 **"배포"일 때만** 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `배포 완료 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회) | ⓐ 배포 질문 — "배포" 외 답("보류"·"마감"·그 밖)은 배포 승인이 아니다 → PUT 없이 8 기록하고 끝냄 / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
+| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run이 통과하고 남은 사람 질문이 없으면 **묻지 않고 바로**(자동 배포 — 4절) 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `배포 완료 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회) | 자동 배포 — 남은 사람 질문이 있거나 사용자가 "보류"라고 했으면 PUT 없이 8 기록하고 끝냄 / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
 | 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
 
 **재개·완료 판정은 대상의 현재 상태로 한다**(세션이 끊겼다 다시 시작할 때): 보관본 = `git fetch` 뒤 HEAD = origin/main(`ingest.sh`가 확인)이고 `git status --short -- data`가 빔 ·
@@ -97,9 +97,9 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 
 **ⓐ 사람 승인(남긴다)**: SKILL.md "승인이 필요한 지점" (1)~(4) · 2-1 같음 질문(ⓐ 묶음과 별개의 앞 질문 — 답 셋: 다시 계산 / CSV 다시 / 미룬 등록만) · 3단계 새 제외 그룹 ·
 등록 실패 재시도·keep·한도 초과 재승인 · delete/test-roundtrip `--confirm`(사용자 입회) · 12번 N주 미반영 질문 ·
-**7단계 배포 질문**(승인 묶음과 별개 — 7단계 dry-run 결과를 보인 뒤, 문구 고정 **"배포할까요? — 배포 / 보류(오늘 배포 안 함)"**). 실제 PUT은 답이 "배포"일 때만.
-"보류"·"마감"·그 밖의 답은 배포 승인이 아니다 — 배포 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup에 `배포: 보류(사용자 답 "<원문>")`).
-그 뒤 사용자가 배포를 원하면(예 "배포 해야해") dry-run부터 다시 보이고 같은 질문을 한 번 더 한다(2026-09-29 실측 — 답 "마감"을 배포 없이 기록한 뒤 "배포 해야해").
+**배포는 묻지 않는다(자동 배포 — 사용자 결정 2026-09-30 "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 위 ⓐ 질문에 모두 답을 받아 남은 것이 없고 6단계 precheck·7단계 dry-run이 통과하면 바로 실제 push → `verify --ref`.
+남은 질문이 있으면(되묻기·등록 exit 1 재시도 등) 그 답 뒤로 미루고, 사용자가 그 회차에 "보류"·"오늘 배포 안 함"이라고 했으면 PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup에 `배포: 보류(사용자 답 "<원문>")`).
+검사 FAIL은 아래 ⓑ 그대로 — PUT 0으로 멈춘다. (옛 규칙 "배포할까요? — 배포 / 보류" 고정 질문(2026-09-29)은 이 결정으로 대체.)
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**
 
