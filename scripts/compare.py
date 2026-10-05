@@ -168,7 +168,7 @@ try:
     cmp("10 9/6이후 노출 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(2)).split("·")], R["10"]["9/6이후노출"]); cmp("10 9/6이후 클릭 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(3)).split("·")], R["10"]["9/6이후클릭"])
     cmp("10 일수·하루평균클릭", [int(m.group(1)), float(m.group(4))], [R["10"]["9/6이후일수"], R["10"]["9/6이후하루평균클릭"]])
     cmp("10 desc 콘텐츠 N일 연속 0·클릭 A", [int(x) for x in grp(r"콘텐츠 지면 (\d+)일 연속 0회 — 클릭 (\d+)건 중 (\d+)건", s10).groups()], [R["10"]["9/6이후일수"], R["KPI"]["클릭"], R["10"]["A"][1]])
-    cmp("10 파트너 마지막날", int(grp(r"— 9/\d+는 (\d+)회", s10).group(1)), R["10"]["파트너마지막날"]); print("      10 B 분해:", R["10"]["B분해"])
+    cmp("10 파트너 마지막날", int(grp(r"— \d+/\d+는 (\d+)회", s10).group(1)), R["10"]["파트너마지막날"]); print("      10 B 분해:", R["10"]["B분해"])
     # ---- 11·12 수동 검사(validate.py 20·21과 같은 규칙)
     s11, s12 = sec(11), sec(12); li = re.findall(r"<li>(.*?)</li>", s11, re.S)
     cmp("11 항목 수(본문 ≤8, 참고 ≤2)", [len([x for x in li if "(참고)" not in x[:30]]) <= 8, len([x for x in li if "(참고)" in x[:30]]) <= 2], [True, True])
