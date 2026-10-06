@@ -1,3 +1,27 @@
+## 검증·병합 기록(2026-10-07 — 검토 비용 줄이기 작업 2(기록 보관 분리, 문서만): 검증 1(막음 0) → main 병합)
+
+**병합**: `fix-20261007-archive`(`fd54459` — f2aec20 위 2커밋: `d4446e9` 나누기 · `fd54459` 수정 기록)를 main(`f2aec20` — 분기 뒤 main 변경 0, 01:10 KST 무렵 `ls-remote` 로 main = f2aec20 · 브랜치 = fd54459 확인 · 갱신 회차 돌지 않음)에 `git merge --no-ff` → 병합 커밋 **`3e5341a`**(부모 f2aec20 · fd54459, 트리 `1b11c1be` = fd54459 트리 — `git diff --stat fd54459 HEAD` 0 · f2aec20 대비 5 파일 +2,406/−2,352). 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0). clone `D:\saero-verify\merge-20261007-archive`(`git clone -c core.autocrlf=false`). 사용자 병합 지시(2026-10-07, 검증 판정 "막음 0 → 가도 된다" 를 붙인 병합 지시문) 뒤 병합. 브랜치 `fix-20261007-archive` 는 지우지 않고 둔다. 문서·코드·config·data 재수정 없음(이 절 추가만). 위 작업 2 수정 기록의 "main 병합 안 함 — 지시에 없음" 은 당시 사실 — 원문 보존, 이 절로 정정(**2026-10-07 main 반영**). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에). 에이전트 0(지시 "에이전트 0" — 'ultracode' 신호가 있었으나 확인만 남은 문서 회차라 워크플로를 띄우지 않음).
+
+**검증 1**(별도 세션 — `D:\saero-verify`, Opus 5.5, 하위 에이전트 0, 스크래치 clone `D:\saero-verify\verify-20261007-costcut`, 행 번호 fd54459 기준): 작업 1(규칙 문서, origin/main f2aec20) 1~5 · 작업 2(기록 보관, fd54459) 1~5 전부 참 → **막음 0** → "다음 단계로 가도 된다". 요지:
+- 작업 1: work-algorithm.md 승인한 6자리만(.bak 245행 035d452e → 249행 504ae634, 8절 그대로) · 다듬기 스킬 B-1~4 정본 = 설치본(diff -r 0줄 · md5 3/3 42ac79b5·627c9410·c278b027) · 메모리 C-1·C-2 · skill-audit 수정본 162행 d28bcea3 · diff 재생성 일치 · AppData 현재 d28bcea3(사용자 업로드 동기화 = 정상값) · 문서끼리 예산·재측정·작은 작업·검토자·ultracode 같은 말.
+- 작업 2: 독립 스크립트(줄비교.py 안 씀)로 잃은 줄 0(옛 4,256 = 남김 1,906 + 보관 2,350, 개수까지) · 남긴 쪽 = 옛에서 6구간만 뺀 것 · 6구간 md5 a1c290be·fc96ffb4·c94302c7·03f7a8a7·e531ac7b·704b0c27 옛 = 보관 · 보관 = 6구간을 이은 것(94f5ee7f) · CRLF 0 · 가리키는 곳 전부 살아 있음(남긴 절·고친 경로 2·끝 보관 절 → 보관 1028행) · scripts·tests·config 의 last-audit 읽기 0 · 열린 이월 사라짐 0 · 1,030,679 → 552,051바이트(d4446e9) · wrapup·saero-run "맨 위에 쓰기" 그대로(새 1-1015행 = 옛 1-1015행).
+
+**병합 main 확인**(문서만 바뀐 회차라 이것만 — 시험 재실행 없음) [실측 01:12~01:15 KST]:
+- 병합 트리 = fd54459 트리(`1b11c1be` · `git diff --stat fd54459 HEAD` 0줄).
+- `cat data/*/*.csv config/*.json audit/exclusions.csv | md5sum` 병합 전 main(f2aec20) = 병합 뒤 **`eeb3587c`**.
+- `git diff --name-only f2aec20 HEAD -- scripts tests` 0 — 바뀐 파일은 audit/archive/last-audit_~2026-10-05.md(새) · audit/checklist.md · audit/last-audit.md · references/exclusion-ui.md · references/report-fetch.md 5개뿐.
+- audit/last-audit.md(이 절 전) **1,959행 · 563,987바이트** · CR 0 · 보관 파일 md5 **`94f5ee7f`**.
+배포 PUT 0 · 네이버 0 · 운영 작업 폴더 `D:\saero` 쓰기 0.
+
+**이월**(한 줄씩 — 검증 1 판정의 이월 2줄):
+- skill-audit 기능 추가 회차(조정 세션 · ⑥ 탐색)가 외부 쓰기 여부를 가르지 않아, 화면·문서 기능을 그 길로 열면 work-algorithm:17(작은 작업 — 조정·탐색 세션 없음)과 갈림 — 가끔(사용자가 그 길로 열 때만).
+- last-audit(fd54459):1638(09-26 진단 마무리) "09-07 기준선 이하는 '이전 기록' 표제 아래 원문 보존" 이 이제 일부만 맞음(나머지는 보관 파일) — 원문 보존이라 못 고침, 끝 보관 절이 안내 — 여러 우연.
+
+**병합 뒤**(이 병합 세션은 하지 않았다): main 작업 폴더 `D:\saero\saero-ad-report-skill` `git pull --ff-only` 는 다음 운영 세션 몫(ingest 시작 검사 "HEAD = origin/main" 이 막는다) · local/ 변경 0 → 설치본 갱신 불필요.
+효율: 벽시계 약 10분 · 도구 호출 약 12회 · 하위 에이전트 0 · 즉석 코드 약 15행(덧붙이기 조각 — 스크래치).
+
+---
+
 ## 수정 기록(2026-10-07 — 검토 비용 줄이기 작업 2: 기록 보관 분리, 문서만) · 브랜치 `fix-20261007-archive`
 **사용자 요청**: 지시문 `D:\saero\saero-ad-report_검토비용줄이기_작업2_기록보관_2026-10-07.md`(last-audit 를 작게 — 지난 회차 절을 보관 파일로, 지금 쓰는 절만 남김. 지시의 "4,241줄"은 작업 1 기록 전 값, `f2aec20` 은 4,256행). 세션 00:37~01:05 KST 무렵, Code 탭 `D:\saero`, Opus 5.5. 시작 확인 : `origin/main` 맨 위 = `f2aec20`(작업 1 기록) · 그 아래 병합 `92c7837` → 시작 조건 충족. 에이전트 0. 외부 쓰기 = 스킬 저장소 브랜치 `fix-20261007-archive` push 만(main 병합 안 함 — 지시에 없음 · 배포 PUT 0 · 네이버 0). scripts · tests · data · config · registry · local/ 변경 0. 운영 작업 폴더 : 시작 확인 때 `git fetch` 1회(원격 추적 ref 만 — HEAD `8ba1c37` · 작업 트리 그대로, origin/main 보다 5 뒤 — pull 은 다음 운영 세션 몫). clone `D:\saero\fix-20261007-archive`(`git clone -c core.autocrlf=false`).
 **나누기 커밋 `d4446e9`**(f2aec20 위 1커밋, 5파일):
