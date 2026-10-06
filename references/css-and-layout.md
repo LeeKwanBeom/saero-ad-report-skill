@@ -50,6 +50,8 @@
 .scroll-hint  스크롤 안내 뱃지 — 직접 마크업에 넣지 말 것 (스크립트가 자동 처리)
 .scroll-fade  오른쪽 끝 페이드용 래퍼 — 스크립트가 자동으로 감쌈
 .wide-table   컬럼 많은 표 wrapper
+.fold         접기 <details> (레이아웃 판 r2026-10-B — 아래 "접기 안내"). summary 에 cursor:pointer
+.fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기") — 12px 굵게 진한민트, 펼치면 아래 8px
 ```
 
 ### .wide-table 안의 표
@@ -78,6 +80,8 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
 카드 안 결론 문단(구분선 포함)   margin-top 10px + padding-top 8px
 숫자 카드 그리드                gap 6px, 라벨-값 간격 2px, 값 폰트 15px
 표 행 padding (모바일 640px 이하) 6px
+접기(.fold) 머리                 03 접기 위 10px(표와 사이) · .fold-more 펼쳤을 때 아래 8px ·
+                                07 목록·08 머리는 옛 머리글 여백 그대로(margin-bottom 8px / sub-head 0 0 6px)
 ```
 
 ## 가로 스크롤 안내 자동화
@@ -102,6 +106,23 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
   불필요"하다고 보고 표에만 넣었는데, 같은 리포트 안에서 한쪽만 페이드가 있어
   일관성이 깨진다는 피드백을 받고 통일했다
 - 페이드 도착색이 `var(--card)`(흰색)이므로 스크롤 요소는 항상 `.card` 안에 둔다
+
+## 접기 안내 (레이아웃 판 r2026-10-B, 2026-10-06)
+
+긴 목록·표를 `<details class="fold">` 로 접는다(report-structure.md 맨 위 "레이아웃 판" — 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖, 5개).
+기본 닫힘. 만드는 것은 `scripts/apply.py --layout`(옛 판을 이 판으로 바꿀 때 CSS·스크립트까지 한 번에 넣는다) — 손으로 넣지 않는다.
+
+1. **CSS**: `.fold > summary{cursor:pointer;}` · `.fold-more{font-size:12px;font-weight:700;color:var(--mint-dark);}` · `.fold[open] > .fold-more{margin-bottom:8px;}`
+   — 새 색 0(진한민트는 팔레트 안. `.ctr-high` 클래스는 쓰지 않는다). summary 의 마커(▶)는 브라우저 기본 그대로.
+2. **toggle → 가로 안내 다시 맞추기**: 하단 가로 스크롤 안내 스크립트의 `resize` 줄 뒤에
+   `document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', sync))` — 닫힌 접기 안의 `.wide-table` 은 화면 폭이 0 이라
+   load 때 뱃지·페이드 판단이 어긋날 수 있어 펼칠 때 다시 잰다(`toggle` 은 버블링하지 않으므로 details 마다 붙인다).
+3. **인쇄**: `beforeprint` 에 닫힌 details 를 전부 열고 `afterprint` 에 그것만 다시 닫는다 — 닫힌 접기 안은 인쇄·PDF 에 찍히지 않기 때문.
+   (iOS 공유 → PDF 처럼 이 이벤트가 오지 않는 경로는 [추론] — 확인 전)
+4. **기준점 보존**: 앵커 문구(`클릭 1건 검색어`·`노출은 있으나 클릭 0건인`·`TOP 10 외`)는 summary 안 리터럴 그대로, `line-height:1.9;` 는 목록 div 세 곳에만
+   (summary·details·`.fold` 에 쓰지 않는다 — validate·compare·apply 가 "앵커 뒤 첫 `line-height:1.9;">`"를 목록으로 읽는다). 경쟁사표 머리글 div 리터럴
+   "경쟁사 브랜드명 검색어" 는 접기 밖 그대로. CSS·JS 주석에 `<details`·`<summary` 를 꺾쇠로 쓰지 않는다(validate 태그 짝이 센다).
+5. **검사**: validate "레이아웃 판"(meta = config · details 5 · 짝) · overflow_check 는 details 를 전부 열고 3폭을 잰다 · 높이(닫힘·열림)는 회차 기록의 관찰값.
 
 ## 반응형
 
@@ -199,3 +220,15 @@ scrollWidth 418). 한글 나열(`노원역아기·아기랑노원구·…`)은 �
 - 갱신 후 확인: playwright(컨테이너에 설치돼 있음)로 390px 뷰포트에서
   `document.documentElement.scrollWidth`가 390인지 본다. 넘치는 텍스트는 요소 박스가
   아니라 텍스트 노드라 `getBoundingClientRect`로는 잡히지 않는다
+
+**11. 접기(details) 안은 검사·인쇄·찾기에서 빠지기 쉽다 (2026-10-06, 레이아웃 판 r2026-10-B)**
+접힌 `<details>` 안의 표·목록은 화면에 그려지지 않아 (1) 가로 넘침 검사가 닫힌 채로 재면 안의 넘침을 못 보고
+(2) 안의 `.wide-table` 은 load 때 폭이 0 이라 가로 안내 판단이 어긋날 수 있고 (3) 인쇄·PDF 에 찍히지 않으며
+(4) 브라우저에 따라 페이지 내 검색에 안 잡힌다. 또 (5) 접기 머리(summary)의 개수·날짜는 어느 서술 스크립트도 안 고치면
+다음 회차부터 조용히 묵는다(목록은 36개인데 머리는 35개).
+재발 방지(전부 적용돼 있음):
+- `tests/overflow_check.py` 는 details 를 전부 열고 잰다
+- 안내 스크립트가 details `toggle` 때 `sync` 를 다시 부른다(headless Chromium 에서는 닫힌 채로도 뱃지가 붙어 재현이 안 됨 — 실기기 확인은 [추론])
+- `beforeprint` 에 전부 열고 `afterprint` 에 되돌린다(headless Chromium `page.pdf()` 에서 beforeprint 순간 5개 전부 열림·afterprint 뒤 0 [실측 2026-10-06])
+- summary 의 개수·날짜는 `scripts/apply.py` 가 compute.json 으로 매 회차 쓰고 compare.py 가 summary 4항목으로 대조한다
+- 서술 표지·각주(07 ①②③·08 note)는 접기 밖에 둔다 — 안으로 옮기면 검사는 통과하고 조용히 숨는다

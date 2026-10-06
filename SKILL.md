@@ -23,6 +23,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 
 이 스킬의 설명만 보고 처음부터 코딩하면 여백·문구·세부 스타일이 반드시 달라진다.
 **배포본이 유일한 원본이고, 이 문서는 그 원본을 어떻게 다루는지에 대한 설명서다.**
+**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-B`(사용자 결정 2026-10-06 — references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
 
 ## 배포 정보
 
@@ -255,11 +256,15 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 결정된 항목을 11번이 "미반영"으로 서술하는 모순을 막기 위해서다(11번·12번
 "작성 기준" 참고).
 
-교체는 두 단계(2026-10-06 — E2 저장소화 · 서술 표지):
+교체는 두 단계(2026-10-06 — E2 저장소화 · 서술 표지 · 레이아웃 판):
 ```bash
-"$PY" scripts/apply.py --html work/index.html --compute work/compute.json   # 기계 자리(KPI·표·목록·차트·masthead·og) — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
-"$PY" work/n<날짜>.py                                                         # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
+"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·표·목록·차트·masthead·og·접기 summary) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
+"$PY" work/n<날짜>.py                                                                  # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
 ```
+`--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만, meta 없는 옛 판이면 meta + 접기 5개 뼈대로 바꾼 뒤 값.
+`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, meta 가 다른 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 합계 맨 위 + 최근 `recent_days`(7)일 최신 위,
+나머지 날짜는 접힌 표에 최신 위. **접기 머리(summary)의 개수·날짜(03 "이전 N일(M/D~M/D)" · 07 "(N개 · 펼치기)" · 경쟁사 "표 N행" · 08 "(N개 지역·클릭 M건)")는 apply 가 compute.json 으로 매 회차 쓴다**
+— 서술 스크립트는 summary·details 를 건드리지 않는다.
 서술 자리 이름·종류(매회차/고정)·compare 가 읽는 문구는 `references/report-structure.md` "서술 표지" 표가 정본이고, 글 길이는 같은 문서 "서술 공통 규칙"과
 각 절 "길이" 줄(숫자 한 줄 + 결론 한 줄 · 날짜 박힌 판정·등록 이력은 리포트에서 빼고 정본 표에). 매회차 표지를 빠뜨리면 6단계 narrative 가 `[FAIL] 서술 미교체`로 멈춘다.
 직전 배포본에 표지가 없는 첫 적용 회차만 n<날짜>.py 가 표지를 먼저 넣는다(같은 표 아래 문단).
@@ -284,9 +289,11 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
    `--pending`은 사용자 답을 기다리며 채팅 질문을 남긴 채 배포하는 회차에만 붙인다(07 각주·11·12번 잔존 문구 검사 21만 허용,
    건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다. 잔존 문구를 보는 자리는 이 검사 하나뿐이다(compare.py에 없음).
 2. `"$PY" scripts/compare.py <작업중인 index.html> <compute.json>` — 배포본 값이 compute.py 출력과 **차이 0**인지
-   (2026-09-27 기준 95항목: 표·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어. 09-26의 99에서 잔존 문구 5항목을
-   validate 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눔). 경쟁사표 정본은 3번째 인자의 직전 배포본.
+   (2026-10-06 회차 2 기준 99항목: 표·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어 95 + 접기 summary 4(07 클릭 1건·클릭 0·경쟁사표 개수 = 목록 길이,
+   03 "이전 N일(M/D~M/D)" = 접힌 표). 03 일별 표는 두 표를 이어 읽어 거꾸로 = 오름차순(최신 위가 정본 — 오름차순으로 되돌린 판은 DIFF).
+   09-27 의 95 는 09-26의 99에서 잔존 문구 5항목을 validate 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눈 것. 경쟁사표 정본은 3번째 인자의 직전 배포본.
 3. `"$PY" tests/overflow_check.py <작업중인 index.html>` — 360·390·430px 가로 넘침 0(css-and-layout.md 버그 기록 10). file:// 밖 요청은 막고 잰다(Chart.js 미로드 — checklist [의도된 동작] 17).
+   재기 전에 접기(details)를 전부 연다(2026-10-06 — 접힌 안의 표·목록까지).
 4. (2026-10-06) `"$PY" scripts/narrative_check.py <작업중인 index.html> <직전 배포본>` — 매회차 서술 표지 블록이 직전 배포본과 바이트가 같으면
    `[FAIL] 서술 미교체 <자리>`(compare 가 숫자를 읽지 않는 서술이 지난 회차 그대로 배포되는 것 — 10/6 01 머리글 유형). 같은 기간(2-1 같음)·직전 배포본에 표지 없음(첫 적용)은
    `[주의]`로 생략, 작업본 표지 0 은 FAIL(references/report-structure.md "서술 표지").
@@ -303,6 +310,12 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
 **자동 배포(사용자 결정 2026-09-30 — "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 배포 질문은 따로 하지 않는다. 사람 질문(2-1 같음 · 승인 묶음 ⓐ · 모호한 답 되묻기 · 등록 실패 재시도 등 `references/code-tab.md` 4절 ⓐ)에 **모두 답을 받아 남은 질문이 없고**, 6단계 precheck 통과(도장)와 7단계 `--dry-run` 통과(도장·base 대조·자격 증명·쓰기 권한 참)면 같은 명령을 dry-run 없이 바로 돌려 PUT → `verify --ref`까지 간다.
 검사가 하나라도 `[FAIL]`·exit ≠ 0이면 PUT 없이 멈추고 보고한다(자동 재시도 금지 그대로). 등록이 exit 1(부분 실패·요청 결과 모름)이면 재시도 질문이 남은 것이라 배포도 그 답 뒤로 미룬다.
 사용자가 그 회차에 "보류"·"오늘 배포 안 함"이라고 했으면 PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup, 배포 커밋 칸에 `보류(사용자 답 "<원문>")`). (옛 규칙 — 2026-09-29 "배포할까요? — 배포 / 보류" 고정 질문 — 은 이 결정으로 대체.)
+
+**레이아웃 판 게이트(2026-10-06 회차 2)**: 실제 push 는 `--file`·`--base` 의 `<meta name="report-layout">` 가 다르면(한쪽 없음 포함) `--layout-change` 없이
+`[FAIL] 레이아웃 판이 바뀜 — PUT 안 함` exit 1(네트워크 전 — GET·PUT 0), `--dry-run` 은 `[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change`. 같으면 아무 문구 없이 지나간다
+(데이터 회차엔 안 걸림 — 위 자동 배포 결정과 충돌 0). `--layout-change` 는 **레이아웃 판 첫 적용 회차에 사용자가 작업본(과 전후 비교 페이지)을 보고 "배포"라고 답했을 때만** 붙인다
+(첫 적용은 "보류로 시작 — 6단계 도장까지만" → 사용자 확인 → "배포" → `push … --layout-change` → `verify --ref`). 데이터 회차에서 이 FAIL 이 나면(병합 뒤 첫 적용 전에
+데이터 회차가 먼저 돈 경우) PUT 0 으로 멈추고 사용자에게 묻는다 — 세션이 스스로 `--layout-change` 를 붙이지 않는다.
 
 **verify는 `--ref <push가 찍은 커밋>`으로** — push 성공 줄(`배포 완료 커밋 <sha> …`)과 다음 줄(`다음(읽기): deploy.py verify … --ref <sha>`)의 값.
 ref 없는 contents GET은 PUT 직후 약 1분 옛 본문을 돌려줄 수 있다(2026-09-29 실측 2회 — 요청의 no-cache로도 안 막힘). `--ref`는 `?ref=`로 그 커밋의 본문을 받는다(16진 7~40자, verify 전용 — 아니면 GET 전에 exit 2).
@@ -497,7 +510,7 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 
 ## 배포 전 검산
 
-`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 기준 23개,
+`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 회차 2 기준 24개,
 config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부른다):
 
 - HTML 태그 짝 (div/table/tr/td/th/span/script 등)
@@ -529,9 +542,12 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
 - (2026-10-06 추가) **"07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)"** — 07번 `class="note"` 전부를 이어 붙인 글에 ① `경쟁사 판정(` ·
   ② `제외 검색어: … 등록 N개 · 확인 a/b · 실패 n` · ③ `클릭 0인 검색어 전체는 N개·노출 N회` 셋 다 있고, ②의 b = 등록 수 × config `exclusions.targets` 수, a ≤ b,
   클릭 0 목록 항목 ≥ 1. 하나라도 없으면 FAIL(글을 줄인 뒤 각주 자리가 빠지거나 옛 형식으로 돌아가는 것). HTML 태그 짝 검사에 `details`·`summary` 포함(회차 2 선반영)
+- (2026-10-06 회차 2 추가) **"레이아웃 판"** — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`, `<details` 수 =
+  `report_layout.markers.details`(5), details 마다 바로 안에 summary. meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것 — 옛 사본 통째 교체·세션의 "복원")
 
-그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(95항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 구역별로 따로 파싱해
-한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py · narrative_check.py(서술 미교체). compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1.
+그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(99항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
+접기 summary 4항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
+compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.
@@ -572,13 +588,13 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
   미로그인 exit 1 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ = HEAD·추적 안 된 파일 0·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
-  `scripts/compute.py`(5단계 값) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL) ·
+  `scripts/compute.py`(5단계 값) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL · `--layout` 레이아웃 판 변환·summary) ·
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/narrative_check.py`(6단계 서술 미교체) · `scripts/precheck.sh`(6단계 한 번에) ·
-  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>` — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
-- `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침, file:// 밖 요청 차단) ·
-  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 멱등·앵커·행 수·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
+  `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>`·push `--layout-change`(레이아웃 판 게이트) — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
+- `tests/mutation_test.py`(validate·archive 검사 생존 — 레이아웃 판 변조·0건 가드·config 실험 포함) · `tests/overflow_check.py`(360/390/430px 넘침, 접기 전부 열고, file:// 밖 요청 차단) ·
+  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환·멱등·앵커·행 수·03 행 분배(10일)·summary 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
   `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구) ·
-  `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
+  `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제·03 오름차순 복귀·summary 옛 값 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
   `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·필드 없음·token 파일 인코딩·
-  precheck 도장(직전 배포본·모드)·PUT 본문 = 도장 바이트·PUT 409/403·PUT 결과 모름·이미 반영 exit 0·`***` 가림·인자 오류 GET 0(exit 2)·토큰 모양) — 정기 점검 때.
+  precheck 도장(직전 배포본·모드)·PUT 본문 = 도장 바이트·PUT 409/403·PUT 결과 모름·이미 반영 exit 0·`***` 가림·인자 오류 GET 0(exit 2)·토큰 모양·레이아웃 판 게이트 4건) — 정기 점검 때.
