@@ -8,7 +8,7 @@
 ## 0. 진입
 
 - Code 탭은 **`D:\saero` 폴더로 연다**(저장소 폴더로 열지 않는다 — 메모리 D--saero·wrapup이 안 붙는다). 첫 말은 **`/saero-run`**.
-  진입 스킬 `D:\saero\.claude\skills\saero-run\SKILL.md`와 `D:\saero\CLAUDE.md`의 정본 사본은 저장소 `local/`에 있다(설치·갱신은 사용자가, 마감 때 md5 대조).
+  진입 스킬 `D:\saero\.claude\skills\saero-run\SKILL.md`와 `D:\saero\CLAUDE.md`, 질문 다듬기 스킬 `D:\saero\.claude\skills\prompt-polish\`(세 파일)의 정본 사본은 저장소 `local/`에 있다(설치·갱신은 사용자가, 마감 때 md5 대조).
 - 작업 폴더는 **`D:\saero\saero-ad-report-skill`(main) 하나**. 명령은 전부 여기서(Git Bash `cd /d/saero/saero-ad-report-skill`).
   Desktop 사본·검증용 clone·스크래치는 운영에 쓰지 않는다. 기능 브랜치 작업은 별도 clone에서 하고 작업 폴더는 main만.
 - 설치본 부트스트랩(`anthropic-skills:saero-ad-report`)은 이 PC에서 **1절(컨테이너 작업 경로로 `cd` 뒤 `rm -rf`·`git clone`)을 돌리지 않는다.**

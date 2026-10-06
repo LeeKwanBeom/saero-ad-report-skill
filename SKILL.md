@@ -537,7 +537,7 @@ config `date_based_sections`에 따라 늘고 준다):
 
 - `references/code-tab.md` — **Code 탭 실행 규약(정본)**: 진입(`D:\saero`·`/saero-run`)·환경(`$PY` venv·`PYTHONUTF8`·`TZ=KST-9`·git 신원·자격 증명)·
   S0 사전 점검 블록·전 단계 순서·멈춤 표·exit 코드 판정·승인 목록 참조 선택 모드·금지·수동 폴백·리허설. 회차를 시작할 때 먼저 읽는다.
-  진입 스킬·로컬 CLAUDE.md의 정본 사본은 저장소 `local/`(설치는 사용자).
+  진입 스킬·로컬 CLAUDE.md·질문 다듬기 스킬(`local/prompt-polish/`)의 정본 사본은 저장소 `local/`(설치는 사용자).
 - `references/report-structure.md` — 12개 섹션별 상세 구현 규칙 + 각 절 "정의(compute.py)". 5단계에서 읽는다.
 - `references/css-and-layout.md` — CSS 유틸 클래스, 여백 기준, 재발 방지용 버그 기록.
   디자인·레이아웃을 건드려야 할 때 읽는다.

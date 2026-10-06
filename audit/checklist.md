@@ -114,7 +114,7 @@ references/code-tab.md(Code 탭 실행 규약) / references/report-fetch.md / re
 scripts/reportlib.py · archive.py · compute.py · validate.py · compare.py · deploy.py · ingest.sh · precheck.sh · fetch_reports.py · exclusions.py /
 tests/mutation_test.py · overflow_check.py · test_fetch_reports.py · test_exclusions.py · test_ingest.py · test_deploy.py · fixtures/ /
 config/report-config.json(스크립트가 읽는 설정, 없으면 즉시 종료) / data/YYYY-MM/ 4종씩 / .gitignore / .gitattributes /
-local/(진입 스킬·로컬 CLAUDE.md 정본 사본) / audit/exclusions.csv(registry) / audit/last-audit.md / audit/checklist.md(이 파일)
+local/(진입 스킬·로컬 CLAUDE.md·질문 다듬기 스킬 정본 사본) / audit/exclusions.csv(registry) / audit/last-audit.md / audit/checklist.md(이 파일)
 실제 ls 결과가 이 목록과 다르면 그것부터 알려줄 것.
 
 2) 배포된 index.html 을 받아서 실제 마크업 확인
