@@ -37,6 +37,11 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      (확인 요청·판단 요청·기다림·확인 중·대기) 0건. 잔존 문구 검사는 이 검사 하나뿐이다(compare.py에는 없음 — --pending 일원화).
      사용자 답을 기다리며 배포하는 회차(4c08ab3처럼 채팅 질문을 남긴 배포)는 `--pending`을 붙여 이 검사만 허용한다
      (건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다 — 기본은 엄격. 세 범위 중 하나라도 못 찾으면 0건 가드 FAIL.
+ 22. (2026-10-06 추가) "07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)" — 07번 `class="note"` 전부를 이어 붙인 글에
+     ① `경쟁사 판정(` · ② `제외 검색어: … 등록 N개 · 확인 a/b · 실패 n` · ③ `클릭 0인 검색어 전체는 N개·노출 N회` 가 다 있고,
+     ②의 b = 등록 수 × config `exclusions.targets` 수, a ≤ b. 같은 검사 안에서 클릭 0 목록 항목 ≥ 1(`click0_items`).
+     하나라도 0건이면 FAIL(글을 줄인 뒤 옛 각주 형식으로 돌아가거나 자리가 빠지는 것을 막는다 — 기능 추가 회차 1).
+     검사는 이름으로 부른다(번호는 출력 순서일 뿐 — 이 목록 번호와 다를 수 있다).
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -74,7 +79,8 @@ FORBIDDEN = ["필요", "시점", "할 것", "검토", "주째"]          # repor
 RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기"]  # 채팅 후속 뒤 남기면 안 되는 문구
 
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
-        "ul", "li", "span", "script", "style"]
+        "ul", "li", "span", "script", "style", "details", "summary"]  # details·summary: 2026-10-06(접기 모양 회차 2 선반영)
+N_TARGETS = len(CFG["exclusions"]["targets"])  # 07 각주 ② 확인 a/b 의 b = 등록 수 × 대상 그룹 수
 
 results = []
 
@@ -336,6 +342,30 @@ def check_11_12(html, pending=False):
         check("07 각주·11·12번 잔존 문구 0건", not bad, detail + (f": {', '.join(bad)}" if bad else ""))
 
 
+def check_07_footnotes(s7):
+    """22. 07 각주 세 자리(① 경쟁사 판정 · ② 제외 검색어 등록/확인/실패 · ③ 클릭 0 전체) + 클릭 0 목록 ≥ 1."""
+    name = "07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)"
+    notes7 = re.findall(r'<(?:p|div)[^>]*class="note"[^>]*>(.*?)</(?:p|div)>', s7, re.S)
+    t = re.sub(r"<[^>]+>", "", " ".join(notes7))
+    n1 = len(re.findall(r"경쟁사 판정\(", t))
+    m2 = re.findall(r"제외 검색어: .*?등록 (\d+)개 · 확인 (\d+)/(\d+) · 실패 (\d+)", t)
+    m3 = re.findall(r"클릭 0인 검색어 전체는 (\d+)개·노출 ([\d,]+)회", t)
+    n0 = len(click0_items(s7))
+    bad = []
+    if not notes7: bad.append('07 class="note" 0개 — 섹션 주석 또는 마크업 변경 의심')
+    if n1 == 0: bad.append("① 경쟁사 판정( 0건")
+    if not m2:
+        bad.append("② 제외 검색어: … 등록 N개 · 확인 a/b · 실패 n 0건")
+    else:
+        reg, a, b, _ = (int(x) for x in m2[0])
+        if b != reg * N_TARGETS: bad.append(f"② 확인 {a}/{b}의 {b} ≠ 등록 {reg} × 대상 {N_TARGETS}그룹")
+        if a > b: bad.append(f"② 확인 {a}/{b} — a > b")
+    if not m3: bad.append("③ 클릭 0인 검색어 전체는 N개·노출 N회 0건")
+    if n0 == 0: bad.append("클릭 0 목록 항목 0건(노출은 있으나 클릭 0건인 … 목록)")
+    check(name, not bad, "; ".join(bad) if bad else
+          f"① {n1}건 · ② 등록 {m2[0][0]}개 확인 {m2[0][1]}/{m2[0][2]} 실패 {m2[0][3]} · ③ {m3[0][0]}개 · 클릭 0 목록 {n0}개")
+
+
 def main():
     pending = "--pending" in sys.argv
     args = [a for a in sys.argv[1:] if a != "--pending"]
@@ -408,6 +438,7 @@ def main():
     check("검색어 CSV 클릭 합계 = KPI 클릭", sr_clicks == kpi_clicks,
           f"검색어 CSV {sr_clicks} vs KPI {kpi_clicks}" + ("" if sr_clicks == kpi_clicks else " — 검색어 보고서 기간이 다를 수 있음"))
     check_11_12(html, pending)
+    check_07_footnotes(s7)  # 2026-10-06 — 글 줄이기 회차 1
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

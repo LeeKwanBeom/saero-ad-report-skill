@@ -298,6 +298,8 @@ def main():
                      {"html": replace_in_section(H, 11, m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}") if m else None}))
         muts.append(("11 첫 항목에 금칙어 삽입", "11·12번 금칙어", {"html": replace_in_section(H, 11, "<li><b>", "<li><b>필요 ")}))
         muts.append(("12 첫 항목에 잔존 문구 삽입", "잔존 문구", {"html": replace_in_section(H, 12, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
+        # (2026-10-06 추가) 07 각주 세 자리 — 변조 1 + 아래 0건 가드 2
+        muts.append(("07 각주 ② 문구 변조(제외 검색어: → 제외검색어:)", "07 각주 세 자리", {"html": replace_in_section(H, 7, "제외 검색어:", "제외검색어:")}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -318,6 +320,11 @@ def main():
             m = re.search(r"\s*min-width:\s*\d+px;?", section(H, n))
             guards.append((f"0건: {n:02d}번 min-width 제거", f"{n:02d}번 차트 min-width",
                            {"html": replace_in_section(H, n, m.group(0), "") if m else None}))
+        # (2026-10-06 추가) 07 ②③ 각주 블록 통째 제거 · ① 경쟁사 판정 줄 제거 → "07 각주 세 자리" FAIL
+        m = re.search(r'<div class="note"[^>]*>(?:(?!</div>).)*?제외 검색어:.*?</div>', s7, re.S)
+        guards.append(("0건: 07 ②③ 각주 블록 제거", "07 각주 세 자리", {"html": H.replace(s7, s7.replace(m.group(0), "", 1), 1) if m else None}))
+        m = re.search(r"① 경쟁사 판정\(.*?<br>\s*", s7, re.S)
+        guards.append(("0건: 07 ① 경쟁사 판정 줄 제거", "07 각주 세 자리", {"html": H.replace(s7, s7.replace(m.group(0), "", 1), 1) if m else None}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
