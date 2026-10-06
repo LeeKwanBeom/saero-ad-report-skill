@@ -13,6 +13,7 @@
 `audit/updates.md`(갱신 회차 기록) / `audit/registry.md`(운영 표 3개: 등록 제외 검색어 대조 목록·경쟁사 판정 이력·
 개선안 이월 표)로 분리하고, 저장소 SKILL.md에 "갱신 회차는 registry + updates 최근 절, 진단 회차는 셋 다"를 명시한다
 (부트스트랩은 저장소 SKILL.md를 따르므로 재업로드 불필요). 2026-09-26 회차에는 분리하지 않았다.
+(2026-10-07 — 이것과 다른 일) 크기만 줄이려고 **날짜로 보관**했다: 지난 회차 절 일부를 `audit/archive/last-audit_~2026-10-05.md` 로 글자 그대로 옮김(목록 = last-audit 맨 끝 "보관 파일" 절, 운영 표 3개는 last-audit 에 그대로). 개정안 14(updates.md / registry.md 분리)는 그대로 이월.
 
 버전: v4.7 (2026-09-28 기능 추가 회차 — Code 탭 전 단계 실행(브랜치 `feat-code-tab`, 설계안 C 회차 1): [의도된 동작] 20·24 개정(Code 탭 세션이 정식 실행 주체 ·
 store·push는 같은 PC에서 ingest.sh), 15·17·19·21·22·25 보강, 26 신설(Code 탭 실행 규약 — `references/code-tab.md`), [되돌리면 안 되는 것] 5행 추가(ingest origin/main 확인 두 분기 ·
