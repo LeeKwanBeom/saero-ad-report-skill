@@ -1,3 +1,110 @@
+# 기능 추가 구현 기준선(리포트 읽기 쉽게 — 회차 2 모양, 2026-10-06)
+점검일: 2026-10-06 (기능 추가 회차 — **구현, 회차 2 = 모양**. 데스크톱 앱 Code 탭, 이 PC, 작업 폴더 `D:\saero`로 연 세션, Opus 5.5 · ultracode). 작업 clone `D:\saero\feat-20261006-layout` 브랜치 `feat-20261006-layout`(`git clone -c core.autocrlf=false` → `git switch -c`). 시작 확인 [실측]: origin/main = **`e265a17`**(지시문의 마감 값 그대로 — 그 뒤 갱신 회차 기록 커밋 없음, `ls-remote`) · 재료 md5 14개 = 지시(회차 1 clone `work/` 에서 **읽기만으로 사본**: `R1/index.html` 002233ee → `work/index.html` · `R1/prev.html` 6aaa2472 → `work/prev_f7bc605.html` · combined 4 e3a352a2·e70e5023·faac5a0a·b7d91858 · c40 CSV 4 d6830103·a8c5eb81·1db13563·a4f54006 + `c40/compute.json` 81f475fb · `R2/new40.html` 3da35369 · `narr_lib.py` 18dd9c39 · `R2/n1006b.py` a64eef31 — 목록 `work/materials.md5`) · 참고 사본 `work/D/`·`r12`·`r12b`. 운영 main 작업 폴더 열기 0 · data/·registry·local/ 변경 0 · 외부 쓰기 0(네이버·API·배포 저장소 요청 0, 키 파일·자격 증명 열지 않음, fetch_reports·exclusions·deploy(dry-run 포함)·ingest·archive 실행 0 — deploy 는 test_deploy 하네스 안에서만).
+설계: 탐색 기준선 3.1 설계안 비교 표 **B 접기형 열** + 사용자 결정(2026-10-06 — ② 고르기) 1·4·5·6·9·12·13·14 의 **회차 2 몫** — `scripts/apply.py --layout`(레이아웃 판 변환 + 03 두 표 + summary 기계 자리, 막음 M2) · validate "레이아웃 판" · compare 03 역순 + summary 4항목 · deploy.py 레이아웃 게이트(막음 M4) · overflow details 열기 · mutation 변조·가드·config 실험 · config `report_layout` · 문서(회차 2 절만) · 미리보기(PNG + 전후 비교 페이지). **글(서술 표지 블록 바이트)·C 안·차트 폭(`per_day_px` 80 그대로)·validate 길이 상한·01 표·순위 5칸 순서·회차 1 이월 1~10·local/ 은 건드리지 않았다.**
+검증용 clone: `git clone -c core.autocrlf=false -b feat-20261006-layout --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill D:\saero-verify\feat-20261006-layout-1`
+효율: 벽시계 약 55분(15:33 무렵 시작 확인 → 15:50 코드 → 15:55 리허설 R1~R5 → 16:02~16:12 자기 검토 → 커밋·기록·push) · 도구 호출 조정자 약 100회 + 자기 검토 워크플로 에이전트 4개(검토 3 + 기계 확인 1, 151회) · 즉석 코드 약 900행(패치 스크립트 스크래치 ≈ 440 · clone `work/` 스크래치 `R1/mk_compare.py` 189 · `R4/r4.py` 145 · `R5/measure.py` 82 · `R5/chars.py` 18 · `rehearse_R2.sh` 25).
+표기: [실측] 이번에 파일·명령으로 확인 / [추론] 확인 못 함. 행 번호는 이 브랜치 커밋 기준.
+
+## 바뀐 것(파일별, `wc -l` 전 → 후 · md5 앞 8자리) [실측]
+
+| 파일 | 행 | md5 | 무엇 |
+|---|---|---|---|
+| `scripts/apply.py` | 249 → 375 | 871d6e87 | `--layout` · 판 고르기(meta = config → 값만 · meta 없음 → `--layout` 일 때 `convert_layout`, 아니면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` · meta 다름·meta 없는데 details 있음·details 수 ≠ 5 → FAIL) · `convert_layout`(meta · CSS 3줄 · toggle/beforeprint/afterprint 스크립트 · 03 접힌 표 뼈대 · 07 목록 2·경쟁사표·08 목록을 details/summary 로, 서술 표지·각주는 밖) · 03 위 표 = 합계 + 최근 `recent_days` 최신 위, 접힌 표 = 03 첫 `<summary` 뒤 첫 tbody(구역 밖이면 FAIL — `tbody(start, stop)`) · summary 교체 03·07 셋(08 은 기존 `(N개 지역·클릭 M건)` once) · `bounds`·`once_in` |
+| `scripts/validate.py` | 455 → 478 | 9a2d241f | 검사 **"레이아웃 판(meta report-layout = config · 접기 details 수·짝)"**(`check_layout` — meta 정확히 하나 = `report_layout.layout_id` · `<details` 수 = `markers.details` · summary 수 = details 수 · details 바로 안 summary, 0건 FAIL) → **23 → 24개**(출력 맨 끝) |
+| `scripts/compare.py` | 207 → 219 | 9e7fd01a | "03 일별 표 전체 행" 두 표 이어 읽어 `[::-1]` · summary 4항목 신설(07 클릭1건·클릭0·경쟁사표 개수 = compute 목록 길이 · 03 "이전 N일·기간" = 접힌 표 자기 일치, 각 구역 함수 끝) → **항목 수 N = 99** |
+| `scripts/deploy.py` | 338 → 364 | 2deda144 | `layout_of`(bytes 의 meta) · push `--layout-change` · 게이트(도장 검사 다음 · `get()` 앞): 다르면 `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함(…)` exit 1 / dry-run `[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(…)` / 같으면 문구 0 |
+| `tests/overflow_check.py` | 59 → 62 | d6b83692 | goto·400ms 뒤 details 전부 `open=true` → 100ms → scrollWidth(출력에 "details N개 연 상태") |
+| `tests/mutation_test.py` | 386 → 405 | f5984482 | 변조 2(meta 값 · 03 접기 하나 풀기) + 0건 가드 2(meta 제거 · 접기 전부 풀기 = summary → 머리글 div 로 옛 모양 복원 흉내) + config 실험(`report_layout.layout_id` → 기준 사본 "레이아웃 판" FAIL) |
+| `tests/test_apply.py` | 212 → 343 | de0d1e9f | 판 고르기(옛 판 + --layout 없음 FAIL · meta 다름 · details 4 · meta 없는데 details) · 변환 뼈대(meta 1·details 5·짝·`line-height:1.9;">` 3·앵커 뒤 첫 일치 = 목록·CSS·스크립트·각주 밖) · 서술 표지 4개 안쪽 바이트 불변·접기 밖 · **03 행 분배(10일 = 위 7 + 접힌 3, 합계 맨 위)** · summary 5개 옛 값 → 다시 씀 · 짧은 기간(5일 → 빈 접힌 표 + "이전 0일") · CLI 두 번 바이트 같음 · 접기 CSS/스크립트 자리 없음·03 표 둘 FAIL · 접힌 경쟁사표 compute 그대로 · ApplyRehearsal(A.apply 직접 + meta assert) |
+| `tests/fixtures/layout_old.html` · `layout_old.compute.json` | 460 → 475 · 594 → 636 | f89b159d · f7d60129 | html: `<style>`·가로 안내 스크립트(resize 줄)·08 note 발췌 · json: `03.rows` 10일(12/29~12/31 앞에 붙임, 03 합계 재계산 — 다른 키는 7일 그대로, 이름·숫자 가짜) |
+| `tests/test_compare_sections.py` | 115 → 142 | 754557d3 | 경우 2 추가: 03 날짜 행 오름차순 복귀 → "03 일별 표 전체 행" DIFF(그 구역만) · 07 summary 클릭 1건 +1 → "07 summary 클릭1건 개수" DIFF |
+| `tests/test_deploy.py` | 399 → 453 | 5a60e3a6 | 게이트 4건(`run_deploy` 하네스): meta 다름(옛 판·값 다름) → FAIL·요청 0 · `--layout-change` → PUT 1(본문 = 작업본) · 같음 → 문구 0·PUT 1(기존 PREV·WORK 도) · dry-run → [주의]·PUT 0 |
+| `config/report-config.json` | 150 → 158 | 07562fde | `report_layout{_comment, layout_id "r2026-10-B", recent_days 7, markers{details 5}}` |
+| `SKILL.md` | 584 → 600 | 5cfa3ee2 | 원칙 1문장(레이아웃 판은 설계 회차·사용자 결정으로만) · 5단계 `apply.py --layout`(매 회차·summary 기계 자리) · 6단계 compare 99·overflow 접기 열고 · 7단계 게이트(`--layout-change` 는 첫 적용 "배포" 답 뒤만, 데이터 회차에서 나면 멈추고 묻기) · 배포 전 검산 24 · 참고 |
+| `references/report-structure.md` | 525 → 561 | c04a00e8 | 2~4행 아래 **"레이아웃 판 r2026-10-B(사용자 결정 2026-10-06)"** 절(사용자 원문 두 문장 · 접기 5 표 · 기계 자리 규칙 · 누락 0 · 01 오름차순) · 03 "마지막 행은 전체 합계" 개정 → 합계 맨 위 + 최근 7일 + 접기 · 07 (2)(3)·경쟁사 · 08 접기 줄 |
+| `references/css-and-layout.md` | 201 → 234 | 07bc85e3 | 유틸리티 `.fold`·`.fold-more` · 밀도표 한 줄 · **"접기 안내"** 절(CSS·toggle sync·beforeprint·기준점·검사) · 버그 기록 **11**(접기 안은 검사·인쇄·찾기에서 빠지기 쉽다) |
+| `references/code-tab.md` | 240 → 243 | 7e1e2045 | 3절 5행(`--layout`)·7행(게이트) · 4절 첫 적용 문단(레이아웃 판 첫 적용 = 전후 비교 페이지 + "배포" 답 뒤 `--layout-change`) · ⓑ 표 `[FAIL] 레이아웃 판이 바뀜` 행 · 5절 deploy exit 1 줄 |
+| `audit/checklist.md` | 511 → 519 | 2fd9cc06 | 갱신 이력 한 줄 · 16 "23개" → 24 · compare 99 · mutation [OK] 50 · [의도된 동작] 27 회차 2 몫 · [되돌리면 안 되는 것] 2행(레이아웃 판 · 03 순서). 대상 파일 목록은 새 파일 없음(그대로) |
+| `audit/last-audit.md` | — | (커밋 뒤) | 이 절 |
+
+지시 밖 변경 0: `scripts/compute.py`·`narrative_check.py`·`precheck.sh`·`reportlib.py`·`exclusions.py`·`fetch_reports.py`·`archive.py`·`ingest.sh`·`references/exclusion-ui.md`·`report-fetch.md`·`local/`(saero-run · CLAUDE.md · prompt-polish — apply·deploy 명령 문자열 없음, code-tab 정본을 따름)·`data/`·`audit/exclusions.csv` 불변.
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **meta 없음 + `--layout` 없음 → `[FAIL] apply`**(옛 배치 유지 안 함) — 03 경로를 B 하나로 두고, 운영 세션이 `--layout` 을 빠뜨리면 apply 에서 바로 요란하게 멈추게. `tests/test_apply.py` 옛 107~108행 기대값(오름차순·합계 맨 아래)은 B 배치(합계 맨 위 + 최신 위 + 접힌 표)로 바꿈, `ApplyRehearsal` 은 `A.apply()` 직접(meta 로 판 선택 — `--layout` 불필요) + meta assert.
+2. **meta 가 다른 값이면 변환하지 않고 FAIL** — 지시 "meta 가 없거나 다를 때 변환" 중 "다를 때"는 다른 판에서 B 로 바꾸는 변환이 없어(판 변경은 설계 회차 몫) FAIL 로. 같은 이유로 meta 없는데 `<details>` 있음 → FAIL, meta 같은데 details 수 ≠ 5 → FAIL.
+3. **일수 ≤ `recent_days` → details 그대로 + 빈 tbody + "이전 0일 펼치기"**(validate details 5 와 맞게 — FAIL 로 두면 새 기간 첫 주에 배포가 막힘). 지금은 41일이라 안 남.
+4. **compare summary 항목**: 07 셋 = compute 목록 길이 · 03 = 접힌 표 자기 일치(행 수·첫/끝 날짜 — compare 는 config 를 읽지 않아 `recent_days` 를 모름) · **08 은 신설하지 않음**(기존 "08 컴팩트 개수·클릭"의 구역 첫 일치가 summary 의 `(N개 지역·클릭 M건)` — apply 는 문서 전체에서 정확히 하나를 요구). N = 95 + 4 = **99**. summary 4항목은 각 구역 함수 끝(형식이 깨져도 그 구역 데이터 항목은 먼저 대조).
+5. config `report_layout` 에 **`notes07` 넣지 않음**(3.1 B config 줄의 notes07 은 회차 1 서술 표지·validate "07 각주 세 자리"로 대체).
+6. css-and-layout.md **버그 기록 번호 11**(기준선 3.1 의 "12" 는 A 안 버그 11 `.vbox` 를 앞에 둔 번호).
+7. **summary 마크업·CSS**: 07 목록 summary = 옛 머리글 div 의 인라인 style 그대로(모양 유지) · 클릭 0 summary `(노출 5회 이상 N개 · 펼치기)`(옛 "(노출 5회 이상만)" 조건을 남김) · 08 = `class="sub-head"` 그대로 · 03·경쟁사 = 새 클래스 `.fold-more`(12px 굵게 진한민트) · CSS 3줄(`.fold > summary` cursor · `.fold-more` · `.fold[open] > .fold-more` 아래 8px) · 03 접기 `margin-top:10px` 인라인. 새 색 0, `.ctr-high` 미사용.
+8. **변환 자리**: meta = `<meta charset="UTF-8">` 바로 뒤 · CSS = `</style>` 앞 · 스크립트 = 가로 안내 IIFE 의 `resize` 줄 뒤(같은 스코프의 `sync` 를 부르려고). **CSS·JS 주석에 태그 꺾쇠 금지** — 첫 시운전에서 CSS 주석의 `<details class="fold">` 가 details 6 으로 세어져 apply 자기 검사가 FAIL 로 잡음(validate 태그 짝도 셀 자리) [실측].
+9. validate "레이아웃 판" 은 출력 **맨 끝(24번째)** — 문서는 이름으로 부름. "짝" = summary 수 = details 수 + details 바로 안 summary(TAGS 열고 닫기 수는 검사 1 몫). validate docstring 목록은 기존 꼴대로 "23." 번호.
+10. **deploy 게이트 세부**: `--base` 없는 dry-run 은 게이트 생략(대조 불가 — 기존 `[dry-run] --base 없음` 줄, 실제 push 는 `--base` 필수라 열리는 PUT 경로 없음) · `--layout-change` 인데 같음 → 문구 0 · 다름 + `--layout-change` → 한 줄 알림 뒤 진행. 출력은 지시 리터럴로 시작(`[FAIL] 레이아웃 판이 바뀜 — PUT 안 함(…)` · `[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(…)`).
+11. **mutation 0건 가드 2개**(지시 "0건 가드" 보다 하나 많음) — "접기 전부 풀기"는 summary 를 머리글 div 로 돌려 옛 모양 복원을 흉내(다른 검사는 그대로 PASS, "레이아웃 판"만 FAIL) → `[OK]` 50(변조 25 + 0건 가드 18 + archive 7) · config 실험 3.
+12. `tests/test_compare_sections.py` 에 2경우 추가(지시 밖 — 양방향 시험을 저장소 시험으로 고정).
+13. fixture 확장 방식: `03.rows` 만 10일(앞에 3일 붙이고 03 합계 재계산 — apply 는 키 사이를 대조하지 않음), html 은 접기 앵커 발췌(style·스크립트·08 note). 이름·숫자 전부 가짜.
+14. 리허설 폴더 `work/R1`·`R2l`·`R4`·`R5`(R3 mutation 로그 = `R2l/mutation.log`) · 전후 비교 생성 스크립트 `work/R1/mk_compare.py`(`--online` 이면 밖 요청 허용 + networkidle — 첫 적용용).
+15. 문서·docstring 의 출력 문구는 실제 출력과 글자 그대로(자기 검토 뒤 같이 — apply `[FAIL] apply: ApplyError: …`, deploy [주의] 줄 print 순서).
+
+## 리허설 결과(전부 clone 안 사본, 최종 코드 — `work/rehearse_R2.sh` 재실행 md5 같음) [실측]
+- **R1 첫 적용(경로 C 모양)**: compute(prev = 회차 1 판 002233ee) 40행·후보 [] **2446b7c0**(= 회차 1 R1 바이트 동일) → `apply --layout` 변환(91,064 → 93,339자, details 5) **46e15c8a** → 두 번째 `(변환 건너뜀) (변경 없음)` 같은 md5 → 서술 표지 36개 안쪽 바이트 전부 같음(`narrative_check.blocks`) → precheck: **validate 24/24 · compare OK 99/DIFF 0 · overflow 360/390/430 넘침 0(details 5개 연 상태, 밖 요청 6건 차단) · narrative `[주의] 같은 기간`(표지 36 중 매회차 24) · 도장**(46e15c8a · 002233ee · full).
+- **R2l 다음 회차**: c40.json 39행 = 81f475fb(c40/compute.json 바이트 동일) → new40 `apply --layout` 변환 **ad760ced**(summary `이전 33일(8/26~9/27)` · 33 · 노출 5회 이상 75 · 표 39행 · (39개 지역·클릭 104건)) → compute(prev = new40) **40행·후보 ['노원부티필라테스']** f24ecb6f(접힌 경쟁사표도 그대로 읽힘) → index `apply --layout`(변환 건너뜀) summary **`이전 34일(8/26~9/28)` · 35 · 77 · 표 40행 · (39개 지역·클릭 104건)** → `R2l/n1006b.py`(ⓑ, judged (7,6,1,0)) 표지 36 → precheck **validate 24/24 · compare 99/0 · 넘침 0 · narrative `[PASS]`(40일 → 41일) · 도장**(744cfb4b · ad760ced) → 자기 기준 compute **40행·후보 []** 2446b7c0. **R1 ↔ R2l 바이트 차이는 11번 판정 한 줄뿐**(회차 1 R1↔R2 와 같은 차이 — 첫 적용 경로와 표지 기반 경로가 summary 까지 같은 리포트).
+- **R3** `mutation_test.py work/R2l/index.html` + CSV 4 → exit 0 **"전부 살아 있음"** · 기준 24/24 · `[OK]` 50 · config 실험 3(ctr 4→5 · date_sections [1,6]→[1] · layout_id → 기준 사본 "레이아웃 판" FAIL 1) · 커버리지 24/24 · UNCOVERED·MISS·SKIP 0 · 원본 md5 동일.
+- **R4 역검증**(`work/R4/r4.py` → `r4.log`, 13건 + 원본 md5 = `[OK]` 14): (1) 새 validate × 회차 1 판 → "레이아웃 판" FAIL(23/24) (2) × f7bc605 판 → "레이아웃 판"·"07 각주 세 자리" FAIL(22/24) (3) 07 클릭 1건 접기 하나 → div → `details 4개 ≠ config 5` (4) meta r2026-10-A → FAIL (5) 03 날짜 행 오름차순 복귀 → compare DIFF 2(03 행 · 03 summary) (5b) 회차 1 판 × 새 compare → DIFF 3 (6) 07 summary 35→36 → DIFF 1 (6b) 08 summary 39→40개 지역 → "08 컴팩트 개수·클릭" DIFF (6c) 경쟁사 40→39·클릭0 77→76 → DIFF 2 (7a) 03 summary 옛 값(이전 33일(8/26~9/27)) → DIFF (7b) `apply --layout` 재실행(변환 건너뜀)이 고쳐 써 744cfb4b 로 복원 (8) R2l 07-notes 를 new40 것으로 → narrative `[FAIL] 서술 미교체 07-notes` (9) 옛 apply(e265a17 판) × 새 판 → apply exit 0 이지만 compare "03 일별 표 전체 행" DIFF(validate 24/24 — compare 가 잡는 자리). + test_deploy 게이트 4 OK · test_apply 14 OK(03 행 분배 10일 = 위 7 + 접힌 3 · ApplyRehearsal 포함).
+- **R5 화면**(관찰값 — `work/R5/measure.py` → `measure.json`, `chars.py` → `chars.json`, file:// 만·밖 요청 8건 차단·Chart.js 미로드): **390×844** 회차 1 판 13,836px(16.4장) → 회차 2 판 **닫힘 10,153px = 12.03장** / 열림 13,982px(16.57장) · **1280×900** 11,626(12.9장) → **닫힘 7,914 = 8.79장** / 열림 11,749(13.05장). 구역(390 옛 → 닫힘/열림): 03 1,334 → 440/1,458 · 07 4,106 → 1,697/4,128 · 08 1,051 → 671/1,051(1280: 1,659 → 459/1,760 · 3,903 → 1,557/3,925 · 791 → 625/791). 글자 수(표 제외, 회차 1 방식) 8,215 → 8,276(07 2,721 → 2,754 — summary 문구만큼, 접힌 안 포함) · 닫힌 화면에 보이는 글자(compare.html) 07 2,752 → 975(390). **뱃지**: headless chromium 은 닫힌 details 안 `.wide-table` 에도 load 때 뱃지가 이미 붙음(390 전체 9 · details 안 [1,0,0,1,0]) → toggle 뒤 같음 — toggle sync 효과는 headless 로 못 봄 [추론 — 이월 D5]. **인쇄**: `page.pdf()`(headless chromium 인쇄 경로)에서 beforeprint 순간 열린 details **5** · afterprint 뒤 **0** [실측, 390·1280 둘 다]. **미리보기**: `work/R1/preview_390x844.png`(b62d5382) · `preview_1280x900.png`(7e80810e)(닫힘·전체 페이지·차트 빈 칸) · **전후 비교 `work/R1/compare.html`**(9d962977, 03·07·08 × 1280·390, 옛 판 ↔ 새 판(닫힘) 이미지 base64 + 높이 닫힘·열림 + 글자 수 — 문구는 두 HTML 원문에서 뽑은 제목·summary·tbody 행 수만) ← **`work/R1/mk_compare.py`(622cb68a)**.
+- **R6 끝 상태**: 아래 마무리 기록.
+- **시험**(`-W error::ResourceWarning`): test_apply **14 OK** · test_narrative_check **7 OK** · test_validate_07 **6 OK** · test_deploy `-k layout_gate` **4 OK** · test_compare_sections × R2l **5경우 전부 맞음**. test_exclusions·test_fetch_reports·test_ingest·test_deploy 전체는 지시대로 돌리지 않음(병합 전 전체 시험).
+
+## 기준선 리허설과 다르게 한 곳
+- R1 의 `deploy.py push --dry-run` 게이트 확인 → **실행하지 않고 test_deploy 하네스 4건으로 대체**(지시 제약 — deploy 실행 0, dry-run 포함). 자기 검토(흐름 반박)가 R1 실제 도장으로 하네스 자동 흐름을 따로 재현: dry-run rc 0·[주의]·PUT 0 → 실제 push rc 1·요청 0.
+- R5 뱃지는 headless 한계로 [추론](위).
+- 폴더 이름: 기준선 R2 → **R2l**(재료 폴더 `work/R2/` 와 구분), R3 은 폴더 없이 `R2l/mutation.log`.
+- R4 에 지시 밖 4건: (5b) 회차 1 판 × 새 compare · (6b) 08 summary · (6c) 경쟁사·클릭0 summary · (9) 옛 apply(e265a17) × 새 판.
+
+**자기 검토**(지시의 [검토 깊이 규칙] — 워크플로 에이전트 4: 코드·검사 / 화면·문서 / 배포 흐름 반박 + 기계 확인(haiku)): **막음 0** — 넷 다 "다음 단계로 가도 된다". 흐름 반박 근거 [실측]: 병합 뒤 첫 적용 전 데이터 회차 → precheck 는 도장까지 통과하지만 실제 push 가 게이트에서 rc 1·요청 0 · "보류" 없이 시작한 첫 적용도 게이트에서 멈춤 · 첫 적용 뒤 데이터 회차(B ↔ B)는 문구 0·PUT 1 · 첫 적용 PUT 결과 모름 → 플래그 없이 재실행은 게이트 rc 1, 붙이면 "앞 PUT이 이미 반영됨" exit 0. 같이(이번에 쓴 줄 안 글자): 문서·docstring 의 출력 문구 두 곳을 실제 출력과 같게(임의 결정 15 — 게이트 시험 4·test_apply 14 다시 OK). 나머지는 아래 이월.
+
+## 검증 회차가 볼 것(완료 기준 표 회차 2 줄로 — 판정만, 쓰기 0)
+준비: 새 clone(위 명령) + 작업 clone `D:\saero\feat-20261006-layout\work\` 에서 **읽기만으로 사본**: `index.html`(002233ee — 회차 1 판) · `prev_f7bc605.html`(6aaa2472) · `combined/` 4 · `c40/` CSV 4 + compute.json(81f475fb) · `R2/new40.html`(3da35369)·`R2/n1006b.py`(a64eef31) · `narr_lib.py`(18dd9c39) · 스크립트 `rehearse_R2.sh`·`R4/r4.py`·`R5/measure.py`·`R5/chars.py`·`R1/mk_compare.py`. 운영 폴더·작업 clone·회차 1 clone 은 읽기만.
+1. **누락 0(접힌 안 포함)** — R1·R2l 에서 03 41일(위 7 + 접힌 34) · 07 정식표 24·클릭1 35·클릭0 77·경쟁사표 40 · 08 TOP10 밖 39 가 HTML 에 전부(compare 집합·직접 셈).
+2. **숫자는 compute.json** — precheck R1·R2l(validate 24/24 · compare 99/0 · 3폭 · narrative · 도장).
+3. **summary 기계 자리(M2)** — summary 5개 = compute 값, 변환을 건너뛴 회차에도 다시 씀(R4 7b · test_apply `test_summaries_rewritten_every_run`) · compare summary 4 + "08 컴팩트 개수·클릭".
+4. **화면 원칙** — details 열고 overflow 3폭 · 새 `#색` 0 · `.ctr-high` 다른 용도 0 · 외부 css/js 추가 0 · 표 `display:block` 0 · 07 ①②③·08 note·서술 표지 접기 밖 · 경쟁사 머리글 리터럴 · 미리보기 PNG 2장·compare.html.
+5. **`line-height:1.9;">` 기준점 셋** — R1·R2l 3곳, 앵커 뒤 첫 일치 = 목록 div(validate click1/click0 · compare · apply listblock).
+6. **옛 모양으로 조용히 되돌아가지 않음** — validate "레이아웃 판"(R4 1~4) · compare 03 역순 양방향(R4 5·5b·9) · mutation 변조 2·가드 2·config 실험(R3) · apply 판 고르기(옛 판 + `--layout` 없음 FAIL).
+7. **첫 적용에 사람이 본 뒤에만 PUT(M4)** — deploy 게이트 위치(도장 다음·`get()` 앞) · test_deploy 게이트 4 · SKILL.md 7단계·code-tab 4절·ⓑ 문구("데이터 회차에서 나면 PUT 0 으로 멈추고 묻는다" · 세션이 스스로 `--layout-change` 를 붙이지 않음).
+8. **compare 생략 없음** — test_compare_sections 5경우(구역별 try · summary 는 구역 끝).
+9. **회차 1 몫이 깨지지 않음** — 서술 표지 36개 안쪽 바이트 불변(R1) · narrative R2l `[PASS]` · 07-notes 미교체 FAIL(R4 8) · validate "07 각주 세 자리" 그대로.
+10. **세로 길이·글자 수 관찰값** — 390×844 닫힘 12.03장(열림 16.57) · 1280×900 8.79장(열림 13.05) · 글자 수 8,276 · 07 2,754(관찰용, FAIL 아님).
+11. **리허설 한 줄** — `rehearse_R2.sh` 다시 돌려 같은 md5(R1 46e15c8a · R2l new40 ad760ced · index 744cfb4b · c_self 2446b7c0) + R4 `r4.py` `[OK]` 14 + mutation `[OK]` 50.
+12. **문서 = 코드** — SKILL.md·report-structure(원문 두 문장)·css-and-layout·code-tab·checklist 의 문구·개수(24·99·[OK] 50) ↔ 스크립트 출력 · local/·data/·registry 변경 0.
+13. **검증 폴더** `D:\saero-verify\<clone>`.
+
+## 이월(한 줄씩 — 막음 아님, 첫 실사용 뒤 또는 점검 회차)
+1. compare 는 03 위 표/접힌 표 경계(정확히 `recent_days`)와 합계 맨 위를 보지 않는다 — 분배는 apply 결정 코드 + test_apply 만(손으로 행을 옮기고 summary 까지 맞추면 통과 · 숫자 틀림 없음 · 여러 우연).
+2. apply 03 첫 tbody 교체에는 stop 검사가 없다 — 위 표가 손편집으로 사라진 판이면 두 쓰기가 접힌 tbody 에 겹침(compare DIFF·파싱 실패로 요란 · 정상 흐름 밖).
+3. validate "레이아웃 판"은 details 를 문서 전체로 센다 — 08 접기를 풀고 다른 곳에 하나 더한 손편집 판은 통과(모양 차이만 · 정상 흐름 밖).
+4. deploy 게이트는 첫 meta 문자열만 읽는다 — 옛 base 의 주석·스크립트 안에 meta 문자열이 있으면 "같음"(지금 배포본 0회, FOLD_CSS·JS·서술 표지에도 없음 · 여러 우연).
+5. toggle → 가로 뱃지 sync 효과는 headless chromium 에서 재현 안 됨 — 실기기(iOS Safari·Android Chrome) 확인(탐색 이월 D5 그대로) · iOS 공유→PDF 에서 beforeprint 가 오는지 [추론].
+6. `.fold-more`(진한민트 굵게)가 07 범례("진한 민트색 클릭률 = 4% 이상") 바로 아래 경쟁사 summary 에 쓰임 — `.ctr-high` 는 아니지만 첫 적용 미리보기 때 사용자가 볼 거리.
+7. SKILL.md "누락 금지"·"매번 함께 바꿔야 할 텍스트" 9항목에 "접힌 안 포함"·summary 기계 자리 한 줄 후보(정본은 report-structure "레이아웃 판"·SKILL 5단계).
+8. validate.py docstring 은 새 검사를 "23." 번호로 적음(출력은 24번째 — 문서 번호와 출력 순서 차이).
+9. 390×844 닫힘 **12.03장** — 탐색 기준 "≤ 12장"(관찰용)을 0.03장 넘음. 더 줄이려면 07 정식표·08 TOP10 표 접기 등은 설계 회차 몫.
+10. 회차 1 이월 1~11 · 검증 1 이월은 그대로(이번에 손대지 않음 — 11 높이는 위 9 로 관찰값 갱신).
+
+## 마무리 기록(이번 회차)
+- 커밋(경로 지정 add, `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`, 전역 설정 변경 0): `ea2c8ef` apply·config·test_apply·fixture · `32f7be5` validate·mutation·overflow · `eae81ef` compare·test_compare_sections · `9ca1862` deploy·test_deploy · `70a096b` 문서 · 그리고 이 절(기록 커밋 — 해시는 자기 참조라 적지 않는다).
+- 끝 확인(커밋 뒤): `git fetch` → origin/main 확인 · 브랜치 push 1회(`git -c credential.interactive=false push origin feat-20261006-layout`, main 아님) · 스크래치 `git clone -c core.autocrlf=false -b feat-20261006-layout --single-branch` 로 HEAD·md5 대조 — 결과는 채팅 보고(자기 참조).
+- work/ 재료 md5 14개 시작과 같음(`work/materials.md5`, `R2/` 포함) · 배포 PUT 0 · 네이버 0 · 키 파일 0 · 운영 작업 폴더 열기 0 · 회차 1 clone 쓰기 0.
+- 다음 단계([넘길 때]): ④ 첫 검증 `D:\saero-verify` 새 세션 **Fable 5.1 · ultracode**(위 검증용 clone, 운영 폴더·작업 clone·회차 1 clone 읽기만, 판정만·쓰기 0) / 수정 뒤 재검증 새 세션 · 바뀐 것만 · **Fable 5.1 · xhigh** / ⑤ 수정(막음 있을 때만) 새 세션 **Opus 5.5 · xhigh · ultracode 끔** / ⑥ 병합은 ④ 세션에 이어서(갱신 회차가 돌지 않을 때 — last-audit 맨 위는 main 쪽 회차 절을 살림, **그날 아침 데이터 회차 뒤에 병합하고 첫 적용을 바로 붙임**) / 첫 적용 운영 세션 `/saero-run` **Opus 5.5 · high · ultracode 끔** — 아래 본보기.
+
+## 첫 적용 본보기(운영 세션이 그대로 쓴다)
+- **경로 C**(사용자 결정 10 — 모양만 바꾸는 별도 배포 회차): 그날 평일 아침 데이터 회차가 끝난 뒤, 같은 합본으로 2-1 같음 → "다시 계산". 운영 세션 `/saero-run`(Opus 5.5 · high · ultracode 끔), 첫 말 **"회차 2(모양) 첫 적용 — 경로 C — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"**.
+- 흐름: S0 → (수집·ingest 생략 — 아침 회차 합본 그대로) → 4 `deploy.py fetch --out work/prev.html && cp work/prev.html work/index.html`(직전 배포본 = meta 없는 옛 판) → 5a compute → 2-1 같음 → 사용자 "다시 계산" → 3 → 5-0a(pull · propose `--since` 그대로) → ⓐ 해당만 → **5 = `"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json`**(변환 + 값 — 글은 같은 기간이라 그대로, 서술 스크립트 없음) → 6 `scripts/precheck.sh work/index.html work/combined work/prev.html`(기대: validate 24/24 · compare OK 99/DIFF 0 · 3폭(details 열고) · narrative `[주의] 같은 기간` · 도장) → **보류 멈춤**: 작업본 `work/index.html` + 전후 비교 페이지 `"$PY" /d/saero/feat-20261006-layout/work/R1/mk_compare.py --old work/prev.html --new work/index.html --out work/compare_<날짜>.html --online`(본보기 md5 622cb68a — 그때는 밖 요청 허용, 차트까지) 을 사용자에게 보인다 → 사용자 **"배포"** → 7 `deploy.py push --file work/index.html --base work/prev.html --message "레이아웃 판 r2026-10-B 첫 적용" --dry-run`(`[주의] 레이아웃 판이 바뀜`) → **`push … --layout-change`** → `verify --ref <커밋>` → 8 기록.
+- **병합은 그날 아침 데이터 회차 뒤에 하고 첫 적용을 바로 붙인다** — 병합 뒤 첫 적용 전에 데이터 회차가 먼저 돌면 5단계 `apply --layout` 이 모양을 바꾸고 게이트가 PUT 을 막는다: 그때는 PUT 0 으로 멈추고 사용자에게 묻는다(경로 A 는 사용자 결정 없이 쓰지 않는다).
+- 그 다음 회차부터: 직전 배포본이 레이아웃 판(meta 있음) — `apply --layout` 은 변환을 건너뛰고 값·summary 만, 게이트는 조용히 통과(자동 배포 그대로), 서술은 표지 기반(ⓑ).
+
+---
+
 ## 갱신 회차 (2026-10-06 15:02~15:09 KST — Code 탭 `/saero-run`, main 작업 폴더, **리포트 읽기 쉽게 회차 1(글) 첫 적용 · 경로 C**) · **배포 완료 `037aca8`**
 상세 = 아래 "## 2026-10-06 오후 갱신 회차" 절(대조 목록 표 아래). 사용자 첫 말 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함". S0 PASS → 수집·ingest 생략(오전 `cb0a3b1` 합본 그대로 — 2-1 "다시 계산") → 4 fetch(배포본 `f7bc605` = 6aaa2472, 옛 글·표지 0) → compute(2446b7c0 = 리허설 R1 바이트 동일) → 2-1 같음(41일) → 사용자 "경로 C" = "다시 계산" → 3 신규 0 → 5-0a pull(registry 바이트 불변)·propose `--since 2026-10-06`(빈 창, 후보 0) → ⓐ 해당 0(질문 없음) → 5 apply(변경 없음) + `work/n1006c.py`(본보기 wrap_old → 글 → rep_all, 표지 36) → 작업본 **002233ee = 리허설 R1 산출과 바이트 동일** → 6 precheck(validate 23/23 · compare OK 95/DIFF 0 · 넘침 0 · narrative `[주의] 같은 기간` · 도장 full) → **보류**(작업본 사용자 확인) → 사용자 "배포" → 7 dry-run → PUT `037aca8` → `verify --ref` 1회째 일치.
 - **다음 회차**: 새 모양(서술 표지 있음)이 직전 배포본 — 서술은 표지 기반(ⓑ, 본보기 `R2/n1006b.py`)으로 `rep_all`, narrative 가 매회차 24자리 미교체를 막는다. propose `--since 2026-10-06` · `--prev ~/saero-fetch/downloads/2026-10-06`. 10/5 등록분은 10/6부터, 10/6 등록분은 10/7부터 판정.
