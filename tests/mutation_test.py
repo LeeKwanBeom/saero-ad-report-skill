@@ -17,6 +17,8 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   6. 기준 목록의 검사 중 어떤 변조도 겨냥하지 않은 것이 있으면 UNCOVERED로 보고한다
      — 검사가 늘었는데 이 스크립트가 따라가지 못했다는 뜻이다.
   7. (2026-09-26) archive.py: data/ 사본에서 store 거부 2종·combine 검사 5종을 깨뜨려 [FAIL]로 멈추는지 본다.
+  (2026-10-06 회차 2) "레이아웃 판": 변조 2(meta 값 변경 · 03 접기 하나 풀기) + 0건 가드 2(meta 제거 · 접기 전부 풀기 — 옛 모양 복원 흉내)
+     + config 실험(report_layout.layout_id 를 바꾸면 기준 사본이 "레이아웃 판" FAIL — config 를 실제로 읽는지).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -300,6 +302,15 @@ def main():
         muts.append(("12 첫 항목에 잔존 문구 삽입", "잔존 문구", {"html": replace_in_section(H, 12, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
         # (2026-10-06 추가) 07 각주 세 자리 — 변조 1 + 아래 0건 가드 2
         muts.append(("07 각주 ② 문구 변조(제외 검색어: → 제외검색어:)", "07 각주 세 자리", {"html": replace_in_section(H, 7, "제외 검색어:", "제외검색어:")}))
+        # (2026-10-06 회차 2) 레이아웃 판 — 변조 2 + 아래 0건 가드 2 + config 실험
+        lid = cfg["report_layout"]["layout_id"]
+        meta = f'<meta name="report-layout" content="{lid}">'
+        muts.append(("레이아웃 판 meta 값 변경", "레이아웃 판", {"html": H.replace(meta, meta.replace(lid, lid + "-변조"), 1) if meta in H else None}))
+
+        def unfold(text):  # details/summary → 머리글 div(글자·속성 그대로) + 짝 </details> 제거 — 안 내용·앵커 문구는 그대로(옛 모양으로 "복원" 흉내)
+            return re.sub(r"</details>", "", re.sub(r"<details(?:\s[^>]*)?>\s*<summary((?:\s[^>]*)?)>(.*?)</summary>", r"<div\1>\2</div>", text, flags=re.S))
+        s3 = section(H, 3)
+        muts.append(("03 접기 하나 풀기(details → 펼친 표)", "레이아웃 판", {"html": H.replace(s3, unfold(s3), 1) if "<details" in s3 else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -325,10 +336,14 @@ def main():
         guards.append(("0건: 07 ②③ 각주 블록 제거", "07 각주 세 자리", {"html": H.replace(s7, s7.replace(m.group(0), "", 1), 1) if m else None}))
         m = re.search(r"① 경쟁사 판정\(.*?<br>\s*", s7, re.S)
         guards.append(("0건: 07 ① 경쟁사 판정 줄 제거", "07 각주 세 자리", {"html": H.replace(s7, s7.replace(m.group(0), "", 1), 1) if m else None}))
+        # (2026-10-06 회차 2) 레이아웃 판 meta 제거 · 접기 전부 풀기 → "레이아웃 판" FAIL
+        guards.append(("0건: 레이아웃 판 meta 제거", "레이아웃 판", {"html": H.replace(meta + "\n", "", 1).replace(meta, "", 1) if meta in H else None}))
+        guards.append(("0건: 접기 전부 풀기(옛 모양 복원 흉내)", "레이아웃 판", {"html": unfold(H) if "<details" in H else None}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
         c2 = json.loads(cfg_text); c2["chart_min_width"]["date_based_sections"] = date_secs[:1]
+        c3 = json.loads(cfg_text); c3["report_layout"]["layout_id"] = lid + "-config변조"
 
         # --- 실행 ---
         ok = True
@@ -361,6 +376,10 @@ def main():
         print(f"  date_based_sections {date_secs}→{date_secs[:1]}: 검사 {len(checks)}→{n2}개, 사라진 섹션 검사 {gone}"
               + ("" if (n2 == len(checks) - (len(date_secs) - 1) and len(gone) == len(date_secs) - 1) else "  ← MISS"))
         ok &= n2 == len(checks) - (len(date_secs) - 1)
+        rc, passed, failed, err = run(cfg_override=json.dumps(c3, ensure_ascii=False))
+        hit3 = [f for f in failed if "레이아웃 판" in f and c3["report_layout"]["layout_id"] in f]
+        print(f"  report_layout.layout_id {lid}→{c3['report_layout']['layout_id']}: 기준 사본 '레이아웃 판' FAIL {len(hit3)}건" + ("" if hit3 else "  ← MISS"))
+        ok &= bool(hit3)
 
         uncovered = [c for c in checks if c not in covered]
         print(f"\n== 커버리지: 기준 검사 {len(checks)}개 중 변조로 FAIL 확인 {len(covered)}개")
