@@ -72,8 +72,8 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | ⓐ | **승인 묶음 한 번** | (1) 새 경쟁사 · (2) 애매 후보 · (3) 제외 그룹 · (4) 제외 검색어(propose 승인 문구 원문) 중 **해당하는 것만** 한 메시지. (1)~(4)가 모두 0일 때만 묻지 않는다 | 답을 기다린다 |
 | 5-0b | 답 반영 | config(`competitors`·`excluded_groups`)가 바뀌면 → config 커밋(push는 5-0c와 함께) → compute 재실행(경쟁사가 바뀌면 propose도 — **propose를 다시 돌리면 번호·출처 기록이 바뀌니 재승인**) | — |
 | 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(답의 번호를 그대로 `--drop`·`--industry-lines`에 · 호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 FAIL(승인 파일 안 씀) → 승인 목록을 `work/approved_<날짜>_<시분초>.txt`에 쓰고 → POST → verify) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false·요청 결과 모름·pull 뒤 이미 있음) → 재시도는 ⓐ |
-| 5 | 교체 | compute.json 값으로 01~12(12번 먼저, 11번 마지막). 07 각주·11·12번에 **등록 n · verified n · 실패 n**을 사실 그대로 | — |
-| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음) | ⓑ 세션이 고치고 재실행 |
+| 5 | 교체 | `"$PY" scripts/apply.py --html work/index.html --compute work/compute.json`(기계 자리 — 앵커가 하나가 아니면 `[FAIL] apply:` exit 1, 작업본 그대로) → `"$PY" work/n<날짜>.py`(서술 — 저장소 밖 스크래치, 서술 표지마다 `rep('<자리>', 새 문장)` — 자리 이름은 `references/report-structure.md` "서술 표지" 표가 정본, 길이는 같은 문서 "서술 공통 규칙"). 12번 먼저, 11번 마지막. 07 각주 ②·11·12번에 **등록 n · 확인 a/b · 실패 n**(07 ② 형식 `제외 검색어: <M/D> 등록 N개 · 확인 a/b · 실패 n` — exclusion-ui.md 9절)을 사실 그대로 | ⓑ `[FAIL] apply:` |
+| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — validate → compute+compare → overflow → **narrative**(매회차 서술 표지가 직전 배포본과 바이트 같으면 `[FAIL] 서술 미교체 <자리>`) — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음) | ⓑ 세션이 고치고 재실행 |
 | 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run이 통과하고 남은 사람 질문이 없으면 **묻지 않고 바로**(자동 배포 — 4절) 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `배포 완료 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회) | 자동 배포 — 남은 사람 질문이 있거나 사용자가 "보류"라고 했으면 PUT 없이 8 기록하고 끝냄 / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
 | 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
 
@@ -87,6 +87,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 "CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만) →
 6(`--pending` 없이, 3번째 인자 = 이번 4단계 fetch) → 7 → 8.
 (2-1 질문은 ⓐ 묶음에 넣지 않는다 — "다시 계산"·"미룬 등록만"이면 그 뒤에 ⓐ 묶음을 해당하는 것만 한 번 묻는다.)
+2-1 같음 경로(기간이 같다)에서는 6단계 narrative 가 `[주의] 같은 기간 — 대조 생략` exit 0 으로 지나간다(같은 데이터라 서술이 같아도 정상) — 서술은 사람이 그 회차 사실로 다시 쓴다.
 
 **예외 "등록은 나중에"**(사용자가 그렇게 말할 때만): 07·11·12번에 "제안함 — 등록은 사용자 결정으로 다음에"처럼 사실형 문구로 배포하고
 `--pending`은 쓰지 않는다. 8단계 기록에 `propose 창 lo~hi · 등록 미룸(사용자): 예`를 남긴다. 미룬 이름은 **다음 회차**(새 데이터)의 propose를
@@ -100,6 +101,10 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 **배포는 묻지 않는다(자동 배포 — 사용자 결정 2026-09-30 "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 위 ⓐ 질문에 모두 답을 받아 남은 것이 없고 6단계 precheck·7단계 dry-run이 통과하면 바로 실제 push → `verify --ref`.
 남은 질문이 있으면(되묻기·등록 exit 1 재시도 등) 그 답 뒤로 미루고, 사용자가 그 회차에 "보류"·"오늘 배포 안 함"이라고 했으면 PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup에 `배포: 보류(사용자 답 "<원문>")`).
 검사 FAIL은 아래 ⓑ 그대로 — PUT 0으로 멈춘다. (옛 규칙 "배포할까요? — 배포 / 보류" 고정 질문(2026-09-29)은 이 결정으로 대체.)
+**보류 뒤 같은 세션 재개 = 7단계부터**(2026-10-06): "보류"로 6단계 도장까지 하고 멈춘 뒤 같은 세션에서 사용자가 "배포"라고 하면 7단계(dry-run → push → verify)부터 —
+작업본·직전 배포본이 그대로면 도장이 유효하다(deploy.py 가 도장 md5 = `--file`·`--base` 를 대조). 둘 중 하나라도 바뀌었으면 6단계부터.
+리포트 글·모양을 바꾸는 기능의 **첫 적용 회차**(예: 글 줄이기 회차 1 — 경로 C "다시 계산", 직전 배포본에 서술 표지 없음)는 사용자가 첫 말에
+"보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"이라고 하고, 세션은 도장 뒤 작업본(`work/index.html`)을 사용자가 열어 보게 한 다음 "배포" 답에서 7단계로 간다.
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**
 
