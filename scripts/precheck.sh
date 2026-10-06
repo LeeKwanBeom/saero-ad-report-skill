@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 6단계 한 번에: validate(검산) → compute+compare(배포 전 차이 0) → overflow(3폭). 하나라도 실패하면 exit 1.
+# 6단계 한 번에: validate(검산) → compute+compare(배포 전 차이 0) → overflow(3폭) → narrative(서술 미교체, 2026-10-06). 하나라도 실패하면 exit 1.
 # 사용법: PY=<venv 파이썬> scripts/precheck.sh <작업중 index.html> <합본폴더> <직전 배포본 index.html> [--pending]
 #   <직전 배포본>은 4단계 deploy.py fetch가 저장한 파일(work/prev.html) — 07 경쟁사표의 정본으로 compute에 넘긴다.
 #   작업본을 넣으면 작업본의 표가 정본이 돼 검사가 무력화되므로(2026-09-27 검증 (c)) md5가 같으면 멈춘다.
@@ -31,6 +31,7 @@ echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML
 echo "== compute(직전 배포본 $PREV 경쟁사표 기준) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" -o "$J"
 run "$PY" "$ROOT/scripts/compare.py" "$HTML" "$J"
 echo "== overflow"; "$PY" "$ROOT/tests/overflow_check.py" "$HTML"
+echo "== narrative(서술 미교체)"; run "$PY" "$ROOT/scripts/narrative_check.py" "$HTML" "$PREV"
 M1="$(md5sum < "$HTML" | cut -c1-32)"
 if [ "$M1" != "$M0" ]; then echo "[FAIL] 작업본이 precheck 도중 바뀜(시작 md5 ${M0:0:8} ≠ 끝 ${M1:0:8}) — 도장 안 씀, precheck를 다시"; exit 1; fi
 printf '%s  %s\n%s  %s\nmode %s\n' "$M0" "$(basename "$HTML")" "$P0" "$(basename "$PREV")" "$MODE" > "$STAMP"

@@ -298,7 +298,7 @@ PYWRAP = r"""#!/bin/sh
 case "$1" in
   *compute.py) if [ "$T_COMPUTE" = fail ]; then echo "compute 실패(시험 래퍼)" >&2; exit 1; fi
                if [ -n "$T_EDIT" ]; then printf 'x' >> "$T_EDIT"; fi; echo "compute 통과(시험 래퍼)"; exit 0 ;;
-  *validate.py|*compare.py|*overflow_check.py) printf '%s\n' "가짜 1" "가짜 2" "${1##*/} 통과(시험 래퍼)"; exit 0 ;;
+  *validate.py|*compare.py|*overflow_check.py|*narrative_check.py) printf '%s\n' "가짜 1" "가짜 2" "${1##*/} 통과(시험 래퍼)"; exit 0 ;;
 esac
 exec "{py}" "$@"
 """

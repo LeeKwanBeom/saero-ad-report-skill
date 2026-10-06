@@ -42,6 +42,11 @@
     "성북구"
   ],
   "ctr_high_threshold": 4.0,
+  "competitor_defaults": {
+    "_comment": "scripts/apply.py — 07 경쟁사표에 직전 배포본에 없던 신규 변형 행(compute 신규변형후보)을 넣을 때 소재구·매칭 칸 기본값(2026-10-06 저장소화 전 apply.py 의 고정값). 다른 값이면 사람이 행을 고친다.",
+    "district": "노원구",
+    "match": "확장"
+  },
   "chart_min_width": {
     "per_day_px": 80,
     "floor_px": 650,

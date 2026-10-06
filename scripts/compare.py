@@ -8,6 +8,10 @@
   HTML의 동률 순서는 직전 순서 유지가 정본이고 compute.py 출력의 동률 순서(클릭1건 2차 키 총비용↓ 등)는 참고다.
 - 잔존 문구(확인 요청 등)는 여기서 보지 않는다 — validate.py 검사 21(`--pending`)이 유일한 자리.
 - 마크업이 바뀌어 항목을 못 찾으면 [DIFF]로 나온다(조용히 통과하지 않음). 종료 코드 1 = 차이 있음.
+- (2026-10-06) 구역별 try — 한 구역(masthead·KPI, 01~10, 11·12)에서 파싱이 실패하면 그 구역만 `파싱 실패 [구역]` [DIFF]로
+  남기고 다음 구역을 계속 대조한다(옛 판은 첫 실패 뒤 나머지 항목을 전부 생략 — 01 해석 문단 삭제 프로브가 OK 17에서 멈춤).
+  10번 나열 항목은 "최근 7일 노출은 …회, 클릭은 …건(M/D~M/D)" + "9/6 이후 N일 하루 평균 N건(N일 평균 N건)"으로 바뀜
+  (항목 수 95 그대로 — 9/6 이후 나열 2항목·일수 1항목 → 최근 7일 2항목·일수/평균 1항목).
 """
 import json
 import re
@@ -44,16 +48,16 @@ def grp(pat, s, flags=0):
     m = re.search(pat, s, flags)
     if not m: raise ValueError(pat)
     return m
-try:
-    # ---- masthead · og · KPI
+def _kpi():  # masthead·KPI
     cmp("masthead", grp(r"집계 기간<b>([^<]+)</b>", html).group(1).strip(), R["masthead"])
     cmp("og:description", grp(r'og:description" content="([^"]+)"', html).group(1), R["og"])
-    kpi = dict(re.findall(r'<div class="label">([^<]+)</div>\s*<div class="value">([^<]+)<span', html)); sub = re.findall(r'<div class="sub">([^<]+)</div>', html)
+    kpi = S["kpi"] = dict(re.findall(r'<div class="label">([^<]+)</div>\s*<div class="value">([^<]+)<span', html)); sub = re.findall(r'<div class="sub">([^<]+)</div>', html)
     cmp("KPI 노출", num(kpi["총 노출수"]), R["KPI"]["노출"]); cmp("KPI 클릭", num(kpi["총 클릭수"]), R["KPI"]["클릭"])
     cmp("KPI CTR", float(kpi["평균 클릭률"]), R["KPI"]["CTR"]); cmp("KPI 광고비", num(kpi["총 광고비"]), R["KPI"]["광고비"])
     cmp("KPI sub 일평균노출", float(grp(r"([\d.]+)회", sub[0]).group(1)), R["KPI"]["일평균노출"]); cmp("KPI sub 일평균클릭", float(grp(r"([\d.]+)회", sub[1]).group(1)), R["KPI"]["일평균클릭"])
     cmp("KPI sub 클릭당", num(grp(r"([\d,]+)원", sub[3]).group(1)), R["KPI"]["클릭당"])
-    # ---- 01
+
+def _s01():  # 01
     s1 = sec(1)
     cmp("01 dailyChart 노출", chart_data("dailyChart", "노출수"), R["01"]["노출"]); cmp("01 dailyChart 총비용", chart_data("dailyChart", "총비용\\(원\\)"), R["01"]["총비용"])
     lbl = re.findall(r"labels:\s*\[((?:'\d+/\d+\(.\)',?)+)\]", html)
@@ -71,22 +75,27 @@ try:
     cmp("01 상향전 평균", [num(m.group(4)), float(m.group(5)), num(m.group(6))], [R["01"]["상향전"]["광고비"], R["01"]["상향전"]["클릭"], R["01"]["상향전"]["CPC"]])
     cmp("01 누적 가중순위", float(grp(r"누적 가중평균은 [\d.]+ → ([\d.]+)위", s1).group(1)), R["01"]["플레이스누적가중순위"])
     cmp("01 콘텐츠 누적 노출", num(grp(r"콘텐츠 노출 ([\d,]+)회", s1).group(1)), R["01"]["콘텐츠누적노출"])
-    # ---- 02
+
+def _s02():  # 02
     cmp("02 desc 플레이스 비중", float(grp(r"예산의 ([\d.]+)%", sec(2)).group(1)), R["02"]["플레이스비중"])
     cmp("02 groupChart 노출", chart_data("groupChart", "노출수"), R["02"]["groupChart"]["노출"]); cmp("02 groupChart 클릭", chart_data("groupChart", "클릭수"), R["02"]["groupChart"]["클릭"])
     cmp("02 costPie", chart_data("costPie"), R["02"]["costPie"])
-    # ---- 03
+
+def _s03():  # 03
     r3 = rows(sec(3)); body = [r for r in r3 if r[0] != "합계"]; tot = [r for r in r3 if r[0] == "합계"][0]
     def p3(r): return [num(r[1]), num(r[2]), None if r[3] == "–" else num(r[3])], [num(r[4]), num(r[5]), None if r[6] == "–" else num(r[6])], num(r[7])
     cmp("03 일별 표 전체 행", [{"날짜": r[0], "플레이스": p3(r)[0], "파워링크": p3(r)[1], "합계": p3(r)[2]} for r in body], R["03"]["rows"])
     cmp("03 합계 행", {"플레이스": p3(tot)[0], "파워링크": p3(tot)[1], "총": p3(tot)[2]}, R["03"]["합계"])
     cmp("03 desc 최고일", grp(r"최고치 (\S+) ([\d,]+)원", sec(3)).groups(), (R["03"]["최고일"], f"{R['03']['최고액']:,}"))
-    # ---- 04
+
+def _s04():  # 04
     got4 = [{"유형": r[0].replace(" 광고", ""), "그룹": re.split(r"\s*\(", r[1])[0].strip(), "노출": num(r[2]), "클릭": num(r[3]), "CTR": float(r[4].rstrip("%")),
              "총비용": num(r[5]), "CPC": num(r[6]), "순위": None if r[8] == "—" else float(r[8].rstrip("위")), "비중": float(r[7].rstrip("%"))} for r in rows(sec(4))]
+    S["got4"] = got4
     cmp("04 표", got4, R["04"]["rows"]); cmp("04 CPC 격차 desc", float(grp(r"→ ([\d.]+)배", sec(4)).group(1)), R["04"]["CPC격차"])
     cmp("04 파워링크 비중", float(grp(r"비중은 [\d.]+ → ([\d.]+)%", sec(4)).group(1)), R["04"]["파워링크비중"])
-    # ---- 05
+
+def _s05():  # 05
     blk5 = html[html.find("getElementById('mediaChart')"):]
     lab5 = [re.sub(r"[\[\]']", "", x).replace(",", " ").strip() for x in re.findall(r"\[[^\]]*\]", grp(r"labels:\s*\[(.*?)\],\n", blk5, re.S).group(1))]
     norm = lambda m: m.replace(" - ", " ").replace("-", " ")
@@ -94,7 +103,8 @@ try:
     col5 = grp(r"backgroundColor:\s*\[([^\]]*)\]", blk5).group(1).replace(" ", "").split(",")
     cmp("05 mediaChart 색", col5, ["mint" if t["유형"] == "플레이스" else "ink" for t in R["05"]["top5"]])
     cmp("05 deviceChart", chart_data("deviceChart"), R["05"]["device"]); cmp("05 desc 모바일 비중", float(grp(r"모바일이 노출의 ([\d.]+)%", sec(5)).group(1)), R["05"]["모바일비중"])
-    # ---- 06
+
+def _s06():  # 06
     s6 = sec(6); cmp("06 rankChart", chart_data("rankChart", "평균노출순위"), R["06"]["rankChart"]); cmp("06 min-width", int(grp(r"min-width:\s*(\d+)px", s6).group(1)), R["minwidth"])
     cmp("06 desc 노원역 순위", float(grp(r"평균 ([\d.]+)위", s6).group(1)), R["06"]["노원역순위"])
     r6 = rows(s6); cmp("06 직접 등록", {"노출": num(r6[0][1]), "클릭": num(r6[0][2]), "순위": float(r6[0][3].rstrip("위")), "총비용": num(r6[0][4])}, R["06"]["직접"])
@@ -102,8 +112,9 @@ try:
     cmp("06 마지막날 직접/자동", [int(x) for x in grp(r"직접 (\d+)·자동 (\d+)회", s6).groups()], [R["06"]["마지막날"]["직접"], R["06"]["마지막날"]["자동"]])
     cards = re.findall(r'color:var\(--ink-soft\);">(\S+) <span style="color:var\(--mint-dark\);font-weight:700;">\(([\d/]+) 등록, (\d+)일차\)</span></div>.*?font-weight:800;color:var\(--mint-dark\);">([\d.]+)위', s6, re.S)
     cmp("06 카드(그룹·등록일·일차·큰숫자)", {c[0]: {"순위": float(c[3]), "등록일": c[1], "일차": int(c[2])} for c in cards}, R["06"]["카드"])
-    cmp("06 카드 큰 숫자 = 04 셀", {c[0]: float(c[3]) for c in cards}, {r["그룹"]: r["순위"] for r in got4 if r["그룹"] in {c[0] for c in cards}})
-    # ---- 07
+    cmp("06 카드 큰 숫자 = 04 셀", {c[0]: float(c[3]) for c in cards}, {r["그룹"]: r["순위"] for r in S["got4"] if r["그룹"] in {c[0] for c in cards}})
+
+def _s07():  # 07
     s7 = sec(7); main_html = s7[:s7.find("클릭 1건 검색어")]
     m7 = re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td><span class="tag[^>]*>([^<]*)</span></td>\s*<td class="num">([\d,]+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num( ctr-high)?">([\d.]+)%</td>\s*<td class="num">([\d,]+)원</td>\s*<td class="num">([\d,]+)원</td>', main_html)
     got7 = [{"검색어": a, "매칭": b, "노출": num(c), "클릭": num(d), "CTR": float(f), "hl": bool(e), "CPC": num(g), "총비용": num(h)} for a, b, c, d, e, f, g, h in m7]
@@ -128,9 +139,10 @@ try:
     cmp("07 경쟁사표(집합)", sorted(gc, key=lambda x: x["검색어"]), sorted(R["07"]["경쟁사표"], key=lambda x: x["검색어"]))
     cmp("07 경쟁사표 정렬(노출↓, 동률 클릭↓, 그 안은 직전 순서)", [(x["노출"], x["클릭"]) for x in gc] == sorted([(x["노출"], x["클릭"]) for x in gc], reverse=True), True)
     cmp("07 desc 상위2 비중", int(grp(r"클릭의 (\d+)% 차지", s7).group(1)), R["07"]["상위2비중"])
-    cmp("07 클릭 합계(정식+1건+경쟁사)", num(kpi["총 클릭수"]), R["07"]["정식표클릭합"] + R["07"]["클릭1합"] + R["07"]["경쟁사클릭합"])
+    cmp("07 클릭 합계(정식+1건+경쟁사)", num(S["kpi"]["총 클릭수"]), R["07"]["정식표클릭합"] + R["07"]["클릭1합"] + R["07"]["경쟁사클릭합"])
     print("      config 경쟁사명을 포함하는데 직전 표에 없는 검색어(신규 변형 후보):", R["07"]["신규변형후보"])
-    # ---- 08
+
+def _s08():  # 08
     s8 = sec(8)
     cmp("08 TOP10", [{"지역": r[0], "노출": num(r[1]), "클릭": num(r[2]), "총비용": num(r[3])} for r in rows(s8)], R["08"]["top10"])
     m = grp(r"\((\d+)개 지역·클릭 (\d+)건\)", s8); cmp("08 컴팩트 개수·클릭", [int(m.group(1)), int(m.group(2))], [R["08"]["컴팩트수"], R["08"]["컴팩트클릭"]])
@@ -152,7 +164,8 @@ try:
     cmp("08 타겟 밖 서울", {"노출": num(m.group(1)), "클릭": int(m.group(2)), "CTR": float(m.group(3))}, R["08"]["타겟밖서울"]); cmp("08 타겟 CTR", float(m.group(4)), R["08"]["타겟"]["CTR"])
     cmp("08 서울·경기 밖 비용%", float(grp(r"비용 비중 5%는 [\d.]+ → ([\d.]+)%", s8).group(1)), R["08"]["서울경기밖비용%"])
     m = grp(r"11위 (\S+)는 .*?(\d+)회·(\d+)건이 돼", s8); cmp("08 11위", {"지역": m.group(1), "노출": int(m.group(2))}, {"지역": short(R["08"]["11위"]["지역"]), "노출": R["08"]["11위"]["노출"]})
-    # ---- 09
+
+def _s09():  # 09
     s9 = sec(9); cmp("09 hourlyChart 노출", chart_data("hourlyChart", "노출수"), R["09"]["노출"]); cmp("09 hourlyChart 클릭", chart_data("hourlyChart", "클릭수"), R["09"]["클릭"])
     m = grp(r"심야\(22시~09시\)에도 노출 ([\d,]+)회·클릭 (\d+)회\(전체 클릭의 (\d+)%\)·비용 ([\d,]+)원 발생. 노출 비중은 (\d+)%, 클릭 비중은 (\d+)%", s9)
     cmp("09 심야 콜아웃", {"노출": num(m.group(1)), "클릭": int(m.group(2)), "비용": num(m.group(4)), "노출%": int(m.group(5)), "클릭%": int(m.group(6))}, R["09"]["심야"]); cmp("09 심야 클릭% (괄호)", int(m.group(3)), R["09"]["심야"]["클릭%"])
@@ -160,22 +173,35 @@ try:
     m = grp(r"2위는 (\d+)시 (\d+)회", s9); cmp("09 2위", {"시": int(m.group(1)), "클릭": int(m.group(2))}, {k: R["09"]["2위"][k] for k in ("시", "클릭")}); print("      09 2위 동률:", R["09"]["2위"]["동률"])
     cmp("09 desc 최다", [int(x) for x in grp(r"(\d+)시대 클릭 최다\((\d+)회", s9).groups()], [R["09"]["최다"]["시"], R["09"]["최다"]["클릭"]])
     m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", s9); cmp("09 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3))}, R["09"]["각주"])
-    # ---- 10
+
+def _s10():  # 10
     s10 = sec(10)
     cmp("10 A/B/C/D 표", [[num(r[2]), num(r[3]), num(r[4])] for r in rows(s10)], [R["10"]["A"], R["10"]["B"], R["10"]["C"], R["10"]["D"]])
     cmp("10 placementChart 노출", chart_data("placementChart", "노출수"), R["10"]["placement"]["노출"]); cmp("10 placementChart 클릭", chart_data("placementChart", "클릭수"), R["10"]["placement"]["클릭"])
-    m = grp(r"(\d+)일간 노출은 (.*?)회, 클릭은 (.*?)건으로 하루 평균 ([\d.]+)건", s10)
-    cmp("10 9/6이후 노출 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(2)).split("·")], R["10"]["9/6이후노출"]); cmp("10 9/6이후 클릭 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(3)).split("·")], R["10"]["9/6이후클릭"])
-    cmp("10 일수·하루평균클릭", [int(m.group(1)), float(m.group(4))], [R["10"]["9/6이후일수"], R["10"]["9/6이후하루평균클릭"]])
+    m = grp(r"최근 7일 노출은 (.*?)회, 클릭은 (.*?)건\(([\d/]+~[\d/]+)\)", s10)  # 2026-10-06: 9/6 이후 전부 나열 → 최근 7일 + 평균
+    cmp("10 최근7일 노출 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(1)).split("·")], R["10"]["최근7일노출"])
+    cmp("10 최근7일 클릭 나열·기간", [[int(x) for x in re.sub(r"<wbr>", "", m.group(2)).split("·")], m.group(3)], [R["10"]["최근7일클릭"], R["10"]["최근7일"]])
+    m = grp(r"9/6 이후 (\d+)일 하루 평균 ([\d.]+)건\((\d+)일 평균 ([\d.]+)건\)", s10)
+    cmp("10 9/6이후 일수·하루평균클릭(전체 평균 포함)", [int(m.group(1)), float(m.group(2)), int(m.group(3)), float(m.group(4))],
+        [R["10"]["9/6이후일수"], R["10"]["9/6이후하루평균클릭"], R["nlabels"], R["KPI"]["일평균클릭"]])
     cmp("10 desc 콘텐츠 N일 연속 0·클릭 A", [int(x) for x in grp(r"콘텐츠 지면 (\d+)일 연속 0회 — 클릭 (\d+)건 중 (\d+)건", s10).groups()], [R["10"]["9/6이후일수"], R["KPI"]["클릭"], R["10"]["A"][1]])
     cmp("10 파트너 마지막날", int(grp(r"— \d+/\d+는 (\d+)회", s10).group(1)), R["10"]["파트너마지막날"]); print("      10 B 분해:", R["10"]["B분해"])
-    # ---- 11·12 수동 검사(validate.py 20·21과 같은 규칙)
+
+def _s11():  # 11·12
     s11, s12 = sec(11), sec(12); li = re.findall(r"<li>(.*?)</li>", s11, re.S)
     cmp("11 항목 수(본문 ≤8, 참고 ≤2)", [len([x for x in li if "(참고)" not in x[:30]]) <= 8, len([x for x in li if "(참고)" in x[:30]]) <= 2], [True, True])
     for w in ["필요", "시점", "할 것", "검토", "주째"]: cmp(f"11·12 금칙어 '{w}'", len(re.findall(w, re.sub(r"<[^>]+>", "", s11 + s12))), 0)
     cmp("11 판정 줄 유지+뒤집힘+소멸 = 직전 항목 수", (lambda m: int(m.group(2)) + int(m.group(3)) + int(m.group(4)) == int(m.group(1)))(grp(r"지난 회차 11번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)), True)
-except (ValueError, IndexError, KeyError) as e:
-    diffs.append(f"파싱 실패 {e}"); print(f"  [DIFF] 파싱 실패 — 마크업이 바뀌었으면 compare.py를 고칠 것: {e}")
+
+
+S = {}  # 구역 사이에 넘기는 값(kpi → 07 · got4 → 06). 앞 구역이 실패해 없으면 뒤 구역의 그 항목이 KeyError → 그 구역 [DIFF]
+SECTIONS = [("masthead·KPI", _kpi), ("01", _s01), ("02", _s02), ("03", _s03), ("04", _s04), ("05", _s05), ("06", _s06),
+            ("07", _s07), ("08", _s08), ("09", _s09), ("10", _s10), ("11·12", _s11)]
+for _label, _fn in SECTIONS:  # 구역별 try — 한 구역의 첫 파싱 실패가 다른 구역 항목을 생략시키지 않는다(2026-10-06, 탐색 프로브 r9: OK 17에서 멈춤)
+    try:
+        _fn()
+    except Exception as e:  # noqa: BLE001 — 어떤 실패든 그 구역만 [DIFF]로 남기고 다음 구역으로
+        diffs.append(f"파싱 실패 [{_label}] {type(e).__name__}: {e}"); print(f"  [DIFF] 파싱 실패 [{_label}] — 마크업이 바뀌었으면 compare.py를 고칠 것: {type(e).__name__}: {e}")
 print(f"\n== 대조 결과: OK {n_ok} / DIFF {len(diffs)}")
 for d in diffs: print("   DIFF:", d)
 sys.exit(1 if diffs else 0)

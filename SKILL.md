@@ -255,12 +255,21 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 결정된 항목을 11번이 "미반영"으로 서술하는 모순을 막기 위해서다(11번·12번
 "작성 기준" 참고).
 
+교체는 두 단계(2026-10-06 — E2 저장소화 · 서술 표지):
+```bash
+"$PY" scripts/apply.py --html work/index.html --compute work/compute.json   # 기계 자리(KPI·표·목록·차트·masthead·og) — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
+"$PY" work/n<날짜>.py                                                         # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
+```
+서술 자리 이름·종류(매회차/고정)·compare 가 읽는 문구는 `references/report-structure.md` "서술 표지" 표가 정본이고, 글 길이는 같은 문서 "서술 공통 규칙"과
+각 절 "길이" 줄(숫자 한 줄 + 결론 한 줄 · 날짜 박힌 판정·등록 이력은 리포트에서 빼고 정본 표에). 매회차 표지를 빠뜨리면 6단계 narrative 가 `[FAIL] 서술 미교체`로 멈춘다.
+직전 배포본에 표지가 없는 첫 적용 회차만 n<날짜>.py 가 표지를 먼저 넣는다(같은 표 아래 문단).
+
 날짜·기간이 들어간 텍스트도 함께 갱신한다(아래 "매번 함께 바꿔야 할 텍스트").
 
 ### 6단계. 검증
 
 한 번에: `scripts/precheck.sh work/index.html work/combined work/prev.html [--pending]`(환경 변수 `PY` = venv 파이썬)
-— 아래 셋을 순서대로, 하나라도 실패하면 멈춘다. validate·compare는 통과면 끝 3줄(요약 `검사 N개: PASS … / FAIL 0` 포함), 실패면 전체 출력을 보인다.
+— 아래 넷을 순서대로, 하나라도 실패하면 멈춘다. validate·compare는 통과면 끝 3줄(요약 `검사 N개: PASS … / FAIL 0` 포함), 실패면 전체 출력을 보인다.
 compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
 같으면 "[FAIL] 직전 배포본이 작업본과 같다 — …"로 exit 1. `--pending`은 validate에만 넘어간다. 전부 통과하면 작업본 옆에
 도장 `work/precheck_ok.md5`(1줄 작업본 md5 · 2줄 직전 배포본 md5 · 3줄 `mode full|pending`)를 쓴다 — 7단계 실제 push는 작업본 md5 = `--file`·
@@ -278,6 +287,9 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
    (2026-09-27 기준 95항목: 표·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어. 09-26의 99에서 잔존 문구 5항목을
    validate 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눔). 경쟁사표 정본은 3번째 인자의 직전 배포본.
 3. `"$PY" tests/overflow_check.py <작업중인 index.html>` — 360·390·430px 가로 넘침 0(css-and-layout.md 버그 기록 10). file:// 밖 요청은 막고 잰다(Chart.js 미로드 — checklist [의도된 동작] 17).
+4. (2026-10-06) `"$PY" scripts/narrative_check.py <작업중인 index.html> <직전 배포본>` — 매회차 서술 표지 블록이 직전 배포본과 바이트가 같으면
+   `[FAIL] 서술 미교체 <자리>`(compare 가 숫자를 읽지 않는 서술이 지난 회차 그대로 배포되는 것 — 10/6 01 머리글 유형). 같은 기간(2-1 같음)·직전 배포본에 표지 없음(첫 적용)은
+   `[주의]`로 생략, 작업본 표지 0 은 FAIL(references/report-structure.md "서술 표지").
 
 하나라도 실패하면 배포하지 말고 원인을 찾아 고친 뒤 다시 실행한다.
 
@@ -479,14 +491,14 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
    대상 섹션은 config `date_based_sections`)
 5. 09번 심야(22시~09시) 노출·클릭·비용 콜아웃
 6. 11번 핵심요약의 날짜 언급 문장
-7. 01번 인사이트 박스 (표 + 해석 문장 전체)
+7. 01번 인사이트 박스 (① 표 · ② 순위 5칸과 각주 · ③ 해석 — 박스 머리글 줄은 두지 않는다, 2026-10-06)
 8. 08·09번의 "KPI와 N회 차이" 각주
 9. 04번 "예산 비중" 컬럼 (총비용 ÷ 전체 광고비, 합이 100%인지 검산)
 
 ## 배포 전 검산
 
-`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-09-26 기준 22개,
-config `date_based_sections`에 따라 늘고 준다):
+`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 기준 23개,
+config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부른다):
 
 - HTML 태그 짝 (div/table/tr/td/th/span/script 등)
 - KPI 총클릭수 = 07번 정식표 + 클릭1건 목록 + 경쟁사표 합계
@@ -514,6 +526,12 @@ config `date_based_sections`에 따라 늘고 준다):
 - (2026-09-26 추가) 11·12번 본문 금칙어(`필요`·`시점`·`할 것`·`검토`·`주째`) 0건 / (09-27 범위 확장) 07번 각주(`class="note"`)·
   11·12번 본문 잔존 문구(`확인 요청`·`판단 요청`·`기다림`·`확인 중`·`대기`) 0건 — 후자는 `--pending`(사용자 답 대기 배포)일 때만 허용,
   잔존 문구를 보는 유일한 검사(compare.py에는 없음)
+- (2026-10-06 추가) **"07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)"** — 07번 `class="note"` 전부를 이어 붙인 글에 ① `경쟁사 판정(` ·
+  ② `제외 검색어: … 등록 N개 · 확인 a/b · 실패 n` · ③ `클릭 0인 검색어 전체는 N개·노출 N회` 셋 다 있고, ②의 b = 등록 수 × config `exclusions.targets` 수, a ≤ b,
+  클릭 0 목록 항목 ≥ 1. 하나라도 없으면 FAIL(글을 줄인 뒤 각주 자리가 빠지거나 옛 형식으로 돌아가는 것). HTML 태그 짝 검사에 `details`·`summary` 포함(회차 2 선반영)
+
+그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(95항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 구역별로 따로 파싱해
+한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py · narrative_check.py(서술 미교체). compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1.
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.
@@ -521,7 +539,8 @@ config `date_based_sections`에 따라 늘고 준다):
 위 목록 중 "매번 함께 바꿔야 할 텍스트" 1·3·4·8·9번은 validate.py 자동 검사 대상이고
 (3·4번은 min-width와 라벨 개수까지), 2(og:description)·5(09번 심야 콜아웃 숫자)·7(01번 인사이트 표·순위 5칸·해석 숫자)과
 3·4번의 라벨 문자열은 `scripts/compare.py`가 compute.py 출력과 대조한다. 남은 순수 수동 항목은
-6(11번 날짜 문장)과 **문장이 여전히 사실인지**(서술 검증)뿐이다. report-structure.md 11번 수동 검사 6개 중
+6(11번 날짜 문장)과 **문장이 여전히 사실인지**(서술 검증)뿐이다. 서술이 지난 회차 그대로 남았는지(교체 누락)는 2026-10-06부터
+narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 사람). report-structure.md 11번 수동 검사 6개 중
 4개(항목 수·판정 줄·금칙어·12번 모순의 잔존 문구)는 validate.py 검사가 됐다.
 
 마지막 항목이 중요한 이유: 표를 클릭수 내림차순으로 재정렬할 때 조건부 스타일이
@@ -553,9 +572,13 @@ config `date_based_sections`에 따라 늘고 준다):
   미로그인 exit 1 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ = HEAD·추적 안 된 파일 0·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
-  `scripts/compute.py`(5단계 값) · `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/precheck.sh`(6단계 한 번에) ·
+  `scripts/compute.py`(5단계 값) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL) ·
+  `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/narrative_check.py`(6단계 서술 미교체) · `scripts/precheck.sh`(6단계 한 번에) ·
   `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>` — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존) · `tests/overflow_check.py`(360/390/430px 넘침, file:// 밖 요청 차단) ·
+  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 멱등·앵커·행 수·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
+  `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구) ·
+  `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
   `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·필드 없음·token 파일 인코딩·
   precheck 도장(직전 배포본·모드)·PUT 본문 = 도장 바이트·PUT 409/403·PUT 결과 모름·이미 반영 exit 0·`***` 가림·인자 오류 GET 0(exit 2)·토큰 모양) — 정기 점검 때.
