@@ -45,6 +45,10 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  23. (2026-10-06 추가) "레이아웃 판" — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`,
      `<details` 수 = config `report_layout.markers.details`, details 마다 바로 안에 summary(짝 — summary 수 = details 수).
      meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것을 막는다 — 기능 추가 회차 2, 사용자 결정 2026-10-06).
+     (판 C, 2026-10-06 01 차트 회차 1) 같은 검사 안에서: 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 각 정확히 1(합 = `markers.mobile_branch`) ·
+     `matchMedia(` 는 `matchMedia('(max-width: ' + M.maxPx + 'px)')` 꼴 정확히 1건 · 분기 도우미 M 줄(`var M = {maxPx: …};`) 정확히 1건이고
+     값 = config `report_layout.mobile`(max_px · print_max_height_px · row_px · pad_px) · 배포본 CSS `@media (max-width: Npx){` 정확히 1건이고 N = max_px
+     (JS 분기 경계 = CSS 경계). 하나라도 0건·불일치면 FAIL(이름·검사 수는 그대로).
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -84,7 +88,7 @@ RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style", "details", "summary"]  # details·summary: 2026-10-06(접기 모양 회차 2 선반영)
 N_TARGETS = len(CFG["exclusions"]["targets"])  # 07 각주 ② 확인 a/b 의 b = 등록 수 × 대상 그룹 수
-LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2) — layout_id · markers.details
+LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2 · 판 C 01 차트 회차 1) — layout_id · markers.details·mobile_branch · mobile
 
 results = []
 
@@ -371,7 +375,7 @@ def check_07_footnotes(s7):
 
 
 def check_layout(html):
-    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝). 0건이면 FAIL."""
+    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계). 0건이면 FAIL."""
     name = "레이아웃 판(meta report-layout = config · 접기 details 수·짝)"
     metas = re.findall(r'<meta name="report-layout" content="([^"]*)">', html)
     n_det = len(re.findall(r"<details(?:\s[^>]*)?>", html))
@@ -385,7 +389,22 @@ def check_layout(html):
     if n_det == 0: bad.append("details 0건 — 접기가 없어짐")
     elif n_det != want: bad.append(f"details {n_det}개 ≠ config {want}")
     if n_sum != n_det or n_pair != n_det: bad.append(f"details/summary 짝 어긋남(details {n_det} · summary {n_sum} · 바로 안 summary {n_pair})")
-    check(name, not bad, "; ".join(bad) if bad else f"{metas[0]} · details {n_det}개 · summary 짝 {n_pair}")
+    # 판 C(2026-10-06 — 01·06 모바일 가로 막대): 분기 표지 주석 01·06 각 1(합 = markers.mobile_branch) · matchMedia 는 M.maxPx 꼴 하나뿐 ·
+    # 분기 도우미 M 줄 하나 = config mobile · 배포본 CSS 모바일 경계 @media (max-width: Npx) 하나 = config max_px(JS 경계 = CSS 경계)
+    mob, want_br = LAYOUT["mobile"], int(LAYOUT["markers"]["mobile_branch"])
+    n01, n06 = (len(re.findall(rf"/\* saero:mobile-branch {k} \*/", html)) for k in ("01", "06"))
+    if n01 != 1 or n06 != 1 or n01 + n06 != want_br: bad.append(f"분기 표지 01 {n01}개 · 06 {n06}개(합 {n01 + n06}) ≠ config {want_br}(각 1)")
+    n_mm = len(re.findall(r"matchMedia\(", html))
+    n_mm_ok = len(re.findall(r"matchMedia\('\(max-width: ' \+ M\.maxPx \+ 'px\)'\)", html))
+    if n_mm != 1 or n_mm_ok != 1: bad.append(f"matchMedia {n_mm}건(그중 M.maxPx 꼴 {n_mm_ok}) ≠ 1")
+    ml = re.findall(r'var M = \{maxPx: (\d+), printMaxH: (\d+), row: \{"01": (\d+), "06": (\d+)\}, pad: \{"01": (\d+), "06": (\d+)\}\};', html)
+    want_m = (int(mob["max_px"]), int(mob["print_max_height_px"]), int(mob["row_px"]["01"]), int(mob["row_px"]["06"]), int(mob["pad_px"]["01"]), int(mob["pad_px"]["06"]))
+    if len(ml) != 1: bad.append(f"M 줄(var M = {{maxPx…}}) {len(ml)}건 ≠ 1")
+    elif tuple(int(x) for x in ml[0]) != want_m: bad.append(f"M 줄 {tuple(int(x) for x in ml[0])} ≠ config mobile {want_m}(maxPx·printMaxH·row 01·06·pad 01·06)")
+    css = [int(x) for x in re.findall(r"@media\s*\(max-width:\s*(\d+)px\)\s*\{", html)]
+    if len(css) != 1 or css[0] != want_m[0]: bad.append(f"CSS @media (max-width: Npx) {css} ≠ config max_px [{want_m[0]}](정확히 1건)")
+    check(name, not bad, "; ".join(bad) if bad else
+          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · CSS {css[0]}")
 
 
 def main():
