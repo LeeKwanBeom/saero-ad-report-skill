@@ -18,6 +18,7 @@
 store·push는 같은 PC에서 ingest.sh), 15·17·19·21·22·25 보강, 26 신설(Code 탭 실행 규약 — `references/code-tab.md`), [되돌리면 안 되는 것] 5행 추가(ingest origin/main 확인 두 분기 ·
 승인 목록 복사 규칙 · SKILL.md 채팅 가드 · 자격 증명 출력 0 · `.gitattributes`), [시작 전 확인 ①]에 Code 탭 한 문장, 검증 C① 시험 회차 문구를 SKILL.md·exclusion-ui.md와 통일,
 점검 명령을 `$PY`·`work/`로. 검증은 별도 세션, main 병합 전.)
+v4.7 갱신 이력: 2026-10-06 기능 추가(01 일별 추이 모바일 차트 — 회차 1 설계안 A, 브랜치 `feat-20261006-dailychart`) — [의도된 동작] 27 에 회차 3 몫(판 r2026-10-C — 01·06 모바일 가로 막대) · 2 끝 한 줄 · 14·17 chart_check · 16 mutation 수, 회귀 표 "순회" 문구 정정(check_date_labels 는 HTML 전체) + [되돌리면 안 되는 것] 2행 추가(판 C 분기 표지·M 줄 = config · 인쇄 F 규약), 대상 파일 목록에 `tests/chart_check.py`. 버전 줄은 v4.7 유지.
 v4.7 갱신 이력: 2026-10-06 기능 추가 회차 2(리포트 읽기 쉽게 — 모양, 브랜치 `feat-20261006-layout`) — [의도된 동작] 27 에 회차 2 몫(레이아웃 판 r2026-10-B — 접기·03 최신 위), [되돌리면 안 되는 것] 2행 추가(레이아웃 판 · 03 순서), 16 "23개" → 24·compare 95 → 99항목·mutation 수. 대상 파일 목록은 새 파일 없음(그대로). 버전 줄은 v4.7 유지.
 v4.7 갱신 이력: 2026-10-06 기능 추가 회차 1(리포트 읽기 쉽게 — 글, 브랜치 `feat-20261006-readable`) — [의도된 동작] 27 신설(글 규칙 · 사용자 결정 원문 두 문장), [되돌리면 안 되는 것] 2행 추가(07 각주 세 자리 · 서술 미교체 검사), 16 "22개" → 23·mutation 수, 대상 파일 목록에 apply.py·narrative_check.py·시험 4개. 버전 줄은 v4.7 유지.
 v4.7 갱신 이력: 2026-09-28 수정 회차 2(검증 1·조정 재확인) — [되돌리면 안 되는 것] 승인 목록 행을 코드 가드(push 참조 선택 모드)로 교체 + 3행 추가(deploy `--base`·쓰기 권한 확인 / ingest 시작 검사 / 자격 증명 비출력 시험), [의도된 동작] 26에 2-1 예외, 19 승인 목록 문구, 22 행 번호를 절 이름으로, 대상 파일 목록에 `tests/test_deploy.py`, 검증 C④에 CLI 종료 코드. 버전 줄은 v4.7 유지.
@@ -114,7 +115,7 @@ git clone https://github.com/LeeKwanBeom/saero-ad-report-skill
 대상: SKILL.md(정본) / README.md / references/report-structure.md / references/css-and-layout.md /
 references/code-tab.md(Code 탭 실행 규약) / references/report-fetch.md / references/exclusion-ui.md /
 scripts/reportlib.py · archive.py · compute.py · apply.py · validate.py · compare.py · narrative_check.py · deploy.py · ingest.sh · precheck.sh · fetch_reports.py · exclusions.py /
-tests/mutation_test.py · overflow_check.py · test_fetch_reports.py · test_exclusions.py · test_ingest.py · test_deploy.py · test_apply.py · test_narrative_check.py · test_validate_07.py · test_compare_sections.py · fixtures/ /
+tests/mutation_test.py · overflow_check.py · chart_check.py · test_fetch_reports.py · test_exclusions.py · test_ingest.py · test_deploy.py · test_apply.py · test_narrative_check.py · test_validate_07.py · test_compare_sections.py · fixtures/ /
 config/report-config.json(스크립트가 읽는 설정, 없으면 즉시 종료) / data/YYYY-MM/ 4종씩 / .gitignore / .gitattributes /
 local/(진입 스킬·로컬 CLAUDE.md·질문 다듬기 스킬 정본 사본) / audit/exclusions.csv(registry) / audit/last-audit.md / audit/checklist.md(이 파일)
 실제 ls 결과가 이 목록과 다르면 그것부터 알려줄 것.
@@ -168,7 +169,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 들어도 결함이 아니다. 바꾸려면 사용자 승인이 필요하다.
 
 1. 04번 예산 비중은 **최대잔여법**(소수 1자리, 합 100.0) 표시값 — 단순 반올림과 다를 수 있음(09-24 3.955→3.9, 09-25 92.545→92.6). 02번 section-desc도 같은 값.
-2. 06번 rankChart = 노원역필라테스 **그룹 전체(자동매칭 포함)** 노출 가중순위, 전 기간. 직접 등록만이면 0/31 일치.
+2. 06번 rankChart = 노원역필라테스 **그룹 전체(자동매칭 포함)** 노출 가중순위, 전 기간. 직접 등록만이면 0/31 일치. (2026-10-06 판 C) 모바일(≤ config mobile.max_px)에서는 같은 41값을 가로 막대·최신 위로 표시 — 정의·배열은 그대로.
 3. 10번 A = `검색/콘텐츠 매체 == 검색` 이고 `매체이름`이 `네이버`로 시작하는 매체 전부(통합검색·플레이스·검색탭·광고더보기), B = 검색이면서 네이버 외(`기타 매체`의 검색분 포함), C·D는 콘텐츠. C·D는 9/6 이후 고정(22·1,724).
 4. 동률 처리: 07 정식표 클릭 동률 → 노출 내림차순 / 뱃지는 노출 많은 유형, 일치·확장 동률 → 직전 뱃지 유지 / 경쟁사표 노출 동률 → 클릭 내림차순, 그 안은 직전 순서(신규 행은 끝) / 클릭1건·클릭0·08 컴팩트 목록 동률 → 직전 순서 유지. **동률 원칙(2026-09-27)**: HTML의 동률 순서는 직전 순서 유지가 정본. compute.py 출력의 동률 순서(클릭1건 2차 키 총비용↓ 등)는 참고이며 compare.py는 집합+정렬 방향만 본다.
 5. 08·09번 각주 "6회 차이"는 정상(제외 그룹 노출 6·클릭 0, 8/26 5·8/31 1). 클릭 차이 0이라 "클릭 N회 차이" 문구는 없음. 검색어 CSV 노출 합(7,774)이 키워드 전체(9,525)보다 작은 것도 정상(콘텐츠 지면 미포함) — 클릭은 298로 같다.
@@ -180,10 +181,10 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 11. 노원M필라테스는 경쟁사표 미복귀(09-14 사용자 결정), 클릭 1건 목록에 둠. 필라테스안 계열은 제외 확정(09-26). 경쟁사 채택·제외·종결은 last-audit.md `## 경쟁사 판정 이력` 표가 정본.
 12. 09번 심야 = 22·23·0~8시(09시 배타), 비중은 정수 반올림. 09번 min-width 650px은 고정(config 대상 아님). 심야 서술은 긍정 톤 유지.
 13. 시간대별 CSV 클릭은 KPI가 아니라 **제외 전 전체**와 비교(D-4). 01번 순위 그리드 민트 = 닷새 중 최솟값.
-14. 라이브 Pages는 web_fetch 결과로 판정하지 않는다(캐시). 사용자 시크릿 창 확인이 유일. 설치본 references/scripts 사본이 낡은 것은 정상(저장소 것을 쓴다). 저장소는 공개 유지(사용자 결정 2026-09-27).
+14. 라이브 Pages는 web_fetch 결과로 판정하지 않는다(캐시). 사용자 시크릿 창 확인이 유일. 설치본 references/scripts 사본이 낡은 것은 정상(저장소 것을 쓴다). 저장소는 공개 유지(사용자 결정 2026-09-27). (2026-10-06) tests/chart_check.py 가 라이브 Chart.js(CDN) 로 tick·datalabels·page.pdf 를 재므로 시크릿 창 몫은 실기기·PWA 만.
 15. 11번은 12번 확정 뒤 맨 마지막에 쓴다. 상계동필라테스는 하루 30회 이상 이틀 전까지 카드 유지. 사용자 답을 기다리며 배포하는 회차는 validate.py `--pending`으로 잔존 문구 검사를 허용한다(4c08ab3 유형) — 답을 반영한 재배포는 엄격. (2026-09-28 Code 탭 회차) 기본 순서는 승인·등록·확인 → 배포라 답 대기 배포가 드물다 — 사용자가 "등록은 나중에"라고 할 때만 07·11·12번에 사실형 문구("제안함 — 등록은 다음에")로 배포하고 `--pending`은 쓰지 않는다.
-16. (2026-09-26 수정 회차로 생긴 것) 5단계 숫자는 `scripts/compute.py` 출력만 쓴다 — 정의는 report-structure.md 각 절 "정의(compute.py)" 줄과 1:1. validate.py는 compute.py와 **값 계산을 공유하지 않는** 독립 검산(reportlib은 읽기·필터·일수·섹션까지). validate 검사 개수는 실행 출력을 센다(2026-10-06 회차 2 기준 24개 — "07 각주 세 자리"·"레이아웃 판" 추가). compare.py 차이 0(99항목 — 2026-10-06 회차 1 10번 나열 형식 변경(항목 수 같음), 회차 2 접기 summary 4항목 추가·03 최신 위 대조)·overflow 3폭(접기 전부 열고)·narrative_check(서술 미교체)·mutation_test(변조 25 + 0건 가드 18 + archive 7 = [OK] 50, config 실험 3)는 배포 전·점검 때 전부 돌린다. precheck.sh 3번째 인자는 4단계 fetch 파일(직전 배포본) — 작업본과 같으면 exit 1이 정상이고, 진단 회차 재현 시험은 그 배포본의 직전 배포를 넣는다.
-17. (2026-09-27) `tests/overflow_check.py`는 컨테이너에서 cdnjs가 막혀 **Chart.js 미로드 상태**로 scrollWidth를 잰다 — 차트 canvas 폭은 validate 검사 9(min-width)가 따로 보고, 라이브에서의 차트 넘침은 사용자 시크릿 창 확인 몫이다. 결함 아님. (2026-09-28) `overflow_check.py`가 file:// 밖 요청을 전부 막아(route abort, "외부 요청 차단 N건" 출력) PC(Code 탭)에서도 같은 조건으로 잰다.
+16. (2026-09-26 수정 회차로 생긴 것) 5단계 숫자는 `scripts/compute.py` 출력만 쓴다 — 정의는 report-structure.md 각 절 "정의(compute.py)" 줄과 1:1. validate.py는 compute.py와 **값 계산을 공유하지 않는** 독립 검산(reportlib은 읽기·필터·일수·섹션까지). validate 검사 개수는 실행 출력을 센다(2026-10-06 회차 2 기준 24개 — "07 각주 세 자리"·"레이아웃 판" 추가). compare.py 차이 0(99항목 — 2026-10-06 회차 1 10번 나열 형식 변경(항목 수 같음), 회차 2 접기 summary 4항목 추가·03 최신 위 대조)·overflow 3폭(접기 전부 열고)·narrative_check(서술 미교체)·mutation_test(변조 26 + 0건 가드 19 + archive 7 = [OK] 52, config 실험 4 — 2026-10-06 판 C 분기 표지 변조·M 줄 가드·`mobile.max_px` 실험)는 배포 전·점검 때 전부 돌린다. precheck.sh 3번째 인자는 4단계 fetch 파일(직전 배포본) — 작업본과 같으면 exit 1이 정상이고, 진단 회차 재현 시험은 그 배포본의 직전 배포를 넣는다.
+17. (2026-09-27) `tests/overflow_check.py`는 컨테이너에서 cdnjs가 막혀 **Chart.js 미로드 상태**로 scrollWidth를 잰다 — 차트 canvas 폭은 validate 검사 9(min-width)가 따로 보고, 라이브에서의 차트 넘침은 사용자 시크릿 창 확인 몫이다. 결함 아님. (2026-09-28) `overflow_check.py`가 file:// 밖 요청을 전부 막아(route abort, "외부 요청 차단 N건" 출력) PC(Code 탭)에서도 같은 조건으로 잰다. (2026-10-06 판 C) 라이브 차트(Chart.js 로드)의 tick·라벨·회전·인쇄는 `tests/chart_check.py`(precheck 밖 — CDN 2건만 허용, 미로드면 exit 2 = 통과 아님)가 본다 — overflow_check 의 Chart.js 미로드 원칙은 그대로, 시크릿 창 몫은 실기기·PWA 만.
 18. (2026-09-27 기능 추가) 제외 검색어 자동화(SKILL.md 5-0단계·`references/exclusion-ui.md`)의 **등록 상태 정본은 `audit/exclusions.csv`(registry)** — 재노출된 이름은 "등록돼 있는데도 노출 / 등록 누락 → 후보 / 미확인" 셋 중 하나로 **묻지 않고** 보고한다. 대조 목록 표는 회차별 요약 행만 받는다(이름 원본은 registry). registry 초기값은 09-27 UI 전사(340행, `source=ui`·`record`, `group_id` 빈칸)라 첫 `pull` 전에는 그룹 ID 매핑이 없고 `*` 기록 행이 남아 있는 것이 정상 — pull이 채우고 지운다.
 19. (2026-09-27 기능 추가) 후보 규칙: `확장` 행·정확 일치·클릭 0·창 안 첫 등장만 신규 후보. `industry_terms`(필라테스·필테) 포함 이름은 "업종어 포함" 묶음으로만 보이고 기본 후보가 아니다(6세필라테스처럼 이미 제외한 이름이 있어도). 클릭이 있는 이름은 후보로 올리지 않는다(07번 표에서 사람이 본다). 이전 CSV에 있었던 이름은 `--all` 없이는 후보에 안 오른다. 전부 의도된 동작. (2026-09-28) 사용자가 고른 업종어 이름은 propose가 쓴 `_industry.txt`의 줄 번호(`push --industry-lines`)로, 07번 표·재상정 이름은 합본 `검색어.csv` 행 번호(`--extra-rows`)로 승인 목록에 넣는다 — push가 원문을 직접 읽는다(`references/code-tab.md` 6절, 세션은 이름을 쓰지 않는다).
 20. (2026-09-27 기능 추가, 2026-09-28 개정) 광고시스템·`api.searchad.naver.com`은 채팅 환경(브라우저 2종·컨테이너·PC 연결 셸)에서 막혀 있고(탐색 기준선 0절), `pull`·`push`·`verify`·`test-roundtrip`은 **PC 작업 폴더를 연 Code 탭 세션**이 돌린다(사용자 PowerShell도 같은 경로 — 경로 C, exclusion-ui.md 3절). 채팅에서 스크립트가 `[FAIL] 네트워크 차단(프록시)` exit 2를 내는 것은 결함이 아니다. API `CUSTOMER_ID`(4480035)가 광고주센터 URL 계정번호(2580077)와 다른 것도 정상.
@@ -199,6 +200,11 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
     `scripts/apply.py --layout` 이 compute.json 으로 매 회차 쓴다. 01 표 5행·순위 5칸·차트 labels 는 오름차순 그대로. 판 표지는 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` —
     판을 바꾸는 것은 설계 회차·사용자 결정으로만(references/report-structure.md "레이아웃 판"), 첫 적용은 사용자가 화면을 본 뒤 `deploy.py push … --layout-change`.
     목록·표가 접혀 있는 것·03 이 최신 위인 것은 결함이 아니다.
+    (2026-10-06 기능 추가 "01 일별 추이 모바일 차트" 회차 1 — 회차 3 몫) 사용자 원문: "피씨에서는 가로로 10개 정도 보이고 있는데 모바일에서는 3~4개만 보이고 있어서 상당히 가독성이
+    떨어지고 있어 … 가독성 좋게 다른 방법으로 시각화하고 싶어". **레이아웃 판 r2026-10-C**: 화면 폭 ≤ config `report_layout.mobile.max_px`(640)이면 01·06 차트가 가로 막대
+    (날짜 세로축 최신 위 · 날짜·숫자 전부 한 화면 폭 안 · 06 은 순위 라벨 41개 — 모바일에만)로 바뀌고, PC 는 모양 그대로 + 가로 스크롤이 오른쪽 끝(최신)에서 시작(왼쪽 페이드).
+    숫자·배열은 1벌(HTML 배열·min-width 텍스트는 PC 그대로 — 모바일은 같은 data 로 다시 그림), 인쇄는 모바일이면 01·06 높이를 `print_max_height_px` 이하로 줄여 한 쪽 안(F 규약).
+    모바일에서 01·06 이 세로로 길어진 것(≈+845/+701px)·선이 세로로 흐르는 것·PC 첫 화면이 최신 10일인 것은 결함이 아니다. 라이브 확인은 `tests/chart_check.py`(precheck 밖).
 
 [되돌리면 안 되는 것 — 이게 그대로 있는지 확인해라] (2026-09-26 신설)
 
@@ -208,7 +214,7 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 |---|---|---|
 | validate.py 0건 가드 — 검사 대상 셀·행·배열이 0건이면 FAIL | 마크업이 바뀌어 정규식이 안 맞는데 조용히 PASS(09-07 D-9 유형). mutation_test 0건 가드 14종이 이걸 본다 | validate.py 각 check_* |
 | config 값을 읽어 라벨·판정에 쓴다(`CTR_HIGH`·`DATE_SECTIONS` 등, f-string 라벨) | 기준을 바꾸면 검사 이름이 거짓말(09-07 D-8). mutation config 실험 2종 | validate.py 상단·check_ctr_rule |
-| 06번 min-width·날짜축 라벨 검사가 `date_based_sections` 순회 | 06번만 옛 폭으로 남는다(09-07 D-9, 09-09 첫 실사례) | validate.py check_chart_width·check_date_labels |
+| 06번 min-width 검사가 `date_based_sections` 순회 · 날짜축 라벨 검사는 HTML 전체의 날짜형 `labels:[…]` 배열마다 길이 = 일수(순회 아님 — 2026-10-06 문구 정정) | 06번만 옛 폭으로 남는다(09-07 D-9, 09-09 첫 실사례) | validate.py check_chart_width·check_date_labels |
 | 09번 시간대별 클릭 비교 대상 = **제외 전 전체** | OFF 그룹에 클릭이 생기면 데이터가 맞아도 FAIL(09-07 D-4) | validate.py 검사 3 |
 | 07번 검색어 단위 합산·뱃지 규칙, 클릭0 각주 경쟁사 포함, 확장·클릭0 행 단위 | 정식표 행 수·각주·노출이 배포본과 어긋난다(09-11·09-16·09-17 실측) | compute.py 07 · report-structure.md 07 정의 |
 | 06번 rankChart = 그룹 전체, 10번 A = `네이버` 접두 전부, 09번 심야 09시 배타 | 각각 0/31·7,618/293·2,471/86로 어긋난다(2026-09-26 실측) | compute.py 06·09·10 · report-structure.md 정의 |
@@ -254,6 +260,8 @@ masthead 집계 기간·KPI 4개·집계 기준 "클릭률 강조" 문구를 적
 | `.gitattributes` = `*.csv -text` · `*.sh text eol=lf` — CSV는 바이트 그대로(data LF · registry CRLF), 작업 폴더 = 커밋 md5 | autocrlf=true인 PC에서 CSV가 CRLF로 풀려 md5 대조·`test_config_columns`가 깨지고, `git add data`가 CRLF 바이트를 커밋할 수 있다 | .gitattributes · references/code-tab.md 2절 S0 줄바꿈 검사·8절 "작업 폴더 줄바꿈" |
 | validate **"07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)"** — 07 `class="note"` 전부에 ① `경쟁사 판정(` · ② `제외 검색어: … 등록 N개 · 확인 a/b · 실패 n`(b = N × `exclusions.targets` 수, a ≤ b) · ③ `클릭 0인 검색어 전체는 N개·노출 N회` + 클릭 0 목록 ≥ 1, 0건이면 FAIL. mutation_test 변조 1(② 문구)·0건 가드 2(②③ 블록 제거·① 줄 제거) | 글을 줄이다 각주 자리가 빠지거나 옛 형식으로 돌아가도 validate·compare 가 통과한다(탐색 프로브: 07 note 4 → 1 통과) — 경쟁사 판정·제외 검색어 등록 결과가 리포트에서 조용히 사라진다 | scripts/validate.py check_07_footnotes · tests/mutation_test.py · tests/test_validate_07.py · references/exclusion-ui.md 9절 |
 | **레이아웃 판** — 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` · `<details` 5개(`markers.details`)·summary 짝(validate "레이아웃 판", 0건 FAIL) · 5단계 `apply.py --layout`(meta 없는 옛 판 변환, summary 개수·날짜를 매 회차 compute.json 으로 — 변환 건너뛴 회차에도) · deploy.py 레이아웃 게이트(`--file`·`--base` meta 가 다르면 `--layout-change` 없이 PUT 0, dry-run `[주의]`) · overflow_check 가 접기를 열고 3폭 · mutation 변조 2·0건 가드 2·config 실험(`layout_id`) | 옛 사본 통째 교체·세션의 "복원"으로 접기가 조용히 사라지거나(validate·compare 가 모양을 안 보던 옛 판), summary 가 묵은 숫자(35개 · 펼치기)로 공개되거나, 사람이 화면을 보지 않은 새 모양이 자동 배포된다 | scripts/validate.py check_layout · scripts/apply.py convert_layout·apply · scripts/deploy.py layout_of · tests/test_apply.py · tests/test_deploy.py(게이트 4) · tests/mutation_test.py · tests/overflow_check.py · config `report_layout` · references/report-structure.md "레이아웃 판" |
+| **판 C 분기 표지·M 줄 = config** — 배포본 `/* saero:mobile-branch 01 */`·`06` 각 1(= `markers.mobile_branch` 2) · 분기 도우미 M 줄 = config `report_layout.mobile`(apply 가 매 회차 다시 씀) · `matchMedia('(max-width: ' + M.maxPx + 'px)')` 한 곳 · CSS `@media (max-width: 640px){` 한 곳 = `mobile.max_px`(validate "레이아웃 판") · 01·06 블록은 PC 생성 + 큐, 도우미는 차트 스크립트 끝 · 숫자·배열 1벌 | 분기가 손으로 빠지거나(모바일 3~4일 화면으로 조용히 되돌아감) JS 경계와 CSS 경계가 어긋나 그 사이 폭에서 반쪽 모양이 되거나, 도우미를 블록 앞에서 부르면 TypeError 로 뒤 차트 5개가 빈다 | scripts/apply.py convert_b_to_c·CHART01_C·CHART06_C·MOBILE_JS·m_line · scripts/validate.py check_layout · tests/test_apply.py ApplyLayoutC · tests/mutation_test.py · config `report_layout.markers.mobile_branch`·`mobile` |
+| **인쇄 F 규약** — beforeprint~afterprint 재판정 잠금(`printing`) · 모바일이면 01·06 컨테이너 높이 ≤ `print_max_height_px` + 동기 `chart.resize()` · afterprint 복구 | 인쇄 중 오는 `matchMedia` change(page.pdf 는 종이 폭으로 다시 짠다)로 다시 그리면 빈 캔버스, 1,156px 캔버스는 쪽 나눔에서 통째로 빠져 모바일 PDF 의 01·06 이 사라진다(지금 배포본 ≈8.9일보다 나쁨 — 데이터 손실) | scripts/apply.py MOBILE_JS · tests/chart_check.py 인쇄(page.pdf 실물) · references/css-and-layout.md 버그 12 |
 | **03 순서** — 합계 맨 위 + 최근 `recent_days` 일 최신 위 + 나머지 날짜는 접힌 표에 최신 위(DOM 전체 = 합계 + 날짜 역순). compare "03 일별 표 전체 행"이 두 표를 이어 읽어 거꾸로 대조, "03 summary 이전 N일·기간 = 접힌 표" | 옛 apply(첫 tbody 에 오름차순 41행)·손 편집이 오름차순으로 되돌려도 통과(compare 가 오름차순을 정본으로 보던 옛 판), summary 날짜가 접힌 표와 어긋남 | scripts/compare.py _s03 · scripts/apply.py 03 · tests/test_compare_sections.py(03 오름차순 복귀 → DIFF) · references/report-structure.md 03 |
 | **서술 미교체 검사** `scripts/narrative_check.py`(precheck 4번째, `run` 으로 감싸 FAIL 전문 · 실패면 도장 없음): 매회차 서술 표지 블록이 직전 배포본과 바이트 같으면 `[FAIL] 서술 미교체 <자리>`, 작업본 표지 0 → FAIL, 같은 기간·직전 배포본에 표지 없음 → `[주의]` exit 0 | compare 가 숫자를 읽지 않는 서술이 지난 회차 그대로 validate·compare·precheck 를 통과해 자동 배포된다(2026-10-06 01 머리글 두 줄·07 ✓ 줄 실사례) | scripts/narrative_check.py · scripts/precheck.sh · tests/test_narrative_check.py · references/report-structure.md "서술 표지" |
 

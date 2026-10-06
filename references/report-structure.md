@@ -3,15 +3,16 @@
 배포된 index.html을 갱신할 때 참고. 섹션 순서·구조는 임의로 바꾸지 않는다.
 사장형이 매주 같은 형식에 익숙해지는 것이 목적이다.
 
-## 레이아웃 판 r2026-10-B(사용자 결정 2026-10-06)
+## 레이아웃 판 r2026-10-C(사용자 결정 2026-10-06)
 
 사용자 원문(2026-10-06, 기능 추가 "리포트 읽기 쉽게"): "지금 광고 보고서에 텍스트로 된 설명이 너무 많아 … 필요한 정보만 딱딱 전달이 됐으면 좋겠어" ·
-"2개의 섹터의 데이터가 세로로 너무 길게 나열이 되어있어서 이걸 수정했으면 싶어". 글은 회차 1(아래 "서술 공통 규칙"·"서술 표지"), 모양은 이 판(회차 2 — 설계안 B 접기형).
+"2개의 섹터의 데이터가 세로로 너무 길게 나열이 되어있어서 이걸 수정했으면 싶어". 글은 회차 1(아래 "서술 공통 규칙"·"서술 표지"), 모양은 판 B(회차 2 — 설계안 B 접기형, 배포 014472d)
++ 판 C(01 일별 추이 모바일 차트 — 01·06 모바일 가로 막대, 아래 "판 C" 문단). 판 B 의 규칙(이 절의 표·목록)은 판 C 에서도 전부 그대로다.
 위 "섹션 순서·구조는 임의로 바꾸지 않는다"를 깬 것이 아니라 그 결정으로 정한 구조다 — 이 판도 설계 회차·사용자 결정 없이 바꾸지 않는다.
 
-- 표지: `<head>` 의 `<meta name="report-layout" content="r2026-10-B">` = config `report_layout.layout_id`. 옛 모양으로 조용히 되돌아가는 것을 validate "레이아웃 판"
-  (meta 값 · `<details` 수 = `markers.details` 5 · details/summary 짝 — 0건 FAIL) · compare 03 역순 · deploy.py 게이트(`--file`·`--base` meta 가 다르면 `--layout-change` 없이 PUT 안 함)가 막는다.
-- 바꾸는 코드: `scripts/apply.py --layout`(meta 없는 옛 판 → 이 판 변환 + 매 회차 값). 이미 이 판이면 변환을 건너뛰고 값만 — 5단계는 매 회차 `--layout` 을 붙인다.
+- 표지: `<head>` 의 `<meta name="report-layout" content="r2026-10-C">` = config `report_layout.layout_id`(판 B 는 `r2026-10-B`). 옛 모양으로 조용히 되돌아가는 것을 validate "레이아웃 판"
+  (meta 값 · `<details` 수 = `markers.details` 5 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계 — 0건 FAIL) · compare 03 역순 · deploy.py 게이트(`--file`·`--base` meta 가 다르면 `--layout-change` 없이 PUT 안 함)가 막는다.
+- 바꾸는 코드: `scripts/apply.py --layout`(meta 없는 옛 판 → r2026-10-B → r2026-10-C 사슬 · meta r2026-10-B 판 → r2026-10-C 변환 + 매 회차 값). 이미 이 판이면 변환을 건너뛰고 값만 — 5단계는 매 회차 `--layout` 을 붙인다.
 - 접기 `<details class="fold">` 5개 — 기본 닫힘(인쇄 때는 스크립트가 전부 펼쳤다가 되돌림, css-and-layout.md "접기 안내"):
 
 | 자리 | summary(머리 — 숫자·날짜는 apply 가 compute.json 으로 매 회차) | 접기 안 | 검사 |
@@ -27,11 +28,33 @@
   08 `(N개 지역·클릭 M건)` 은 괄호까지 그대로, "· 펼치기" 는 괄호 밖. 03 summary 에 `최고치`·`원` 을 쓰지 않는다(03 desc 첫 일치 보호).
   07 각주 ①②③·08 각주·서술 표지는 접기 **밖**(항상 보임) — 접기 안으로 옮기면 검사는 통과하고 조용히 숨는다.
 - 누락 0: 접힌 안에도 전부 있다(HTML 그대로 — 펼치면 보임, compare 07 집합·08 컴팩트가 접힌 안을 읽는다).
-- 01 표 5행·순위 5칸·차트 labels 는 시간 오름차순 그대로(03 만 최신 위 — 고를 항목 4 (가)).
+- 01 표 5행·순위 5칸·차트 labels 는 시간 오름차순 그대로(03 만 최신 위 — 고를 항목 4 (가)). 01·06 차트의 **화면** 순서는 판 C 모바일 가로 막대에서만 최신 위(`scales.y.reverse` — 배열은 그대로).
+
+**판 C(r2026-10-C) — 01·06 모바일 가로 막대**(사용자 결정 2026-10-06 — 기능 추가 "01 일별 추이 모바일 차트", 설계안 A). 사용자 원문: "피씨에서는 가로로 10개 정도 보이고 있는데
+모바일에서는 3~4개만 보이고 있어서 상당히 가독성이 떨어지고 있어 … 가독성 좋게 다른 방법으로 시각화하고 싶어". 위 판 B 규칙에 다음이 더해졌다:
+
+- 화면 폭 ≤ config `report_layout.mobile.max_px`(640 — 배포본 CSS `@media (max-width: 640px)` 과 같은 값)이면 01 dailyChart·06 rankChart 를 **가로 막대**로 그린다:
+  날짜가 세로축(**최신 위** — `scales.y.reverse`, 배열은 오름차순 그대로 · 화면만), 값축은 가로(01 = 위 x '노출수' · 아래 x1 '비용(원)' / 06 = 위 '순위' reverse·min 1 — 1 이 오른쪽).
+  날짜 전부·숫자 전부(01 라벨 2n · 06 순위 라벨 n — 순위 라벨은 모바일에만)가 한 화면 폭 안 — 가로 스크롤·뱃지·페이드 없음. 컨테이너 높이 = 날짜 수 × `row_px` + `pad_px`(01 26·90 / 06 22·70).
+- **숫자·배열은 1벌** — 모바일 모양은 PC 와 같은 `data` 객체로 다시 그린다. HTML 의 labels·노출·총비용·평균노출순위 배열과 `min-width:3280px` 텍스트는 PC 그대로
+  (compare "01/06 labels" 정확히 2개 · validate 날짜축 2×n · min-width 2곳 그대로). 새 숫자 0.
+- 재판정: 로드 + `matchMedia` change(회전·창 크기) — 상태 비교(같으면 아무것도 안 함) · 동기(destroy → 같은 data 로 다시 생성) · 끝나면 가로 안내 `sync()` 직접 · PC 로 돌아오면 최신 쪽 스크롤.
+  원래 `min-width`·높이는 JS 가 런타임에 보관(`dataset.minwidth`)했다가 PC 복귀 때 복원한다(HTML 텍스트에 `data-*` 를 쓰지 않는다 — apply min-width 앵커).
+- 인쇄(F 규약): beforeprint~afterprint 동안 재판정 잠금(`printing`) · 모바일이면 01·06 컨테이너 높이를 `print_max_height_px`(1,000) 이하로 줄이고 동기 `chart.resize()` → 날짜 전부가
+  한 쪽 안에 찍힌다 · afterprint 에 높이를 되돌린다. PC 는 일수 그대로(폭 3,280 캔버스가 종이 폭에 잘린 ≈8일 — 찍히는 구간은 화면 스크롤 자리를 따라 아래 S 로 최신 쪽,
+  03 표에 총비용 전 기간).
+- PC(> max_px)는 모양 그대로 + **스크롤 시작 최신 쪽(S)**: 01·06 가로 스크롤이 오른쪽 끝(최신 날짜)에서 시작하고, 왼쪽 페이드(맨 왼쪽이면 `.at-start` 로 숨김)가 이전 날짜를 알린다
+  (css-and-layout.md "가로 스크롤 안내 자동화"). 뱃지 문구 그대로.
+- 표지·기계 자리: 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 2개 = config `markers.mobile_branch` · 차트 스크립트 끝 분기 도우미의 M 줄
+  `var M = {maxPx: 640, printMaxH: 1000, row: {"01": 26, "06": 22}, pad: {"01": 90, "06": 70}};` = config `report_layout.mobile`(apply 가 매 회차 다시 쓴다) ·
+  `matchMedia('(max-width: ' + M.maxPx + 'px)')` 한 곳 · CSS 모바일 경계 한 곳 — validate "레이아웃 판" 이 전부 config 와 대조한다(0건·불일치 FAIL).
+- 바꾸는 코드: `scripts/apply.py --layout` — meta r2026-10-B 판 → `convert_b_to_c`(meta · 왼쪽 페이드 CSS · 01·06 블록 템플릿 · 분기 도우미 · 가로 안내 스크립트 4줄),
+  meta 없는 옛 판 → `convert_layout(LAYOUT_B)` → `convert_b_to_c`. 서술 표지 블록·섹션 HTML·min-width 텍스트는 건드리지 않는다. 라이브 확인은 `tests/chart_check.py`(precheck 밖).
+- 이 판도 설계 회차·사용자 결정 없이 바꾸지 않는다. 날짜 수에 따른 행 높이 하한·모바일 기간 창 규칙은 아직 없다(이월 — 높이가 날짜 수에 비례, ≈90일 전 정기점검).
 
 ## 목차
 
-- [레이아웃 판 r2026-10-B](#레이아웃-판-r2026-10-b사용자-결정-2026-10-06) (2026-10-06 — 접기·03 최신 위, 위 절)
+- [레이아웃 판 r2026-10-C](#레이아웃-판-r2026-10-c사용자-결정-2026-10-06) (2026-10-06 — 접기·03 최신 위 + 01·06 모바일 가로 막대, 위 절)
 - [캠페인 구조](#캠페인-구조)
 - [KPI 요약](#kpi-요약)
 - [01. 일별 추이](#01-일별-추이)
@@ -84,13 +107,22 @@
 
 ## 01. 일별 추이
 
-노출수 막대 + 총비용 라인의 콤보 차트(`dailyChart`).
+노출수 막대 + 총비용 라인의 콤보 차트(`dailyChart`). 숫자·배열은 하나(아래 두 모양이 같은 data 를 쓴다 — 판 C).
+
+### PC 모양(화면 폭 > config `report_layout.mobile.max_px`)
 
 - 막대(노출수) 라벨은 막대 **하단**, 선(총비용) 라벨은 선 **위쪽** — 겹침 방지
 - 범례는 `bottom` 고정. top-right에 두면 마지막 날짜가 최고치일 때 라벨과 겹친다
 - 차트 컨테이너: `<div class="scroll-x" style="overflow-x:auto;">` 안에
   `<div style="height:280px; min-width:{max(날짜수×per_day_px, floor_px)}px;">` — 두 값은 config `chart_min_width`
 - x축 ticks: `maxRotation:0, autoSkip:false`
+- (판 C) 가로 스크롤은 오른쪽 끝(최신 날짜)에서 시작 — 왼쪽 페이드가 이전 날짜를 알린다
+
+### 모바일 모양(판 C — 화면 폭 ≤ max_px)
+
+가로 막대: 날짜 세로축 최신 위(`y.reverse` · `autoSkip:false` — 날짜 tick 전부) · 노출 막대(#cdeee7) 라벨은 막대 시작 쪽(`anchor start · align right`) ·
+총비용 점·선(mintDark) 라벨은 점 오른쪽(`anchor center · align right` — 점이 같은 행 노출 라벨 안쪽이면 그 라벨 뒤로 밀어 글자 겹침 0) · 값축 위 x '노출수'·아래 x1 '비용(원)' ·
+오른쪽 여백 64px(비용 라벨 자리) · 범례 bottom 그대로 · 컨테이너 높이 = 날짜 수 × 26 + 90px(config `row_px`·`pad_px`, JS 가 런타임에 — HTML 의 280px·min-width 는 PC 값 그대로).
 
 ### 인사이트 박스 (차트 카드 바로 아래)
 
@@ -207,6 +239,9 @@ Chart.js 다중 라벨은 `"\n"` 대신 배열로 쓴다: `['플레이스 광고
 ## 06. 파워링크 키워드 노출순위 추이
 
 라인 차트(`rankChart`) + 키워드 매칭 방식 비교표.
+(판 C) 모바일(≤ config `report_layout.mobile.max_px`)은 가로·최신 위·순위 라벨 41개 — 날짜 세로축 최신 위 · 순위축 위 reverse·min 1(1 이 오른쪽) · 점 오른쪽 순위 라벨
+(`toFixed(2)` — compute 2자리 값 그대로, 모바일에만) · 컨테이너 높이 = 날짜 수 × 22 + 70px. 정의·전 기간 배열 그대로(화면만), 제목 문구 '… 일별 평균순위 · 낮을수록 상단' 그대로
+(광고 노출 위치 — section-desc 와 짝). PC 는 그대로 + 스크롤 시작 최신 쪽.
 
 정의(compute.py `06.rankChart`·`노원역순위`): 라인 차트 값 = **노원역필라테스 그룹 전체**(직접 등록 + 자동매칭 `-`)의
 날짜별 노출 가중순위, 전 기간. 직접 등록 키워드만이면 배포본과 하나도 안 맞는다(2026-09-26 실측 0/31).
