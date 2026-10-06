@@ -172,6 +172,10 @@
 - 설계안 A 안의 세부(3.0·3.1 A 열·6절 반영분 그대로): 06 모바일 제목 '낮을수록 상단' **그대로**('오른쪽' 안 철회) · PC 분기 옵션 값 = 현재 L2014~2027·L2185~2190 · 모바일 분기 = `indexAxis:'y'`, 값축 x 상단 '노출수'·x1 하단 '비용(원)'(06 은 x reverse·min 1·상단), 날짜축 `autoSkip:false`, 범례 bottom · 원래 `min-width` 는 `box.dataset.minwidth` 보관·PC 복귀 때 복원 · 재판정 = load + `matchMedia` change(상태 비교 · 동기 완료 · `sync()` 직접 · 구형 iOS `addListener` 폴백 · 기능 감지) · 차트 생성 블록은 제자리(apply 앵커 생존)에 try/catch(실패 시 PC 모양), 분기 도우미는 차트 스크립트 끝 · validate·compare 의 `check_date_labels`·"01/06 labels"·min-width 2곳은 그대로 · 10/06 결정 6·16-④ 의 답 = 이 회차(`per_day_px` 80 은 PC 용으로 유지).
 - 다음 단계: ③ 구현 새 세션 **Opus 5.5 · ultracode** — 지시문은 탐색 세션이 이 블록 뒤에 만들어 준다. 이 블록만 추가 커밋(push 0).
 - 지시문(탐색 세션이 작성, 2026-10-06): 저장소 밖 `D:\saero\saero-ad-report_01차트_구현지시_회차1_2026-10-06.md` — 프롬프트 B 구현 양식, 사실 기준 = 이 브랜치 HEAD(기록 커밋 2), 할 일 1~8(config · apply 템플릿·변환·사슬 · validate · mutation·test_apply · chart_check · 안내 스크립트 S · 문서 · 미리보기), 리허설 R1~R9, [넘길 때] 모델·effort. 보내기 전 검토자 2(결정·막음 완결성 / 코드·앵커 대조)로 대조해 반영 — 결과는 지시문 끝 "검토자 대조" 줄.
+- 지시문 검토자 대조 결과(2026-10-06): 렌즈 1 결정·막음 완결성 13건(막음 1 · 빠짐 6 · 문구 6) · 렌즈 2 코드·앵커 10건(틀림 2 · 빠짐 1 · 문구 7) — 전부 반영. 큰 것: 분기 도우미 정의 순서(01·06 블록은 제자리 PC 생성 + 큐, 도우미가 차트 스크립트 끝에서 큐를 비움 — 즉시 호출이면 TypeError 로 뒤 차트 5개가 비는 막음) · convert_b_to_c ⑤ 앵커 `
+});
+</script>
+` · fixture 안내 발췌 2줄 보강 · `window.__saeroSync` 노출 · 막음 기준은 5절 원문 그대로 · 첫 적용 본보기에 결정 11 ①~④ 질문 · test_deploy 는 `-k layout_gate` · chart_check 외부 요청 차단 0 판정.
 
 ---
 
