@@ -12,6 +12,11 @@
   남기고 다음 구역을 계속 대조한다(옛 판은 첫 실패 뒤 나머지 항목을 전부 생략 — 01 해석 문단 삭제 프로브가 OK 17에서 멈춤).
   10번 나열 항목은 "최근 7일 노출은 …회, 클릭은 …건(M/D~M/D)" + "9/6 이후 N일 하루 평균 N건(N일 평균 N건)"으로 바뀜
   (항목 수 95 그대로 — 9/6 이후 나열 2항목·일수 1항목 → 최근 7일 2항목·일수/평균 1항목).
+- (2026-10-06 회차 2 — 레이아웃 판 r2026-10-B) "03 일별 표 전체 행"은 03 구역의 두 표(위 = 합계 + 최근 날짜, 접힌 표 = 나머지)를
+  DOM 순서대로 이어 읽어 거꾸로(`[::-1]`) compute 오름차순과 대조한다 — 최신 위가 정본, 오름차순으로 되돌린 판은 DIFF.
+  summary(접기 머리) 4항목 신설: 07 클릭 1건 "(N개 · 펼치기)" · 클릭 0 "(노출 5회 이상 N개 · 펼치기)" · 경쟁사표 "표 N행" = compute 목록 길이,
+  03 "이전 N일(M/D~M/D)" = 접힌 표의 행 수·첫/끝 날짜. 08 summary 의 "(N개 지역·클릭 M건)"은 기존 "08 컴팩트 개수·클릭"이 읽는다(구역 첫 일치).
+  **항목 수 N = 99**(95 + summary 4).
 """
 import json
 import re
@@ -81,12 +86,15 @@ def _s02():  # 02
     cmp("02 groupChart 노출", chart_data("groupChart", "노출수"), R["02"]["groupChart"]["노출"]); cmp("02 groupChart 클릭", chart_data("groupChart", "클릭수"), R["02"]["groupChart"]["클릭"])
     cmp("02 costPie", chart_data("costPie"), R["02"]["costPie"])
 
-def _s03():  # 03
-    r3 = rows(sec(3)); body = [r for r in r3 if r[0] != "합계"]; tot = [r for r in r3 if r[0] == "합계"][0]
+def _s03():  # 03 — 레이아웃 판 r2026-10-B: 위 표(합계 + 최근 날짜 최신 위) + 접힌 표(나머지 최신 위) → DOM 전체 [::-1] = 오름차순
+    s3 = sec(3); r3 = rows(s3); body = [r for r in r3 if r[0] != "합계"]; tot = [r for r in r3 if r[0] == "합계"][0]
     def p3(r): return [num(r[1]), num(r[2]), None if r[3] == "–" else num(r[3])], [num(r[4]), num(r[5]), None if r[6] == "–" else num(r[6])], num(r[7])
-    cmp("03 일별 표 전체 행", [{"날짜": r[0], "플레이스": p3(r)[0], "파워링크": p3(r)[1], "합계": p3(r)[2]} for r in body], R["03"]["rows"])
+    cmp("03 일별 표 전체 행", [{"날짜": r[0], "플레이스": p3(r)[0], "파워링크": p3(r)[1], "합계": p3(r)[2]} for r in body][::-1], R["03"]["rows"])
     cmp("03 합계 행", {"플레이스": p3(tot)[0], "파워링크": p3(tot)[1], "총": p3(tot)[2]}, R["03"]["합계"])
     cmp("03 desc 최고일", grp(r"최고치 (\S+) ([\d,]+)원", sec(3)).groups(), (R["03"]["최고일"], f"{R['03']['최고액']:,}"))
+    # summary(접기 머리)는 구역 끝 — 형식이 깨져도 위 데이터 항목은 먼저 대조된다
+    m = grp(r"<summary[^>]*>이전 (\d+)일(?:\((\d+/\d+)~(\d+/\d+)\))? 펼치기</summary>", s3); fold = [r[0].split("(")[0] for r in rows(s3[m.start():])]
+    cmp("03 summary 이전 N일·기간 = 접힌 표", [int(m.group(1)), m.group(2), m.group(3)], [len(fold), fold[-1] if fold else None, fold[0] if fold else None])
 
 def _s04():  # 04
     got4 = [{"유형": r[0].replace(" 광고", ""), "그룹": re.split(r"\s*\(", r[1])[0].strip(), "노출": num(r[2]), "클릭": num(r[3]), "CTR": float(r[4].rstrip("%")),
@@ -141,6 +149,10 @@ def _s07():  # 07
     cmp("07 desc 상위2 비중", int(grp(r"클릭의 (\d+)% 차지", s7).group(1)), R["07"]["상위2비중"])
     cmp("07 클릭 합계(정식+1건+경쟁사)", num(S["kpi"]["총 클릭수"]), R["07"]["정식표클릭합"] + R["07"]["클릭1합"] + R["07"]["경쟁사클릭합"])
     print("      config 경쟁사명을 포함하는데 직전 표에 없는 검색어(신규 변형 후보):", R["07"]["신규변형후보"])
+    # summary(접기 머리)는 구역 끝 — 형식이 깨져도 위 데이터 항목은 먼저 대조된다
+    cmp("07 summary 클릭1건 개수", int(grp(r"클릭 1건 검색어 <span[^>]*>\((\d+)개 · 펼치기\)", s7).group(1)), len(R["07"]["클릭1"]))
+    cmp("07 summary 클릭0 개수", int(grp(r"노출은 있으나 클릭 0건인 검색어 <span[^>]*>\(노출 5회 이상 (\d+)개 · 펼치기\)", s7).group(1)), len(R["07"]["클릭0목록"]))
+    cmp("07 summary 경쟁사표 행수", int(grp(r"<summary[^>]*>표 (\d+)행 · 펼치기</summary>", segc).group(1)), len(R["07"]["경쟁사표"]))
 
 def _s08():  # 08
     s8 = sec(8)

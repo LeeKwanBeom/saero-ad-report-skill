@@ -6,6 +6,9 @@
 동작: 사본만 만든다(원본 읽기 전용). 기준 실행(DIFF 0) 뒤 구역 하나의 서술 문단만 지운 사본 셋을 돌려
   ① DIFF 가 그 구역 항목뿐이고 ② 다른 구역의 기준 [OK] 항목이 전부 다시 [OK] 인지 본다.
   - 01 해석 문단(.note-mint) 삭제 · 07 ②③ 각주 블록 삭제 · 10 최근 7일·평균 문장 삭제
+  (2026-10-06 회차 2 — 레이아웃 판) 같은 방식으로 "그 구역 항목만 DIFF" 를 본다(파싱 실패가 아니라 값 DIFF):
+  - 03 두 표의 날짜 행을 오름차순으로 되돌림(옛 배치 복귀) → "03 일별 표 전체 행" DIFF
+  - 07 summary 클릭 1건 개수 N → N+1(summary 만 옛 값) → "07 summary 클릭1건 개수" DIFF
 종료 코드: 0 = 전부 맞음, 1 = 아니면.
 """
 import hashlib
@@ -51,6 +54,27 @@ def cut(html, n, pat):
     return html[:s] + seg + html[e:] if k == 1 else None
 
 
+def ascending03(html):
+    """03 구역의 날짜 행(합계 제외)을 DOM 전체 오름차순으로 다시 늘어놓은 판(두 표 칸 수는 그대로 — 옛 apply 의 오름차순 복귀 흉내)."""
+    s, e = section(html, 3)
+    seg = html[s:e]
+    trs = [m for m in re.finditer(r"<tr[^>]*>.*?</tr>", seg, re.S) if "<td" in m.group(0) and ">합계<" not in m.group(0)]
+    if len(trs) < 2:
+        return None
+    new = [m.group(0) for m in trs][::-1]
+    out, last = [], 0
+    for m, t in zip(trs, new):
+        out += [seg[last:m.start()], t]
+        last = m.end()
+    return html[:s] + "".join(out) + seg[last:] + html[e:]
+
+
+def bump_click1_summary(html):
+    s, e = section(html, 7)
+    seg, k = re.subn(r"(클릭 1건 검색어 <span[^>]*>\()(\d+)(개 · 펼치기\))", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}", html[s:e], count=1)
+    return html[:s] + seg + html[e:] if k == 1 else None
+
+
 def run(html_text, compute, work):
     p = os.path.join(work, "index.html")
     with open(p, "w", encoding="utf-8", newline="") as f:
@@ -82,7 +106,10 @@ def main():
             return 1
         cases = [("01", "01 해석 문단(.note-mint) 삭제", cut(H, 1, r'<div class="note-mint"[^>]*>.*?</div>')),
                  ("07", "07 ②③ 각주 블록 삭제", cut(H, 7, r'<div class="note"[^>]*>(?:(?!</div>).)*?클릭 0인 검색어 전체는.*?</div>')),
-                 ("10", "10 최근 7일·평균 문장 삭제", cut(H, 10, r"최근 7일 노출은 .*?일 평균 [\d.]+건\)\.?"))]
+                 ("10", "10 최근 7일·평균 문장 삭제", cut(H, 10, r"최근 7일 노출은 .*?일 평균 [\d.]+건\)\.?")),
+                 ("03", "03 날짜 행 오름차순 복귀(옛 배치)", ascending03(H)),
+                 ("07", "07 summary 클릭 1건 개수 +1(summary 만 옛 값)", bump_click1_summary(H))]
+        want_diff = {"03 날짜 행 오름차순 복귀(옛 배치)": "03 일별 표 전체 행", "07 summary 클릭 1건 개수 +1(summary 만 옛 값)": "07 summary 클릭1건 개수"}
         for sec, label, text in cases:
             if text is None:
                 print(f"  [MISS] {label} — 지울 자리를 못 찾음(마크업이 바뀌었으면 이 시험을 고칠 것)")
@@ -92,7 +119,7 @@ def main():
             wrong = [d for d in diff if section_of(d) != sec]
             lost = sorted(n for n in base_ok if section_of(n) != sec and n not in ok)
             other = sorted({section_of(n) for n in ok if section_of(n) != sec})
-            res = rc == 1 and diff and not wrong and not lost
+            res = rc == 1 and diff and not wrong and not lost and (label not in want_diff or want_diff[label] in diff)
             good &= bool(res)
             print(f"  [{'OK' if res else 'MISS'}]   {label} → exit {rc} · DIFF {len(diff)}개(전부 {sec} 구역: {not wrong}) · "
                   f"다른 구역 기준 OK {len(base_ok) - len([n for n in base_ok if section_of(n) == sec])}개 중 다시 OK {len([n for n in ok if section_of(n) != sec])}개 · "
