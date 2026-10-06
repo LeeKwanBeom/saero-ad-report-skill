@@ -56,11 +56,24 @@
     ]
   },
   "report_layout": {
-    "_comment": "레이아웃 판(사용자 결정 2026-10-06 — references/report-structure.md \"레이아웃 판 r2026-10-B\"). 배포본 <meta name=\"report-layout\" content=\"…\"> 값 = layout_id 여야 validate \"레이아웃 판\" PASS, deploy.py 는 --file·--base 의 meta 가 다르면 --layout-change 없이 PUT 안 함. scripts/apply.py --layout 이 meta 가 없는 옛 판을 이 판으로 바꾼다(접기 details = markers.details 개 · 03 합계 맨 위 + 최근 recent_days 일 최신 위, 나머지 날짜는 접힌 표에 최신 위). 판을 바꾸는 것은 설계 회차·사용자 결정으로만.",
-    "layout_id": "r2026-10-B",
+    "_comment": "레이아웃 판(사용자 결정 2026-10-06 — references/report-structure.md \"레이아웃 판\" 절, 지금 r2026-10-C). 배포본 <meta name=\"report-layout\" content=\"…\"> 값 = layout_id 여야 validate \"레이아웃 판\" PASS, deploy.py 는 --file·--base 의 meta 가 다르면 --layout-change 없이 PUT 안 함. scripts/apply.py --layout 이 meta 가 없는 옛 판은 r2026-10-B → r2026-10-C 사슬로, meta r2026-10-B 판은 r2026-10-C 로 바꾼다(접기 details = markers.details 개 · 03 합계 맨 위 + 최근 recent_days 일 최신 위, 나머지 날짜는 접힌 표에 최신 위). 판 C(2026-10-06 — 01·06 모바일 가로 막대): 화면 폭 ≤ mobile.max_px 이면 01·06 차트를 가로 막대(날짜 세로축·최신 위)로 그린다 — 분기 경계 = 배포본 CSS @media (max-width: 640px) 과 같은 값(validate 가 JS matchMedia·M 줄·CSS 를 이 값과 대조) · 인쇄 때 01·06 컨테이너 높이 ≤ mobile.print_max_height_px(한 쪽 안) · 모바일 컨테이너 높이 = 날짜 수 × row_px + pad_px · 분기 표지 주석 수 = markers.mobile_branch · apply 가 매 회차 템플릿의 M 줄(var M = {…})을 이 값으로 다시 쓴다(기계 자리). PC 차트 폭(chart_min_width.per_day_px)은 그대로. 판을 바꾸는 것은 설계 회차·사용자 결정으로만.",
+    "layout_id": "r2026-10-C",
     "recent_days": 7,
     "markers": {
-      "details": 5
+      "details": 5,
+      "mobile_branch": 2
+    },
+    "mobile": {
+      "max_px": 640,
+      "print_max_height_px": 1000,
+      "row_px": {
+        "01": 26,
+        "06": 22
+      },
+      "pad_px": {
+        "01": 90,
+        "06": 70
+      }
     }
   },
   "exclusions": {

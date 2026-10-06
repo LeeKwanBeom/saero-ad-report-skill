@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
-"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2).
+"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판 r2026-10-B"):
-  · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판(B 접기형)으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
-  · meta 가 없는 옛 판은 `--layout` 일 때만 변환(meta + `<details class="fold">` 5개 뼈대 + 접기 CSS·스크립트) 뒤 값을 바꾼다.
-    `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). meta 가 다른 값이면 FAIL(판 변경은 설계 회차 몫).
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-C):
+  · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
+  · meta r2026-10-B(접기형) 판은 `--layout` 일 때 r2026-10-C 로 변환(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
+    차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) 뒤 값을 바꾼다. `--layout` 없이 B 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-B ≠ config …`.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c`) 뒤 값을 바꾼다.
+    `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 그 밖의 meta 는 FAIL(판 변경은 설계 회차 몫).
+  · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch`)는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
   02 도넛 제목 총액 · 01 표 5행·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
-  **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2.
+  **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
+  분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}};` = config `report_layout.mobile`, 판 C).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다. summary·details 는 apply 몫.
-- 앵커는 전부 "정확히 하나"를 요구한다. 못 찾거나 둘 이상이면 `[FAIL] apply: …` exit 1 — 파일은 끝에 한 번만 쓰므로 실패하면 작업본은 그대로다.
+- 앵커: `once()` 만 "정확히 하나"를 검사한다(못 찾거나 둘 이상이면 `[FAIL] apply: …` exit 1). 차트 배열의 `chart()`/`labels()` 는
+  `getElementById('<id>')` 부터 다음 `new Chart` 앞까지에서 **첫 일치**를 바꾼다(없으면 FAIL, 둘이어도 FAIL 하지 않음 — 판 C 템플릿은 블록 안에 하나씩).
+  파일은 끝에 한 번만 쓰므로 실패하면 작업본은 그대로다.
 - 같은 compute.json 으로 두 번 돌려도 바이트가 같다(멱등 — tests/test_apply.py).
 """
 import argparse
@@ -79,14 +85,14 @@ def once_in(s, n, pat, rep, flags=0):
 LAYOUT_META = re.compile(r'<meta name="report-layout" content="([^"]*)">')
 DETAILS = re.compile(r"<details(?:\s[^>]*)?>")
 
-FOLD_CSS = """  /* 접기(레이아웃 판 r2026-10-B, 2026-10-06) — details.fold(태그 이름을 꺾쇠로 쓰지 말 것: validate 태그 짝이 셈): 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖.
+FOLD_CSS = """  /* 접기(레이아웃 판 r2026-10-B 이후, 2026-10-06) — details.fold(태그 이름을 꺾쇠로 쓰지 말 것: validate 태그 짝이 셈): 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖.
      기본 닫힘. 펼치면 아래 스크립트가 가로 스크롤 안내를 다시 맞추고, 인쇄할 때는 전부 펼쳤다가 되돌린다(css-and-layout.md "접기 안내") */
   .fold > summary{cursor:pointer;}
   .fold-more{font-size:12px;font-weight:700;color:var(--mint-dark);}
   .fold[open] > .fold-more{margin-bottom:8px;}
 """
 RESIZE = "  window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(sync, 200); });\n"
-FOLD_JS = """  // 접기(details — 레이아웃 판 r2026-10-B): 펼칠 때 안쪽 표의 안내·페이드를 다시 맞추고, 인쇄할 때는 닫힌 것을 전부 펼쳤다가 원래대로
+FOLD_JS = """  // 접기(details — 레이아웃 판 r2026-10-B 이후): 펼칠 때 안쪽 표의 안내·페이드를 다시 맞추고, 인쇄할 때는 닫힌 것을 전부 펼쳤다가 원래대로
   document.querySelectorAll('details').forEach(function(d){ d.addEventListener('toggle', sync); });
   var folded = [];
   window.addEventListener('beforeprint', function(){
@@ -148,6 +154,314 @@ def convert_layout(h, lay):
     return h
 
 
+# ── 판 C(r2026-10-C, 2026-10-06 — 01 일별 추이 모바일 차트 회차 1, 설계안 A): 01·06 모바일 가로 막대 ──
+# 옛 판 → B 단계 값(config 를 C 로 올린 뒤에도 사슬 중간 단계는 이 값으로 돈다 — convert_layout 의 meta·details 대조)
+LAYOUT_B = {"layout_id": "r2026-10-B", "markers": {"details": 5}}
+LAYOUT_C = "r2026-10-C"
+BRANCH = re.compile(r"/\* saero:mobile-branch (01|06) \*/")
+M_LINE = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}\};')
+
+# CSS·JS 주석에 태그 이름을 꺾쇠로 쓰지 말 것(validate 태그 짝·apply details 수가 셈) · 새 색 0(기존 ::after 와 같은 값)
+MOBILE_CSS = """  /* 왼쪽 페이드(레이아웃 판 r2026-10-C, 2026-10-06) — PC 01·06 차트는 최신 쪽(오른쪽 끝)에서 시작하므로 왼쪽으로 이전 날짜가 이어짐을 알린다.
+     맨 왼쪽(.at-start)이면 숨김 — 아래 안내 스크립트가 at-end 와 같이 맞춘다(css-and-layout.md "가로 스크롤 안내 자동화"). 모바일 가로 막대는 넘침이 없어 페이드가 없다 */
+  .scroll-fade::before{
+    content:"";position:absolute;top:0;left:0;width:38px;height:100%;
+    background:linear-gradient(to left, rgba(255,255,255,0), var(--card) 85%);
+    pointer-events:none;opacity:1;transition:opacity .15s ease;
+  }
+  .scroll-fade.at-start::before{opacity:0;}
+"""
+
+# 01·06 블록 — 한 스크립트 안 직렬 실행이라 이 시점엔 분기 도우미가 아직 없다: 제자리에서 PC 모양으로 만들고 큐에 넣기만 한다.
+# apply chart()/labels() 앵커가 사는 순서: getElementById → labels: [ (블록 안 하나) → label: '…', data: [ → 그 뒤에야 첫 new Chart(
+# PC 옵션 값 = 판 B 배포본 그대로(06 은 날짜축 autoSkip:false 를 명시). 배열은 data 하나 — 모바일은 같은 객체로 다시 그린다(숫자 1벌).
+CHART01_C = """/* saero:mobile-branch 01 */
+(function(){  // 판 C: PC 는 세로 콤보 그대로 · 화면 폭 ≤ M.maxPx 이면 차트 스크립트 끝 분기 도우미가 같은 data 로 가로 막대(날짜 세로축·최신 위)를 다시 만든다
+  var canvas = document.getElementById('dailyChart');
+  var data = {
+    labels: [],
+    datasets: [
+      {
+        type: 'bar',
+        label: '노출수',
+        data: [],
+        backgroundColor: '#cdeee7',
+        borderRadius: 6,
+        order: 1
+      },
+      {
+        type: 'line',
+        label: '총비용(원)',
+        data: [],
+        borderColor: mintDark,
+        backgroundColor: mintDark,
+        tension: 0.35,
+        pointBackgroundColor: mintDark,
+        order: 0
+      }
+    ]
+  };
+  function axes(key, ids){ data.datasets.forEach(function(d, i){ delete d.xAxisID; delete d.yAxisID; d[key] = ids[i]; }); }
+  function pc(){
+    axes('yAxisID', ['y', 'y1']);
+    data.datasets[0].datalabels = {display: true, anchor: 'start', align: 'top', offset: 4, color: ink, font: {size:11, weight:'700'}, formatter: (v) => v.toLocaleString()};
+    data.datasets[1].borderWidth = 3;
+    data.datasets[1].pointRadius = 5;
+    data.datasets[1].datalabels = {display: true, align: 'top', anchor: 'end', offset: 8, clip: false, color: ink, font: {size:11, weight:'600'}, formatter: (v) => v.toLocaleString() + '원'};
+    return {
+      type: 'bar',
+      data: data,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {mode:'index', intersect:false},
+        layout: { padding: {top: 24} },
+        plugins: {
+          legend: {position:'bottom', labels:{usePointStyle:true, boxWidth:8}},
+        },
+        scales: {
+          x: {grid:{display:false}, ticks:{font:{size:10.5}, maxRotation:0, autoSkip:false}},
+          y: {position:'left', grid:{color:grid}, title:{display:true,text:'노출수',font:{size:11}}},
+          y1:{position:'right', grid:{display:false}, title:{display:true,text:'비용(원)',font:{size:11}}}
+        }
+      }
+    };
+  }
+  function costGap(ctx){  // 모바일 비용 라벨 간격 — 점이 같은 행의 노출 라벨(막대 시작 쪽) 안쪽이면 그 라벨 상자 오른쪽 끝 + 4px 뒤에서 시작(글자 겹침 0)
+    var ch = ctx.chart, bs = ch.scales.x, cs = ch.scales.x1, i = ctx.dataIndex, c2 = ch.ctx;
+    if (!bs || !cs) return 8;
+    c2.save(); c2.font = '700 11px ' + Chart.defaults.font.family;
+    var w = c2.measureText(Number(data.datasets[0].data[i]).toLocaleString()).width;
+    c2.restore();
+    return Math.max(8, bs.getPixelForValue(0) + 4 + w + 8 + 4 - cs.getPixelForValue(data.datasets[1].data[i]));
+  }
+  function mobile(){
+    axes('xAxisID', ['x', 'x1']);
+    data.datasets[0].datalabels = {display: true, anchor: 'start', align: 'right', offset: 4, color: ink, font: {size:11, weight:'700'}, formatter: (v) => v.toLocaleString()};
+    data.datasets[1].borderWidth = 2;
+    data.datasets[1].pointRadius = 4;
+    data.datasets[1].datalabels = {display: true, anchor: 'center', align: 'right', offset: costGap, clip: false, color: ink, font: {size:11, weight:'600'}, formatter: (v) => v.toLocaleString() + '원'};
+    return {
+      type: 'bar',
+      data: data,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {mode:'index', intersect:false},
+        layout: { padding: {right: 64} },
+        plugins: {
+          legend: {position:'bottom', labels:{usePointStyle:true, boxWidth:8}},
+        },
+        scales: {
+          y: {reverse:true, grid:{display:false}, ticks:{font:{size:10.5}, autoSkip:false}},
+          x: {position:'top', grid:{color:grid}, title:{display:true,text:'노출수',font:{size:11}}},
+          x1:{position:'bottom', grid:{display:false}, title:{display:true,text:'비용(원)',font:{size:11}}}
+        }
+      }
+    };
+  }
+  var ch = null;
+  try { ch = new Chart(canvas, pc()); } catch (e) {}
+  (window.__saeroMobileQ = window.__saeroMobileQ || []).push({key: '01', canvas: canvas, data: data, pc: pc, mobile: mobile, chart: ch});
+})();
+"""
+
+CHART06_C = """/* saero:mobile-branch 06 */
+(function(){  // 판 C: PC 는 그대로 · 화면 폭 ≤ M.maxPx 이면 가로(날짜 세로축·최신 위, 순위축 1 이 오른쪽)에 순위 라벨 — 정의·전 기간 배열 그대로
+  var canvas = document.getElementById('rankChart');
+  var data = {
+    labels: [],
+    datasets: [{
+      label: '평균노출순위',
+      data: [],
+      borderColor: mintDark,
+      backgroundColor: 'rgba(69,206,179,0.12)',
+      borderWidth: 3,
+      tension: 0.35,
+      pointBackgroundColor: mintDark,
+      fill: true
+    }]
+  };
+  function title(){ return {display:true, text:'파워링크(노원역필라테스) 일별 평균순위 · 낮을수록 상단', align:'start', font:{size:12,weight:'600'}, color: ink, padding:{bottom:14}}; }
+  function pc(){
+    delete data.datasets[0].datalabels;
+    data.datasets[0].pointRadius = 5;
+    return {
+      type: 'line',
+      data: data,
+      options: {
+        maintainAspectRatio:false,
+        responsive:true,
+        plugins:{
+          legend:{display:false},
+          title: title()
+        },
+        scales:{
+          y:{reverse:true, min:1, grid:{color:grid}, title:{display:true,text:'순위',font:{size:11}}, ticks:{stepSize:1}},
+          x:{grid:{display:false}, ticks:{autoSkip:false}}
+        }
+      }
+    };
+  }
+  function mobile(){
+    data.datasets[0].pointRadius = 4;
+    data.datasets[0].datalabels = {display: true, anchor: 'center', align: 'right', offset: 8, color: ink, font: {size:10.5, weight:'600'}, formatter: (v) => v.toFixed(2)};
+    return {
+      type: 'line',
+      data: data,
+      options: {
+        indexAxis: 'y',
+        maintainAspectRatio:false,
+        responsive:true,
+        layout: { padding: {right: 40} },
+        plugins:{
+          legend:{display:false},
+          title: title()
+        },
+        scales:{
+          x:{reverse:true, min:1, position:'top', grid:{color:grid}, title:{display:true,text:'순위',font:{size:11}}, ticks:{stepSize:1}},
+          y:{reverse:true, offset:true, grid:{display:false}, ticks:{font:{size:10.5}, autoSkip:false}}
+        }
+      }
+    };
+  }
+  var ch = null;
+  try { ch = new Chart(canvas, pc()); } catch (e) {}
+  (window.__saeroMobileQ = window.__saeroMobileQ || []).push({key: '06', canvas: canvas, data: data, pc: pc, mobile: mobile, chart: ch});
+})();
+"""
+
+# 분기 도우미(차트 스크립트 끝, 한 번) — @@M@@ 자리에 config M 줄(m_line). getElementById('dailyChart'|'rankChart') 리터럴을 쓰지 않는다(apply·compare 의 첫 일치 앵커).
+MOBILE_JS = """
+/* saero:mobile-helper — 판 C(r2026-10-C, 2026-10-06) 01·06 분기 도우미(차트 스크립트 끝, 한 번).
+   위 01·06 블록은 제자리에서 PC 모양으로 만들고 큐(window.__saeroMobileQ)에 넣기만 한다 — 한 스크립트 안 직렬 실행이라 이 도우미는 그 뒤에 정의된다.
+   화면 폭 ≤ M.maxPx(= 배포본 CSS 모바일 경계)이면 같은 data 로 가로 막대를 다시 만들고(컨테이너 높이 = 날짜 수 × M.row + M.pad, 원래 min-width·height 는 보관했다가 PC 복귀 때 복원),
+   회전·창 크기(matchMedia change)에 다시 판정한다(상태 비교 · 동기 · 안내 sync 직접 · PC 면 최신 쪽 스크롤). 인쇄 중에는 판정을 잠그고,
+   모바일이면 01·06 높이를 M.printMaxH 이하로 줄여 한 쪽 안에 찍은 뒤(afterprint) 되돌린다. M 줄은 apply 가 매 회차 config report_layout.mobile 로 다시 쓴다(기계 자리). */
+(function(){
+  @@M@@
+  var mqOk = ('matchMedia' in window);
+  var mq = mqOk ? window.matchMedia('(max-width: ' + M.maxPx + 'px)') : null;
+  var items = [], state = {mobile: false, printing: false};
+  function restore(b){ if (b.dataset.minwidth !== undefined) { b.style.minWidth = b.dataset.minwidth; b.style.height = b.dataset.height; } }
+  function build(it, toMobile){
+    var b = it.canvas.parentElement;
+    try {
+      if (it.chart) { it.chart.destroy(); it.chart = null; }
+      if (toMobile) {
+        if (b.dataset.minwidth === undefined) { b.dataset.minwidth = b.style.minWidth; b.dataset.height = b.style.height; }
+        b.style.minWidth = '0';
+        b.style.height = (it.data.labels.length * M.row[it.key] + M.pad[it.key]) + 'px';
+        it.chart = new Chart(it.canvas, it.mobile());
+      } else {
+        restore(b);
+        it.chart = new Chart(it.canvas, it.pc());
+      }
+    } catch (e) {
+      it.chart = null;
+      try { var s = Chart.getChart(it.canvas); if (s) s.destroy(); restore(b); it.chart = new Chart(it.canvas, it.pc()); } catch (e2) {}
+    }
+  }
+  function scrollEnd(){
+    if (state.mobile) return;
+    items.forEach(function(it){
+      var s = it.canvas.closest ? it.canvas.closest('.scroll-x') : null;
+      if (!s) return;
+      s.scrollLeft = s.scrollWidth;
+      try { s.dispatchEvent(new Event('scroll')); } catch (e) {}
+    });
+  }
+  function judge(){
+    var m = !!(mqOk && mq.matches);
+    if (state.printing || m === state.mobile) return;
+    state.mobile = m;
+    items.forEach(function(it){ build(it, m); });
+    try { if (window.__saeroSync) window.__saeroSync(); } catch (e) {}
+    if (!m) scrollEnd();
+  }
+  window.addEventListener('beforeprint', function(){
+    state.printing = true;
+    if (!state.mobile) return;
+    items.forEach(function(it){
+      try {
+        var b = it.canvas.parentElement;
+        it.printH = b.style.height;
+        b.style.height = Math.min(parseFloat(b.style.height) || b.clientHeight, M.printMaxH) + 'px';
+        if (it.chart) { it.chart.resize(); it.chart.update('none'); }
+      } catch (e) {}
+    });
+  });
+  window.addEventListener('afterprint', function(){
+    if (state.mobile) items.forEach(function(it){
+      try {
+        if (it.printH !== undefined) { it.canvas.parentElement.style.height = it.printH; delete it.printH; }
+        if (it.chart) { it.chart.resize(); it.chart.update('none'); }
+      } catch (e) {}
+    });
+    state.printing = false;
+  });
+  window.__saeroMobile = {M: M, items: items, state: state, build: build, judge: judge, scrollEnd: scrollEnd};
+  (window.__saeroMobileQ || []).forEach(function(it){ items.push(it); if (mqOk && mq.matches) build(it, true); }); window.__saeroMobileQ = []; state.mobile = !!(mqOk && mq.matches);
+  if (mqOk) { if (mq.addEventListener) mq.addEventListener('change', judge); else if (mq.addListener) mq.addListener(judge); }
+})();
+"""
+
+# 가로 안내 스크립트(별도 script) — S(스크롤 시작 최신 쪽)·회전 규약 네 줄. (c)(d) 는 FOLD_JS 마지막 줄 뒤.
+AFTERPRINT = "  window.addEventListener('afterprint', function(){ folded.forEach(function(d){ d.open = false; }); folded = []; });\n"
+SYNC_JS = ("  window.__saeroSync = sync; // 판 C: 01·06 분기 도우미(차트 스크립트 끝)가 회전 뒤 안내·페이드를 바로 다시 맞춘다\n"
+           "  window.addEventListener('load', function(){ setTimeout(function(){ if (window.__saeroMobile) window.__saeroMobile.scrollEnd(); }, 0); }); "
+           "// 판 C: PC 01·06 은 최신 쪽(오른쪽 끝)에서 시작 — load 의 sync(래퍼 감싸기) 뒤\n")
+
+
+def m_line(lay):
+    """config report_layout.mobile → 분기 도우미의 M 줄(한 줄 리터럴 — 매 회차 기계 자리)."""
+    m = lay["mobile"]
+    row, pad = m["row_px"], m["pad_px"]
+    return (f'var M = {{maxPx: {int(m["max_px"])}, printMaxH: {int(m["print_max_height_px"])}, '
+            f'row: {{"01": {int(row["01"])}, "06": {int(row["06"])}}}, pad: {{"01": {int(pad["01"])}, "06": {int(pad["06"])}}}}};')
+
+
+def chart_block(h, cid, tpl):
+    """`new Chart(document.getElementById('<cid>'), {` 부터 그 뒤 첫 `\\n});\\n` 까지(끝 포함)를 tpl 로. 시작이 정확히 하나·블록 안 new Chart 하나여야."""
+    start = f"new Chart(document.getElementById('{cid}'), {{"
+    if h.count(start) != 1:
+        raise ApplyError(f"차트 블록 시작 {start!r} 가 정확히 하나가 아님({h.count(start)}개)")
+    i = h.index(start)
+    j = h.find("\n});\n", i)
+    if j == -1:
+        raise ApplyError(f"차트 블록 {cid} 끝(첫 줄머리 '}});') 없음")
+    j += len("\n});\n")
+    if h.count("new Chart(", i, j) != 1:
+        raise ApplyError(f"차트 블록 {cid} 안에 new Chart 가 {h.count('new Chart(', i, j)}개 — 블록 끝을 잘못 찾음")
+    return h[:i] + tpl + h[j:]
+
+
+def check_branches(h, lay, why):
+    n = {k: len([x for x in BRANCH.findall(h) if x == k]) for k in ("01", "06")}
+    want = int(lay["markers"]["mobile_branch"])
+    if n["01"] != 1 or n["06"] != 1 or n["01"] + n["06"] != want:
+        raise ApplyError(f"{why} 분기 표지 {n['01'] + n['06']}개(01 {n['01']} · 06 {n['06']}) ≠ config {want} — 손으로 바꾼 판으로 보임")
+
+
+def convert_b_to_c(h, lay):
+    """레이아웃 판 r2026-10-B → r2026-10-C(01·06 모바일 가로 막대). 앵커는 전부 once(정확히 하나) — 서술 표지 블록·섹션 HTML·min-width 텍스트는 건드리지 않는다.
+    값(01·06 배열·M 줄)은 뒤의 apply 가 채운다(템플릿의 빈 [] · M 줄)."""
+    h = once(r'<meta name="report-layout" content="r2026-10-B">', f'<meta name="report-layout" content="{LAYOUT_C}">', h)   # ①
+    h = once(r"(\n</style>)", lambda m: "\n" + MOBILE_CSS.rstrip("\n") + m.group(1), h)                                    # ② 왼쪽 페이드
+    h = chart_block(h, "dailyChart", CHART01_C)                                                                              # ③
+    h = chart_block(h, "rankChart", CHART06_C)                                                                               # ④
+    h = once(r"\n\}\);\n</script>\n", lambda m: "\n});\n\n" + MOBILE_JS.lstrip("\n").replace("@@M@@", m_line(lay)) + "</script>\n", h)   # ⑤ 차트 스크립트 끝
+    # ⑥ 안내 스크립트 S·sync 규약 네 줄
+    h = once(r"([ \t]*)(wrapper\.classList\.toggle\('at-end', atEnd\);)",
+             lambda m: f"{m.group(1)}{m.group(2)}\n{m.group(1)}wrapper.classList.toggle('at-start', box.scrollLeft <= 2);", h)                  # (a)
+    h = once(re.escape("box.parentNode.classList.add('at-end'); // 페이드 숨김"),
+             lambda m: "box.parentNode.classList.add('at-end', 'at-start'); // 페이드 둘 다 숨김", h)                                       # (b)
+    h = once(re.escape(AFTERPRINT), lambda m: AFTERPRINT + SYNC_JS, h)                                                                         # (c)(d)
+    check_branches(h, lay, "변환 뒤")                                                                                                          # ⑦
+    return h
+
+
 def trs(block):
     return re.findall(r"<tr[^>]*>.*?</tr>", block, re.S)
 
@@ -161,7 +475,9 @@ def tr(cells, style=""):
 
 
 def apply(h, R, cfg, layout=False):
-    """layout = --layout(meta 없는 옛 판이면 변환). meta = config layout_id 면 변환 없이 값만(멱등)."""
+    """layout = --layout(옛 판·B 판이면 사슬로 변환). meta = config layout_id 면 변환 없이 값만(멱등).
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c · meta r2026-10-B → convert_b_to_c · meta = config → 값만 · 그 밖 FAIL.
+    config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
@@ -169,14 +485,23 @@ def apply(h, R, cfg, layout=False):
     metas = LAYOUT_META.findall(h)
     if len(metas) > 1:
         raise ApplyError(f'<meta name="report-layout"> 가 {len(metas)}개')
+    bid = LAYOUT_B["layout_id"]
     if not metas:
         if not layout:
             raise ApplyError(f"레이아웃 판 meta 없음 — --layout 을 붙여 다시(옛 모양 → {lid} 변환 + 값 교체)")
-        h = convert_layout(h, lay)
+        h = convert_b_to_c(convert_layout(h, LAYOUT_B), lay)
+    elif metas[0] == bid and lid == LAYOUT_C:
+        if not layout:
+            raise ApplyError(f"레이아웃 판 meta {bid} ≠ config {lid} — --layout 을 붙여 {bid} → {lid}")
+        h = convert_b_to_c(h, lay)
     elif metas[0] != lid:
         raise ApplyError(f"레이아웃 판 meta {metas[0]!r} ≠ config {lid!r} — 이 판에서 바꾸는 변환은 없음(판 변경은 설계 회차·사용자 결정)")
-    elif len(DETAILS.findall(h)) != int(lay["markers"]["details"]):
+    if LAYOUT_META.findall(h) != [lid]:
+        raise ApplyError(f"변환 뒤 레이아웃 판 meta {LAYOUT_META.findall(h)} ≠ config {lid!r}")
+    if len(DETAILS.findall(h)) != int(lay["markers"]["details"]):
         raise ApplyError(f"레이아웃 판 {lid} 인데 details {len(DETAILS.findall(h))}개 ≠ config {lay['markers']['details']} — 접기를 손으로 바꾼 판으로 보임")
+    check_branches(h, lay, f"레이아웃 판 {lid} 인데")
+    h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)
@@ -349,7 +674,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="meta 없는 옛 판이면 레이아웃 판(config report_layout)으로 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·r2026-10-B 판이면 레이아웃 판(config report_layout)으로 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -365,9 +690,15 @@ def main():
     with open(a.html, "w", encoding="utf-8", newline="") as f:
         f.write(new)
     lid = LAYOUT_META.search(new).group(1)
-    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자"
-          + (f" · 레이아웃 판 변환(meta 없음 → {lid}, details {len(DETAILS.findall(new))})" if not LAYOUT_META.search(h) else f" · 레이아웃 판 {lid}(변환 건너뜀)")
-          + (" (변경 없음)" if new == h else ""))
+    old = LAYOUT_META.search(h)
+    nbr = len(BRANCH.findall(new))
+    if not old:
+        conv = f" · 레이아웃 판 변환(meta 없음 → {LAYOUT_B['layout_id']} → {lid}, details {len(DETAILS.findall(new))} · 분기 {nbr})"
+    elif old.group(1) != lid:
+        conv = f" · 레이아웃 판 변환({old.group(1)} → {lid}, 분기 {nbr})"
+    else:
+        conv = f" · 레이아웃 판 {lid}(변환 건너뜀)"
+    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + (" (변경 없음)" if new == h else ""))
     return 0
 
 

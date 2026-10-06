@@ -19,6 +19,8 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   7. (2026-09-26) archive.py: data/ 사본에서 store 거부 2종·combine 검사 5종을 깨뜨려 [FAIL]로 멈추는지 본다.
   (2026-10-06 회차 2) "레이아웃 판": 변조 2(meta 값 변경 · 03 접기 하나 풀기) + 0건 가드 2(meta 제거 · 접기 전부 풀기 — 옛 모양 복원 흉내)
      + config 실험(report_layout.layout_id 를 바꾸면 기준 사본이 "레이아웃 판" FAIL — config 를 실제로 읽는지).
+  (2026-10-06 판 C) "레이아웃 판": 변조 +1(분기 표지 주석 06 제거) + 0건 가드 +1(분기 도우미 M 줄 이름 변조 var M → var MX)
+     + config 실험(report_layout.mobile.max_px 를 1 올리면 기준 사본이 "레이아웃 판" FAIL — M 줄·CSS 경계를 config 와 대조하는지).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -311,6 +313,9 @@ def main():
             return re.sub(r"</details>", "", re.sub(r"<details(?:\s[^>]*)?>\s*<summary((?:\s[^>]*)?)>(.*?)</summary>", r"<div\1>\2</div>", text, flags=re.S))
         s3 = section(H, 3)
         muts.append(("03 접기 하나 풀기(details → 펼친 표)", "레이아웃 판", {"html": H.replace(s3, unfold(s3), 1) if "<details" in s3 else None}))
+        # (2026-10-06 판 C) 분기 표지 주석 06 제거 → 분기 표지 1 ≠ config 2
+        br06 = "/* saero:mobile-branch 06 */"
+        muts.append(("판 C 분기 표지 06 주석 제거", "레이아웃 판", {"html": H.replace(br06, "", 1) if H.count(br06) == 1 else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -339,11 +344,14 @@ def main():
         # (2026-10-06 회차 2) 레이아웃 판 meta 제거 · 접기 전부 풀기 → "레이아웃 판" FAIL
         guards.append(("0건: 레이아웃 판 meta 제거", "레이아웃 판", {"html": H.replace(meta + "\n", "", 1).replace(meta, "", 1) if meta in H else None}))
         guards.append(("0건: 접기 전부 풀기(옛 모양 복원 흉내)", "레이아웃 판", {"html": unfold(H) if "<details" in H else None}))
+        # (2026-10-06 판 C) 분기 도우미 M 줄 이름 변조 → M 줄 0건
+        guards.append(("0건: 판 C M 줄 변조(var M = { → var MX = {)", "레이아웃 판", {"html": H.replace("var M = {", "var MX = {", 1) if H.count("var M = {") == 1 else None}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
         c2 = json.loads(cfg_text); c2["chart_min_width"]["date_based_sections"] = date_secs[:1]
         c3 = json.loads(cfg_text); c3["report_layout"]["layout_id"] = lid + "-config변조"
+        c4 = json.loads(cfg_text); c4["report_layout"]["mobile"]["max_px"] = int(cfg["report_layout"]["mobile"]["max_px"]) + 1
 
         # --- 실행 ---
         ok = True
@@ -380,6 +388,11 @@ def main():
         hit3 = [f for f in failed if "레이아웃 판" in f and c3["report_layout"]["layout_id"] in f]
         print(f"  report_layout.layout_id {lid}→{c3['report_layout']['layout_id']}: 기준 사본 '레이아웃 판' FAIL {len(hit3)}건" + ("" if hit3 else "  ← MISS"))
         ok &= bool(hit3)
+        rc, passed, failed, err = run(cfg_override=json.dumps(c4, ensure_ascii=False))
+        mx = c4["report_layout"]["mobile"]["max_px"]
+        hit4 = [f for f in failed if "레이아웃 판" in f and str(mx) in f]
+        print(f"  report_layout.mobile.max_px {cfg['report_layout']['mobile']['max_px']}→{mx}: 기준 사본 '레이아웃 판' FAIL {len(hit4)}건" + ("" if hit4 else "  ← MISS"))
+        ok &= bool(hit4)
 
         uncovered = [c for c in checks if c not in covered]
         print(f"\n== 커버리지: 기준 검사 {len(checks)}개 중 변조로 FAIL 확인 {len(covered)}개")
