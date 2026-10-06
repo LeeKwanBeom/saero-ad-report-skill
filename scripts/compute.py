@@ -9,6 +9,8 @@
 - 정의는 report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다. 문서와 이 코드가 어긋나면 둘 다 고친다.
 - 경쟁사 집합 = config `competitors` 이름을 포함하는 검색어 ∪ 직전 배포본 07번 경쟁사표의 검색어(표기 변형은 사람이
   행을 추가하는 관행이라 배포본이 정본). --competitors-html 이 없으면 config 이름 포함분만.
+  --competitors-html 을 줬는데 그 표가 0행이면 `[FAIL]` exit 1(2026-10-06 — 소제목·행 마크업이 바뀌면 어순 변형 행이
+  조용히 빠지던 경로, 탐색 기준선 프로브 r10: 36행 exit 0).
 - validate.py 와 값 계산을 공유하지 않는다(reportlib은 읽기·필터·일수·섹션 자르기까지).
 """
 import argparse
@@ -157,6 +159,9 @@ def compute(D, cfg, comp_prev=()):
                          for gname in pw["광고그룹"].unique()
                          if gname != "노원역필라테스" and pw[(pw["광고그룹"] == gname) & (pw["일별"].isin(days[-7:]))]["노출수"].sum() > 0},
                  "마지막날": {"직접": int(direct[direct["일별"] == days[-1]]["노출수"].sum()), "자동": int(auto[auto["일별"] == days[-1]]["노출수"].sum())}}
+    # 카드 서술용(카드 대조 항목과 섞지 않게 따로) — 그룹 하루 노출 30회 이상인 날(승격 조건 판정, [의도된 동작] 15)
+    out["06"]["카드30회이상일"] = {g: [md(d) for d, v in pw[pw["광고그룹"] == g].groupby("일별")["노출수"].sum().items() if v >= 30]
+                              for g in out["06"]["카드"]}
     # ---- 07 검색어 — 검색어 단위 합산(유형은 뱃지로), 경쟁사는 표로 분리
     gs = sr.groupby("검색어").agg(노출=("노출수", "sum"), 클릭=("클릭수", "sum"), 총비용=("총비용", "sum")).reset_index()
     comp_cfg = {k for k in gs["검색어"] if any(c in k for c in cfg["competitors"])}
@@ -223,6 +228,8 @@ def compute(D, cfg, comp_prev=()):
                  "placement": {"노출": [int(srch["노출수"].sum()), int(cont["노출수"].sum())], "클릭": [int(srch["클릭수"].sum()), int(cont["클릭수"].sum())]},
                  "9/6이후일수": len(since), "9/6이후노출": [int(di[d]) for d in since], "9/6이후클릭": [int(dc[d]) for d in since],
                  "9/6이후하루평균클릭": round(sum(dc[d] for d in since) / len(since), 1) if since else None,
+                 "최근7일노출": [int(di[d]) for d in days[-7:]], "최근7일클릭": [int(dc[d]) for d in days[-7:]],
+                 "최근7일": f"{md(days[-7:][0])}~{md(days[-1])}",
                  "파트너마지막날": int(inc[(inc["일별"] == days[-1]) & iss & ~isn]["노출수"].sum()),
                  "B분해": {k: int(v) for k, v in inc[iss & ~isn].groupby("매체이름")["노출수"].sum().items()}}
     return out
@@ -236,6 +243,9 @@ def main():
     a = ap.parse_args()
     cfg = load_config()
     comp_prev = deployed_competitors(read_html(a.competitors_html)) if a.competitors_html else ()
+    if a.competitors_html and not comp_prev:  # 합본을 읽기 전에 멈춘다 — 직전 표 0행으로 계산하면 어순 변형 행이 조용히 빠진다
+        print(f'[FAIL] 직전 배포본 경쟁사표 0행 — 머리글 "경쟁사 브랜드명 검색어" 또는 행 마크업 확인 ({a.competitors_html})')
+        sys.exit(1)
     out = compute(a.combined, cfg, comp_prev)
     text = json.dumps(out, ensure_ascii=False, indent=1, default=str)
     if a.out:
