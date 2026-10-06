@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<!-- tests/test_apply.py fixture — 배포본(2026-10-06)의 scripts/apply.py 앵커 마크업만 발췌. 숫자·검색어·경쟁사·그룹 이름은 전부 가짜(공개 저장소). 서술 표지 없음 · 레이아웃 판 meta 없음(옛 판 — apply.py --layout 변환 시험용, 접기 CSS·스크립트 앵커 발췌 포함). -->
+<!-- tests/test_apply.py fixture — 배포본(2026-10-06)의 scripts/apply.py 앵커 마크업만 발췌. 숫자·검색어·경쟁사·그룹 이름은 전부 가짜(공개 저장소). 서술 표지 없음 · 레이아웃 판 meta 없음(옛 판 — apply.py --layout 사슬 변환(옛 → r2026-10-B → r2026-10-C) 시험용, 접기 CSS·스크립트 앵커와 판 C 안내 스크립트 앵커 발췌 포함). -->
 <meta property="og:description" content="1/1~1/6 주간 성과 요약">
 <style>
   .wide-table table{width:auto;min-width:100%;white-space:nowrap;}
@@ -463,9 +463,12 @@ new Chart(document.getElementById('placementChart'), {
 });
 </script>
 <script>
-// 가로 스크롤 안내(발췌) — 접기 스크립트는 resize 줄 뒤에 붙는다
+// 가로 스크롤 안내(발췌) — 접기 스크립트는 resize 줄 뒤에 붙는다 · 판 C 앵커(updateEnd 의 at-end 줄 · sync 의 페이드 숨김 줄)
 (function(){
-  function sync(){}
+  function updateEnd(box, wrapper){ var atEnd = box.scrollLeft + box.clientWidth >= box.scrollWidth - 2; wrapper.classList.toggle('at-end', atEnd); }
+  function sync(){
+    box.parentNode.classList.add('at-end'); // 페이드 숨김
+  }
   window.addEventListener('load', sync);
   var t;
   window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(sync, 200); });
