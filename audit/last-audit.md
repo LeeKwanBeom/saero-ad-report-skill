@@ -2,7 +2,7 @@
 **사용자 요청**(원문): "D:\stock\.claude\skills\prompt-polish\SKILL.md 를 참고해서 이 폴더(saero)용 질문 다듬기 스킬을 .claude\skills\prompt-polish 에 만들어줘. 사실 확인·규칙 대조는 이 폴더의 CLAUDE.md 와 saero-ad-report-skill/references/code-tab.md 기준으로." → 설치본 `D:\saero\.claude\skills\prompt-polish\`(세 파일) 작성 뒤 "local/ 에 정본 사본도 만들어줘". 스킬은 메모를 읽기만 하고 붙여 넣을 프롬프트 상자로 다듬는다(프로젝트 파일 쓰기 · 저장소 스크립트 실행 0 — 상세는 사본의 `이력.md`).
 **변경 파일**(`57006ab` → 커밋 ① `c64adbe`, 코드 0; `wc -l` · md5 앞 8자리): **local/prompt-polish/SKILL.md 197 33fa63a1 · 유난히큼.md 53 3f31c298 · 이력.md 15 183ea3af**(새 파일 — 설치본과 md5 같음) · references/code-tab.md 0절 local/ 목록 235 → f344dd9f · SKILL.md 참고 문서 local/ 줄 561 → 464f2638 · audit/checklist.md 대상 목록 local/ 줄 507 → 44477fc7 · 이 절.
 **확인**: 설치본 = 사본 md5 3/3 · 줄바꿈 i/lf w/lf · scripts/ · tests/ · data/ · config · registry 변경 0. 외부 쓰기 = 스킬 저장소 `fix-20261006` push만(배포 PUT 0 · 네이버 0). **검토 판정**: 막음 0(문서만 — 외부 쓰기 경로 무관). 이월 : 스킬의 받는 세션 모델 · effort(작음 Opus 5.5 · medium · 큼 Opus 5.5 · xhigh)와 워크플로 n 은 `D:\stock` 값을 빌린 것 — saero 사용자 결정 · 실측 전.
-**병합**: 사용자가 정한다(문서만 · 분기 뒤 main 변경 확인 후 `git merge --no-ff`, 갱신 회차가 돌지 않을 때). 병합 뒤 main 작업 폴더 `git pull --ff-only`.
+**병합**: 사용자 "병합해"(2026-10-06) → 분기 뒤 main 변경 0(origin/main = `57006ab`, fetch 확인) → `git merge --no-ff` 병합 커밋 **`99e8dc0`**(부모 57006ab · ea1544d, 충돌 0, 트리 = ea1544d) → 이 줄 기록 커밋 → main push → main 작업 폴더 `git pull --ff-only`. 설치본 `D:\saero\.claude\skills\prompt-polish\` = 사본(md5 3/3 같음 — 설치는 이번에 함께 됨). clone `D:\saero\fix-20261006`은 둔다.
 
 ---
 
