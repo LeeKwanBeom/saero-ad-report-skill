@@ -16,6 +16,8 @@
   (2026-09-29 후속) 8 push 성공 줄 = 커밋 전체 sha + `verify --ref` 다음 명령 · ref 없는 GET이 옛 본문(캐시)이면 verify 불일치에
   "캐시일 수 있다 … 재PUT 금지" 문구, `--ref`는 `?ref=` 조회로 새 본문 → 일치(PUT 0) · 커밋 본문 자체가 다르면 캐시 문구 없이 불일치 ·
   없는 커밋 404 · `--ref` 인자 오류(verify 밖·16진 7~40자 아님)는 GET 전에 exit 2
+  (2026-10-06 회차 2, 막음 M4) 9 레이아웃 판 게이트 4건 — --file·--base 의 `<meta name="report-layout">` 다름(한쪽 없음·값 다름) → 실제 push
+  [FAIL] exit 1·요청 0 · `--layout-change` → PUT 1 · 같음 → 게이트 문구 없이 PUT 1 · dry-run → [주의]·PUT 0. 기존 PREV·WORK 는 둘 다 meta 가 없어 "같음"
 """
 import base64
 import hashlib
@@ -41,6 +43,9 @@ FRAG = "0928deployTEST"
 PREV = b"<html><!-- prev --></html>\n"         # 4단계 fetch로 받은 직전 배포본(가짜)
 WORK = b"<html><!-- work --></html>\n"         # 작업본
 OTHER = b"<html><!-- other deploy --></html>\n"
+LAY_B = b'<html><head><meta name="report-layout" content="r2026-10-B"></head><!-- work B --></html>\n'      # 레이아웃 판 작업본(가짜)
+LAY_B_PREV = b'<html><head><meta name="report-layout" content="r2026-10-B"></head><!-- prev B --></html>\n'  # 같은 판 직전 배포본
+LAY_X_PREV = b'<html><head><meta name="report-layout" content="r2026-10-X"></head><!-- prev X --></html>\n'  # 다른 판 직전 배포본
 
 RUNNER = r'''
 import base64, hashlib, io, json, os, sys, urllib.error, urllib.request
@@ -366,6 +371,55 @@ class DeployTests(unittest.TestCase):
         self.assertIn("[FAIL] 자격 증명을 얻지 못함(출처: git)", out)
         self.assertEqual([q for q in reqs if q["auth"]], [])
         self.assertNotIn("Traceback", err)
+
+    def layout_files(self, prev):
+        """레이아웃 판 작업본(LAY_B) + 주어진 직전 배포본 파일과 그 둘의 도장. (작업본 경로, 직전 배포본 경로)"""
+        w, b = os.path.join(self.td, "lay_work.html"), os.path.join(self.td, "lay_prev.html")
+        for path, data in ((w, LAY_B), (b, prev)):
+            with open(path, "wb") as f:
+                f.write(data)
+        self.write_stamp(work=LAY_B, prev=prev)
+        return w, b
+
+    def test_layout_gate_meta_differs_fails_before_network(self):
+        for label, prev in (("직전 배포본 meta 없음(옛 판)", PREV), ("meta 값이 다름", LAY_X_PREV)):
+            with self.subTest(label):
+                w, b = self.layout_files(prev)
+                rc, out, err, reqs = self.run_deploy(["push", "--file", w, "--base", b, "--message", "m"], deployed=prev)
+                self.assertEqual(rc, 1, out + err)
+                self.assertIn("[FAIL] 레이아웃 판이 바뀜 — PUT 안 함", out)
+                self.assertIn("--layout-change", out)
+                self.assertEqual(reqs, [])                                    # 네트워크 전 — GET·PUT 0
+
+    def test_layout_gate_layout_change_puts_once(self):
+        w, b = self.layout_files(PREV)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", w, "--base", b, "--message", "m", "--layout-change"], deployed=PREV)
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("레이아웃 판 바뀜", out)
+        self.assertIn("배포 완료 커밋 c0ffee1234", out)
+        puts = [q for q in reqs if q["method"] == "PUT"]
+        self.assertEqual(len(puts), 1)
+        self.assertEqual(puts[0]["body_md5"], hashlib.md5(LAY_B).hexdigest())
+
+    def test_layout_gate_same_meta_passes_silently(self):
+        w, b = self.layout_files(LAY_B_PREV)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", w, "--base", b, "--message", "m"], deployed=LAY_B_PREV)
+        self.assertEqual(rc, 0, out + err)
+        self.assertNotIn("레이아웃 판", out)                                   # 데이터 회차 — 게이트 문구 0
+        self.assertEqual(len([q for q in reqs if q["method"] == "PUT"]), 1)
+        self.write_stamp()                                                     # 기존 PREV·WORK — 둘 다 meta 없음 = 같음
+        rc, out, err, reqs = self.run_deploy(["push", "--file", self.work, "--base", self.prev, "--message", "m"])
+        self.assertEqual(rc, 0, out + err)
+        self.assertNotIn("레이아웃 판", out)
+
+    def test_layout_gate_dry_run_warns_and_never_puts(self):
+        w, b = self.layout_files(PREV)
+        rc, out, err, reqs = self.run_deploy(["push", "--file", w, "--base", b, "--message", "m", "--dry-run"], deployed=PREV)
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("[주의] 레이아웃 판이 바뀜", out)
+        self.assertIn("실제 push 에는 --layout-change", out)
+        self.assertIn("[dry-run] PUT을 보내지 않음", out)
+        self.assertNotIn("PUT", [q["method"] for q in reqs])
 
     def test_token_file_encodings_and_missing(self):
         sys.path.insert(0, SCRIPTS)

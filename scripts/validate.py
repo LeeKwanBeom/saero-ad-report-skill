@@ -42,6 +42,9 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      ②의 b = 등록 수 × config `exclusions.targets` 수, a ≤ b. 같은 검사 안에서 클릭 0 목록 항목 ≥ 1(`click0_items`).
      하나라도 0건이면 FAIL(글을 줄인 뒤 옛 각주 형식으로 돌아가거나 자리가 빠지는 것을 막는다 — 기능 추가 회차 1).
      검사는 이름으로 부른다(번호는 출력 순서일 뿐 — 이 목록 번호와 다를 수 있다).
+ 23. (2026-10-06 추가) "레이아웃 판" — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`,
+     `<details` 수 = config `report_layout.markers.details`, details 마다 바로 안에 summary(짝 — summary 수 = details 수).
+     meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것을 막는다 — 기능 추가 회차 2, 사용자 결정 2026-10-06).
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -81,6 +84,7 @@ RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style", "details", "summary"]  # details·summary: 2026-10-06(접기 모양 회차 2 선반영)
 N_TARGETS = len(CFG["exclusions"]["targets"])  # 07 각주 ② 확인 a/b 의 b = 등록 수 × 대상 그룹 수
+LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2) — layout_id · markers.details
 
 results = []
 
@@ -366,6 +370,24 @@ def check_07_footnotes(s7):
           f"① {n1}건 · ② 등록 {m2[0][0]}개 확인 {m2[0][1]}/{m2[0][2]} 실패 {m2[0][3]} · ③ {m3[0][0]}개 · 클릭 0 목록 {n0}개")
 
 
+def check_layout(html):
+    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝). 0건이면 FAIL."""
+    name = "레이아웃 판(meta report-layout = config · 접기 details 수·짝)"
+    metas = re.findall(r'<meta name="report-layout" content="([^"]*)">', html)
+    n_det = len(re.findall(r"<details(?:\s[^>]*)?>", html))
+    n_sum = len(re.findall(r"<summary(?:\s[^>]*)?>", html))
+    n_pair = len(re.findall(r"<details(?:\s[^>]*)?>\s*<summary(?:\s[^>]*)?>", html))
+    want = int(LAYOUT["markers"]["details"])
+    bad = []
+    if not metas: bad.append('<meta name="report-layout"> 0건 — 옛 모양이거나 표지를 잃음(apply.py --layout)')
+    elif len(metas) > 1: bad.append(f"meta {len(metas)}개")
+    elif metas[0] != LAYOUT["layout_id"]: bad.append(f"meta {metas[0]!r} ≠ config {LAYOUT['layout_id']!r}")
+    if n_det == 0: bad.append("details 0건 — 접기가 없어짐")
+    elif n_det != want: bad.append(f"details {n_det}개 ≠ config {want}")
+    if n_sum != n_det or n_pair != n_det: bad.append(f"details/summary 짝 어긋남(details {n_det} · summary {n_sum} · 바로 안 summary {n_pair})")
+    check(name, not bad, "; ".join(bad) if bad else f"{metas[0]} · details {n_det}개 · summary 짝 {n_pair}")
+
+
 def main():
     pending = "--pending" in sys.argv
     args = [a for a in sys.argv[1:] if a != "--pending"]
@@ -439,6 +461,7 @@ def main():
           f"검색어 CSV {sr_clicks} vs KPI {kpi_clicks}" + ("" if sr_clicks == kpi_clicks else " — 검색어 보고서 기간이 다를 수 있음"))
     check_11_12(html, pending)
     check_07_footnotes(s7)  # 2026-10-06 — 글 줄이기 회차 1
+    check_layout(html)  # 2026-10-06 — 레이아웃 판 회차 2
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

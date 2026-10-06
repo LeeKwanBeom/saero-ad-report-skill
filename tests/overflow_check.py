@@ -5,6 +5,7 @@
 각 폭에서 document.documentElement.scrollWidth == 뷰포트 폭이면 PASS. 하나라도 넘치면 exit 1.
 넘치는 텍스트는 요소 박스가 아니라 텍스트 노드라 getBoundingClientRect로는 안 잡힌다 — scrollWidth로 본다.
 file:// 밖 요청(cdnjs Chart.js 등)은 전부 막는다 — 어느 환경에서나 "Chart.js 미로드 상태"로 잰다(checklist [의도된 동작] 17).
+(2026-10-06 회차 2) 재기 전에 접기(details)를 전부 연다 — 접힌 안의 표·목록이 넘치는지까지 본다. 가로 폭만 본다(닫힘·열림 높이는 이 도구 몫이 아님).
 """
 import os
 import sys
@@ -40,9 +41,11 @@ def main():
             pg.route("**/*", only_file)
             pg.goto("file://" + path)
             pg.wait_for_timeout(400)
+            nd = pg.evaluate("(() => { const d = document.querySelectorAll('details'); d.forEach(x => x.open = true); return d.length; })()")
+            pg.wait_for_timeout(100)
             sw = pg.evaluate("document.documentElement.scrollWidth")
             ok = sw <= w
-            print(f"[{'PASS' if ok else 'FAIL'}] {w}px: scrollWidth {sw}")
+            print(f"[{'PASS' if ok else 'FAIL'}] {w}px: scrollWidth {sw} (details {nd}개 연 상태)")
             if not ok:
                 bad.append(w)
             pg.close()

@@ -2,8 +2,11 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<!-- tests/test_apply.py fixture — 배포본(2026-10-06)의 scripts/apply.py 앵커 마크업만 발췌. 숫자·검색어·경쟁사·그룹 이름은 전부 가짜(공개 저장소). 서술 표지 없음(옛 판). -->
+<!-- tests/test_apply.py fixture — 배포본(2026-10-06)의 scripts/apply.py 앵커 마크업만 발췌. 숫자·검색어·경쟁사·그룹 이름은 전부 가짜(공개 저장소). 서술 표지 없음 · 레이아웃 판 meta 없음(옛 판 — apply.py --layout 변환 시험용, 접기 CSS·스크립트 앵커 발췌 포함). -->
 <meta property="og:description" content="1/1~1/6 주간 성과 요약">
+<style>
+  .wide-table table{width:auto;min-width:100%;white-space:nowrap;}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -295,6 +298,9 @@
         <div style="font-size:12.5px;color:var(--ink);line-height:1.9;">
             가짜동(노출5·클릭1)
           </div>
+        <div class="note" style="margin-top:8px;">
+          이 외 클릭 0인 가짜 지역. 가짜 08 각주.
+        </div>
       </div>
     </div>
   </div>
@@ -455,6 +461,15 @@ new Chart(document.getElementById('placementChart'), {
     ]
   }
 });
+</script>
+<script>
+// 가로 스크롤 안내(발췌) — 접기 스크립트는 resize 줄 뒤에 붙는다
+(function(){
+  function sync(){}
+  window.addEventListener('load', sync);
+  var t;
+  window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(sync, 200); });
+})();
 </script>
 </body>
 </html>

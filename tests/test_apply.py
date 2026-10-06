@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""scripts/apply.py 시험(E2 저장소화, 2026-10-06) + compute.py 직전 경쟁사표 0행 가드.
+"""scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2) + compute.py 직전 경쟁사표 0행 가드.
 
-fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지 없음) +
-          tests/fixtures/layout_old.compute.json(같은 가짜 값의 compute 출력 꼴).
-- 멱등: 같은 compute.json 으로 두 번 돌리면 바이트 같음(표지 없는 fixture · 서술 표지를 넣은 fixture 둘 다).
-- 앵커·행 수: masthead·og·KPI·차트·01 표 5행·순위 5칸·03 행 수(날짜 + 합계)·04·06·07 정식표/목록/경쟁사표·08·10 이 compute 값과 같음.
-  동률은 직전 순서(클릭 1건 목록) · 신규 변형 행 = config competitor_defaults.
+fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지·레이아웃 meta 없는 옛 판) +
+          tests/fixtures/layout_old.compute.json(같은 가짜 값의 compute 출력 꼴 — 03.rows 만 10일(12/29~1/7)이라 "최근 7 + 접힌 3" 분배가 보인다).
+- 판 고르기: meta 없음 + --layout 없음 → `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`(옛 배치로 쓰지 않음, 작업본 그대로) ·
+  meta 다름·details 수 다름 → FAIL · --layout 변환 = meta + details 5 + CSS·스크립트, 두 번째(변환 건너뜀)는 바이트 같음.
+- 멱등: 같은 compute.json 으로 두 번 돌리면 바이트 같음(--layout 있음·없음, 서술 표지를 넣은 fixture 도 — 표지 안쪽 바이트 불변·details 밖).
+- 앵커·행 수: masthead·og·KPI·차트·01 표 5행·순위 5칸(오름차순 그대로)·03 = 합계 맨 위 + 최근 7일 최신 위 + 접힌 표 나머지 최신 위 ·
+  04·06·07 정식표/목록/경쟁사표·08·10 이 compute 값과 같음. 동률은 직전 순서(클릭 1건 목록) · 신규 변형 행 = config competitor_defaults.
+- summary 기계 자리(막음 M2): 03 "이전 N일(M/D~M/D)"·07 "(N개 · 펼치기)"·경쟁사 "표 N행"·08 "(N개 지역·클릭 M건)" — 옛 값으로 바꿔 둔 판도 다시 쓰고,
+  일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
-- compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전).
-- 리허설 산출(work/R1/index.html + compute.json, 서술 표지 있음)이 있으면 그것도 멱등(없으면 건너뜀).
+- compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
+- 리허설 산출(work/R1/index.html + compute.json, 서술 표지·레이아웃 판 있음)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
 import hashlib
@@ -67,25 +71,62 @@ def listtext(h, anchor):
     return [x.strip() for x in h[a:h.index("</div>", a)].strip().split(" · ")]
 
 
+def tbodies(sec):
+    return [[cells(t) for t in rows(b) if "<td" in t] for b in re.findall(r"<tbody>(.*?)</tbody>", sec, re.S)]
+
+
+def unfold_one(h, n):
+    """n 번 구역의 첫 details/summary 를 걷어 낸 판(details 수 하나 줄이기)."""
+    sec = section(h, n)
+    return h.replace(sec, re.sub(r"</details>", "", re.sub(r"<details[^>]*>\s*<summary[^>]*>.*?</summary>", "", sec, count=1, flags=re.S), count=1), 1)
+
+
 class ApplyFixture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
-        cls.out = A.apply(cls.H, cls.R, cls.cfg)
+        cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
 
     def test_idempotent_and_changed(self):
         self.assertNotEqual(self.out, self.H)                      # 빈 시험이 아님 — 값이 실제로 바뀐다
-        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)                # meta 있음 → 변환 없이 값만(--layout 없이도)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)   # --layout 이어도 변환 건너뜀
+
+    def test_layout_conversion_skeleton(self):
+        o, lay = self.out, self.cfg["report_layout"]
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), [lay["layout_id"]])
+        self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), lay["markers"]["details"])
+        self.assertEqual(len(re.findall(r"<details[^>]*>\s*<summary", o)), lay["markers"]["details"])     # details 마다 바로 안 summary
+        self.assertEqual(o.count("</details>"), lay["markers"]["details"])
+        self.assertEqual(o.count('line-height:1.9;">'), 3)                                              # 기준점 셋 그대로
+        for anchor in ("클릭 1건 검색어", "노출은 있으나 클릭 0건인", "TOP 10 외"):                          # 앵커 뒤 첫 line-height:1.9 = 목록 div(summary 아님)
+            i = o.index(anchor)
+            self.assertLess(o.index("</summary>", i), o.index('line-height:1.9;">', i))
+            self.assertNotIn("line-height:1.9", o[o.rindex("<summary", 0, i):o.index("</summary>", i)])
+        self.assertIn(".fold > summary{cursor:pointer;}", o)
+        self.assertIn("addEventListener('toggle', sync)", o)
+        self.assertIn("'beforeprint'", o)
+        self.assertIn("'afterprint'", o)
+        self.assertIn("경쟁사 브랜드명 검색어</div>", o)                                                 # 경쟁사 머리글 리터럴 그대로(details 밖)
+        s8 = section(o, 8)
+        self.assertLess(s8.index("</details>"), s8.index('<div class="note"'))                          # 08 각주 note 는 details 밖
+        s7 = section(o, 7)
+        self.assertLess(s7.rindex("</details>", 0, s7.index("가짜 각주")), s7.index("가짜 각주"))            # 07 클릭 0 각주도 details 밖
 
     def test_idempotent_with_narrative_markers(self):
         """서술 표지가 있는 판(새 글) — 표지는 apply 가 건드리지 않고, 01 순위 5칸 끝 앵커(표지 무관)도 그대로 맞는다."""
         H2 = self.H.replace('<div class="note">닷새 동안 가짜 순위 서술.</div>',
                             '<div class="note"><!-- n:01-rank:매회차 -->닷새 가짜 순위 서술.<!-- /n --></div>', 1)
         H2 = H2.replace("        4일차. 가짜 카드 서술.", "        <!-- n:06-card-가짜그룹B:매회차 -->4일차. 가짜 카드 서술.<!-- /n -->", 1)
-        self.assertEqual(H2.count("<!-- n:"), 2)
-        o1 = A.apply(H2, self.R, self.cfg)
+        H2 = H2.replace("이 검색어들은 비용이 발생하지 않았지만(클릭 0), 가짜 각주.", "<!-- n:07-notes:매회차 -->이 검색어들은 비용이 발생하지 않았지만(클릭 0), 가짜 각주.<!-- /n -->", 1)
+        H2 = H2.replace("이 외 클릭 0인 가짜 지역. 가짜 08 각주.", "<!-- n:08-note:매회차 -->이 외 클릭 0인 가짜 지역. 가짜 08 각주.<!-- /n -->", 1)
+        self.assertEqual(H2.count("<!-- n:"), 4)
+        o1 = A.apply(H2, self.R, self.cfg, layout=True)
         self.assertEqual(A.apply(o1, self.R, self.cfg), o1)
-        self.assertEqual(re.findall(r"<!-- n:[^>]+-->.*?<!-- /n -->", o1, re.S), re.findall(r"<!-- n:[^>]+-->.*?<!-- /n -->", H2, re.S))
+        blk = r"<!-- n:[^>]+-->.*?<!-- /n -->"
+        self.assertEqual(re.findall(blk, o1, re.S), re.findall(blk, H2, re.S))   # 변환·값 교체 모두 표지 안쪽 바이트 불변
+        for m in re.finditer(blk, o1, re.S):                                     # 표지는 접기 밖(항상 보임)
+            self.assertEqual(o1.count("<details", 0, m.start()), o1.count("</details>", 0, m.start()), m.group(0)[:40])
         self.assertEqual(o1.count("위</div>"), self.out.count("위</div>"))  # 순위 5칸이 그대로 생성됨
 
     def test_values_and_row_counts(self):
@@ -105,7 +146,17 @@ class ApplyFixture(unittest.TestCase):
         self.assertEqual(len(re.findall(r'font-weight:800;color:var\(--mint-dark\);">[\d.]+위', s1)), 1)   # 민트 칸 하나
         r3 = [cells(t) for t in rows(s3) if "<td" in t]
         self.assertEqual(len(r3), len(R["03"]["rows"]) + 1)
-        self.assertEqual([r[0] for r in r3], [r["날짜"] for r in R["03"]["rows"]] + ["합계"])           # 오름차순 + 합계(회차 1)
+        dates = [r["날짜"] for r in R["03"]["rows"]]
+        self.assertEqual([r[0] for r in r3], ["합계"] + dates[::-1])                                     # 합계 맨 위 + DOM 전체 최신 위
+        k = self.cfg["report_layout"]["recent_days"]
+        self.assertGreater(len(dates), k + 1)                                                           # fixture 가 분배를 볼 만큼 길다(10일)
+        top, fold = tbodies(s3)
+        self.assertEqual([r[0] for r in top], ["합계"] + dates[-k:][::-1])                               # 위 표 = 합계 + 최근 7일 최신 위
+        self.assertEqual([r[0] for r in fold], dates[:-k][::-1])                                         # 접힌 표 = 나머지 최신 위
+        self.assertEqual(top[0][1:], ["27,000원", "27", "1,000원", "4,000원", "4", "1,000원", "31,000원"])
+        self.assertLess(s3.index("</tbody>"), s3.index("<details"))                                     # 위 표는 접기 밖
+        self.assertIn('<summary class="fold-more">이전 3일(12/29~12/31) 펼치기</summary>', s3)
+        self.assertEqual([cells(t)[0] for t in rows(s1)], [r["날짜"] for r in R["01"]["표5"]])           # 01 은 오름차순 그대로(결정 4 (가))
         self.assertEqual([cells(t)[1].split("(")[0].strip() for t in rows(s4)], [r["그룹"] for r in R["04"]["rows"]])
         self.assertIn("(1/2 신규)", s4)                                                                  # 이름 칸 메모는 직전 행 그대로
         self.assertIn("(1/2 등록, 6일차)", s6)
@@ -122,13 +173,63 @@ class ApplyFixture(unittest.TestCase):
         self.assertEqual(comp[0][1:3], ["가짜구", "일치"])                                                 # 직전 행 그대로
         self.assertEqual(len([t for t in rows(s8) if "<td" in t]), 10)
         self.assertEqual(listtext(o, "TOP 10 외"), ["가짜동(노출6·클릭1)", "가짜읍(노출5·클릭1)"])
-        self.assertIn(f"({R['08']['컴팩트수']}개 지역·클릭 {R['08']['컴팩트클릭']}건)", s8)
+        self.assertIn(f"({R['08']['컴팩트수']}개 지역·클릭 {R['08']['컴팩트클릭']}건)</span> · 펼치기</summary>", s8)
+        self.assertIn(f"클릭 1건 검색어 <span style=\"font-weight:400;\">({len(R['07']['클릭1'])}개 · 펼치기)</span></summary>", s7)
+        self.assertIn(f"(노출 5회 이상 {len(R['07']['클릭0목록'])}개 · 펼치기)</span></summary>", s7)
+        self.assertIn(f'<summary class="fold-more">표 {len(R["07"]["경쟁사표"])}행 · 펼치기</summary>', s7)
         self.assertEqual([[c.replace(",", "").replace("원", "") for c in cells(t)[2:5]] for t in rows(s10)],
                          [[str(v) for v in R["10"][k]] for k in "ABCD"])
 
 
+class ApplyLayoutSelect(unittest.TestCase):
+    """판 고르기·summary 기계 자리(M2)·짧은 기간."""
+    @classmethod
+    def setUpClass(cls):
+        cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
+        cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
+
+    def test_old_layout_without_flag_fails(self):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta 없음 — --layout"):
+            A.apply(self.H, self.R, self.cfg)
+
+    def test_meta_mismatch_or_details_count_fails(self):
+        lid = self.cfg["report_layout"]["layout_id"]
+        other = self.out.replace(f'content="{lid}"', 'content="r2099-01-Z"', 1)
+        for flag in (False, True):
+            with self.assertRaisesRegex(A.ApplyError, "≠ config"):
+                A.apply(other, self.R, self.cfg, layout=flag)
+        with self.assertRaisesRegex(A.ApplyError, "details 4개"):
+            A.apply(unfold_one(self.out, 3), self.R, self.cfg, layout=True)
+        with self.assertRaisesRegex(A.ApplyError, "<details> 가"):                     # meta 없는데 접기가 있는 판 — 변환 안 함
+            A.apply(re.sub(r'<meta name="report-layout"[^>]*>\n', "", self.out), self.R, self.cfg, layout=True)
+
+    def test_summaries_rewritten_every_run(self):
+        """막음 M2 — 변환을 건너뛴 회차에도 summary 개수·날짜를 compute.json 으로 다시 쓴다."""
+        stale = (self.out.replace("이전 3일(12/29~12/31) 펼치기", "이전 2일(12/30~12/31) 펼치기", 1)
+                 .replace(f"({len(self.R['07']['클릭1'])}개 · 펼치기)", "(99개 · 펼치기)", 1)
+                 .replace(f"노출 5회 이상 {len(self.R['07']['클릭0목록'])}개", "노출 5회 이상 98개", 1)
+                 .replace(f"표 {len(self.R['07']['경쟁사표'])}행 · 펼치기", "표 97행 · 펼치기", 1)
+                 .replace(f"({self.R['08']['컴팩트수']}개 지역·클릭 {self.R['08']['컴팩트클릭']}건)", "(96개 지역·클릭 95건)", 1))
+        self.assertEqual(len([x for x in ("이전 2일", "99개", "98개", "97행", "96개 지역") if x in stale]), 5)
+        self.assertEqual(A.apply(stale, self.R, self.cfg), self.out)
+
+    def test_short_period_has_empty_fold(self):
+        R = jread(FIXJ)
+        R["03"]["rows"] = R["03"]["rows"][-5:]                                           # 5일 ≤ recent_days 7
+        o = A.apply(self.H, R, self.cfg, layout=True)
+        s3 = section(o, 3)
+        top, fold = tbodies(s3)
+        self.assertEqual([r[0] for r in top], ["합계"] + [r["날짜"] for r in R["03"]["rows"]][::-1])
+        self.assertEqual(fold, [])
+        self.assertIn(">이전 0일 펼치기</summary>", s3)
+        self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), self.cfg["report_layout"]["markers"]["details"])
+        self.assertEqual(A.apply(o, R, self.cfg), o)
+        R2 = jread(FIXJ)                                                                  # 다음 회차에 날짜가 늘면 접힌 표가 채워진다
+        self.assertEqual(A.apply(o, R2, self.cfg), self.out)
+
+
 class ApplyFailsLoudly(unittest.TestCase):
-    def run_cli(self, html_text, R=None):
+    def run_cli(self, html_text, R=None, layout=True):
         td = tempfile.mkdtemp()
         try:
             h, j = os.path.join(td, "index.html"), os.path.join(td, "compute.json")
@@ -140,7 +241,8 @@ class ApplyFailsLoudly(unittest.TestCase):
                 with open(j, "w", encoding="utf-8") as f:
                     json.dump(R, f, ensure_ascii=False)
             before = md5(h)
-            r = subprocess.run([sys.executable, APPLY, "--html", h, "--compute", j], capture_output=True, text=True, encoding="utf-8")
+            r = subprocess.run([sys.executable, APPLY, "--html", h, "--compute", j] + (["--layout"] if layout else []),
+                               capture_output=True, text=True, encoding="utf-8")
             return r.returncode, r.stdout + r.stderr, before == md5(h)
         finally:
             shutil.rmtree(td, ignore_errors=True)
@@ -150,6 +252,29 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B, details 5)", out)
+
+    def test_cli_twice_same_bytes_and_flag_required(self):
+        td = tempfile.mkdtemp()
+        try:
+            h = os.path.join(td, "index.html")
+            with open(h, "w", encoding="utf-8", newline="") as f:
+                f.write(read(FIX))
+            run = lambda *extra: subprocess.run([sys.executable, APPLY, "--html", h, "--compute", FIXJ, *extra], capture_output=True, text=True, encoding="utf-8")
+            r = run()                                                                     # 옛 판 + --layout 없음 → FAIL, 그대로
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout", r.stdout)
+            self.assertEqual(read(h), read(FIX))
+            self.assertEqual(run("--layout").returncode, 0)
+            m1 = md5(h)
+            r = run("--layout")                                                           # 두 번째: 변환 건너뜀 · 바이트 같음
+            self.assertEqual(r.returncode, 0, r.stdout)
+            self.assertIn("(변환 건너뜀) (변경 없음)", r.stdout)
+            self.assertEqual(md5(h), m1)
+            self.assertEqual(run().returncode, 0)                                         # 새 판이면 --layout 없이도 값만(멱등)
+            self.assertEqual(md5(h), m1)
+        finally:
+            shutil.rmtree(td, ignore_errors=True)
 
     def test_missing_or_duplicate_anchor(self):
         H = read(FIX)
@@ -157,7 +282,10 @@ class ApplyFailsLoudly(unittest.TestCase):
                             ("클릭당 평균 둘", H.replace("</body>", "<p>클릭당 평균 1원</p></body>", 1)),
                             ("집계 기간 없음", H.replace("집계 기간<b>", "집계기간<b>", 1)),
                             ("경쟁사 머리글 소제목 변경", H.replace("경쟁사 브랜드명 검색어</div>", "경쟁사 검색어 (2개)</div>", 1)),
-                            ("10 표 행 3개", H.replace('<td class="name-cell">추천·콘텐츠 지면 › 가짜 D</td>\n            <td>가짜 매체</td>\n            <td class="num">40</td>', '<td class="name-cell">D</td>', 1))):
+                            ("10 표 행 3개", H.replace('<td class="name-cell">추천·콘텐츠 지면 › 가짜 D</td>\n            <td>가짜 매체</td>\n            <td class="num">40</td>', '<td class="name-cell">D</td>', 1)),
+                            ("접기 CSS 자리(</style>) 없음", H.replace("</style>", "</styl>", 1)),
+                            ("접기 스크립트 자리(resize 줄) 없음", H.replace("t = setTimeout(sync, 200);", "t = setTimeout(sync, 300);", 1)),
+                            ("03 표 둘", H.replace("<!-- Section 4:", "<table></table>\n  <!-- Section 4:", 1))):
             with self.subTest(label=label):
                 rc, out, same = self.run_cli(text)
                 self.assertEqual(rc, 1, out)
@@ -184,6 +312,8 @@ class ComputeCompetitorGuard(unittest.TestCase):
         import compute as C
         H = read(FIX)
         self.assertEqual(C.deployed_competitors(H), ["가짜경쟁A", "가짜경쟁B"])
+        R = jread(FIXJ)
+        self.assertEqual(C.deployed_competitors(A.apply(H, R, load_config(), layout=True)), [r["검색어"] for r in R["07"]["경쟁사표"]])   # 접힌 표도 그대로(신규 변형 행 포함)
         td = tempfile.mkdtemp()
         try:
             bad = os.path.join(td, "prev.html")
@@ -205,6 +335,7 @@ class ApplyRehearsal(unittest.TestCase):
         H = read(os.path.join(ROOT, "work", "R1", "index.html"))
         R = jread(os.path.join(ROOT, "work", "R1", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
+        self.assertIn('<meta name="report-layout" content="r2026-10-B">', H)               # 리허설 R1 = 레이아웃 판(meta 로 판 선택 — --layout 없이)
         self.assertEqual(A.apply(H, R, load_config()), H)
 
 

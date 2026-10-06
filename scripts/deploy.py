@@ -11,6 +11,9 @@
         도장 = 작업본 md5 · 직전 배포본 md5(= --base여야) · 모드(pending이면 [주의]만). PUT 결과 모름(요청 예외·5xx) = 재PUT 금지·verify 먼저,
         PUT 409 = 배포본이 GET 뒤 바뀜(sha 불일치) · 403 = 쓰기 권한 없음 · 404 = 저장소·경로 없음(권한 부족도 404) — 넷 다 [FAIL] exit 1.
         GET 본문이 --base와 다른데 작업본과 같으면 "앞 PUT이 이미 반영됨" exit 0(PUT 안 함). 인자 오류(--file·--out 없음)는 GET 전에 exit 2.
+        레이아웃 판 게이트(2026-10-06 회차 2, 막음 M4): --file 과 --base 의 `<meta name="report-layout" content="…">` 가 다르면(한쪽 없음 포함)
+        실제 push 는 `--layout-change` 없이 "[FAIL] 레이아웃 판이 바뀜 — PUT 안 함" exit 1(네트워크 전 — GET·PUT 0), dry-run 은 [주의]만.
+        같으면 아무것도 찍지 않는다(데이터 회차엔 안 걸림). `--layout-change` 는 첫 적용 회차에 사용자가 작업본 화면을 보고 "배포"라고 했을 때만 붙인다.
         --dry-run 은 sha 조회·base 대조·자격 증명 확인·쓰기 권한 확인
         (인증 GET /repos/{deploy_repo}의 permissions.push — 계정 역할 기준, 토큰 범위는 PUT이 최종 확인. 참/거짓만 찍고 거짓이면 [FAIL])·본문 준비까지만 하고 PUT을 보내지 않는다
         (아무 파일도 쓰지 않는다 — 2026-09-26 실측). "자격 증명 확인됨(출처: token-file|git)"만 찍는다.
@@ -172,6 +175,15 @@ def precheck_stamp(path, data, base=None):
     return True, f"precheck 도장 = 작업본 md5 {cur[:8]}… · 직전 배포본 {prev[:8]}… 확인", pending
 
 
+LAYOUT_META = re.compile(rb'<meta name="report-layout" content="([^"]*)">')
+
+
+def layout_of(data):
+    """배포본 바이트의 레이아웃 판 meta 값(없으면 None — 옛 판)."""
+    m = LAYOUT_META.search(data)
+    return m.group(1).decode("utf-8", "replace") if m else None
+
+
 def push_permission_ok(tok):
     """인증 GET /repos/{deploy_repo}(읽기)로 permissions.push를 본다 — 참/거짓만 찍는다(값·응답 본문 출력 0). 참이면 True."""
     status, res = api(tok, url=REPO_API)
@@ -195,6 +207,8 @@ def main():
     ap.add_argument("--message")
     ap.add_argument("--base", help="push: 4단계 fetch가 저장한 직전 배포본(work/prev.html) — PUT 직전 배포본이 이것과 같아야 한다. 실제 push는 필수")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--layout-change", action="store_true",
+                    help="push: --file·--base 의 레이아웃 판(meta report-layout)이 다를 때 PUT 을 허락 — 첫 적용 회차에 사용자가 작업본 화면을 보고 '배포'라고 했을 때만")
     ap.add_argument("--ref", help="verify: push 성공 줄이 찍은 커밋 sha — 그 커밋의 본문을 ?ref=로 받는다(ref 없는 GET은 PUT 직후 캐시로 옛 본문일 수 있다)")
     a = ap.parse_args()
     base = None
@@ -245,6 +259,18 @@ def main():
         print(why if ok else f"[주의] precheck 통과본이 아님({why}) — 실제 push는 여기서 멈춘다")
         if pending:
             print("[주의] --pending 통과본(답 대기 배포용) — 답을 반영한 재배포라면 --pending 없이 precheck를 다시")
+    if a.cmd == "push" and a.file and base is not None:  # 레이아웃 판 게이트(막음 M4) — 네트워크 전에 본다(GET·PUT 0)
+        lf, lb = layout_of(local), layout_of(base)
+        if lf != lb:
+            what = f"직전 배포본(--base) {lb or 'meta 없음(옛 판)'} → 작업본(--file) {lf or 'meta 없음(옛 판)'}"
+            if a.layout_change:
+                print(f"레이아웃 판 바뀜 — {what} · --layout-change(사용자가 작업본 화면을 보고 '배포')로 진행")
+            elif not a.dry_run:
+                print(f"[FAIL] 레이아웃 판이 바뀜 — PUT 안 함({what}). 첫 적용 회차면 사용자가 작업본 화면을 본 뒤 '배포'라고 했을 때만 "
+                      "--layout-change 를 붙인다. 데이터 회차에서 났으면(병합 뒤 첫 적용 전) 여기서 멈추고 사용자에게 묻는다")
+                return 1
+            else:
+                print(f"[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · {what}")
     status, res, how = get(a.token_file, f"{API}?ref={a.ref}" if a.ref else API)
     if status != 200:
         print(f"GET {status}{f' (ref {a.ref})' if a.ref else ''}: {res.get('message', '')}")
