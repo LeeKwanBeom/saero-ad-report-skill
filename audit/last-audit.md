@@ -1,3 +1,111 @@
+# 기능 추가 구현 기준선(리포트 읽기 쉽게 — 회차 1 글, 2026-10-06)
+점검일: 2026-10-06 (기능 추가 회차 — **구현, 회차 1 = 글**. 데스크톱 앱 Code 탭, 이 PC, 작업 폴더 `D:\saero`로 연 세션, Opus 5.5 · ultracode). 작업 clone `D:\saero\feat-20261006-readable` 브랜치 `feat-20261006-readable`. 시작 확인 [실측]: HEAD `04d85c1`(= main `eae71fc` + 탐색 기록 2커밋, 코드 0) · work/ 사본 md5 9개 = 지시(index 6aaa2472 · prev 95c58082 · compute.json f60152d9 · 검색어 e3a352a2 · 상세지역 e70e5023 · 시간대별 faac5a0a · 키워드 b7d91858 · apply.py 702de83d · n1006.py 754921d7) · `git fetch` 뒤 origin/main = `eae71fc`(갱신 회차 없음). 작업 중 12:32 에 탐색 세션이 이 clone 에 기록 커밋 **`848e236`**(탐색 기준선 절 한 줄 — 구현 지시문 경로, 코드 0)을 넣었다 — 내 변경과 겹침 0, 이 브랜치에 그대로 둔다. 운영 main 작업 폴더 열기 0 · data/·registry 변경 0 · 외부 쓰기 0(네이버·API·배포 저장소 요청 0, 키 파일·자격 증명 열지 않음, fetch_reports·exclusions·deploy·ingest·archive 실행 0).
+설계: 탐색 기준선 3.0 공통 뼈대 + 사용자 결정(2026-10-06 — ② 고르기) 11·12 의 **회차 1 몫만** — 글 줄이기 규칙(문서 + 리허설 적용본) · 서술 표지 + `scripts/narrative_check.py`(막음 M1) · validate "07 각주 세 자리" · `scripts/apply.py` 저장소화(E2) · compare 구역별 try + 10 나열 → 최근 7일 + 평균 · compute 경쟁사표 0행 FAIL · TAGS + details/summary(회차 2 선반영) · mutation 변조 1·가드 2. **회차 2(details·03 역순·합계 위·report-layout meta·validate "레이아웃 판"·deploy 게이트·summary·.fold/.vbox·세로/접기 규약·overflow details·차트 폭)는 건드리지 않았다.**
+검증용 clone: `git clone -c core.autocrlf=false -b feat-20261006-readable --single-branch https://github.com/LeeKwanBeom/saero-ad-report-skill D:\saero-verify\feat-20261006-readable-1`
+효율: 벽시계 약 1시간 50분(12:20 무렵 시작 확인 → 13:50 리허설 끝 → 기록·커밋·push) · 도구 호출 조정자 약 105회 + 자기 검토 워크플로 에이전트 4개(검토 3 + 기계 확인 1, 202회) · 즉석 코드 약 690행(전부 clone `work/` 스크래치 — `narr_lib.py` 458 · n 스크립트 3개 42 · R0 `mk_c40.py` 37 · R4 `r4.sh` 35 · R5 `measure.py` 51 · `rehearse_R12.sh` 17 · 기타 조각).
+표기: [실측] 이번에 파일·명령으로 확인 / [추론] 확인 못 함. 행 번호는 이 브랜치 커밋 기준.
+
+## 바뀐 것(파일별, `wc -l` 전 → 후 · md5 앞 8자리) [실측]
+
+| 파일 | 행 | md5 | 무엇 |
+|---|---|---|---|
+| `scripts/compute.py` | 251 → 261 | 1bf268a8 | `--competitors-html` 경쟁사표 0행 → `[FAIL] 직전 배포본 경쟁사표 0행 — 머리글 "경쟁사 브랜드명 검색어" 또는 행 마크업 확인` exit 1(합본 읽기 전, `-o` 안 씀) · 새 키 `06.카드30회이상일`(카드 dict 와 분리 — compare "06 카드" 대조 보호) · `10.최근7일노출`·`최근7일클릭`·`최근7일` |
+| `scripts/compare.py` | 181 → 207 | b6c41f70 | 47~178행 try 하나 → **구역 함수 12개 + 구역별 try**(실패 = `파싱 실패 [구역]` DIFF, 다음 구역 계속 — 공유값 `S["kpi"]`→07 · `S["got4"]`→06) · 10 항목 3 새 형식(`최근 7일 노출은 …회, 클릭은 …건(M/D~M/D)` · `9/6 이후 N일 하루 평균 N건(N일 평균 N건)`). 다른 항목 이름·정규식·대조 값은 글자 그대로(자기 검토가 04d85c1 본문과 기계 diff — 차이 = S 3줄 + 10 항목 3). **항목 수 N = 95**(그대로) |
+| `scripts/validate.py` | 424 → 455 | 5742a513 | 검사 **"07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)"**(`check_07_footnotes`: 07 `class="note"` 전부 이어 붙여 ① `경쟁사 판정\(` · ② `제외 검색어: .*?등록 (\d+)개 · 확인 (\d+)/(\d+) · 실패 (\d+)` · ③ `클릭 0인 검색어 전체는 (\d+)개·노출 ([\d,]+)회` + b = 등록 × `exclusions.targets` 수 · a ≤ b + `click0_items` ≥ 1) → **22 → 23개** · TAGS + `details`·`summary` |
+| `scripts/apply.py` (신규) | 0 → 249 | d1fafedf | `work/apply.py` 저장소화 — `--html`(기본 work/index.html)·`--compute`(기본 work/compute.json) · 앵커 정확히 하나(`once`) · 실패 `[FAIL] apply:` exit 1 + 작업본 그대로(끝에 한 번만 씀) · `NEWC` → config `competitor_defaults` · 01 순위 5칸 끝 앵커 `\n      </div>\n      <div class="note">`(서술 무관) · min-width 개수는 01·06 컨테이너만 · 10 표 4행 아니면 FAIL · 경쟁사 행이 직전 행도 신규 후보도 아니면 FAIL |
+| `scripts/narrative_check.py` (신규) | 0 → 84 | 8057832c | `<작업본> <직전 배포본>` — ① 작업본 표지 0 → FAIL · 표지 짝·이름 중복 → FAIL ② 같은 기간 → `[주의] 같은 기간 — 대조 생략` exit 0 ③ 직전에 표지 없음 → `[주의] 직전 배포본에 표지 없음 — 대조 생략` exit 0 ④ 매회차 블록이 직전 같은 이름 블록과 바이트 같으면 `[FAIL] 서술 미교체 <자리>` exit 1 |
+| `scripts/precheck.sh` | 37 → 38 | 7b40aefc | overflow 뒤·md5 재확인 전 `run "$PY" scripts/narrative_check.py "$HTML" "$PREV"`(FAIL 전문, 실패면 도장 없음) |
+| `tests/mutation_test.py` | 379 → 386 | ef300789 | 변조 "07 각주 ② 문구 변조(제외 검색어: → 제외검색어:)" + 0건 가드 "07 ②③ 각주 블록 제거"·"07 ① 경쟁사 판정 줄 제거" |
+| `tests/test_ingest.py` | 383 → 383 | 218a532e | 가짜 파이썬 래퍼 패턴에 `*narrative_check.py`(precheck 한 줄 때문에 PrecheckTests 가 깨지지 않게) — **지시대로 이번엔 돌리지 않음**, 병합 전 전체 시험에서 |
+| `tests/test_apply.py` (신규) | 0 → 212 | 2262405e | 멱등(표지 없음·표지 있음 fixture, 리허설 R1 산출이 있으면 그것도) · 값·행 수(03 날짜+합계·07 정식표·동률 직전 순서·경쟁사 신규 = config 기본값·08·10) · 시끄러운 실패 5종 + 새 04 그룹 + 후보 밖 경쟁사 · compute 경쟁사표 0행 FAIL(소제목만 바꾼 fixture — r10 유형) |
+| `tests/fixtures/layout_old.html`·`layout_old.compute.json` (신규) | 0 → 460 · 0 → 594 | f29b1c71 · 08b2c31a | 10/6 배포본의 apply 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 **전부 가짜**, 7일 가짜 compute |
+| `tests/test_narrative_check.py` (신규) | 0 → 97 | a7e4ccfe | 미교체 FAIL · 전부 교체 PASS · 표지 0 FAIL(같은 기간에도) · 직전 표지 없음 [주의] · 같은 기간 [주의] · 짝·중복 FAIL · CLI exit |
+| `tests/test_validate_07.py` (신규) | 0 → 90 | f365c604 | 평상 PASS · exclusion-ui 9절 예외 회차 문구 6꼴 PASS · a > b · b ≠ N × 그룹 · ①②③·클릭0 목록 각각 없음 · note 0 → FAIL |
+| `tests/test_compare_sections.py` (신규) | 0 → 115 | 00960abe | 인자형(`<index.html> <compute.json>` — 배포본을 저장소에 넣지 않으려고, mutation_test 와 같은 꼴): 01 해석·07 ②③·10 최근 7일 문장 하나씩 지운 사본 → DIFF 는 그 구역만, 다른 구역 기준 OK 전부 다시 OK |
+| `config/report-config.json` | 145 → 150 | cd6afefa | `competitor_defaults{_comment, district "노원구", match "확장"}` |
+| `SKILL.md` | 561 → 584 | a8fd4d4e | 5단계 교체 명령(apply.py + n<날짜>.py, 서술 표지 정본 = report-structure) · 6단계 넷째 narrative · 9항목 7 "박스 머리글 줄 없음" · 배포 전 검산 23개 + "07 각주 세 자리" + precheck 가 함께 돌리는 것 · 참고(apply·narrative_check·시험 4) |
+| `references/report-structure.md` | 410 → 525 | 6b8874b4 | 01·04·06·07·08·09·10·11·12 "길이" 줄(3.0 표 그대로) · 06 `카드30회이상일` 정의 · 10 정의(최근 7일 + 평균, 302행 개정) · 07 각주 ①②③ 두 블록 자리 · 12 철회 사유 자리 · **"서술 공통 규칙"** · **"서술 표지"** 절(자리 36 · 매회차/고정 · 자리별 compare 리터럴 · 공개 무해 · 첫 적용) |
+| `references/code-tab.md` | 235 → 240 | a7bb7b39 | 3절 5행(apply + n<날짜>.py · ② 형식) · 6행(narrative) · "2-1 같음" narrative 생략 한 줄 · 4절 "보류 뒤 같은 세션 재개 = 7단계부터(도장 유효)" + 첫 적용 회차 첫 말 예문 |
+| `references/exclusion-ui.md` | 160 → 173 | 5b504b93 | 9절 07 ② 형식 + 예외 회차 고정 문구 표(등록 0 · "등록은 나중에" · 부분 실패 a/b · 등록돼 있는데도 노출 · 등록 누락 → 후보 · 미확인 — 전부 ② 정규식 꼴) |
+| `audit/checklist.md` | 507 → 511 | d676df93 | 갱신 이력 한 줄 · [의도된 동작] **27**(글 규칙 — 사용자 결정 원문 두 문장 인용) · 16 "22개" → 23·mutation [OK] 46 · [되돌리면 안 되는 것] 2행(07 각주 세 자리 · 서술 미교체 검사) · 대상 파일 목록 |
+| `audit/last-audit.md` | — | (커밋 뒤) | 이 절 + E2 정의 줄(2264행 근처) 현행화 |
+
+지시 밖 변경 0: `scripts/deploy.py`·`exclusions.py`·`fetch_reports.py`·`archive.py`·`reportlib.py`·`ingest.sh`·`references/css-and-layout.md`·`report-fetch.md`·`local/`(saero-run · CLAUDE.md · prompt-polish)·`data/`·`audit/exclusions.csv` 불변.
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **서술 표지 36개 = 매회차 24 · 고정 12**(자리 표는 report-structure.md "서술 표지"). 고정 = 표 설명·규칙 5(04-foot·07-src·07-legend·12-desc·12-basis) + **compare 가 숫자를 대조하는 한 줄 7**(02·05·06·07·08·10 desc · 09-foot — 문구가 같아도 되는 자리라 narrative 대조 밖, 교체 대상으로만 표지). 지시의 "고정 = 표 설명·규칙"을 넓힌 것. 표지 밖 숫자는 apply 기계 자리뿐.
+2. **04-desc 는 매회차**(`… — M/D까지 격차 A → B배, 그대로`) — 첫 판은 고정이었으나 자기 검토 막음(아래 "자기 검토")으로 바꿨다. 규칙: compare 가 읽지 않는 지난 회차 값·방향어를 쓰는 한 줄은 매회차 + `M/D까지`.
+3. 매회차 블록에는 마지막 날짜·일차·회차 수가 들어가게 썼다(04-mint·07-right·08-note·10-mint 에 `M/D까지`) — 값이 같아도 문구가 바뀌게.
+4. 12-1·12-2 표지는 **상태 태그까지 안**(상태가 바뀌면 태그도 바뀌므로), 11-list 는 `<ul>` 밖(지시).
+5. **01 ① 표 아래 하루 분해 각주(옛 L338)도 지웠다** — 3.0 "뺄 것: 하루 분해 서술"을 블록 통째로. 01 박스 = ① 표 · ② 순위 5칸 + 각주 · ③ 해석.
+6. **집계 기준**의 회차 숫자("포함된 값(노출 N회)")를 빼고 "차이는 08·09번 각주"로 — 고정이 되게.
+7. 서술 숫자 = compute 키(+ 지난 회차 compute)만 → 옛 서술의 하루 분해·"8/27 이후 가장 낮음"·그룹 하루 노출 나열·"0.7건 많아" 같은 파생 수를 뺐다. compute 키 신설 2: `06.카드30회이상일`(상계동 승격 조건 판정 원천 — 카드 dict 밖에 둔 이유: compare "06 카드" 항목이 dict 전체를 대조) · `10.최근7일*`. 예외 원천: 제외 검색어 등록·확인·실패 수 = exclusions.py 출력(registry), "N회차 연속" = 직전 배포본 + 1.
+8. **compare 10 항목 3**: 지시 정규식보다 넓혀 `(M/D~M/D)` 기간과 `(N일 평균 N건)` 까지 대조(같은 항목 안 — 수 그대로 95). 항목 이름: "10 최근7일 노출 나열" · "10 최근7일 클릭 나열·기간" · "10 9/6이후 일수·하루평균클릭(전체 평균 포함)".
+9. **narrative 판정 순서**: 표지 0 FAIL 을 "같은 기간 생략"보다 먼저(같은 기간이어도 표지 잃은 작업본은 막음) + 표지 짝·이름 중복 FAIL 추가(지시 밖 두 가드).
+10. **validate 검사 번호 대응**: 기준선 4절·3.1 의 "24 07 각주 세 자리"는 회차 2 의 "23 레이아웃 판"을 앞에 둔 번호 — 이번 판에서는 출력 23번째(23개). 회차 2 가 들어오면 24개. 문서·기록은 이름으로 부른다.
+11. **apply.py 를 옛 판보다 엄격하게**: `once` = 정확히 하나(옛 판은 첫 일치만 확인) · min-width 개수를 01·06 컨테이너로(옛 판은 문서 전체 — 기간 8일 이하면 바닥값 650px 이 09번 고정 650px 과 겹쳐 3이 되는 숨은 결함, fixture 가 드러냄) · 10 표 4행·경쟁사 행 원천 검사. 실값 경로는 옛 판과 바이트 동치(10/5 배포본 + 41일 compute → 신규 변형 행 포함 같은 바이트 [실측]). tbody·목록은 옛 판처럼 앵커 뒤 첫 일치(엉뚱한 자리는 compare·validate 가 요란하게 잡음).
+12. **첫 적용 변환(ⓐ) 앵커 = 옛 글 시작 문구 중 숫자 없는 리터럴 + 여는 태그**(`→ 콘텐츠 지면 없는 날이`·`<div class="note">닷새 동안`·`다만 두 광고는 성격이 달라` 등 — 10/5·10/6 두 배포본 모두 구역 안에서 정확히 하나 [실측]). 지시의 "옛 숫자 리터럴 앵커"를 숫자 없는 문구로 바꿔 첫 실사용 회차의 옛 배포본에도 그대로 맞게 했다. 흐름 = `wrap_old`(표지 뼈대 + 5블록 삭제) → `rep_all`(표지 이름으로 교체, 빠진 자리·남는 글이면 멈춤).
+13. R2 의 `n1005b.py` 는 new40 에 표지가 없어서 `wrap_old`(ⓐ 앵커) 뒤 `rep_all`(ⓑ) — 지시의 "ⓑ 표지 기반"은 글 교체 부분. `R2/n1006b.py` 는 순수 ⓑ(표지 없으면 멈춤).
+14. 지난 회차 값 출처: 10/6 글 = 40일 compute(`work/c40/compute.json` — 10/5 배포본이 통과한 값과 같음, 10/5 배포본 × c40 compare OK 90/DIFF 1(10 새 형식만)) · 10/5 글 = 10/5 배포본 원문에 적힌 "지난 회차" 값(`narr_lib.PREV_1005`).
+15. 시험 둘을 지시 밖으로 더했다: `test_validate_07.py`(지시 "validate 시험에 그 문구 1건" → 6꼴) · `test_compare_sections.py` 는 인자형. compute 0행 시험은 `test_apply.py` 안.
+16. 리허설 경로는 지시 그대로 `work/R1·R2·R4·R5` — 아래 "사건" 2 참고.
+
+## 리허설 결과(전부 clone 안 사본, 최종 코드) [실측]
+- **R0** `work/c40/`(스크래치 `work/R0/mk_c40.py`): 키워드 631행·검색어 2,203·상세지역 1,738(일별 2026.08.26.~10.04.) · 시간대별 = data/2026-08·09 + `git show 0e9ba66:data/2026-10/시간대별.csv` 를 archive.py 방식으로 합산(노출 12,009 = 키워드 전체 12,009 · 클릭 383 = 383) · 첫 줄 `(2026.08.26.~2026.10.04.)`. `compute.py work/c40 --competitors-html work/prev.html` → **"2026.08.26 — 10.04 (40일)" · 경쟁사 39행 · 후보 []** (md5 c40/compute.json 81f475fb).
+- **R1 첫 적용(경로 C 글만)**: compute(prev = 10/6 옛 글) 40행·후보 [] → apply "(변경 없음)" → `work/R1/n1006b.py` 표지 36 → precheck: **validate 23/23 · compare OK 95/DIFF 0 · overflow 360/390/430 넘침 0 · narrative `[주의] 같은 기간 — 대조 생략(… 표지 36개 중 매회차 24개)` · 도장**(작업본 002233ee · 직전 6aaa2472 · full).
+- **R2 다음 회차**: new40(10/5 배포본 사본) + c40 → apply 변경 없음 → `n1005b.py` 표지 36 → c40.json **39행 = c40/compute.json 바이트 동일**(새 글이 직전 배포본이어도 경쟁사표 그대로 읽힘) → compute(prev = new40) **40행·후보 ['노원부티필라테스']** → index 에 apply(신규 변형 행 = config 기본값 노원구·확장) + `R2/n1006b.py`(ⓑ) → precheck **validate 23/23 · compare 95/0 · 넘침 0 · narrative `[PASS] 서술 표지 36개 · 매회차 24개 전부 직전 배포본과 다름` · 도장**(6f39dcf4 · 3da35369) → 자기 자신 기준 compute **40행·후보 []**.
+- **R1 ↔ R2 바이트 대조**: 11번 판정 줄 한 줄만 다름(지난 회차가 10/5 배포본 8개 vs new40 7개 — 당연한 차이). 목록 동률 순서·경쟁사 행까지 같음 — 첫 적용 경로와 표지 기반 경로가 같은 리포트를 만든다.
+- **R3** `mutation_test.py work/R2/index.html` + CSV 4 → **exit 0 "전부 살아 있음"** · 기준 23/23 · [OK] 46(변조 23 + 0건 가드 16 + archive 7) · 커버리지 23/23 · UNCOVERED·MISS·SKIP 0 · 원본 md5 동일.
+- **R4 역검증**(`work/R4/r4.sh` → `r4_final.log`): (1) 새 validate × 옛 글(work/index.html) → "07 각주 세 자리" FAIL(① ② 0건), 22/23 (2) ② 문구 변조 → 같은 검사 FAIL (3) 07-notes 를 new40 것으로 → narrative `[FAIL] 서술 미교체 07-notes` exit 1 (4) 표지 전부 제거 → `[FAIL] 작업본에 서술 표지 0개` (5) 경쟁사 소제목 "경쟁사 검색어 (40개)" → compute `[FAIL] … 0행` exit 1 (6) 새 compare × 옛 글 → OK 90/DIFF 1(`파싱 실패 [10]` — 11·12 는 계속 대조) (7) **compare 가 안 읽는 12-note·06 카드를 지난 회차 그대로 → validate 23/23·compare 95/0 인데 narrative FAIL 2 · 도장 없음**(10/6 01 머리글 사고 유형 — 이전엔 자동 배포됐을 자리) (8) 04-desc(지난 회차 값) 그대로 → narrative FAIL · 도장 없음 (9) **test_compare_sections 3/3**: 01 해석 삭제 → DIFF 1(`파싱 실패 [01]`)·다른 구역 기준 OK 81 중 81 다시 OK · 07 ②③ 삭제 → 82/82 · 10 문장 삭제 → 87/87.
+- **R5 화면**(관찰값 — 기준선 0절 방식, `work/R5/measure.py` → `measure.json`): 글자 수(표 제외) **16,493 → 8,215**(01 2,049 → 575 · 04 1,345 → 438 · 06 794 → 379 · **07 5,422 → 2,721** · 08 1,644 → 1,249 · 09 487 → 396 · 10 1,053 → 483 · 11 2,208 → 968 · 12 1,303 → 818, 12 칸 본문 1,535 → 420). 높이(Chart.js 미로드): **390×844 18,001 → 13,836px(21.3 → 16.4장)** · 1280×900 13,431 → 11,626px(14.9 → 12.9장) — 07 5,294 → 4,106(390). 12장·9장은 회차 2(03·07 접기) 몫. overflow 3폭 넘침 0. **미리보기 PNG**(file:// 만, 밖 요청 abort, 전체 페이지·차트 빈 칸): `D:\saero\feat-20261006-readable\work\R1\preview_390x844.png`(8f48840a) · `preview_1280x900.png`(ee4da3c2) — 사본 `work/R1/index.html` 을 브라우저로 열면 차트까지.
+- **시험**(`-W error::ResourceWarning`): test_apply **8 OK**(리허설 R1 멱등 포함) · test_narrative_check **7 OK** · test_validate_07 **6 OK** · test_compare_sections **3/3**. test_exclusions·test_deploy·test_fetch_reports·test_ingest 는 지시대로 돌리지 않음.
+- **본보기(첫 실사용 세션이 쓸 것, 저장소 밖 — gitignore)**: ⓐ 첫 적용 변환 `D:\saero\feat-20261006-readable\work\R1\n1006b.py`(2ccf4d99) + `D:\saero\feat-20261006-readable\work\narr_lib.py`(18dd9c39 — `SPANS`·`DELETE` 앵커 · `wrap_old` · `rep_all` · 글 함수 `blocks`·`items_common` · 회차 사실 `META_*`) / ⓑ 표지 기반 `work\R2\n1006b.py`(a64eef31) · 40일판 `work\R2\n1005b.py`(d264e98d) · 한 번에 `work\rehearse_R12.sh`. 첫 실사용은 그 회차 `META`(등록·경쟁사 판정·연속 회차 수)와 지난 회차 11번 판정(`judged`)만 바꾸고 `wrap_old → 글 → rep_all` 흐름 그대로.
+
+**자기 검토**(지시의 [검토 깊이 규칙] — 워크플로 에이전트 4: 코드·검사 / 리포트 글·원칙 / 문서·범위 + 기계 확인(haiku)): 막음 **1건**(리포트·문서 검토자가 각각 재현) — 04-desc 를 고정으로 둬서 지난 회차 문장("격차 3.57 → 3.55배, 줄어듦")이 그대로 남아도 validate 23/23 · compare 95/0 · narrative PASS · 도장 → 자동 PUT(가끔 · 조용) → **고침**(임의 결정 2 — 매회차 + `M/D까지`, report-structure 고정 정의에 규칙 한 줄 같이). 고친 뒤 같은 재현 사본은 narrative `[FAIL] 서술 미교체 04-desc`·도장 없음 [실측]. 코드·검사 검토자 "가도 된다"(막음 0). 기계 확인: work/ md5 9개 그대로 · 시험 넷 OK · `line-height:1.9;">` 3곳(옛·R1·R2) · R1 `<details` 0 · 새 색 0(18개 같음) · data/·registry·local/ diff 0 · 도장 md5 = 파일 md5. 고친 뒤 판정: **다음 단계로 가도 된다**(막음 0).
+
+**사건(사실대로)**:
+1. 12:53 무렵 옛 `work/apply.py` 를 경로 바꾸지 않고 한 번 돌려(비교 실험 중 명령 실수) **`work/index.html` 을 다시 씀** — 같은 compute 라 바이트 동일(md5 6aaa2472 그대로, 수정 시각만 바뀜). 그 뒤 옛 스크립트는 경로를 바꾼 사본으로만(exec) 돌렸다. 지시 "덮어쓰지 않는다"를 글자로는 어긴 것.
+2. **Windows 는 폴더 대소문자를 구분하지 않아** 지시의 `work/R1·R2·R4·R5` 가 탐색 프로브 `work/r1·r2·r4·r5` 와 같은 폴더다. 리허설이 그 안의 탐색 프로브 사본(r1·r2 의 index.html·prev.html, r4 index.html)을 덮어썼고, 같은 폴더의 compare.log·validate.log·overflow.log·heights.json(10:30 탐색 산출)은 남아 있다 — **리허설 근거는 위 R*·로그 이름(r4_final.log·rehearse_after_fix.log·mutation.log·measure.json)만**. 탐색 근거 전문은 저장소 밖 `D:\saero\saero-ad-report_리포트읽기쉽게_탐색_2026-10-06.md` 에 그대로. 다음 리허설 폴더는 소문자 프로브와 겹치지 않는 이름으로.
+3. 작업 중 탐색 세션이 이 clone 에 `848e236`(기록 한 줄)을 커밋 — 위 머리.
+
+## 검증 회차가 볼 것(완료 기준 표 회차 1 줄로 — 판정만, 쓰기 0)
+준비: 새 clone(위 명령) + 이 clone 의 `work/` 에서 **읽기만으로 사본**: index.html(6aaa2472 — 10/6 배포본) · prev.html(95c58082 — 10/5) · combined/ 4(e3a352a2·e70e5023·faac5a0a·b7d91858) · c40/ 4(d6830103·a8c5eb81·1db13563·a4f54006) · 본보기 narr_lib.py·R1/n1006b.py·R2/n1005b.py·R2/n1006b.py·rehearse_R12.sh · R0/hourly_2026-10_0e9ba66.csv. 운영 폴더(`D:\saero\saero-ad-report-skill`)는 읽기만.
+1. **누락 0** — R1·R2 에서 07 정식표 24·클릭1 35·클릭0 77·경쟁사표 40·08 TOP10 밖 39(compare 07 집합 4·08 컴팩트 2 + 직접 세기).
+2. **숫자는 compute.json 만** — precheck(validate 23/23 · compare OK 95/DIFF 0 · overflow 3폭 · narrative · 도장) R1·R2 둘 다. 서술 표지 블록의 숫자가 compute(지난 회차 = c40)에 있는지.
+3. **① 에 compute 키 없는 숫자 0** — 07-comp 첫 줄.
+4. **서술 표지 미교체 0(M1)** — `narrative_check` R2 PASS · 매회차 블록 하나(compare 가 안 읽는 것)를 지난 회차로 되돌리면 precheck 가 narrative 에서 FAIL·도장 없음 · 04-desc 재현 · `test_narrative_check` 7. 고정 12개 중 지난 회차 값·방향어를 담은 블록이 남았는지.
+5. **07 각주 셋** — validate "07 각주 세 자리"(옛 글 FAIL · ② 변조 FAIL · exclusion-ui 9절 예외 6꼴 PASS — `test_validate_07`) · mutation 변조 1·가드 2.
+6. **8·9 각주 · 뒤집힌 결론 · "~로 보임" · 09 긍정 톤 · 9항목 자리 · 11·12 작성 기준** — R1 글(11 ≤ 8 + (참고) ≤ 2, 항목당 결론 1문장 + 괄호, 12 상태 줄·다음 회차 판정·이월 판정 줄, 날짜별 등록 나열 없음).
+7. **화면 원칙** — 새 `#색` 0 · `.ctr-high` 다른 용도 0 · 표 `display:block` 0 · 외부 css/js 추가 0 · 01 머리글 2줄·L338 각주·07 ✓·⚠️ 없음 · 미리보기 PNG 2장.
+8. **`line-height:1.9;">` 기준점 셋** — 옛·R1·R2 각 3곳, validate click1/click0 · compare · apply 그대로.
+9. **옛 모양 복귀 가드 회차 1 몫** — validate "07 각주 세 자리" · `scripts/apply.py`(test_apply 8 · 옛 apply 와 바이트 동치) · compute 0행 FAIL · TAGS + details/summary · mutation 변조 1·가드 2(R3 [OK] 46·23/23).
+10. **compare 생략 없음** — `test_compare_sections` 3/3 + compare 본문이 04d85c1 과 10 항목 3·S 3줄 말고 글자 그대로인지(diff).
+11. **글자 수 관찰값**(16,493 → 8,215 · 07 5,422 → 2,721 — 기준 ≤ 8,500/≤ 2,800 은 관찰용) · 높이 21.3 → 16.4장(390, 12장은 회차 2).
+12. **검증 폴더** `D:\saero-verify\<clone>` · **리허설 한 줄**(R0~R6 다시 — 같은 md5 가 나오는지: R1 002233ee · R2 new40 3da35369 · index 6f39dcf4).
+13. 문서 = 코드: report-structure "서술 표지" 표 ↔ R1 실제 표지 36 ↔ `narr_lib.KIND` · SKILL.md·code-tab·exclusion-ui·checklist 문구 ↔ 스크립트 · 회차 2 항목을 건드린 곳 0 · local/·data/·registry 변경 0.
+14. `test_ingest.py` 래퍼 한 줄 — 병합 전 전체 시험(test_exclusions·test_deploy·test_fetch_reports·test_ingest)에서 확인.
+
+## 이월(한 줄씩 — 막음 아님, 점검 회차 또는 회차 2 와 함께)
+1. narrative_check: 작업본에서 매회차 표지 **이름이 바뀌거나 종류가 고정으로 바뀌거나 표지를 잃으면**(직전에만 있는 이름) `[주의]`·무표시로 통과 — 가드 후보 "기간이 다르면 직전 매회차 이름 ⊆ 작업본 매회차 이름 · 종류 불변" (여러 우연 · 조용).
+2. 표지 이름 `12-1`·`12-2` 가 위치 기준 — 앞에 새 항목이 끼면 다른 항목끼리 대조(가끔 + 실수 1 · 조용) → 항목 정체 이름(`12-exclusions` 등) 후보.
+3. 날짜 없는 매회차 문구(뒤집힘 0 회차의 11-verdict 등)가 두 회차 같으면 거짓 FAIL(요란) → 판정 줄에 `M/D` 넣는 규칙 후보.
+4. 07-desc 의 상위 2 검색어 이름·04-desc "1/3 이하"는 compare 밖(여러 우연 — 3위 58 vs 2위 83건).
+5. apply `once` 가 엄격해져 서술에 apply 앵커 문구(`클릭당 평균 N원`·`광고비 비중 (총 N원)`·`(N개 지역·클릭 N건)`)를 다시 쓰면 apply FAIL(요란) → "서술 공통 규칙"에 금지 문구 목록 후보. SKILL.md 5단계·code-tab 3절 5행 "앵커가 하나가 아니면" 은 `once` 자리만 해당(표·목록은 첫 일치) — 문구 정밀화.
+6. narrative 는 표지 집합을 문서 표(36)와 대조하지 않음 — 첫 적용에서 빠진 표지는 이후 검사 밖(여러 우연).
+7. 2-1 같음 "미룬 등록만" 경로는 narrative 생략 — 07 ② 갱신은 사람 몫(설계상 예외, 드묾).
+8. 문서: "서술 공통 규칙"의 "~로 보임" 자리 = 01 순위 각주만 vs 11 작성 기준 1) · SKILL.md (1-1) "12번 액션 표" vs report-structure "12 표 아래 note" 표기 차이.
+9. `test_narrative_check.test_cli_exit_codes` 임시 폴더를 지우지 않음(무해).
+10. 리허설 본보기 글의 11 첫 항목 근거·(참고) 경쟁사 줄은 이번에 스크래치에서 바로잡음 — 첫 실사용 글은 그 회차 사실로 새로(META·judged).
+11. 높이 390×844 16.4장 — 12장·9장 목표는 회차 2.
+
+## 마무리 기록(이번 회차)
+- 커밋(경로 지정 add, `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`, 전역 설정 변경 0): `21da210` compute·compare(구역별 try·10 새 형식·0행 FAIL) · `cc8d119` validate·mutation(07 각주 세 자리·TAGS) · `b7bc67b` apply 저장소화·config·test_apply·fixture · `5e7fd95` narrative_check·precheck·시험 · `5d8513f` 문서 · 그리고 이 절 + E2 정의 줄(기록 커밋 — 해시는 자기 참조라 적지 않는다). 브랜치에는 탐색 기록 `09bf9d3`·`04d85c1`·`848e236` 도 함께 있다.
+- 끝 확인(커밋 뒤): `git fetch` → origin/main 확인 · 브랜치 push 1회(`git -c credential.interactive=false push origin feat-20261006-readable`, main 아님) · 스크래치 `git clone -c core.autocrlf=false -b feat-20261006-readable --single-branch` 로 HEAD·md5 대조 — 결과는 채팅 보고(자기 참조).
+- work/ 사본(index 6aaa2472 · prev 95c58082 · compute.json f60152d9 · combined 4 · apply.py 702de83d · n1006.py 754921d7) md5 시작과 같음 [실측] — 사건 1(index.html 수정 시각) 위 참조. 배포 PUT 0 · 네이버 0 · 키 파일 0 · 운영 작업 폴더 열기 0.
+- 다음 단계([넘길 때] 그대로): ④ 첫 검증 `D:\saero-verify` 새 세션 **Fable 5.1 · ultracode**(위 검증용 clone, 운영 폴더 읽기만, 판정만·쓰기 0) / 수정 뒤 재검증 새 세션 · 바뀐 것만 · **Fable 5.1 · xhigh** / ⑤ 수정(막음 있을 때만) 새 세션 **Opus 5.5 · xhigh · ultracode 끔** / ⑥ 병합은 ④ 세션에 이어서(갱신 회차가 돌지 않을 때 — last-audit 맨 위는 main 쪽 회차 절을 살림) / 첫 실사용(회차 1 첫 적용 = 경로 C, "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함") 운영 세션 `/saero-run` **Opus 5.5 · high · ultracode 끔** — 본보기 = 위 "본보기" 줄.
+
+---
+
 # 기능 추가 탐색 기준선(리포트 읽기 쉽게, 2026-10-06)
 점검일: 2026-10-06 (기능 추가 회차 — **탐색·설계만**. 데스크톱 앱 Code 탭, 이 PC, 작업 폴더 `D:\saero`로 연 세션, 모델 Fable 5.1 · ultracode). 사실 기준 10/06 10:00 KST · 운영 main 작업 폴더 HEAD **`eae71fc`** = origin/main(별도 clone 결과 같음) · 작업 트리 깨끗 · 파일별 마지막 커밋이 지시문과 전부 일치(report-structure.md 587026e · css-and-layout.md ea597d4 · compare.py 4e38b95 · validate.py e220079 · compute.py e220079 · SKILL.md c64adbe). 운영 작업 폴더 쓰기 0(git 은 `--no-optional-locks log/show/diff` 만) · 기존 코드·문서·config·data/·registry 변경 0 · 외부 쓰기 0(push·네이버 POST·배포 PUT 0, dry-run 포함 fetch_reports·exclusions·deploy·ingest·archive 실행 0, 키 파일·자격 증명 열지 않음). 구현은 사용자가 아래 "내가 고를 항목"을 고른 뒤 별도 회차.
 추가할 기능: 사장님들이 리포트를 빨리 훑고 필요한 정보만 얻게 — (1) 글 설명을 줄인다(숫자와 결론 한 줄 중심) (2) 41일이 쌓여 세로로 길어진 03 "일별 광고비"·07 "실제 검색어 분석"을 짧게 보이게 (3) 같은 원인의 다른 자리(10번 나열·08 목록·01·06 차트 폭·01 인사이트 박스·06 카드)를 후보로. **사용자 결정 원문(2026-10-06)**: "지금 광고 보고서에 텍스트로 된 설명이 너무 많아 … 필요한 정보만 딱딱 전달이 됐으면 좋겠어" · "2개의 섹터의 데이터가 세로로 너무 길게 나열이 되어있어서 이걸 수정했으면 싶어" — 레이아웃 변경은 SKILL.md "가장 중요한 원칙"(18~25행, 레이아웃 임의 재해석 금지·배포본이 유일한 원본)에 닿으므로 이 두 문장을 사용자 결정으로 남긴다(적을 자리는 3절 공통 뼈대).
@@ -2261,7 +2369,7 @@ I-10은 종결·대체(D-12). I-9는 개정안 2로 이관.
 | # | 후보 | (a) 현재 코드·문서 인용 | (b) 실측 | (c) 예상 절감 | (d) 정확성 리스크·검증 방법 |
 |---|---|---|---|---|---|
 | E1 | **계산 코드 고정** — 회차 작업 디렉토리의 `recalc.py`(143행, 합본 4종 + config → 12개 섹션 값 JSON)를 `scripts/compute.py`로 저장소에 두고, SKILL.md 5단계를 "compute.py 출력값만 쓴다"로. validate.py와 겹치는 읽기·필터(validate 79~81 `read_csv(skiprows=1)`, 284~290 제외그룹·KPI 합, 168~171 일수)는 공통 헬퍼로 | SKILL.md 160 `숫자는 반드시 pandas로 계산한 값만 쓴다. 추측 금지.` / 09-19·09-20·09-21·09-23 기록 `계산 스크립트는 회차 작업 디렉토리에만 둠` | 이번 회차 recalc.py 산출값 = 배포본 **99항목 차이 0** [실측]. 스크립트 작성·디버그에 도구 호출 8회·약 4분 — 매 회차 반복되던 비용 | 갱신 회차마다 즉석 계산 코드 작성 제거(추정 도구 호출 −8~10회·−4분/회차 [추론]). D-11의 정의 12개가 코드에 고정돼 문서 결함도 같이 닫힘 | 스크립트가 틀리면 매 회차 같은 방향으로 틀린다 → validate.py는 **독립 계산으로 유지**(헬퍼 공유는 읽기·필터까지, 값 계산은 분리). 채택 검증: 별도 세션이 compute.py로 ad48222를 재현해 차이 0 |
-| E2 | **기계 자리 자동 교체** — 배포본에서 행 수가 고정인 자리(KPI 4+sub 3, 01 표 5행, 03 표 31행+합계, 04 표 5행, 06 매칭표·카드 숫자, 09·10 표, 차트 data 배열 12개, labels 2개, min-width 2개, 08·09 각주 숫자, masthead·og)를 compute.py JSON으로 치환하는 `scripts/patch.py`. **행 수가 변하는 구간(07 정식표·클릭1건·클릭0·경쟁사표, 08 TOP10·컴팩트)과 문장(section-desc·note·11·12)은 사람이 쓴다** | SKILL.md 13~15 `**리포트 HTML을 새로 만들지 말 것.** … "숫자와 문구만" 교체한다` | 배포본 기계 자리: `td.num` 셀 509개(03번 224·07번 170·04번 35·01·08번 각 30)·data 배열 12·labels 8·min-width 5 vs 문장 블록 40개(note 본문 9,181자). 행 고정 자리만 세면 약 330셀 + 배열·라벨·폭 | 갱신 회차의 str_replace/sed 반복을 스크립트 1회로(추정 −10회 이상 [추론]). 원칙과의 경계: 기계 자리만 치환하면 레이아웃·CSS·순서·문장 불변이라 원칙 준수 | 치환 위치를 잘못 잡으면 표가 어긋남 → 치환 후 validate 14 PASS + compare.py 차이 0을 필수로. 07·08 가변 구간은 범위 밖 명시 |
+| E2 | **기계 자리 자동 교체** — (2026-10-06 현행화: 저장소화된 `scripts/apply.py` 기준) compute.py JSON 으로 기계 자리 **전부**를 치환한다 — 행 고정 자리(KPI 4+sub 3, 01 표 5행·순위 5칸, 03 표 전체+합계, 04 표(앞 2칸 = 직전 행), 06 매칭표·카드 일차·큰 숫자, 10 표 4행, 차트 data 배열·labels, min-width 2개, 02 도넛 총액, masthead·og) **+ 행 수가 변하는 구간(07 정식표·클릭1건·클릭0 목록·경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`), 08 TOP10·컴팩트 목록·개수 줄 — 동률은 직전 순서)**. 문장은 서술 표지(`<!-- n:<자리>:<매회차|고정> -->`) 안을 그 회차 n<날짜>.py(저장소 밖)가 바꾼다(08·09 각주 숫자도 표지 안). (옛 정의: "행 고정 자리만 — 07·08 가변 구간·문장은 사람", 이름 `scripts/patch.py` 안) | SKILL.md 13~15 `**리포트 HTML을 새로 만들지 말 것.** … "숫자와 문구만" 교체한다` | 배포본 기계 자리: `td.num` 셀 509개(03번 224·07번 170·04번 35·01·08번 각 30)·data 배열 12·labels 8·min-width 5 vs 문장 블록 40개(note 본문 9,181자). 행 고정 자리만 세면 약 330셀 + 배열·라벨·폭 | 갱신 회차의 str_replace/sed 반복을 스크립트 1회로(추정 −10회 이상 [추론]). 원칙과의 경계: 기계 자리만 치환하면 레이아웃·CSS·순서·문장 불변이라 원칙 준수 | 치환 위치를 잘못 잡으면 표가 어긋남 → 앵커가 정확히 하나가 아니면 `[FAIL] apply:` exit 1(작업본 그대로) · 치환 후 precheck(validate·compare·narrative) 필수 · 멱등·앵커는 tests/test_apply.py(2026-10-06 현행화) |
 | E3 | **도구 호출 묶기** — 1단계 `store → combine → git push`를 bash 1회로, 6단계 `validate → playwright 넘침 → 재수령 md5`를 스크립트 1회로, 4·7단계 GET/PUT을 파이썬 1개로 | SKILL.md 77~91(1단계 3항목)·167~189(6·7단계) | 갱신 회차 기록엔 호출 수가 없어 실측 불가 — 근거는 09-25·09-26 "도구 한도로 멈춤" 2회뿐. 이번 회차 P1의 배포본 마크업 확인 9회는 compare.py 같은 파서가 있으면 0회 | [추론] 갱신 회차 bash 호출 절반 이하. 개정안 8(효율 기준선 표)을 먼저 채택해 다음 갱신 회차부터 호출 수·벽시계를 기록해야 실측이 생긴다 | 묶은 명령 중간 실패가 조용히 넘어가지 않게 `set -e`·단계별 exit 확인 |
 | E4 | **부트스트랩 읽기 분량 축소(P5와 짝)** — last-audit.md에서 갱신 회차 기록·이전 기록을 분리하면 매 실행 읽는 분량이 1,948행 → 약 900행 | 부트스트랩 33~37행 `saero-skill/SKILL.md를 읽고 … audit/last-audit.md가 있으면 함께 읽는다` | 매 실행 읽기: SKILL.md 361행 + last-audit.md **1,018행** + references 368+201 = 1,948행. last-audit 구성: 진단 기준선 164행·운영 표 106행·갱신 회차 기록 421행·이전 기록 328행. 갱신 회차에 필요한 건 운영 표 + 직전 회차 기록 + "다음 회차 대조" ≈ 150행 | [추론] 약 55% 감소(361 + 150 + 368 = 879행, css-and-layout은 레이아웃 작업 때만). 분리 뒤 실측 필요 | 분리하면 운영 표 정본 위치가 바뀜 → 저장소 SKILL.md에 "읽을 audit 파일" 명시(부트스트랩은 저장소 SKILL.md를 따르므로 재업로드 불필요) |
 
