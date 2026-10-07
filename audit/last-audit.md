@@ -1,3 +1,33 @@
+## 검증·병합 기록(2026-10-08 — 01 모바일 기간 접기(레이아웃 판 r2026-10-D): 검증 1(막음 0) → main 병합)
+
+**병합**: `feat-20261007-mobilefold`(`8a3c050` — 38e0123 위 2커밋: `9db296a` 코드·시험·문서 · `8a3c050` 수정 기록)를 main(`38e0123` — 분기 뒤 main 변경 0, 2026-10-08 00:24 KST `ls-remote` 로 main = 38e0123 · 브랜치 = 8a3c050 확인 · 운영 작업 폴더 `git --no-optional-locks status --short` 0줄 · `work/` 최근 변경 10/7 08:09 → 갱신 회차 돌지 않음)에 `git merge --no-ff` → 병합 커밋 **`f342f6c`**(부모 38e0123 · 8a3c050, 트리 `c21ce7cd` = 8a3c050 트리 — `git diff --stat 8a3c050 HEAD` 빈 출력 · 38e0123 대비 11 파일 +784/−160). 경우 A — 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0). clone `D:\saero-verify\merge-20261008-mobilefold`(`git clone -c core.autocrlf=false`). 사용자 병합 지시(2026-10-08 00:24 KST 무렵, 채팅 원문 "병합" — 병합 지시문 `D:\saero-verify\saero-ad-report_병합지시_01모바일기간접기_회차1_2026-10-08.md` 를 따름) 뒤 병합. 브랜치 `feat-20261007-mobilefold` 는 지우지 않고 둔다. 코드·문서·config·data 재수정 없음(이 절 추가만). 아래 수정 기록의 `브랜치 push 1회(feat-20261007-mobilefold, main 아님)` 와 `다음 단계: ④ 검증 … Fable 5.1 · ultracode` 는 당시 사실 — 원문 보존, 이 절로 정정(**검증 모델은 Opus 5.5 로 바뀜 · 2026-10-08 main 반영**). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에). 에이전트 0(지시 "조정자가 직접").
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_01모바일기간접기_회차1_2026-10-07.md`, 별도 세션 — `D:\saero-verify` 2026-10-07 21:38~21:56 KST, Opus 5.5 · ultracode(Fable 한도 96% — 사용자 결정), 검토 에이전트 4 = 런타임 Sonnet 5.5 `claude-sonnet-5-5` 1 · Opus 5.5 2 · Haiku 4.5 1 · 반박 0 · 하위 토큰 634,684, clone `D:\saero-verify\feat-20261007-mobilefold-1`, 대상 8a3c050): 아래 수정 기록 "검증 회차가 볼 것" 1~8 전부 참 · 리허설 R1~R6 재실행(rehearse.sh) — 경로·소요 시간 3줄 빼고 로그 전 줄 같음, md5 22줄 같음(index 02e80dac · PNG 10 · compare.html 5f37cbae) · chart_check **PASS 27 / FAIL 0** · 외부 요청 허용 2 · 차단 0 · test_apply **21** OK · test_deploy `-k layout_gate` **4** OK(격리 env · deploy 실행 0) · 리허설 밖 재측정 0(막음 후보 0) · **막음 0** → "다음 단계로 가도 된다".
+
+**병합 main 확인**(경우 A — 병합 트리 = 브랜치 트리 해시 같음 · 전체 시험은 구현 세션이 병합 전 한 번(20:27~20:31, `work/RD/fulltest.sh`) · 최종 코드로 검증 세션이 R1~R6·게이트 4 재실행 → 작업 알고리즘 4절 "전체 시험은 병합 전 한 번" 이 채워져 다시 돌리지 않음) [실측 00:25~00:27 KST]:
+- 병합 트리 `c21ce7cd` = 8a3c050 트리 · `git diff --stat 8a3c050 HEAD` 빈 출력.
+- `cat data/*/*.csv audit/exclusions.csv | md5sum` 병합 전 origin/main = 병합 뒤 **`39493a38`**.
+- registry(`audit/exclusions.csv`) **`fe0aa09c`**(894행) · config/report-config.json **`b9be593d`**(175행).
+- `git diff --stat 38e0123 HEAD -- local/` 빈 출력 · 작업 트리 변경 0.
+- audit/last-audit.md(이 절 전) **2,118행 · 600,406바이트** · CR 0.
+배포 PUT 0 · 네이버 0 · fetch_reports·deploy 실행 0 · 운영 작업 폴더 `D:\saero` 쓰기 0 · 작업 clone 열기 0.
+
+**이월**(한 줄씩 — 검증 1 판정의 이월 9건 그대로):
+- (검증 이월 1) chart_check 는 화면(접힘·펼침)의 보이는 라벨 글자를 compute 값과 대조하지 않는다(개수·순서·위치만 본다. 값 대조는 인쇄 PDF 에만 있다). 코드는 같은 from 으로 자르고, R4 PNG 01·06 14행을 눈으로 대조해 같았다.
+- (검증 이월 2) 06 모바일 순위 축 눈금이 접힘(3·2·1)과 펼침(4·3·2·1)에서 달라, 누르면 점의 가로 위치가 움직인다. 값과 날짜는 어긋나지 않는다. max 를 고정할지는 첫 실사용 뒤 사용자 결정이다.
+- (검증 이월 3) chart_check 인쇄 시나리오는 처음(접힘) 상태만 본다. 펼친 뒤 인쇄 · 06 만 펼친 뒤 인쇄 · 인쇄 중 버튼은 저장소 시험에 없다.
+- (검증 이월 4) 1280 의 최신 쪽 시작(S)은 새 판 절대 기대로만 판정하고, 기준 prev 의 로드 상태 S 는 재지 않는다(같은 판 C 규칙이라 결과는 같다).
+- (검증 이월 5) CRLF 판 C 를 `apply --layout` 하면 FAIL 문구가 앵커 줄바꿈 때문에 3줄로 갈라진다(apply.py:615). rc 1 이고 작업본은 그대로다(요란).
+- (검증 이월 6) 값만 경로(D → D)는 판 D 도우미 바이트를 템플릿과 대조하지 않는다. 그래서 손으로 고친 판 D 도우미가 그대로 지나간다(정상 흐름 밖).
+- (검증 이월 7) precheck 는 통과하면 validate 끝 3줄만 찍어 `레이아웃 판 … 최근 14/14` 줄이 안 보인다. 임의 결정 10 의 근거와 첫 적용 본보기 "6 precheck 기대" 는 validate 를 따로 돌려야 확인된다.
+- (검증 이월 8) checklist.md:30 [의도된 동작] 27 판 D 문단의 "앞 28일" 은 42일 데이터에 묶인 고정 숫자다(날짜가 늘면 n−14).
+- (검증 이월 9) css-and-layout.md:197 반응형 4 가 판 C 표기 "`n × row_px + pad_px`" 그대로다(판 D 는 그리는 날짜 수).
+
+**병합 뒤**(이 병합 세션은 하지 않았다): ① main 작업 폴더 `D:\saero\saero-ad-report-skill` `git pull --ff-only`(운영 세션 몫, 다음 `/saero-run` 첫머리 — ingest·S0 의 "HEAD = origin/main" 이 막는다) ② local/ 변경 0 → 설치본(`D:\saero\CLAUDE.md` · `saero-run`) 갱신 불필요 ③ **첫 적용 = 다음 `/saero-run`**(Opus 5.5 · high · ultracode 끔), 첫 말 "판 D(01 모바일 기간 접기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함", 순서는 아래 수정 기록 "첫 적용 본보기": 5단계 `apply --layout` → `레이아웃 판 변환(r2026-10-C → r2026-10-D, 분기 2)` → 6단계 precheck 도장 → **보류 멈춤**: `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(PASS 27 · 허용 2·차단 0) → `work/chart_<날짜>/compare.html` + 폰(390 세로 · 펼치기·다시 접기 · 844 회전 뒤 접힘 · 인쇄 미리보기)·PC 확인 → 사용자 "배포" → dry-run `[주의] 레이아웃 판이 바뀜` → `push --layout-change` → `verify` → 기록. 검증 이월 7 때문에 `레이아웃 판 … 최근 14/14` 줄은 validate 를 따로 돌려 본다. 첫 말 없이 데이터 회차가 먼저 돌면 5단계가 C→D 로 바꾸고 7단계 게이트가 `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함` 으로 멈춰 묻는다(요란 — 그 회차가 보류 회차가 된다) ④ 이월(검증 9 + 수정 기록 10)은 첫 실사용 뒤 또는 정기점검 때 본다.
+효율: 벽시계 약 10분(00:24 ls-remote → clone·병합 → 확인 → 기록·push) · 도구 호출 약 12회 · 하위 에이전트 0 · 즉석 코드 약 20행(덧붙이기 스크립트 — 스크래치).
+
+---
+
 ## 수정 기록(2026-10-07 — 01 모바일 기간 접기) · 브랜치 `feat-20261007-mobilefold`
 
 점검일: 2026-10-07 19:50~20:55 KST 무렵 (기능 추가 — **작은 작업**(작업 + 검증 세션 2개), 레이아웃 판 **r2026-10-C → r2026-10-D**. 데스크톱 앱 Code 탭, 이 PC, `D:\saero` 로 연 작업 세션, Opus 5.5).
