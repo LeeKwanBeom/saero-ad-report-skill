@@ -1,29 +1,39 @@
 #!/usr/bin/env python3
-"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-C(01·06 모바일 가로 막대)의 "보이는 숫자 누락 0" 을 진짜 Chart.js 로 잰다.
+"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-D(01·06 모바일 가로 막대 + 처음 최근 mobile.recent_days 일 · 펼치기 버튼)의 "보이는 숫자 누락 0" 을 진짜 Chart.js 로 잰다.
 
 사용법: "$PY" tests/chart_check.py <index.html> <compute.json> [--base <직전 배포본 html>] [--out <캡처 폴더>] [--widths 390,1280]
 
 자리(사용자 결정 2026-10-06 — 8): **precheck 밖** — 구현·검증 회차 리허설 · 첫 적용 "보류" 회차(운영 세션) · 정기점검에서 돌린다.
 playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님) · 밖 요청은 cdnjs Chart.js·datalabels 2건만 보내고(allow-list)
 그 밖은 막고 센다 — 막힌 요청이 1건이라도 있으면 URL 과 함께 FAIL(새 CDN·파일 0 원칙). file:// 는 그대로.
-기다림: networkidle + 1.8초(Chart.js 애니메이션 1초). 기준값(분기 경계·인쇄 높이 상한·행 높이)은 config report_layout.mobile 에서 읽는다.
+기다림: networkidle + 1.8초(Chart.js 애니메이션 1초 — 버튼 누른 뒤·회전 복귀 뒤도 같은 1.8초). 기준값(분기 경계·인쇄 높이 상한·행 높이·최근 일수 K)은 config report_layout.mobile 에서 읽는다.
 
 판정(하나라도 어긋나면 exit 1 · Chart.js 가 안 읽히면 `[FAIL] chart_check: Chart.js CDN 미로드 — 라이브 차트 확인 불가` exit 2 = 통과 아님):
-- 모바일 폭(≤ config mobile.max_px, 기본 390 — dpr 2·모바일 UA): 01 indexAxis 'y' · tick = compute nlabels · 보이는 datalabels = 2n/2n ·
-  캔버스 밖 0 · 글자 겹침 0(padding 을 뺀 글자 상자 교차) · padding 상자 겹침 ≤ --base 를 같은 폭에서 같은 도구로 잰 값(--base 없으면 1) ·
-  제목 띠 침범 0(라벨 상자 y < chartArea.top) · 컨테이너 높이 = n×row_px+pad_px · 스크롤 박스 scrollWidth = clientWidth(뱃지 없음) · 맨 위 tick = 최신 날짜 /
-  06 같은 꼴(라벨 n/n · padding·글자 겹침 0) / 문서 scrollWidth = 폭 / 문서의 캔버스 전부(8) Chart.getChart 있음 / pageerror 0.
-- PC 폭(기본 1280): 01·06 indexAxis 'x' · tick n · 보이는 datalabels(01 2n · 06 0) · chartArea·첫 화면 일수·섹션 1·6 높이·뱃지 = --base 측정값 ·
-  S(스크롤 시작 최신 쪽): 01·06 박스 scrollLeft = scrollWidth − clientWidth · 래퍼 .at-end 있음·.at-start 없음 · 첫 화면 끝 날짜 = 최신.
-- 회전(모바일 폭 → 가로 844 → 모바일): 844 에서 01 'x'·tick n·scrollWidth = compute minwidth·뱃지·scrollLeft 끝 · 06 'x'·tick n /
-  복귀에서 'y'·높이 n×row+pad·라벨 2n(로드와 같음) · .scroll-fade 래퍼가 남아 있으면 at-start·at-end 둘 다(페이드 0) · 뱃지 0 · pageerror 0.
-- 인쇄 = page.pdf 실물(A4 · 여백 0.4in): 모바일 컨텍스트에서 `__ev` 훅(add_init_script — DOMContentLoaded 에 걸어 페이지 리스너 뒤에 돈다)으로
-  beforeprint 때 01·06 컨테이너 높이 ≤ print_max_height_px · indexAxis 'y' 유지 · afterprint 뒤 높이·indexAxis 복구, pypdf 로 01·06 이 PDF 에 한 쪽 안·누락 0 —
+- 모바일 폭(≤ config mobile.max_px, 기본 390 — dpr 2·모바일 UA), 판 D 접기(K = mobile.recent_days, 날짜 n > K 일 때):
+  처음(접힘) 01 indexAxis 'y' · 그리는 날짜 = 최근 K(tick K · 맨 위 = 최신 · 맨 아래 = n−K 번째) · 보이는 datalabels = 2K/2K · 캔버스 밖 0 · 글자 겹침 0(padding 을 뺀
+  글자 상자 교차) · padding 상자 겹침 ≤ --base 를 같은 폭에서 같은 도구로 잰 값(--base 없으면 1) · 제목 띠 침범 0(라벨 상자 y < chartArea.top) ·
+  컨테이너 높이 = K×row_px+pad_px · 스크롤 박스 scrollWidth = clientWidth(뱃지 없음) · 카드 아래 버튼 하나 문구 "이전 n−K일(M/D~M/D) 펼치기"
+  (labels 앞 n−K 개의 처음~끝, 요일 괄호 뺌) · aria-expanded false · 글꼴 크기·굵기·색·글꼴 = 03 접기 summary / 06 같은 꼴(라벨 K/K · padding·글자 겹침 0) /
+  01 버튼 누름 → 01 전 기간(tick n · 라벨 2n/2n · 높이 n×row+pad · 맨 아래 = 첫 날짜 · 문구 그대로 · aria-expanded true) · 06 은 그대로(접힘) /
+  01 다시 누름 → 처음과 같음 · 버튼 화면 위치 그대로(±1px) / 06 누름 → 06 전 기간 · 01 그대로 / 둘 다 펼침 /
+  짧은 사본(apply 로 01·06 배열을 최근 K일·K+1일로 자른 판): K일이면 버튼 0·전부 · K+1일이면 "이전 1일(…)" 버튼 /
+  문서 scrollWidth = 폭 / 문서의 캔버스 전부(8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
+- PC 폭(기본 1280): 01·06 indexAxis 'x' · tick n · 보이는 datalabels(01 2n · 06 0) · chartArea·첫 화면 일수·섹션 1·6 높이·뱃지 = --base 측정값
+  (첫 화면은 새 판·기준 둘 다 01·06 박스를 맨 왼쪽으로 되돌려 잰다 — 판 C 이후 기준은 로드 때 최신 쪽이라) ·
+  S(스크롤 시작 최신 쪽): 01·06 박스 scrollLeft = scrollWidth − clientWidth · 래퍼 .at-end 있음·.at-start 없음 · 첫 화면 끝 날짜 = 최신 · 펼치기 버튼 0.
+- 회전(모바일 폭 → 01 펼침 → 가로 844 → 모바일): 844 에서 01 'x'·tick n·scrollWidth = compute minwidth·뱃지·scrollLeft 끝 · 06 'x'·tick n · 버튼 0 /
+  복귀에서 처음(접힘)과 같음('y'·그리는 날짜 K·높이 K×row+pad·라벨 2K · 버튼 문구·aria-expanded false) · .scroll-fade 래퍼가 남아 있으면 at-start·at-end 둘 다(페이드 0) ·
+  뱃지 0 · pageerror 0.
+- 인쇄 = page.pdf 실물(A4 · 여백 0.4in): 모바일 컨텍스트(처음 = 접힘)에서 `__ev` 훅(add_init_script — DOMContentLoaded 에 걸어 페이지 리스너 뒤에 돈다)으로
+  beforeprint 때 01·06 이 전 기간(날짜 n)·컨테이너 높이 = min(n×row+pad, print_max_height_px) · indexAxis 'y' 유지 · afterprint 뒤 접힘(날짜 K·높이 K×row+pad)·indexAxis 복구,
+  pypdf 로 01·06 이 PDF 에 한 쪽 안·날짜 n 개 전부(누락 0) —
   둘 중 하나: **벡터**(beforeprint 에 다시 그린 캔버스는 그리기 명령 그대로 실려 글자가 PDF 텍스트 — layout 추출 한 줄이 '날짜 노출 비용원'·'날짜 순위' 인 행이
   한 쪽에만 n 개 전부, 위에서 아래로 최신 → 오래된) 또는 **비트맵**(beforeprint 때 캔버스 비트맵 크기와 같은 이미지가 정확히 한 번·쪽 안·클립 없이·그려진 픽셀 > 0) /
   PC 컨텍스트 PDF 는 --base 와 같은 이미지 구성(큰 이미지 크기·배치 수·보이는 비율 같음 — 폭 3,280 캔버스가 종이 폭에 잘린 일수 그대로. 어느 날짜 구간이 찍히는지는
   대조하지 않는다 — 판 C 는 화면 스크롤 자리(S, 최신 쪽)를 따른다).
-- --out 이 있으면 모바일·PC 폭의 섹션 1·6 PNG(로드 상태 — 전후 비교 재료)와 PDF 를 저장한다.
+- --out 이 있으면 모바일·PC 폭의 섹션 1·6 PNG(로드 상태 — 모바일은 접힘 `<폭>_sec1.png` + 둘 다 펼침 `<폭>_open_sec1.png`)와 PDF 를 저장하고,
+  --base 도 있으면 기준 캡처 `base_<폭>_sec1.png` 와 전후 비교 페이지 `<out>/compare.html`(옛 판 · 새 판 처음 · 새 판 펼침 나란히, 그림 내장 한 파일 ·
+  높이 표)을 쓴다 — 첫 적용 보류 회차에 사용자에게 보이는 비교 페이지(2026-10-07 — 이전 회차 생성기 mk_compare.py 는 작업 clone 과 함께 지워짐).
 
 검사로 못 지키는 것 — **사용자 시크릿 창(실기기) 몫**: 실기기 폰트 폭(iOS Safari·삼성 인터넷 — 라벨 겹침이 달라질 수 있음) · 회전 체감·첫 페인트 깜빡임 ·
 iOS 공유→PDF·실제 인쇄 대화상자(beforeprint 가 오는지) · PWA 설치본의 service-worker 캐시(network-first — 온라인이면 첫 열기에 새 판).
@@ -31,6 +41,7 @@ iOS 공유→PDF·실제 인쇄 대화상자(beforeprint 가 오는지) · PWA �
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -62,8 +73,13 @@ INFO = """(id) => {
   const cat = horiz ? c.scales.y : c.scales.x;
   const n = c.data.labels.length;
   const r1 = (v) => Math.round(v * 10) / 10;
-  let topLabel = null;
-  if (horiz && cat.ticks.length) { let best = null; cat.ticks.forEach((t, i) => { const px = cat.getPixelForTick(i); if (best === null || px < best.px) best = {px, v: t.value}; }); topLabel = c.data.labels[best.v]; }
+  let topLabel = null, bottomLabel = null;
+  if (horiz && cat.ticks.length) { let best = null, low = null; cat.ticks.forEach((t, i) => { const px = cat.getPixelForTick(i); if (best === null || px < best.px) best = {px, v: t.value};
+    if (low === null || px > low.px) low = {px, v: t.value}; }); topLabel = c.data.labels[best.v]; bottomLabel = c.data.labels[low.v]; }
+  const fs = (e) => { const s = getComputedStyle(e); return [s.fontSize, s.fontWeight, s.color, s.fontFamily]; };
+  const card = canvas.closest('.card'), bts = card ? card.querySelectorAll('.chart-fold') : [];
+  const btn = bts.length ? {count: bts.length, text: bts[0].textContent, expanded: bts[0].getAttribute('aria-expanded'), font: fs(bts[0]),
+                            top: r1(bts[0].getBoundingClientRect().top), h: r1(bts[0].getBoundingClientRect().height)} : null;
   let first = null;
   if (!horiz && box) {
     const a = box.scrollLeft, b = a + box.clientWidth, idx = [];
@@ -85,7 +101,7 @@ INFO = """(id) => {
   const ca = c.chartArea;
   const wrap = box && box.parentNode && box.parentNode.classList && box.parentNode.classList.contains('scroll-fade') ? box.parentNode : null;
   const prev = (wrap || box) ? (wrap || box).previousElementSibling : null;
-  return {indexAxis: c.options.indexAxis || 'x', n, ticks: cat.ticks.length, topLabel, first,
+  return {indexAxis: c.options.indexAxis || 'x', n, ticks: cat.ticks.length, topLabel, bottomLabel, lab0: c.data.labels[0], labN: c.data.labels[n - 1], btn, first,
           dl: V.length + '/' + L.length, dlVisible: V.length, padOverlap: pad.length, padPairs: pad.slice(0, 4), glyphOverlap: glyph.length, glyphPairs: glyph.slice(0, 4),
           outside: B.filter(b => b.x < 0 || b.y < 0 || b.x + b.w > c.width || b.y + b.h > c.height).length,
           titleInvade: B.filter(b => b.y < ca.top).length,
@@ -103,8 +119,10 @@ PAGE = """() => {
     let e = cm.nextSibling; while (e && e.nodeType !== 1) e = e.nextSibling; if (!e) continue;
     const r = e.getBoundingClientRect(); secs[m[1]] = {x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: Math.round(r.height)}; }
   const cv = [...document.querySelectorAll('canvas')];
+  const s3 = document.querySelector('summary.fold-more'), st = s3 ? getComputedStyle(s3) : null;   // 문서 첫 접기 summary = 03 "이전 N일" — 펼치기 버튼 글꼴 기준
   return {canvases: cv.length, charts: cv.filter(c => Chart.getChart(c)).length, missing: cv.filter(c => !Chart.getChart(c)).map(c => c.id),
-          docSW: document.documentElement.scrollWidth, docSH: document.documentElement.scrollHeight, secs};
+          docSW: document.documentElement.scrollWidth, docSH: document.documentElement.scrollHeight, secs, scrollY: window.scrollY,
+          foldBtns: document.querySelectorAll('.chart-fold').length, sum3: st ? [st.fontSize, st.fontWeight, st.color, st.fontFamily] : null};
 }"""
 
 # 인쇄 훅 — DOMContentLoaded 에 걸어 페이지의 beforeprint/afterprint 리스너(차트 스크립트 끝 분기 도우미 · 안내 스크립트)보다 뒤에 돈다
@@ -113,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function snap(k){ var o = {k: k, docW: document.documentElement.clientWidth};
     ['dailyChart', 'rankChart'].forEach(function(id){ var cv = document.getElementById(id); var c = (window.Chart && cv) ? Chart.getChart(cv) : null; var b = cv ? cv.parentElement : null;
       o[id] = {idx: c ? (c.options.indexAxis || 'x') : null, h: b ? Math.round(b.getBoundingClientRect().height * 10) / 10 : null, styleH: b ? b.style.height : null,
-               bitmap: cv ? [cv.width, cv.height] : null}; });
+               bitmap: cv ? [cv.width, cv.height] : null, n: c ? c.data.labels.length : null}; });
     return o; }
   window.addEventListener('beforeprint', function(){ window.__ev.beforeprint.push(snap('beforeprint')); });
   window.addEventListener('afterprint', function(){ window.__ev.afterprint.push(snap('afterprint')); });
@@ -172,11 +190,79 @@ def measure(pg):
 
 
 def shot(pg, page_info, out, tag):
-    for s in ("1", "6"):
-        r = page_info["secs"].get(s)
-        if r and out:
-            pg.screenshot(path=os.path.join(out, f"{tag}_sec{s}.png"), full_page=True,
-                          clip={"x": max(0, r["x"]), "y": max(0, r["y"]), "width": r["w"], "height": r["h"]})
+    """섹션 1·6 캡처 — full_page 캡처는 쓰지 않는다: 같은 페이지에서 두 번째부터 창이 순간 4×4 로 바뀌는 resize 가 와서 Chart.js 가 다시 붙으며
+    애니메이션 첫 프레임(막대 0)이 찍힌다(2026-10-07 실측 — 차트 인스턴스·판정 수치는 그대로). 대신 뷰포트 높이를 문서 높이로 잠시 늘려(폭 그대로 — 분기 경계 무관)
+    맨 위에서 찍고 되돌린다."""
+    if not out:
+        return
+    vp = pg.viewport_size
+    sy = pg.evaluate("window.scrollY")
+    pg.set_viewport_size({"width": vp["width"], "height": max(vp["height"], int(page_info["docSH"]))})
+    pg.evaluate("window.scrollTo(0, 0)")
+    pg.wait_for_timeout(300)
+    try:
+        for s in ("1", "6"):
+            r = page_info["secs"].get(s)
+            if r:
+                pg.screenshot(path=os.path.join(out, f"{tag}_sec{s}.png"),
+                              clip={"x": max(0, r["x"]), "y": max(0, r["y"]), "width": r["w"], "height": r["h"]})
+    finally:
+        pg.set_viewport_size(vp)
+        pg.evaluate(f"window.scrollTo(0, {int(sy)})")
+        pg.wait_for_timeout(300)
+
+
+def write_compare(out, new_path, base_path, widths, maxpx, hts):
+    """전후 비교 페이지(첫 적용 보류 회차에 사용자에게 보인다) — 섹션 1·6 캡처를 옛 판(--base) · 새 판(로드 상태 = 모바일 접힘) · 새 판 펼침(모바일)
+    나란히, 그림은 base64 로 넣은 한 파일(<out>/compare.html). 높이 표는 이 실행의 측정값."""
+    import base64
+    import html as H
+
+    def meta(p):
+        with open(p, encoding="utf-8") as f:
+            t = f.read()
+        lid = re.search(r'<meta name="report-layout" content="([^"]*)">', t)
+        per = re.search(r"집계 기간<b>([^<]+)</b>", t)
+        return (lid.group(1) if lid else "meta 없음"), (per.group(1) if per else "?")
+
+    def img(name, cap):
+        p = os.path.join(out, name)
+        if not os.path.exists(p):
+            return f"<figure><figcaption>{H.escape(cap)}</figcaption><p class='k'>캡처 없음</p></figure>"
+        with open(p, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        return f"<figure><figcaption>{H.escape(cap)}</figcaption><img alt='{H.escape(name)}' src='data:image/png;base64,{b64}'></figure>"
+    (lo, po), (ln, pn) = meta(base_path), meta(new_path)
+    rows = "".join(f"<tr><td>{w}</td><td>{k}</td>" + "".join(f"<td class='n'>{v if v is not None else '—'}</td>" for v in hts[w].get(k, (None, None, None))) + "</tr>"
+                   for w in widths for k in ("옛 판", "새 판(처음)", "새 판(펼침)") if k in hts.get(w, {}))
+    secs = ""
+    for s, name in (("1", "01 일별 추이"), ("6", "06 파워링크 키워드 노출순위 추이")):
+        secs += f"<h2>{name}</h2>"
+        for w in widths:
+            mob = w <= maxpx
+            figs = img(f"base_{w}_sec{s}.png", f"옛 판 {lo} · {w}px") + img(f"{w}_sec{s}.png", f"새 판 {ln} · {w}px" + (" · 처음(접힘)" if mob else ""))
+            if mob:
+                figs += img(f"{w}_open_sec{s}.png", f"새 판 {ln} · {w}px · 펼침(버튼 누른 뒤)")
+            secs += f"<h3>{w}px 폭</h3><div class='pair{' w3' if mob else ''}'>{figs}</div>"
+    page = ("<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>전후 비교</title><style>"
+            ":root{--mint:#45ceb3;--mint-dark:#2ea88f;--ink:#1c2b2a;--ink-soft:#5b6b6a;--paper:#fbfaf7;--card:#fff;--line:#e7e2d8;}"
+            "*{box-sizing:border-box} body{margin:0;background:var(--paper);color:var(--ink);font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;}"
+            ".wrap{max-width:1400px;margin:0 auto;padding:24px 16px 60px} h1{font-size:22px;margin:0 0 6px} h2{font-size:17px;border-left:4px solid var(--mint);padding-left:8px;margin:28px 0 8px}"
+            "h3{font-size:13px;color:var(--ink-soft);margin:14px 0 6px} .k,.meta{font-size:12.5px;color:var(--ink-soft);line-height:1.6}"
+            "table{border-collapse:collapse;font-size:12.5px;background:var(--card)} th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}"
+            "th{color:var(--ink-soft);font-size:11.5px} .n{text-align:right;font-variant-numeric:tabular-nums} .tw{overflow-x:auto}"
+            ".pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} .pair.w3{grid-template-columns:repeat(3,minmax(0,420px))}"
+            "figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px} figcaption{font-size:12px;font-weight:700;color:var(--mint-dark);margin-bottom:6px}"
+            "img{width:100%;height:auto;display:block} @media (max-width:700px){.pair,.pair.w3{grid-template-columns:1fr}}"
+            "</style></head><body><div class='wrap'><h1>전후 비교 — 01, 06번</h1>"
+            f"<p class='meta'>옛 판 <b>{H.escape(base_path)}</b> (레이아웃 meta {lo} · 집계 기간 {H.escape(po)})<br>새 판 <b>{H.escape(new_path)}</b> (레이아웃 meta {ln} · 집계 기간 {H.escape(pn)})<br>"
+            "캡처: tests/chart_check.py(Chart.js CDN 2건만 허용 · networkidle + 1.8초). 새 판 모바일은 처음(접힘)과 01·06 버튼을 누른 뒤(펼침) 두 가지.</p>"
+            "<h2>높이(px)</h2><div class='tw'><table><thead><tr><th>폭</th><th>판</th><th class='n'>섹션 1</th><th class='n'>섹션 6</th><th class='n'>문서 전체</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></div>{secs}</div></body></html>")
+    p = os.path.join(out, "compare.html")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(page)
+    return p
 
 
 # ── PDF(pypdf): 큰 이미지가 어느 쪽 어디에 얼마나 보이게(클립) 그려졌는지 ──
@@ -294,8 +380,49 @@ def pdf_signature(imgs):
     return sorted((k[0], k[1], len(v), tuple(sorted((round(a, 3), round(b, 3)) for a, b in v))) for k, v in by.items())
 
 
+def btn_text(labels, k):
+    """판 D 펼치기 버튼 문구 기대값 — 접는 앞쪽 n−K 일의 처음~끝(요일 괄호 뺀 M/D). 접을 날짜가 없으면 None(버튼 없음)."""
+    n = len(labels)
+    if k < 1 or n <= k:
+        return None
+    md = lambda s: s.split("(")[0]
+    return f"이전 {n - k}일({md(labels[0])}~{md(labels[n - k - 1])}) 펼치기"
+
+
+def view_ok(key, v, labels, k, open_, row, padpx, pad_max, sum3):
+    """모바일 한 차트(01/06)의 기대 — open_ 이면 전 기간 n, 아니면 최근 min(n, K). (통과 여부, 설명)"""
+    n = len(labels)
+    m = n if open_ or n <= k else k
+    dl = f"{2 * m}/{2 * m}" if key == "01" else f"{m}/{m}"
+    want_h = m * row[key] + padpx[key]
+    txt = btn_text(labels, k)
+    b = v.get("btn")
+    if txt is None:
+        b_ok = b is None
+    else:
+        b_ok = bool(b) and b["count"] == 1 and b["text"] == txt and b["expanded"] == ("true" if open_ else "false") and b["font"] == sum3
+    ok = (v["indexAxis"] == "y" and v["n"] == m and v["ticks"] == m and v["dl"] == dl and v["outside"] == 0 and v["glyphOverlap"] == 0
+          and v["padOverlap"] <= pad_max and v["titleInvade"] == 0 and abs(v["contH"] - want_h) < 0.6 and v["box"] and v["box"]["sw"] == v["box"]["cw"]
+          and not v["hint"] and v["topLabel"] == labels[-1] and v["bottomLabel"] == labels[n - m] and v["lab0"] == labels[n - m] and b_ok)
+    det = (f"{'펼침' if open_ else '접힘'} indexAxis {v['indexAxis']} · 날짜 {v['n']}(기대 {m}/{n}) · ticks {v['ticks']} · 라벨 {v['dl']}(기대 {dl}) · 밖 {v['outside']} · "
+           f"글자 겹침 {v['glyphOverlap']}{v['glyphPairs'] or ''} · padding 겹침 {v['padOverlap']}{v['padPairs'] or ''}(≤ {pad_max}) · 제목 띠 {v['titleInvade']} · "
+           f"높이 {v['contH']} = {m}×{row[key]}+{padpx[key]}({want_h}) · 맨 위 {v['topLabel']} · 맨 아래 {v['bottomLabel']} · 뱃지 {v['hint']} · 캔버스 {v['w']}×{v['h']} · "
+           f"버튼 {('없음' if not b else repr(b['text']) + ' aria-expanded ' + str(b['expanded']) + ' · 글꼴 ' + ('= 03 summary' if b['font'] == sum3 else str(b['font']) + ' ≠ 03 ' + str(sum3)))}"
+           f"(기대 {txt!r})")
+    return ok, det
+
+
+KEYS = ("indexAxis", "n", "ticks", "dl", "glyphOverlap", "padOverlap", "outside", "contH", "contMinW", "topLabel", "bottomLabel", "w", "h")
+
+
+def same_view(a, b):
+    """두 측정(같은 차트)이 같은 모양인가 — 회전 복귀·다시 접힘 대조(버튼 문구·aria-expanded 포함, 화면 위치 제외)."""
+    ba, bb = a.get("btn"), b.get("btn")
+    return all(a[x] == b[x] for x in KEYS) and ((ba is None and bb is None) or (ba and bb and (ba["text"], ba["expanded"]) == (bb["text"], bb["expanded"])))
+
+
 def main():
-    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인(레이아웃 판 r2026-10-C — precheck 밖)")
+    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인(레이아웃 판 r2026-10-D — precheck 밖)")
     ap.add_argument("html")
     ap.add_argument("compute")
     ap.add_argument("--base", help="직전 배포본 html — PC 폭 측정값·padding 겹침 기준·PC 인쇄 이미지 구성의 기준")
@@ -306,6 +433,7 @@ def main():
     mob = cfg["report_layout"]["mobile"]
     maxpx, printmax = int(mob["max_px"]), int(mob["print_max_height_px"])
     row, padpx = {k: int(v) for k, v in mob["row_px"].items()}, {k: int(v) for k, v in mob["pad_px"].items()}
+    K = {k: int(v) for k, v in mob["recent_days"].items()}
     with open(a.compute, encoding="utf-8") as f:
         R = json.load(f)
     n, minwidth, labels = int(R["nlabels"]), int(R["minwidth"]), R["01"]["labels"]
@@ -318,7 +446,8 @@ def main():
     run = Run()
     hook = EV_HOOK.replace("@@MAX@@", str(maxpx))
     print(f"chart_check: {os.path.abspath(a.html)} · compute nlabels {n} · minwidth {minwidth} · config mobile max_px {maxpx} · print_max_height_px {printmax} · "
-          f"row {row} · pad {padpx} · 기준 {os.path.abspath(a.base) if a.base else '없음'}")
+          f"row {row} · pad {padpx} · recent {K} · 기준 {os.path.abspath(a.base) if a.base else '없음'}")
+    kv = {k: (n if n <= K[k] else K[k]) for k in ("01", "06")}   # 모바일 처음(접힘) 그리는 날짜 수
     try:
         with sync_playwright() as p:
             b = p.chromium.launch()
@@ -330,10 +459,36 @@ def main():
                 try:
                     if not load(pg, a.base):
                         return None
-                    return measure(pg)
+                    mb = measure(pg)
+                    shot(pg, mb["page"], out, f"base_{w}")   # 전후 비교 재료(로드 상태)
+                    if not mobile:  # 기준도 같은 스크롤 자리(맨 왼쪽)에서 — 판 C 이후 기준은 로드 때 최신 쪽(S)이라
+                        to_left(pg)
+                        mb["start"] = measure(pg)
+                    return mb
                 finally:
                     ctx.close()
 
+            def to_left(pg):
+                pg.evaluate("() => ['dailyChart', 'rankChart'].forEach(id => { const b = document.getElementById(id).closest('.scroll-x'); "
+                            "if (b) { b.scrollLeft = 0; b.dispatchEvent(new Event('scroll')); } })")
+                pg.wait_for_timeout(300)
+
+            def click(pg, cid):
+                """판 D 펼치기 버튼(그 차트 카드 안 .chart-fold) 진짜 누르기 — (누르기 전 화면 y, 뒤 화면 y) · 버튼이 하나가 아니면 None."""
+                loc = pg.locator(".card", has=pg.locator(f"#{cid}")).locator(".chart-fold")
+                if loc.count() != 1:
+                    return None
+                loc.scroll_into_view_if_needed()
+                t0 = loc.bounding_box()["y"]
+                loc.click()
+                pg.wait_for_timeout(SETTLE)
+                bb = loc.bounding_box() if loc.count() == 1 else None
+                return round(t0, 1), (round(bb["y"], 1) if bb else None)
+
+            folds = {k: n > K[k] for k in ("01", "06")}
+            hts = {}   # 전후 비교 높이 표 — {폭: {판: (섹션 1, 섹션 6, 문서)}}
+            sec_h = lambda pi: (pi["secs"].get("1", {}).get("h"), pi["secs"].get("6", {}).get("h"), pi["docSH"])
+            bpad = {"01": 1, "06": 0}   # 모바일 padding 겹침 상한(01 = --base 측정값, 아래 모바일 폭에서 채움)
             for w in widths:
                 mobile = w <= maxpx
                 h = 844 if mobile else 900
@@ -345,14 +500,29 @@ def main():
                     return 2
                 m = measure(pg)
                 shot(pg, m["page"], out, f"{w}")
+                hts.setdefault(w, {})["새 판(처음)"] = sec_h(m["page"])
                 m_start = None
                 if not mobile:  # PC 모양 대조는 기준과 같은 스크롤 자리(맨 왼쪽)에서 — S 는 로드 상태(m)로 따로 본다
-                    pg.evaluate("() => ['dailyChart', 'rankChart'].forEach(id => { const b = document.getElementById(id).closest('.scroll-x'); "
-                                "if (b) { b.scrollLeft = 0; b.dispatchEvent(new Event('scroll')); } })")
-                    pg.wait_for_timeout(300)
+                    to_left(pg)
                     m_start = measure(pg)
+                seq = {}
+                if mobile and folds["01"] and folds["06"]:  # 판 D 버튼 — 01 펼침 → 01 다시 접힘(버튼 자리) → 06 펼침 → 01 도 펼침(둘 다)
+                    for step, cid in (("open01", "dailyChart"), ("close01", "dailyChart"), ("open06", "rankChart"), ("both", "dailyChart")):
+                        t = click(pg, cid)
+                        if t is None:
+                            break
+                        seq[step] = measure(pg)
+                        seq[step]["tops"] = t
+                    if "both" in seq:
+                        pg.mouse.move(0, 0)   # 캡처 전 마우스를 카드 밖(왼쪽 여백)으로 — 누른 자리에 남은 호버(툴팁·강조)가 비교 캡처에 찍히지 않게.
+                        # 펼침 PNG 는 그래도 실행마다 하위 픽셀만 다를 수 있다(2026-10-07 실측 — 눈으로 같음 · 판정 수치는 같음). 로드 상태 PNG 는 바이트 같음
+                        pg.wait_for_timeout(SETTLE)
+                        shot(pg, seq["both"]["page"], out, f"{w}_open")
+                        hts[w]["새 판(펼침)"] = sec_h(seq["both"]["page"])
                 ctx.close()
                 B = base_measure(w, h, mobile)
+                if B:
+                    hts[w]["옛 판"] = sec_h(B["page"])
                 d, r, pgi = m["01"], m["06"], m["page"]
                 for k, v in (("01", d), ("06", r)):
                     if "err" in v:
@@ -363,24 +533,44 @@ def main():
                           f"캔버스 {pgi['canvases']} · Chart.getChart {pgi['charts']}(없음 {pgi['missing']}) · pageerror {len(errs)}{(' ' + errs[0][:120]) if errs else ''}")
                 run.check(f"{w} 문서 가로 넘침", pgi["docSW"] == w, f"scrollWidth {pgi['docSW']} / 폭 {w}")
                 if mobile:
-                    base_pad = B["01"]["padOverlap"] if B and "err" not in B["01"] else 1
-                    want_h = n * row["01"] + padpx["01"]
-                    ok = (d["indexAxis"] == "y" and d["ticks"] == n and d["dl"] == f"{2 * n}/{2 * n}" and d["outside"] == 0 and d["glyphOverlap"] == 0
-                          and d["padOverlap"] <= base_pad and d["titleInvade"] == 0 and abs(d["contH"] - want_h) < 0.6 and d["box"] and d["box"]["sw"] == d["box"]["cw"]
-                          and not d["hint"] and d["topLabel"] == labels[-1])
-                    run.check(f"{w} 01 모바일 가로 막대", ok,
-                              f"indexAxis {d['indexAxis']} · ticks {d['ticks']}/{n} · 라벨 {d['dl']} · 밖 {d['outside']} · 글자 겹침 {d['glyphOverlap']}{d['glyphPairs'] or ''} · "
-                              f"padding 겹침 {d['padOverlap']}{d['padPairs'] or ''}(기준 {base_pad}{'' if B else ' — --base 없음, 기본값'}) · 제목 띠 {d['titleInvade']} · "
-                              f"높이 {d['contH']} = {n}×{row['01']}+{padpx['01']}({want_h}) · 박스 {d['box']} · 뱃지 {d['hint']} · 맨 위 {d['topLabel']} · 캔버스 {d['w']}×{d['h']}")
-                    want_h6 = n * row["06"] + padpx["06"]
-                    ok = (r["indexAxis"] == "y" and r["ticks"] == n and r["dl"] == f"{n}/{n}" and r["outside"] == 0 and r["glyphOverlap"] == 0 and r["padOverlap"] == 0
-                          and r["titleInvade"] == 0 and abs(r["contH"] - want_h6) < 0.6 and r["box"] and r["box"]["sw"] == r["box"]["cw"] and not r["hint"]
-                          and r["topLabel"] == labels[-1])
-                    run.check(f"{w} 06 모바일 가로", ok,
-                              f"indexAxis {r['indexAxis']} · ticks {r['ticks']}/{n} · 라벨 {r['dl']} · 밖 {r['outside']} · 글자 겹침 {r['glyphOverlap']} · padding 겹침 {r['padOverlap']}{r['padPairs'] or ''} · "
-                              f"제목 띠 {r['titleInvade']} · 높이 {r['contH']} = {n}×{row['06']}+{padpx['06']}({want_h6}) · 박스 {r['box']} · 뱃지 {r['hint']} · 맨 위 {r['topLabel']} · 캔버스 {r['w']}×{r['h']}")
+                    bpad["01"] = B["01"]["padOverlap"] if B and "err" not in B["01"] else 1
+                    sum3 = pgi["sum3"]
+                    for k, v in (("01", d), ("06", r)):
+                        ok, det = view_ok(k, v, labels, K[k], False, row, padpx, bpad[k], sum3)
+                        run.check(f"{w} {k} 모바일 처음{'(최근 ' + str(K[k]) + '일 · 접힘)' if folds[k] else '(전부 — 날짜 ≤ K)'}", ok,
+                                  det + ("" if k == "06" else f" · padding 기준 {bpad['01']}{'' if B else ' — --base 없음, 기본값'}"))
                     print(f"       {w} 섹션 높이 1 {pgi['secs'].get('1', {}).get('h')} · 6 {pgi['secs'].get('6', {}).get('h')} · 문서 높이 {pgi['docSH']}"
                           + (f"(기준 1 {B['page']['secs'].get('1', {}).get('h')} · 6 {B['page']['secs'].get('6', {}).get('h')} · 문서 {B['page']['docSH']})" if B else ""))
+                    if folds["01"] != folds["06"]:
+                        run.check(f"{w} 판 D 접기 시험 범위", False, f"01 접힘 {folds['01']} · 06 접힘 {folds['06']} — K 가 달라 한쪽만 접히는 경우는 이 도구가 버튼 순서를 다루지 않음")
+                    elif folds["01"]:
+                        sA, sB, sC, sD = (seq.get(x) for x in ("open01", "close01", "open06", "both"))
+                        if not sA:
+                            run.check(f"{w} 01 펼침(06 그대로)", False, "01 펼치기 버튼이 하나가 아님 — 누르지 못함")
+                        else:
+                            ok, det = view_ok("01", sA["01"], labels, K["01"], True, row, padpx, bpad["01"], sum3)
+                            run.check(f"{w} 01 펼침(06 그대로)", ok and same_view(sA["06"], r), det + f" | 06 처음과 같음 {same_view(sA['06'], r)}")
+                        if sB:
+                            t0, t1 = sB["tops"]
+                            ok = same_view(sB["01"], d) and same_view(sB["06"], r) and t1 is not None and abs(t1 - t0) <= 1
+                            run.check(f"{w} 01 다시 접힘(처음과 같음 · 버튼 자리 그대로)", ok,
+                                      f"01 처음과 같음 {same_view(sB['01'], d)} · 06 {same_view(sB['06'], r)} · 버튼 화면 y {t0} → {t1} · scrollY {sA['page']['scrollY'] if sA else '?'} → {sB['page']['scrollY']} · "
+                                      f"날짜 {sB['01']['n']} · 높이 {sB['01']['contH']}")
+                        else:
+                            run.check(f"{w} 01 다시 접힘(처음과 같음 · 버튼 자리 그대로)", False, "누르지 못함")
+                        if sC:
+                            ok, det = view_ok("06", sC["06"], labels, K["06"], True, row, padpx, bpad["06"], sum3)
+                            run.check(f"{w} 06 펼침(01 그대로)", ok and same_view(sC["01"], d), det + f" | 01 처음과 같음 {same_view(sC['01'], d)}")
+                        else:
+                            run.check(f"{w} 06 펼침(01 그대로)", False, "06 펼치기 버튼이 하나가 아님 — 누르지 못함")
+                        if sD:
+                            ok1, det1 = view_ok("01", sD["01"], labels, K["01"], True, row, padpx, bpad["01"], sum3)
+                            ok6, det6 = view_ok("06", sD["06"], labels, K["06"], True, row, padpx, bpad["06"], sum3)
+                            ok = ok1 and ok6 and sD["page"]["charts"] == sD["page"]["canvases"] == 8 and sD["page"]["docSW"] == w and not errs
+                            run.check(f"{w} 01·06 둘 다 펼침", ok, f"01 {det1} | 06 {det6} | 캔버스 {sD['page']['charts']}/{sD['page']['canvases']} · 문서 폭 {sD['page']['docSW']} · pageerror {len(errs)}")
+                            print(f"       {w} 펼침 섹션 높이 1 {sD['page']['secs'].get('1', {}).get('h')} · 6 {sD['page']['secs'].get('6', {}).get('h')} · 문서 높이 {sD['page']['docSH']}")
+                        else:
+                            run.check(f"{w} 01·06 둘 다 펼침", False, "누르지 못함")
                 else:
                     for k, v, want_dl in (("01", d, 2 * n), ("06", r, 0)):
                         bx = v["box"] or {}
@@ -394,8 +584,8 @@ def main():
                         ok = v0["atStart"] and not v0["atEnd"] and v0["chartArea"] == v["chartArea"]
                         det = (f"맨 왼쪽에서 at-start {v0['atStart']} · at-end {v0['atEnd']} · chartArea {v0['chartArea']} · 첫 화면 {v0['first']} · 라벨 {v0['dl']} · "
                                f"뱃지 {v0['hint']} · 캔버스 {v0['w']}×{v0['h']}")
-                        if B and "err" not in B[k]:
-                            bv = B[k]
+                        if B and "err" not in B[k] and "err" not in B["start"][k]:
+                            bv = B["start"][k]
                             ok = ok and (v0["chartArea"] == bv["chartArea"] and v0["first"] == bv["first"] and v0["hint"] == bv["hint"]
                                          and v0["dl"] == bv["dl"] and [v0["w"], v0["h"]] == [bv["w"], bv["h"]] and v0["ticks"] == bv["ticks"])
                             det += f" | 기준 chartArea {bv['chartArea']} · 첫 화면 {bv['first']} · 라벨 {bv['dl']} · 뱃지 {bv['hint']} · 캔버스 {bv['w']}×{bv['h']}"
@@ -406,6 +596,7 @@ def main():
                         s_new = [pgi["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         s_old = [B["page"]["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         run.check(f"{w} 섹션 1·6 높이 = 기준", s_new == s_old, f"새 {s_new} · 기준 {s_old}")
+                    run.check(f"{w} 펼치기 버튼 없음(PC)", pgi["foldBtns"] == 0, f"문서의 .chart-fold {pgi['foldBtns']}개")
 
             # ── 회전: 모바일 폭 → 가로(844) → 모바일 ──
             mws = [w for w in widths if w <= maxpx]
@@ -414,28 +605,51 @@ def main():
                 ctx, pg, errs = new_ctx(b, run, w, 844, True)
                 load(pg, a.html)
                 m0 = measure(pg)
+                opened = click(pg, "dailyChart") if folds["01"] else None   # 판 D: 01 을 펼친 채로 회전 — 모바일로 돌아오면 접힘부터
                 pg.set_viewport_size({"width": 844, "height": w})
                 pg.wait_for_timeout(700)
                 m1 = measure(pg)
                 pg.set_viewport_size({"width": w, "height": 844})
-                pg.wait_for_timeout(700)
+                pg.wait_for_timeout(SETTLE)
                 m2 = measure(pg)
                 ctx.close()
                 d1, r1_ = m1["01"], m1["06"]
                 bx = d1.get("box") or {}
                 ok = (d1.get("indexAxis") == "x" and d1.get("ticks") == n and bx.get("sw") == minwidth and d1.get("hint") and abs(bx.get("sl", -9) - (bx.get("sw", 0) - bx.get("cw", 0))) <= 1
-                      and d1.get("atEnd") and not d1.get("atStart") and r1_.get("indexAxis") == "x" and r1_.get("ticks") == n and r1_.get("hint"))
+                      and d1.get("atEnd") and not d1.get("atStart") and r1_.get("indexAxis") == "x" and r1_.get("ticks") == n and r1_.get("hint") and m1["page"]["foldBtns"] == 0)
                 run.check(f"회전 {w}→844 PC 분기", ok,
                           f"01 indexAxis {d1.get('indexAxis')} · ticks {d1.get('ticks')} · 박스 {bx}(scrollWidth = minwidth {minwidth}) · 뱃지 {d1.get('hint')} · at-end {d1.get('atEnd')} · at-start {d1.get('atStart')} · "
-                          f"06 indexAxis {r1_.get('indexAxis')} · ticks {r1_.get('ticks')} · 뱃지 {r1_.get('hint')} · 박스 {r1_.get('box')}")
-                keys = ("indexAxis", "ticks", "dl", "glyphOverlap", "padOverlap", "outside", "contH", "contMinW", "topLabel", "w", "h")
-                same = all(m2[k][x] == m0[k][x] for k in ("01", "06") for x in keys)
+                          f"06 indexAxis {r1_.get('indexAxis')} · ticks {r1_.get('ticks')} · 뱃지 {r1_.get('hint')} · 박스 {r1_.get('box')} · 펼치기 버튼 {m1['page']['foldBtns']}"
+                          + (f" · 회전 전 01 펼침 {opened}" if folds["01"] else ""))
+                same = all(same_view(m2[k], m0[k]) for k in ("01", "06"))
                 fade_ok = all((not m2[k]["fade"]) or (m2[k]["atEnd"] and m2[k]["atStart"]) for k in ("01", "06"))
-                ok = same and fade_ok and not m2["01"]["hint"] and not m2["06"]["hint"] and m2["01"]["indexAxis"] == "y" and not errs
-                run.check(f"회전 844→{w} 복원(로드와 같음)", ok,
-                          f"01 {[m2['01'][x] for x in keys]} · 로드 {[m0['01'][x] for x in keys]} · 06 같음 {all(m2['06'][x] == m0['06'][x] for x in keys)} · "
+                ok = (same and fade_ok and not m2["01"]["hint"] and not m2["06"]["hint"] and m2["01"]["indexAxis"] == "y" and not errs
+                      and m2["page"]["foldBtns"] == m0["page"]["foldBtns"] and (opened is not None or not folds["01"]))
+                run.check(f"회전 844→{w} 복원(처음 = 접힘과 같음)", ok,
+                          f"01 {[m2['01'][x] for x in KEYS]} 버튼 {(m2['01']['btn'] or {}).get('expanded')} · 처음 {[m0['01'][x] for x in KEYS]} 버튼 {(m0['01']['btn'] or {}).get('expanded')} · "
+                          f"06 같음 {same_view(m2['06'], m0['06'])} · 펼치기 버튼 {m2['page']['foldBtns']}(처음 {m0['page']['foldBtns']}) · "
                           f"래퍼 01 {m2['01']['fade']}(at-end {m2['01']['atEnd']} · at-start {m2['01']['atStart']}) · 06 {m2['06']['fade']}(at-end {m2['06']['atEnd']} · at-start {m2['06']['atStart']}) · "
                           f"뱃지 {m2['01']['hint']}/{m2['06']['hint']} · pageerror {len(errs)}")
+
+                # ── 짧은 사본(판 D 가장자리): apply 로 01·06 배열을 최근 K일·K+1일로 자른 판 — K일이면 버튼 없이 전부, K+1일이면 "이전 1일(…)" ──
+                if n > max(K.values()):
+                    import apply as A
+                    with open(a.html, encoding="utf-8", newline="") as f:
+                        H = f.read()
+                    for nn in sorted({K["01"], K["01"] + 1, K["06"], K["06"] + 1}):
+                        Rs = json.loads(json.dumps(R))
+                        for s1, s2 in (("01", "labels"), ("01", "노출"), ("01", "총비용"), ("06", "rankChart")):
+                            Rs[s1][s2] = Rs[s1][s2][-nn:]
+                        ps = os.path.join(tmp, f"short_{nn}.html")
+                        with open(ps, "w", encoding="utf-8", newline="") as f:
+                            f.write(A.apply(H, Rs, cfg))
+                        ctx, pg, errs = new_ctx(b, run, w, 844, True)
+                        load(pg, ps)
+                        ms = measure(pg)
+                        ctx.close()
+                        for k in ("01", "06"):
+                            ok, det = view_ok(k, ms[k], labels[-nn:], K[k], False, row, padpx, bpad[k], ms["page"]["sum3"])
+                            run.check(f"짧은 사본 {nn}일 {k}({'버튼 없음' if nn <= K[k] else '이전 ' + str(nn - K[k]) + '일 버튼'})", ok and not errs, det + f" · pageerror {len(errs)}")
 
             # ── 인쇄 = page.pdf 실물 ──
             for w in widths:
@@ -466,13 +680,15 @@ def main():
                     for k, cid in (("01", "dailyChart"), ("06", "rankChart")):
                         if not ok:
                             break
-                        want_h = n * row[k] + padpx[k]
+                        full_h, fold_h = n * row[k] + padpx[k], kv[k] * row[k] + padpx[k]   # 인쇄 = 전 기간(높이 캡) · 뒤 = 처음(접힘)
                         b0, a0 = bp[cid], apv[cid]
-                        ok = (b0["idx"] == "y" and b0["h"] <= printmax + 0.5 and abs(b0["h"] - min(want_h, printmax)) < 0.6 and a0["idx"] == "y" and abs(a0["h"] - want_h) < 0.6
-                              and N["m1"][k]["indexAxis"] == "y" and abs(N["m1"][k]["contH"] - want_h) < 0.6 and N["m1"][k]["dl"] == N["m0"][k]["dl"])
-                        det += (f" | {k}: beforeprint {b0['idx']} 높이 {b0['h']}(≤ {printmax}) 비트맵 {b0['bitmap']} · afterprint {a0['idx']} 높이 {a0['h']}(= {want_h}) · "
-                                f"뒤 상태 {N['m1'][k]['indexAxis']} {N['m1'][k]['contH']} 라벨 {N['m1'][k]['dl']}")
-                    run.check(f"인쇄 {w} 이벤트(F — 높이 캡·복구)", ok and not N["errs"], det + f" · pageerror {len(N['errs'])}")
+                        ok = (b0["idx"] == "y" and b0["n"] == n and b0["h"] <= printmax + 0.5 and abs(b0["h"] - min(full_h, printmax)) < 0.6
+                              and a0["idx"] == "y" and a0["n"] == kv[k] and abs(a0["h"] - fold_h) < 0.6
+                              and N["m1"][k]["indexAxis"] == "y" and abs(N["m1"][k]["contH"] - fold_h) < 0.6 and same_view(N["m1"][k], N["m0"][k]))
+                        det += (f" | {k}: beforeprint {b0['idx']} 날짜 {b0['n']}(= {n}) 높이 {b0['h']}(= min({full_h}, {printmax})) 비트맵 {b0['bitmap']} · "
+                                f"afterprint {a0['idx']} 날짜 {a0['n']}(= {kv[k]}) 높이 {a0['h']}(= {fold_h}) · "
+                                f"뒤 상태 {N['m1'][k]['indexAxis']} {N['m1'][k]['contH']} 라벨 {N['m1'][k]['dl']} · 처음과 같음 {same_view(N['m1'][k], N['m0'][k])}")
+                    run.check(f"인쇄 {w} 이벤트(전 기간 · 높이 캡 · 뒤 접힘 복원)", ok and not N["errs"], det + f" · pageerror {len(N['errs'])}")
                     rows = {"01": [(labels[i], f"{R['01']['노출'][i]:,}", f"{R['01']['총비용'][i]:,}원") for i in range(n)],
                             "06": [(labels[i], f"{R['06']['rankChart'][i]:.2f}") for i in range(n)]}
                     for k, cid in (("01", "dailyChart"), ("06", "rankChart")):
@@ -500,9 +716,10 @@ def main():
                         det += " · --base 없음 — 기준 대조 생략"
                     run.check(f"인쇄 {w} PC PDF = 기준", ok, det + f" · pageerror {len(N['errs'])}")
             b.close()
+            if out and a.base:
+                print(f"전후 비교: {write_compare(out, a.html, a.base, widths, maxpx, hts)}")
     finally:
-        if not out:
-            shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)   # 짧은 사본·(--out 없을 때) PDF — --out 이 있으면 PDF 는 거기에 있다
     run.check("외부 요청", not run.blocked and len(run.allowed) == len(CDN_ALLOW),
               f"허용 {len(run.allowed)} · 차단 {len(run.blocked)}" + (f" {sorted(set(run.blocked))}" if run.blocked else ""))
     print(f"외부 요청 허용 {len(run.allowed)} · 차단 {len(run.blocked)}")

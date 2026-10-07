@@ -51,6 +51,7 @@
 .scroll-fade  오른쪽(::after)·왼쪽(::before, 판 C) 끝 페이드용 래퍼 — 스크립트가 자동으로 감쌈
 .wide-table   컬럼 많은 표 wrapper
 .fold         접기 <details> (레이아웃 판 r2026-10-B — 아래 "접기 안내"). summary 에 cursor:pointer
+.chart-fold   01·06 모바일 펼치기 버튼(판 D — 분기 도우미가 모바일에서만 만든다, HTML 에 없음). .fold-more 와 같이 달아 03 summary 글꼴 · 버튼 기본 모양만 지움
 .fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기") — 12px 굵게 진한민트, 펼치면 아래 8px
 ```
 
@@ -134,6 +135,12 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
    (summary·details·`.fold` 에 쓰지 않는다 — validate·compare·apply 가 "앵커 뒤 첫 `line-height:1.9;">`"를 목록으로 읽는다). 경쟁사표 머리글 div 리터럴
    "경쟁사 브랜드명 검색어" 는 접기 밖 그대로. CSS·JS 주석에 `<details`·`<summary` 를 꺾쇠로 쓰지 않는다(validate 태그 짝이 센다).
 5. **검사**: validate "레이아웃 판"(meta = config · details 5 · 짝) · overflow_check 는 details 를 전부 열고 3폭을 잰다 · 높이(닫힘·열림)는 회차 기록의 관찰값.
+6. **01·06 모바일 펼치기 버튼(판 D, 2026-10-07)** — details 가 아니다(접기 수 5 그대로). 모바일(≤ config `report_layout.mobile.max_px`)에서 차트 스크립트 끝 분기 도우미가
+   차트 카드 아래에 버튼(`class="fold-more chart-fold"`)을 만들고 처음에는 최근 `mobile.recent_days` 일만 그린다 — 문구 `이전 N일(M/D~M/D) 펼치기` 는 런타임에
+   `data.labels` 로(HTML·apply 기계 자리 0). CSS 는 `.chart-fold{display:block;width:100%;margin:2px 0 0;padding:6px 0;border:0;background:none;font-family:inherit;…}`
+   — 글꼴 크기·굵기·색은 `.fold-more`(03 summary 와 같음, 새 색 0) · 버튼 기본 모양(테두리·배경·시스템 글꼴)만 지운다 · 마커(▶)는 없다(summary 가 아니라서).
+   누르면 전 기간 ↔ 최근(문구 그대로 · `aria-expanded`), 접을 때는 위 차트가 줄어든 만큼 `scrollBy` 로 올려 버튼이 화면의 그 자리에 남는다.
+   인쇄는 위 3 과 같은 원칙 — beforeprint 에 접힌 차트를 전 기간으로 다시 그리고 afterprint 에 접는다(분기 도우미 몫, 아래 버그 12 (3)). PC 로 가면 버튼을 걷는다.
 
 ## 반응형
 
@@ -212,7 +219,8 @@ CSS Grid 칸에 컬럼 많은 표를 넣으면 칸이 표의 최소 너비만큼
 06번 `rankChart`도 x축이 날짜라 같은 규칙의 대상이다(N일 × per_day_px, 01번과 같은 값).
 05번처럼 카테고리 수가 고정인 차트에는 필요 없다.
 (판 C) 모바일 가로 막대에서는 폭이 아니라 **높이**가 날짜 수에 비례해 는다(`n × row_px + pad_px`, config `report_layout.mobile` — 90일이면 ≈2,430px).
-행 높이 하한·모바일 기간 창 같은 n 규칙은 아직 없다(이월 — ≈90일 전 정기점검).
+(판 D, 2026-10-07) 모바일 기간 창 규칙: 처음에는 최근 `mobile.recent_days`(01·06 14)일만 그려 높이가 날짜 수와 무관하게 `K × row_px + pad_px`(01 454 · 06 378px)로 고정되고,
+나머지는 차트 아래 `이전 N일(M/D~M/D) 펼치기` 버튼으로 본다(펼치면 `n × row_px + pad_px` — 위 "접기 안내" 6). 행 높이 하한은 아직 없다(펼친 높이는 여전히 n 에 비례).
 
 **9. 표 재정렬 시 조건부 스타일 어긋남**
 07번 표를 클릭수 내림차순으로 재배열하면서, 다른 행의 셀을 복사해 값만 바꾸는
@@ -264,5 +272,8 @@ scrollWidth 418). 한글 나열(`노원역아기·아기랑노원구·…`)은 �
 (5) 가로 안내 스크립트의 래퍼 감싸기(DOM 이동)는 그 박스의 scrollLeft 를 0 으로 되돌린다 → 시작 위치는 sync 뒤(load → setTimeout 0).
 (6) 차트 8개가 한 `script` 요소 안에서 직렬로 만들어진다 — 앞 블록이 아직 정의되지 않은 도우미를 부르면 TypeError 로 뒤 차트 5개가 전부 빈다 →
 01·06 블록은 제자리에서 PC 모양으로 만들고 큐(`window.__saeroMobileQ`)에 넣기만, 도우미는 차트 스크립트 끝에서 큐를 비운다(생성마다 try/catch — 실패하면 PC 모양).
-재발 방지: `tests/chart_check.py`(precheck 밖 — 390·1280·회전·page.pdf 실물·외부 요청 CDN 2건만) · validate "레이아웃 판"(분기 표지·M 줄·matchMedia·CSS 경계) ·
-`tests/test_apply.py` ApplyLayoutC.
+(7) (판 D, 2026-10-07) 모바일 접힘은 배열을 자르지 않고 도우미가 그리는 범위만 잘라 새 data 로 다시 그린다 — 데이터셋 설정(라벨 함수 포함)은 얕은 복사로 같이 가고,
+`ctx.dataIndex` 는 그 범위 안 번호다: 라벨 위치 함수(01 비용 라벨 간격)가 블록의 전 기간 `data` 를 읽으면 다른 날짜 값으로 계산한다 → 차트가 그리는 `ctx.chart.data` 를 읽는다.
+인쇄 때 접힌 차트를 전 기간으로 다시 만들 때는 애니메이션을 끈다(`animation:false` — 첫 그림이 동기라 `resize()` 가 미뤄지지 않는다 · 벡터로 실림 [실측 chart_check]).
+재발 방지: `tests/chart_check.py`(precheck 밖 — 390 접힘·펼침·다시 접힘·짧은 사본 K·K+1일 · 1280 · 회전 · page.pdf 실물 · 외부 요청 CDN 2건만) · validate "레이아웃 판"(분기 표지·M 줄·matchMedia·CSS 경계) ·
+`tests/test_apply.py` ApplyLayoutD.
