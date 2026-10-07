@@ -1,3 +1,104 @@
+## 수정 기록(2026-10-07 — 01 모바일 기간 접기) · 브랜치 `feat-20261007-mobilefold`
+
+점검일: 2026-10-07 19:50~20:55 KST 무렵 (기능 추가 — **작은 작업**(작업 + 검증 세션 2개), 레이아웃 판 **r2026-10-C → r2026-10-D**. 데스크톱 앱 Code 탭, 이 PC, `D:\saero` 로 연 작업 세션, Opus 5.5).
+작업 clone `D:\saero\feat-20261007-mobilefold`(`git clone -c core.autocrlf=false`, origin/main **`38e0123`** 에서 분기 — 지시의 사실 기준 8파일 커밋(apply·config·test_apply 9bbfd2c · validate 48fc991 · compare eae81ef · chart_check 57cf58b · report-structure·css-and-layout 073647c) 전부 일치, 시작·20:27 fetch 둘 다 origin/main 그대로).
+사용자 원문(2026-10-07): "현재 모바일 화면은 보면은 8/26 ~ 10/6 까지의 데이터가 전부다 나오고있어 해당 부분이 너무 길기에 어느정도는 숨김처리 하려고" · 03 의 펼치기를 01 에 적용(06 도 같은 규칙, 01·06 버튼 따로).
+판 C 이월 "모바일 기간 창 규칙"(탐색 기준선 6절 A-6 · report-structure "판 C" 끝 줄 · css-and-layout 버그 8 끝 줄)을 이 회차가 푼다(남은 몫 = 펼친 높이는 여전히 n 비례 · 행 높이 하한 없음 — 아래 이월 9).
+외부 쓰기 0: 배포 PUT 0 · 네이버 0 · 키 파일 0 · deploy.py 는 `push --dry-run` 1회(R7 — 읽기·자격 확인만) · 운영 main 작업 폴더는 `work/` 재료 읽기 복사만 · 배포 저장소는 공개 읽기 shallow clone(`work/pages` — 옛 판 실물) · 스킬 저장소는 브랜치 push 만.
+효율: 벽시계 약 65분 · 도구 호출 약 110회 · 하위 에이전트 1(독립 검토 opus — 하위 토큰 약 14.5만 · 도구 25) · 즉석 코드 약 250행(패치 스크립트·탐침 — 스크래치, `work/RD/rehearse.sh` 95행·`fulltest.sh` 45행 제외).
+표기: [실측] 이번에 파일·명령으로 확인 / [추론] 확인 못 함.
+
+### 바뀐 것(파일별, `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `9db296a`) [실측]
+
+| 파일 | 행 | md5 | 무엇 |
+|---|---|---|---|
+| `config/report-config.json` | 171 → 175 | b9be593d | `report_layout.layout_id` "r2026-10-C" → **"r2026-10-D"** · 신설 `mobile.recent_days {"01": 14, "06": 14}`(03 표의 `recent_days` 7 과 다른 값) · `_comment` 판 D 줄. 그 밖의 값 0 |
+| `scripts/apply.py` | 706 → 892 | cffc4294 | `LAYOUT_D` · `M_LINE`(recent 포함 — 판 D) · `M_LINE_C`·`m_line_c`(판 C 꼴 — 사슬 중간 B → C 전용) · `m_line`(= C 꼴 + recent) · `MOBILE_JS_C`(판 C 도우미 원문 보존) · **`MOBILE_JS`(판 D 도우미 — `hidden`·`draw`·`button`·`build`·`toggle`·`judge`·beforeprint·afterprint)** · `MOBILE_CSS_D`(`.chart-fold`) · `COSTGAP_C_TO_D`(01 비용 라벨 간격 2곳 `data.datasets[i]` → `ch.data.datasets[i]`) · **`convert_c_to_d`**(① meta ② `</style>` 앞 CSS ③ costGap 2 ④ 도우미 — 판 C 템플릿(M 줄 빼고)과 바이트 같을 때만 교체, 아니면 FAIL ⑤ 분기 표지) · `STEPS`·`chain()` 판 사슬 · `apply()` 사슬 일반화(`--layout` 없이 옛 판 FAIL 문구 `레이아웃 판 meta r2026-10-C ≠ config r2026-10-D — --layout 을 붙여 r2026-10-C → r2026-10-D`) · main 출력이 지나는 판 전부(`meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D`) · docstring |
+| `scripts/validate.py` | 497 → 502 | e38cd135 | `check_layout` M 줄 정규식에 `recent: {"01": K, "06": K}` = config `mobile.recent_days` 대조(판 C 꼴은 0건 FAIL) · PASS `r2026-10-D · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640` · docstring(이름·검사 수 24 그대로) |
+| `tests/chart_check.py` | 516 → 733 | a6c7525a | 판 D 기대값: 390 처음(접힘) 01·06 최근 K일·라벨 2K/K·높이 K×row+pad·버튼 문구·aria-expanded·글꼴 = 03 summary / 01 버튼 진짜 누름 → 전 기간(06 그대로) → 다시 누름 → 처음과 같음·버튼 화면 y 그대로 / 06 펼침(01 그대로) / 둘 다 펼침 / **짧은 사본**(apply 로 01·06 배열을 K·K+1일로) / 1280 버튼 0 / 회전은 01 펼친 채 → 844(버튼 0) → 390 처음과 같음 / 인쇄 beforeprint 날짜 n·높이 min(n×row+pad, 1000) · afterprint 날짜 K / PDF 날짜 n 전부 · **기준(--base)도 맨 왼쪽으로 되돌려 PC 대조**(판 C 기준은 로드 때 최신 쪽) · `--out`·`--base` 면 기준 캡처 + **전후 비교 `compare.html`**(그림 내장 한 파일 · 높이 표) · 캡처 방식 full_page → 뷰포트 늘려 찍기 · 임시 폴더 항상 지움 |
+| `tests/test_apply.py` | 436 → 500 | 43142397 | `ApplyLayoutC` → **`ApplyLayoutD`** 7(사슬 옛 → D · B/C → D 같은 바이트·`--layout` 없음 FAIL 문구·`chain()`·사슬 밖 FAIL · 손 수정 C(도우미 한 줄·costGap 줄·도우미 표지 둘) FAIL · 손 수정 D(분기 표지·M 줄 이름·판 C 꼴 M 줄) FAIL · 묵은 M 줄(recent 포함) → config · C → D 변환 범위(바뀌는 곳 = meta·버튼 CSS·costGap 2·도우미뿐) · B → C 중간 범위) · CLI 문구 · ApplyRehearsal `work/RD`(meta D) → **Ran 21 OK** |
+| `SKILL.md` | 608 → 609 | b89d77ad | 원칙 판 `r2026-10-D` · 5단계 `--layout` 사슬·FAIL 문구 · 체크 3 판 D 한 줄 · 검산 "레이아웃 판" 판 D 줄(PASS 문구) · chart_check 줄 · 참고 파일(test_apply 사슬·chart_check). 7단계 게이트 문단은 판 이름이 없어 그대로 |
+| `references/report-structure.md` | 596 → 624 | b0514cb7 | 절 제목 "레이아웃 판 r2026-10-D(… 2026-10-06·07)"·목차 앵커 · 표지·바꾸는 코드 줄 · 판 B 표 아래 "버튼은 details 가 아니다" · 판 C 끝 줄(이월 문장 → 판 D 가 풀었다) · **"판 D" 문단**(사용자 원문 · K일 · 버튼 문구·글꼴 · 가장자리 · 인쇄 · 배열 1벌 · M 줄 · 변환 · 글자 바꾸려면 묻기) · 01 모바일 모양 · 06 판 D 한 줄 |
+| `references/css-and-layout.md` | 268 → 279 | 26ab2e84 | 유틸리티 `.chart-fold` · 접기 안내 6(버튼 — details 아님 · CSS · 마커 없음 · 접을 때 scrollBy · 인쇄) · 버그 8 끝 줄(기간 창 이월 → 판 D) · 버그 12 (7)(그리는 범위 자르기와 `ctx.chart.data` · 인쇄 재생성 animation false) · 재발 방지 ApplyLayoutD |
+| `references/code-tab.md` | 244 → 245 | 6d43c94b | 3절 6단계 "판 C·D" · 4절 첫 적용 문단에 **판 D 첫 적용(직전 배포본 meta r2026-10-C)** + `work/chart_<날짜>/compare.html` (지시의 문서 목록 밖 — 다음 `/saero-run` 보류 회차가 읽는 자리라, 임의 결정 13) |
+| `audit/checklist.md` | 528 → 534 | e60daf50 | 갱신 이력 한 줄(v4.7 유지) · [의도된 동작] 2 끝 · 27 판 D 문단(사용자 원문) · [되돌리면 안 되는 것] 판 C 분기 표지·M 줄 행(convert_c_to_d·ApplyLayoutD·M 줄 recent) · 인쇄 F 규약 행(접힌 차트 전 기간). [알려진 이월 항목]은 last-audit 정본이라 걸린 줄 없음 |
+| `audit/last-audit.md` | — | (커밋 뒤) | 이 절 |
+
+지시 밖 변경 0: `compute.py`·`compare.py`·`deploy.py`·`reportlib.py`·`narrative_check.py`·`precheck.sh`·`exclusions.py`·`fetch_reports.py`·`archive.py`·`ingest.sh`·`overflow_check.py`·`mutation_test.py`·`test_deploy.py`·`test_compare_sections.py`·`tests/fixtures/*`·`local/`·`data/`·`audit/exclusions.csv` 불변(`git diff --stat 38e0123 9db296a` 10파일 +683/−160). 06 블록(`CHART06_C`)·01 블록의 나머지·안내 스크립트·03·07·08 접기·PC 모양은 그대로.
+
+### 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **접는 방법 = 도우미가 그리는 범위만 자르기**: `draw()` 가 `it.mobile()` 설정을 받은 뒤 `data` 를 `labels.slice(from)`·데이터셋 얕은 복사 + `data.slice(from)` 로 바꿔 그린다(배열 1벌 그대로 · 축 min/max 방식은 datalabels·막대가 창 밖에서도 그려져 숨김 처리가 더 든다). 그래서 **06 블록 `mobile()` 은 바꿀 것이 없다**(지시의 "CHART06_C 의 mobile()" — 자르기를 도우미 한 곳에 둠). 01 은 비용 라벨 간격(costGap)이 블록 `data` 를 읽어 범위 안 번호(`ctx.dataIndex`)와 어긋나므로 그 2곳만 `ch.data` 로.
+2. **판 C 상수 보존**: `CHART01_C`·`CHART06_C`·`MOBILE_JS_C`·`M_LINE_C`·`m_line_c` 는 사슬 중간(B → C)에 그대로 쓰고, 판 D 는 `convert_c_to_d` 의 패치(costGap 2 · 도우미 교체 · CSS · meta). 덕분에 배포본 C → D 와 옛 판 → B → C → D 가 같은 바이트(R5 [실측]).
+3. **판 C 도우미 대조**: 도우미 블록(`/* saero:mobile-helper` ~ 첫 `\n})();\n`)이 판 C 템플릿과 M 줄만 빼고 바이트 같을 때만 교체 — 손으로 바꾼 판은 `판 C 분기 도우미가 템플릿(M 줄 빼고)과 다름 — 손으로 바꾼 판으로 보임, 변환하지 않음` FAIL.
+4. **버튼 모양**: `button` 요소 · `class="fold-more chart-fold"` · 차트 카드(`.card`) 끝에 붙임 · `display:block; width:100%; margin:2px 0 0; padding:6px 0`(손가락 누르기 높이 ≈30px) · 테두리·배경 없음 · `font-family:inherit` · **▶ 마커 없음**(03 은 summary 기본 마커 — 버튼에 넣으면 글자가 바뀌어 사용자 결정 몫).
+5. **접을 때 버튼 자리 그대로**: 다시 누르면 위 차트가 줄어든 만큼 `window.scrollBy` 로 올려 버튼이 화면의 그 자리에 남는다(390 실측 y 406.8 → 406.8). 펼칠 때는 그대로(차트 위쪽 고정·아래로 늘어남 — details 와 같은 느낌).
+6. **버튼 먼저 · 못 만들면 전 기간**: 카드를 못 찾아 버튼을 못 붙이면 접지 않는다(펼칠 길 없는 접힘 0 — 자체 검토 중 바꿈).
+7. `aria-expanded` true/false(문구는 그대로).
+8. **인쇄**: 접힌 차트만 beforeprint 에 전 기간으로 **애니메이션 없이** 다시 만들고(첫 그림이 동기라 판 C 의 `resize()` 가 미뤄지지 않음) 높이 캡 → afterprint 에 접힘으로 애니메이션 없이 다시 만든다. 펼쳐 둔 차트는 판 C 그대로(resize).
+9. config 키 = 지시 예시 그대로 `mobile.recent_days`, M 줄 키 = `recent`.
+10. validate PASS 문구에 `최근 14/14` 를 더함(운영 세션이 6단계 출력에서 값을 본다).
+11. apply 출력의 사슬 문구는 지나는 판을 전부 적는다(`r2026-10-B → r2026-10-C → r2026-10-D`).
+12. **chart_check**: 짧은 사본은 `apply.apply()` 로 만든 실제 HTML(브라우저 안 데이터 조작 아님) · 버튼은 playwright 진짜 클릭 · 전후 비교 페이지를 chart_check 가 직접 씀(이전 생성기 `feat-20261006-dailychart/work/P/mk_compare.py` 는 clone 정리로 없어짐 [실측] — 다음 보류 회차가 옛/새 캡처 비교를 내려면 저장소 안 도구가 필요) · 캡처 방식 변경(아래 리허설 R4 [실측]).
+13. code-tab.md 4절에 판 D 첫 적용 한 줄(지시의 "같이 맞출 문서" 목록 밖 — 다음 `/saero-run` 이 보류·비교 페이지를 내는 근거 문장이라).
+
+### 리허설 결과(전부 clone 안 사본, 최종 코드 — `work/RD/rehearse.sh`(34b84dc0) 두 번 돌려 md5 22줄 전부 같음) [실측]
+- **R1** 재료: `work/prev.html` = 배포 `60d2aee`(f2519cbb · 판 C · 42일 — 배포 저장소 `git show 60d2aee:index.html` 과 cmp 같음) · combined 4(검색어 ff5033fd · 상세지역 dd3a7f11 · 시간대별 fab50354 · 키워드 330e47c7 — 운영 `work/` 읽기 복사) · compute `f643ff54`(운영 `work/compute.json` 과 같음).
+- **R2** apply: `--layout` 없음 → `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-C ≠ config r2026-10-D — --layout 을 붙여 r2026-10-C → r2026-10-D` rc 1·파일 그대로 → `--layout` → `· 101,984 → 105,077자 · 레이아웃 판 변환(r2026-10-C → r2026-10-D, 분기 2)` **02e80dac** → 두 번째·`--layout` 없이 `(변환 건너뜀) (변경 없음)` 같은 md5 · 서술 표지 36 안쪽 바이트 같음 · 01/06 labels 날짜형 배열 2 · min-width 2곳 · details 5 · `<button` 0 · `getElementById` 01·06 각 1 · diff 덩이 16 = meta · CSS 3줄 · costGap 2 · 도우미뿐.
+- **R3** precheck(`work/RD/index.html work/combined work/RD/prev.html`): **validate 24/24**(`[PASS] 레이아웃 판(…) — r2026-10-D · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640`) · **compare OK 99/DIFF 0** · overflow 넘침 0(밖 요청 6건 차단) · narrative `[주의] 같은 기간` · 도장 `02e80dac · f2519cbb · full`.
+- **R4** `tests/chart_check.py work/RD/index.html work/RD/compute.json --base work/RD/prev.html --out work/RD/shots` → **PASS 27 / FAIL 0 · 외부 요청 허용 2 · 차단 0**:
+  390 처음 01 `y · 날짜 14/42 · ticks 14 · 라벨 28/28 · 밖 0 · 글자 겹침 0 · padding 0(기준 0) · 제목 띠 0 · 높이 454 = 14×26+90 · 맨 위 10/6(화) · 맨 아래 9/23(수) · 버튼 '이전 28일(8/26~9/22) 펼치기' aria-expanded false · 글꼴 = 03 summary` / 06 `14/14 · 378 = 14×22+70` 같은 꼴 /
+  01 펼침 `42 · 84/84 · 1182 = 42×26+90 · 맨 아래 8/26(수) · 문구 그대로 · aria-expanded true` + 06 처음과 같음 / 01 다시 접힘 = 처음과 같음 · 버튼 화면 y 406.8 → 406.8 / 06 펼침 `42/42 · 994` + 01 그대로 / 둘 다 펼침 캔버스 8/8 · 문서 폭 390 /
+  짧은 사본 14일 01·06 버튼 0·전부 · 15일 `이전 1일(9/22~9/22) 펼치기` · 처음 14일 /
+  1280 01 S `scrollLeft 2538 = 3360−822 · 첫 화면 10일 9/27~10/6` · 맨 왼쪽 = 기준(`chartArea [64.2, 24, 3286.7, 221.4] · 8/26~9/4 · 84/84 · 3360×280`) · 06 S `2923 · 10/1~10/6` · 맨 왼쪽 = 기준 · 섹션 841/589 = 기준 · 버튼 0 /
+  회전 01 펼친 채 390 → 844 `01·06 x · ticks 42 · scrollWidth 3360 · 끝 · 뱃지 · 버튼 0` → 390 처음(접힘)과 같음(버튼 2 · aria false) /
+  인쇄 390(A4 · 0.4in) beforeprint 01 `날짜 42 · 높이 1000 = min(1182, 1000) · 비트맵 656×2000` · 06 `42 · 994` · afterprint `14 · 454 / 14 · 378` · 뒤 상태 처음과 같음 · **PDF 16쪽 — 01 벡터 행 42/42 2쪽 · 06 42/42 8쪽 · 둘 다 최신 위** · 1280 PDF 이미지 구성 = 기준.
+  높이 390(섹션 1 · 6 · 문서): 기준 1,772 · 1,589 · 11,697 → 처음 **1,076 · 1,005 · 10,417** → 둘 다 펼침 1,804 · 1,621 · 11,761. PNG 10장 두 번 같은 md5(01 처음 0bf14735 · 06 처음 8f84bb66 · 01 펼침 4318e4bd · 06 펼침 925d401d · 1280 = 기준 75c9eb55·085b682c) · **전후 비교 `work/RD/shots/compare.html` 5f37cbae**(옛 판 · 새 판 처음 · 새 판 펼침 나란히 + 높이 표, 3.4MB).
+  캡처 방식 [실측]: full_page 캡처는 같은 페이지 두 번째부터 창이 순간 4×4 로 바뀌는 resize 가 와 Chart.js 가 다시 붙으며 애니메이션 첫 프레임(막대 0)이 찍혔다(차트 id 그대로·판정 수치 그대로 — 시험 도구 몫) → 뷰포트를 문서 높이로 잠시 늘려 찍기로 바꾼 뒤 펼침 PNG 도 두 번 같은 md5(로드 상태 PNG 는 바꾸기 전과도 같은 md5).
+- **R5** 옛 판 사슬(배포 저장소 실물 + 같은 합본 42일 compute): `037aca8`(meta 없음) `레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D, details 5 · 분기 2)` · `014472d`(B) `r2026-10-B → r2026-10-C → r2026-10-D` · `479d866`(C) `r2026-10-C → r2026-10-D` — 셋 다 rc 0 · 두 번째 (변경 없음) · **차트 스크립트(01·06 블록·도우미·M 줄) = R2 결과와 바이트 같음** · validate "레이아웃 판" PASS · validate 23/24(`08·09번 각주 N회 차이` FAIL) · compare DIFF 2(`10 desc` · `10 파트너 마지막날`) — 41일 기준 옛 서술을 42일 값에 둔 것(판 C 만 바꾼 479d866 도 같음 — 판 D 무관, 실제 회차는 n<날짜>.py 가 서술을 바꾼다).
+- **R6** test_apply **Ran 21 OK**(ApplyRehearsal `work/RD` 포함, skip 0) · `test_compare_sections.py work/RD/index.html work/RD/compute.json` 5경우 전부 맞음.
+- **R7** 실제 환경(20:32 KST): `deploy.py push --file work/RD/index.html --base work/RD/prev.html --message "…" --dry-run` → `precheck 도장 = 작업본 md5 02e80dac… · 직전 배포본 f2519cbb… 확인` · **`[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · 직전 배포본(--base) r2026-10-C → 작업본(--file) r2026-10-D`** · 배포본 = --base md5 확인(sha e8a1ab62) · 자격 증명 확인됨(출처: git) · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0.
+
+**병합 전 전체 시험 한 번**(20:27~20:31 KST, `work/RD/fulltest.sh` 16bc4c4b — 결과 `work/RD/full/`): test_exclusions OK(registry md5 fe0aa09c 전후 같음) · **test_deploy Ran 21 OK**(GIT_* 제거·`GIT_CONFIG_NOSYSTEM=1`·빈 `GIT_CONFIG_GLOBAL`) · test_ingest OK(data/ 12파일 같음) · test_fetch_reports OK(data/2026-09·config 같음) · test_narrative_check OK · test_validate_07 OK · test_apply 21 OK · py_compile 21/21 · `bash -n` ingest·precheck 통과 · config `json.load` 통과 ·
+**mutation_test rc 1** — `[SKIP] 01 첫 .ctr-high 제거 — 변조 위치를 못 찾음` · `[UNCOVERED] 01번 클릭률 4% 이상에만 .ctr-high` · `[OK]` 51 · config 실험 layout_id·max_px FAIL 1씩 · 원본 md5 같음 → **같은 데이터로 origin/main 코드(분리 worktree, 끝에 지움)도 rc 1 · 같은 SKIP·UNCOVERED · [OK] 51** — 이번 01 표 5행(10/2~10/6) CTR 이 전부 4% 미만이라 `.ctr-high` 가 0(배포본 60d2aee 도 0)인 데이터 탓, 판 D 무관 → 이월 4.
+md5 전후: `cat data/*/*.csv audit/exclusions.csv | md5sum` **39493a38** 전 = 후 · registry fe0aa09c · config 5a01e26d → **b9be593d**(새 키·layout_id·_comment 뿐) · chart_check 는 전체 시험 뒤 캡처 방식만 바꿈(리허설 R4 가 최종).
+
+### 자체 검토(지시의 [검토 깊이 규칙] — 독립 검토자 1(opus · 읽기만 + 사본 탐침) + 조정자)
+**막음 0** — "다음 단계로 가도 된다". 검토자 근거 [실측]: 접힘 상태 01 라벨 28·06 14 의 글자가 원래 배열의 같은 날짜 값과 같음(10/6 421·11,602원·1.52) · 01 펼침 + 06 접힘에서 beforeprint → 06 만 42일·994, 01 1000 · afterprint 뒤 06 14·378, 01 1182 복원 · 06 두 번 누름·1280 → 390 축소에서 접힘부터 · convert_c_to_d 앵커 정확히 하나·CRLF 면 FAIL(조용히 안 지나감) · validate 가 판 C 꼴 M 줄을 0건 FAIL · 문서의 출력 문구 = 코드. 조정자가 고친 것(검토 중): 임의 결정 6(버튼 먼저) · chart_check 기준 대조 자리·캡처 방식(시험 도구).
+
+### 이월(한 줄씩 — 막음 아님, 첫 실사용(보류 회차) 뒤 또는 정기점검)
+1. beforeprint 가 오지 않는 인쇄 경로(iOS 공유 → PDF 등 [추론])는 01·06 이 최근 14일만 찍힌다 — 요란(버튼 문구 "이전 28일(…) 펼치기" 가 같이 찍혀 빠진 기간이 보임), 펼친 뒤 찍으면 전부 · 03 details 도 같은 이벤트에 기댐 — 첫 적용 보류 회차 실기기 "인쇄 미리보기" 항목.
+2. 인쇄할 때 버튼 문구가 종이에 같이 찍힌다(날짜 누락 0 — 1 의 단서라 숨기지 않음, 숨길지는 사용자 결정).
+3. afterprint 가 오지 않는 브라우저면 `printing` 잠금이 풀리지 않아 버튼·회전 판정이 멈춘다(차트는 전 기간 상태 — 손실 아님, 판 C 와 같은 잠금).
+4. mutation_test 에 판 D M 줄 변조(recent 빠짐·값 어긋남)가 없다 — validate 코드는 둘 다 FAIL 로 잡음(test_apply 는 apply 쪽만) · 01 `.ctr-high` 변조는 데이터에 따라 SKIP(이번 10/2~10/6) — 정기점검 때 변조 위치를 다른 자리로.
+5. 펼친 차트를 애니메이션 중(누른 뒤 약 1초 안)에 인쇄하면 판 C 이월 2 와 같은 길(resize 가 다음 그리기로 미뤄짐 — 1,182px 비트맵이 1,000px 에서 잘림, 접힌 차트는 이번에 애니메이션 없이 다시 만들어 해당 없음).
+6. 펼칠 때 캔버스가 화면 밖이고 버튼만 보이는 자리에서 누르면 브라우저 스크롤 고정(Chrome)이 버튼을 잡아 차트가 위로 늘어난 것처럼 보일 수 있다 [추론] — 실기기 확인 몫.
+7. 버튼에 03 summary 의 ▶ 마커가 없다(임의 결정 4 — 넣으면 글자 변경이라 사용자 결정).
+8. `tests/fixtures/layout_old.html` 머리 주석 "사슬 변환(옛 → r2026-10-B → r2026-10-C)" 이 판 D 를 안 적음(주석만 — 시험은 D 까지 돈다).
+9. 탐색 기준선 A-6 의 남은 몫: 펼친 높이는 여전히 n 에 비례(행 높이 하한 없음) · 인쇄 F 의 n 상한(≈46일부터 06 도 1,000 캡에 걸려 행 간격이 준다) — 그대로.
+10. 판 C 검증 이월(1·3·4·8 등)·구현 기준선 이월 1~8 은 그대로(다시 올리지 않음).
+
+### 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1. 모바일 01·06 처음 최근 14일 · 높이 K×row+pad · 버튼 문구 "이전 N일(M/D~M/D) 펼치기" — chart_check 390(R4).
+2. 펼치면 전 기간 · 보이는 라벨 누락 0 · 다시 누르면 접힘 — chart_check 390 펼침·다시 접힘·06 따로(R4).
+3. 날짜 ≤ 14 면 버튼 없음 — chart_check 짧은 사본 14·15일(R4).
+4. PC 모양 · 최신 쪽 스크롤 그대로 — chart_check 1280(판 C 기준 = `work/RD/prev.html`, 맨 왼쪽 대조).
+5. 인쇄에 날짜 전부 · 뒤에 접힘 복원 — chart_check 인쇄(beforeprint 42 · afterprint 14 · PDF 벡터 42/42).
+6. HTML 배열 · min-width · details 5 그대로, M 줄 = config — validate "레이아웃 판" · compare 01/06 labels(99/0) · test_apply ApplyLayoutD · R2 diff 덩이 16.
+7. 실제 환경 리허설 — R1~R7(`rehearse.sh` 재실행 md5 22줄 같음 · R7 은 구현 세션 기록으로 확인 — 검증은 deploy 실행 0).
+8. 문서 = 코드(출력 문구 셋 · 판 이름 · 개수).
+
+### 마무리 기록(이번 회차)
+- 커밋(경로 지정 add · `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`): `9db296a` 코드·시험·문서 · 그리고 이 절(기록 커밋 — 해시는 자기 참조라 적지 않는다).
+- 끝 확인: `git fetch` → origin/main 확인 · 브랜치 push 1회(`feat-20261007-mobilefold`, main 아님) · 재clone 대조는 채팅 보고.
+- 다음 단계: ④ 검증 `D:\saero-verify` 새 세션 **Fable 5.1 · ultracode** — 지시문 `D:\saero\saero-ad-report_01모바일기간접기_검증지시_회차1_2026-10-07.md` / ⑤ 수정(막음이 있을 때만) 새 세션 **Opus 5.5 · xhigh · ultracode 끔** / 재검증 새 세션 · 바뀐 것만 · **Fable 5.1 · xhigh** / ⑥ 병합은 검증 뒤·갱신 회차가 돌지 않을 때 / 설치본(`D:\saero\CLAUDE.md`·`saero-run`)은 `local/` 변경 0 이라 갱신 불필요(병합 뒤 사용자 몫 확인만).
+
+### 첫 적용 본보기(운영 세션이 그대로 쓴다)
+- 병합 뒤 운영 main 작업 폴더 `git pull --ff-only`(ingest·S0 의 "HEAD = origin/main" 이 막는다) → 다음 `/saero-run`(**Opus 5.5 · high · ultracode 끔**), 첫 말 **"판 D(01 모바일 기간 접기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"** — 데이터 회차와 같이 돌아도 된다(4 fetch = 판 C 배포본 → 5 `apply.py --layout` 출력 `레이아웃 판 변환(r2026-10-C → r2026-10-D, 분기 2)`).
+- 6 precheck 기대: validate 24/24 · `레이아웃 판 … r2026-10-D · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640` · compare DIFF 0 · 도장 → **보류 멈춤**: `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(기대 PASS 27 · 외부 허용 2·차단 0 — 날짜가 14 보다 많을 때) → **`work/chart_<날짜>/compare.html`(옛 판 · 새 판 처음 · 새 판 펼침 나란히)** 과 작업본을 보이고, 사용자는 폰(390 세로 · 버튼 펼치기·다시 접기 · 844 회전 뒤 접힘 · 인쇄 미리보기 — 이월 1·2)과 PC 로 본다.
+- 사용자 **"배포"** → 7 `deploy.py push … --dry-run`(`[주의] 레이아웃 판이 바뀜 … r2026-10-C → … r2026-10-D`) → `push … --layout-change` → `verify --ref <커밋>` → 8 기록. 그 다음 회차부터 직전 배포본이 판 D — `apply --layout` 은 값·M 줄만, 게이트 조용히 통과(자동 배포 그대로).
+
+---
+
 ## 갱신 회차 (2026-10-07 08:08~08:30 KST 무렵 — Code 탭 `/saero-run`, main 작업 폴더, 2-1 같음 "다시 계산") · **배포 없음(작업본 = 배포본)**
 합본 `일별` 2026.08.26 — 10.06 (42일, 01:22 ingest 합본 그대로 — ① 수집 안 함) · 배포본 `60d2aee`(md5 f2519cbb) 그대로 · 집계 기간 `2026.08.26 — 10.06 (42일)`
 S0 PASS(08:08) → 같은 날 01시 회차가 10/6까지 반영했고 10/7 집계는 10/8 01:00 뒤라 크롬 수집을 먼저 띄우지 않고 4 fetch(f2519cbb)·5a compute → 2-1 같음 → 앞 질문 → 사용자 답 "다시 계산" → 3 신규 0(노원키즈필라테스 최근 3일 [0,0,0] — 09-17 규칙대로 `excluded_groups` 밖) → 5-0a pull(3그룹 각 297 — 01시 등록 3개 반영, registry 파일 변경 0)·propose `--since 2026-10-07` → `[주의] 빈 창`(후보 0 · 재노출 판정 0) → ⓐ (1)~(4) 모두 0이라 묻지 않음 → 5 apply(`변환 건너뜀` · `변경 없음`) + `work/n1007.py` 다시 → 작업본 md5 f2519cbb = 배포본 → 6 precheck `[FAIL] 직전 배포본이 작업본과 같다`(md5 가드 — 정상, 같은 판 재배포 방지) → 7 PUT 0.
