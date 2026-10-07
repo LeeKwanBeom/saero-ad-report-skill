@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1).
+"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-C):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-D):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
-  · meta r2026-10-B(접기형) 판은 `--layout` 일 때 r2026-10-C 로 변환(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
-    차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) 뒤 값을 바꾼다. `--layout` 없이 B 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-B ≠ config …`.
-  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c`) 뒤 값을 바꾼다.
-    `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 그 밖의 meta 는 FAIL(판 변경은 설계 회차 몫).
+  · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
+    차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
+    분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)). meta 가 사슬 위의 옛 판이면
+    `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-C ≠ config …`.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d`) 뒤 값을 바꾼다.
+    `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch`)는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
   02 도넛 제목 총액 · 01 표 5행·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
-  분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}};` = config `report_layout.mobile`, 판 C).
+  분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D).
+  01·06 모바일 펼치기 버튼 문구("이전 N일(M/D~M/D) 펼치기")는 HTML 에 없다 — 도우미가 화면에서 data.labels 로 만든다(apply 기계 자리 0).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다. summary·details 는 apply 몫.
 - 앵커: `once()` 만 "정확히 하나"를 검사한다(못 찾거나 둘 이상이면 `[FAIL] apply: …` exit 1). 차트 배열의 `chart()`/`labels()` 는
@@ -158,8 +161,9 @@ def convert_layout(h, lay):
 # 옛 판 → B 단계 값(config 를 C 로 올린 뒤에도 사슬 중간 단계는 이 값으로 돈다 — convert_layout 의 meta·details 대조)
 LAYOUT_B = {"layout_id": "r2026-10-B", "markers": {"details": 5}}
 LAYOUT_C = "r2026-10-C"
+LAYOUT_D = "r2026-10-D"
 BRANCH = re.compile(r"/\* saero:mobile-branch (01|06) \*/")
-M_LINE = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}\};')
+M_LINE_C = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}\};')   # 판 C 도우미의 M 줄(사슬 중간 단계)
 
 # CSS·JS 주석에 태그 이름을 꺾쇠로 쓰지 말 것(validate 태그 짝·apply details 수가 셈) · 새 색 0(기존 ::after 와 같은 값)
 MOBILE_CSS = """  /* 왼쪽 페이드(레이아웃 판 r2026-10-C, 2026-10-06) — PC 01·06 차트는 최신 쪽(오른쪽 끝)에서 시작하므로 왼쪽으로 이전 날짜가 이어짐을 알린다.
@@ -332,8 +336,9 @@ CHART06_C = """/* saero:mobile-branch 06 */
 })();
 """
 
-# 분기 도우미(차트 스크립트 끝, 한 번) — @@M@@ 자리에 config M 줄(m_line). getElementById('dailyChart'|'rankChart') 리터럴을 쓰지 않는다(apply·compare 의 첫 일치 앵커).
-MOBILE_JS = """
+# 판 C 분기 도우미(차트 스크립트 끝, 한 번) — @@M@@ 자리에 판 C M 줄(m_line_c). 사슬 중간 단계(B → C)와 C → D 변환의 대조 기준으로만 쓴다(판 D 는 아래 MOBILE_JS).
+# getElementById('dailyChart'|'rankChart') 리터럴을 쓰지 않는다(apply·compare 의 첫 일치 앵커).
+MOBILE_JS_C = """
 /* saero:mobile-helper — 판 C(r2026-10-C, 2026-10-06) 01·06 분기 도우미(차트 스크립트 끝, 한 번).
    위 01·06 블록은 제자리에서 PC 모양으로 만들고 큐(window.__saeroMobileQ)에 넣기만 한다 — 한 스크립트 안 직렬 실행이라 이 도우미는 그 뒤에 정의된다.
    화면 폭 ≤ M.maxPx(= 배포본 CSS 모바일 경계)이면 같은 data 로 가로 막대를 다시 만들고(컨테이너 높이 = 날짜 수 × M.row + M.pad, 원래 min-width·height 는 보관했다가 PC 복귀 때 복원),
@@ -407,6 +412,132 @@ MOBILE_JS = """
 })();
 """
 
+# ── 판 D(r2026-10-D, 2026-10-07 — 01 모바일 기간 접기): 모바일 01·06 처음 최근 mobile.recent_days 일 + 펼치기 버튼(01·06 따로) ──
+# 배열·min-width·details·태그는 그대로(HTML 1벌) — 접는 것은 화면만. 버튼은 도우미가 모바일에서 카드 아래에 만든다(HTML 텍스트에 태그 0).
+MOBILE_CSS_D = """  /* 01·06 모바일 펼치기 버튼(레이아웃 판 r2026-10-D, 2026-10-07) — 차트 스크립트 끝 분기 도우미가 모바일에서만 차트 카드 아래에 만든다(HTML 에는 없음).
+     글꼴·색은 03 접기 summary 와 같은 .fold-more 를 같이 달고, 여기서는 버튼 기본 모양(테두리·배경·안쪽 여백·글꼴 묶음)만 지운다 — 새 색 0 */
+  .chart-fold{display:block;width:100%;margin:2px 0 0;padding:6px 0;border:0;background:none;font-family:inherit;line-height:1.5;text-align:left;cursor:pointer;-webkit-appearance:none;appearance:none;}
+"""
+
+# 01 비용 라벨 간격(costGap) — 판 D 는 그리는 범위(최근 날짜만)를 잘라 그리므로 ctx.dataIndex 는 그 범위 안 번호다: 블록 data 대신 차트가 그리는 data 를 읽는다
+COSTGAP_C_TO_D = (("Number(data.datasets[0].data[i])", "Number(ch.data.datasets[0].data[i])"),
+                  ("cs.getPixelForValue(data.datasets[1].data[i])", "cs.getPixelForValue(ch.data.datasets[1].data[i])"))
+
+# 판 D 분기 도우미(차트 스크립트 끝, 한 번) — @@M@@ 자리에 config M 줄(m_line). getElementById('dailyChart'|'rankChart') 리터럴을 쓰지 않는다(apply·compare 의 첫 일치 앵커).
+MOBILE_JS = """
+/* saero:mobile-helper — 판 D(r2026-10-D, 2026-10-07) 01·06 분기 도우미(차트 스크립트 끝, 한 번 — 판 C 도우미 + 모바일 기간 접기).
+   위 01·06 블록은 제자리에서 PC 모양으로 만들고 큐(window.__saeroMobileQ)에 넣기만 한다 — 한 스크립트 안 직렬 실행이라 이 도우미는 그 뒤에 정의된다.
+   화면 폭 ≤ M.maxPx(= 배포본 CSS 모바일 경계)이면 같은 data 로 가로 막대를 다시 만든다 — 처음에는 최근 M.recent 일만(최신 위 · 배열은 1벌 그대로, 그리는 범위만 자른다).
+   날짜가 그보다 많으면 차트 카드 아래 펼치기 버튼(03 접기 summary 와 같은 .fold-more · 문구 "이전 N일(M/D~M/D) 펼치기" 는 data.labels 에서 만든다)이
+   전 기간 ↔ 최근을 오간다(01·06 따로 · 문구는 그대로 · 접을 때는 버튼이 그 자리에 남는다). 컨테이너 높이 = 그리는 날짜 수 × M.row + M.pad
+   (원래 min-width·height 는 보관했다가 PC 복귀 때 복원). 회전·창 크기(matchMedia change)에 다시 판정한다(상태 비교 · 동기 · 안내 sync 직접 ·
+   PC 면 버튼을 걷고 최신 쪽 스크롤 · 모바일로 들어오면 접힘부터). 인쇄 중에는 판정을 잠그고, 모바일이면 접힌 차트를 전 기간으로 다시 그려(애니메이션 없이)
+   01·06 높이를 M.printMaxH 이하로 줄여 한 쪽 안에 찍은 뒤(afterprint) 원래 접힘·높이로 되돌린다 — 종이에 날짜 누락 0(03 접기를 인쇄 때 펼치는 것과 같은 원칙).
+   M 줄은 apply 가 매 회차 config report_layout.mobile 로 다시 쓴다(기계 자리). 버튼은 화면에만 있다(HTML 텍스트에 없음 — 태그 짝·details 수 그대로). */
+(function(){
+  @@M@@
+  var mqOk = ('matchMedia' in window);
+  var mq = mqOk ? window.matchMedia('(max-width: ' + M.maxPx + 'px)') : null;
+  var items = [], state = {mobile: false, printing: false};
+  function restore(b){ if (b.dataset.minwidth !== undefined) { b.style.minWidth = b.dataset.minwidth; b.style.height = b.dataset.height; } }
+  function hidden(it){ var n = it.data.labels.length, k = M.recent[it.key]; return (k > 0 && n > k) ? n - k : 0; }   // 접는 앞쪽 날짜 수(0 = 접지 않음 · 버튼 없음)
+  function draw(it, full, quiet){   // 모바일 모양 — full 이면 전 기간, 아니면 최근 M.recent 일(앞쪽 날짜는 그리지 않는다 · 데이터셋 설정은 얕은 복사로 같이)
+    var d = it.data, from = full ? 0 : hidden(it);
+    if (it.chart) { it.chart.destroy(); it.chart = null; }
+    it.canvas.parentElement.style.height = ((d.labels.length - from) * M.row[it.key] + M.pad[it.key]) + 'px';
+    var cfg = it.mobile();
+    if (from) cfg.data = {labels: d.labels.slice(from), datasets: d.datasets.map(function(s){ var o = {}, k; for (k in s) o[k] = s[k]; o.data = s.data.slice(from); return o; })};
+    if (quiet) cfg.options.animation = false;
+    it.chart = new Chart(it.canvas, cfg);
+  }
+  function button(it, on){   // 차트 카드 아래 펼치기 버튼 — 모바일이고 접을 날짜가 있을 때만(없으면 걷는다)
+    var n = on ? hidden(it) : 0, L = it.data.labels;
+    if (!n) { if (it.btn && it.btn.parentNode) it.btn.parentNode.removeChild(it.btn); it.btn = null; return; }
+    if (!it.btn) {
+      var card = it.canvas.closest ? it.canvas.closest('.card') : null;
+      if (!card) return;
+      it.btn = document.createElement('button');
+      it.btn.type = 'button';
+      it.btn.className = 'fold-more chart-fold';
+      it.btn.addEventListener('click', function(){ toggle(it); });
+      card.appendChild(it.btn);
+    }
+    it.btn.textContent = '이전 ' + n + '일(' + String(L[0]).split('(')[0] + '~' + String(L[n - 1]).split('(')[0] + ') 펼치기';
+    it.btn.setAttribute('aria-expanded', it.open ? 'true' : 'false');
+  }
+  function build(it, toMobile){
+    var b = it.canvas.parentElement;
+    try {
+      if (it.chart) { it.chart.destroy(); it.chart = null; }
+      if (toMobile) {
+        if (b.dataset.minwidth === undefined) { b.dataset.minwidth = b.style.minWidth; b.dataset.height = b.style.height; }
+        b.style.minWidth = '0';
+        button(it, true);
+        draw(it, it.open || !it.btn, false);   // 버튼이 없으면(접을 날짜 없음·카드 못 찾음) 전 기간 — 펼칠 길 없는 접힘 0
+      } else {
+        button(it, false);
+        restore(b);
+        it.chart = new Chart(it.canvas, it.pc());
+      }
+    } catch (e) {
+      it.chart = null;
+      try { button(it, false); var s = Chart.getChart(it.canvas); if (s) s.destroy(); restore(b); it.chart = new Chart(it.canvas, it.pc()); } catch (e2) {}
+    }
+  }
+  function toggle(it){   // 펼치기 버튼 — 펼치면 전 기간, 다시 누르면 최근만(문구 그대로). 접을 때는 위 차트가 줄어든 만큼 올려 버튼을 그 자리에 둔다
+    if (state.printing || !state.mobile || !it.btn) return;
+    var bt = it.btn, top = bt.getBoundingClientRect().top;
+    it.open = !it.open;
+    build(it, true);
+    if (!it.open && it.btn === bt) { var dy = bt.getBoundingClientRect().top - top; if (dy) window.scrollBy(0, dy); }
+  }
+  function scrollEnd(){
+    if (state.mobile) return;
+    items.forEach(function(it){
+      var s = it.canvas.closest ? it.canvas.closest('.scroll-x') : null;
+      if (!s) return;
+      s.scrollLeft = s.scrollWidth;
+      try { s.dispatchEvent(new Event('scroll')); } catch (e) {}
+    });
+  }
+  function judge(){
+    var m = !!(mqOk && mq.matches);
+    if (state.printing || m === state.mobile) return;
+    state.mobile = m;
+    items.forEach(function(it){ it.open = false; build(it, m); });
+    try { if (window.__saeroSync) window.__saeroSync(); } catch (e) {}
+    if (!m) scrollEnd();
+  }
+  window.addEventListener('beforeprint', function(){
+    state.printing = true;
+    if (!state.mobile) return;
+    items.forEach(function(it){
+      try {
+        var b = it.canvas.parentElement;
+        it.printH = b.style.height;
+        if (it.btn && !it.open) { it.printFold = true; draw(it, true, true); }   // 접힌 차트는 전 기간으로(종이에 날짜 누락 0)
+        b.style.height = Math.min(parseFloat(b.style.height) || b.clientHeight, M.printMaxH) + 'px';
+        if (it.chart) { it.chart.resize(); it.chart.update('none'); }
+      } catch (e) {}
+    });
+  });
+  window.addEventListener('afterprint', function(){
+    if (state.mobile) items.forEach(function(it){
+      try {
+        if (it.printFold) { delete it.printFold; draw(it, false, true); }   // 원래 접힘(높이는 draw 가 다시)
+        else if (it.printH !== undefined) it.canvas.parentElement.style.height = it.printH;
+        delete it.printH;
+        if (it.chart) { it.chart.resize(); it.chart.update('none'); }
+      } catch (e) {}
+    });
+    state.printing = false;
+  });
+  window.__saeroMobile = {M: M, items: items, state: state, build: build, judge: judge, scrollEnd: scrollEnd};
+  (window.__saeroMobileQ || []).forEach(function(it){ it.open = false; items.push(it); if (mqOk && mq.matches) build(it, true); }); window.__saeroMobileQ = []; state.mobile = !!(mqOk && mq.matches);
+  if (mqOk) { if (mq.addEventListener) mq.addEventListener('change', judge); else if (mq.addListener) mq.addListener(judge); }
+})();
+"""
+
 # 가로 안내 스크립트(별도 script) — S(스크롤 시작 최신 쪽)·회전 규약 네 줄. (c)(d) 는 FOLD_JS 마지막 줄 뒤.
 AFTERPRINT = "  window.addEventListener('afterprint', function(){ folded.forEach(function(d){ d.open = false; }); folded = []; });\n"
 SYNC_JS = ("  window.__saeroSync = sync; // 판 C: 01·06 분기 도우미(차트 스크립트 끝)가 회전 뒤 안내·페이드를 바로 다시 맞춘다\n"
@@ -414,12 +545,21 @@ SYNC_JS = ("  window.__saeroSync = sync; // 판 C: 01·06 분기 도우미(차�
            "// 판 C: PC 01·06 은 최신 쪽(오른쪽 끝)에서 시작 — load 의 sync(래퍼 감싸기) 뒤\n")
 
 
-def m_line(lay):
-    """config report_layout.mobile → 분기 도우미의 M 줄(한 줄 리터럴 — 매 회차 기계 자리)."""
+M_LINE = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}, recent: \{"01": \d+, "06": \d+\}\};')
+
+
+def m_line_c(lay):
+    """판 C 도우미의 M 줄(사슬 중간 단계 B → C 전용 — 판 D 변환이 도우미째 바꾼다)."""
     m = lay["mobile"]
     row, pad = m["row_px"], m["pad_px"]
     return (f'var M = {{maxPx: {int(m["max_px"])}, printMaxH: {int(m["print_max_height_px"])}, '
             f'row: {{"01": {int(row["01"])}, "06": {int(row["06"])}}}, pad: {{"01": {int(pad["01"])}, "06": {int(pad["06"])}}}}};')
+
+
+def m_line(lay):
+    """config report_layout.mobile → 판 D 분기 도우미의 M 줄(한 줄 리터럴 — 매 회차 기계 자리). recent = 모바일 처음 그리는 최근 일수(01·06)."""
+    rec = lay["mobile"]["recent_days"]
+    return m_line_c(lay)[:-2] + f', recent: {{"01": {int(rec["01"])}, "06": {int(rec["06"])}}}}};'
 
 
 def chart_block(h, cid, tpl):
@@ -451,7 +591,7 @@ def convert_b_to_c(h, lay):
     h = once(r"(\n</style>)", lambda m: "\n" + MOBILE_CSS.rstrip("\n") + m.group(1), h)                                    # ② 왼쪽 페이드
     h = chart_block(h, "dailyChart", CHART01_C)                                                                              # ③
     h = chart_block(h, "rankChart", CHART06_C)                                                                               # ④
-    h = once(r"\n\}\);\n</script>\n", lambda m: "\n});\n\n" + MOBILE_JS.lstrip("\n").replace("@@M@@", m_line(lay)) + "</script>\n", h)   # ⑤ 차트 스크립트 끝
+    h = once(r"\n\}\);\n</script>\n", lambda m: "\n});\n\n" + MOBILE_JS_C.lstrip("\n").replace("@@M@@", m_line_c(lay)) + "</script>\n", h)   # ⑤ 차트 스크립트 끝
     # ⑥ 안내 스크립트 S·sync 규약 네 줄
     h = once(r"([ \t]*)(wrapper\.classList\.toggle\('at-end', atEnd\);)",
              lambda m: f"{m.group(1)}{m.group(2)}\n{m.group(1)}wrapper.classList.toggle('at-start', box.scrollLeft <= 2);", h)                  # (a)
@@ -460,6 +600,40 @@ def convert_b_to_c(h, lay):
     h = once(re.escape(AFTERPRINT), lambda m: AFTERPRINT + SYNC_JS, h)                                                                         # (c)(d)
     check_branches(h, lay, "변환 뒤")                                                                                                          # ⑦
     return h
+
+
+def convert_c_to_d(h, lay):
+    """레이아웃 판 r2026-10-C → r2026-10-D(모바일 01·06 기간 접기). 앵커는 전부 정확히 하나 — 섹션 HTML·서술 표지·min-width 텍스트·배열·
+    01·06 블록의 나머지·가로 안내 스크립트는 건드리지 않는다. 판 C 분기 도우미는 템플릿(M 줄 빼고)과 바이트가 같을 때만 판 D 도우미로 바꾼다."""
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_C}">', f'<meta name="report-layout" content="{LAYOUT_D}">', h)        # ①
+    h = once(r"(\n</style>)", lambda m: "\n" + MOBILE_CSS_D.rstrip("\n") + m.group(1), h)                                        # ② 펼치기 버튼 CSS
+    for old, new in COSTGAP_C_TO_D:                                                                                                # ③ 01 비용 라벨 간격
+        h = once(re.escape(old), lambda m, new=new: new, h)
+    i = find1(h, "/* saero:mobile-helper")                                                                                         # ④ 분기 도우미
+    if h.count("/* saero:mobile-helper") != 1:
+        raise ApplyError(f"분기 도우미 시작 표지가 {h.count('/* saero:mobile-helper')}개 — 손으로 바꾼 판으로 보임")
+    j = find1(h, "\n})();\n", i) + len("\n})();\n")
+    if re.sub(r"var M = \{[^\n]*\};", "@@M@@", h[i:j], count=1) != MOBILE_JS_C.lstrip("\n"):
+        raise ApplyError("판 C 분기 도우미가 템플릿(M 줄 빼고)과 다름 — 손으로 바꾼 판으로 보임, 변환하지 않음")
+    h = h[:i] + MOBILE_JS.lstrip("\n").replace("@@M@@", m_line(lay)) + h[j:]
+    check_branches(h, lay, "변환 뒤")                                                                                              # ⑤
+    return h
+
+
+# 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
+STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d))
+
+
+def chain(frm, to):
+    """frm 판에서 to 판까지의 변환 목록(사슬 순서) — 닿지 못하면 None."""
+    path = []
+    for a, b, f in STEPS:
+        if frm == to:
+            break
+        if frm == a:
+            path.append(f)
+            frm = b
+    return path if frm == to else None
 
 
 def trs(block):
@@ -475,9 +649,9 @@ def tr(cells, style=""):
 
 
 def apply(h, R, cfg, layout=False):
-    """layout = --layout(옛 판·B 판이면 사슬로 변환). meta = config layout_id 면 변환 없이 값만(멱등).
-    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c · meta r2026-10-B → convert_b_to_c · meta = config → 값만 · 그 밖 FAIL.
-    config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
+    """layout = --layout(옛 판·사슬 위 옛 판이면 config 판까지 변환). meta = config layout_id 면 변환 없이 값만(멱등).
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d · meta r2026-10-B → C → D · meta r2026-10-C → D ·
+    meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
@@ -489,13 +663,18 @@ def apply(h, R, cfg, layout=False):
     if not metas:
         if not layout:
             raise ApplyError(f"레이아웃 판 meta 없음 — --layout 을 붙여 다시(옛 모양 → {lid} 변환 + 값 교체)")
-        h = convert_b_to_c(convert_layout(h, LAYOUT_B), lay)
-    elif metas[0] == bid and lid == LAYOUT_C:
-        if not layout:
-            raise ApplyError(f"레이아웃 판 meta {bid} ≠ config {lid} — --layout 을 붙여 {bid} → {lid}")
-        h = convert_b_to_c(h, lay)
-    elif metas[0] != lid:
-        raise ApplyError(f"레이아웃 판 meta {metas[0]!r} ≠ config {lid!r} — 이 판에서 바꾸는 변환은 없음(판 변경은 설계 회차·사용자 결정)")
+        path = chain(bid, lid)
+        if path is None:
+            raise ApplyError(f"config 레이아웃 판 {lid!r} 은 판 사슬 밖 — 옛 모양에서 바꾸는 변환이 없음")
+        h = convert_layout(h, LAYOUT_B)
+    else:
+        path = chain(metas[0], lid)
+        if path is None:
+            raise ApplyError(f"레이아웃 판 meta {metas[0]!r} ≠ config {lid!r} — 이 판에서 바꾸는 변환은 없음(판 변경은 설계 회차·사용자 결정)")
+        if path and not layout:
+            raise ApplyError(f"레이아웃 판 meta {metas[0]} ≠ config {lid} — --layout 을 붙여 {metas[0]} → {lid}")
+    for f in path:
+        h = f(h, lay)
     if LAYOUT_META.findall(h) != [lid]:
         raise ApplyError(f"변환 뒤 레이아웃 판 meta {LAYOUT_META.findall(h)} ≠ config {lid!r}")
     if len(DETAILS.findall(h)) != int(lay["markers"]["details"]):
@@ -674,7 +853,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·r2026-10-B 판이면 레이아웃 판(config report_layout)으로 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·r2026-10-C)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -692,10 +871,17 @@ def main():
     lid = LAYOUT_META.search(new).group(1)
     old = LAYOUT_META.search(h)
     nbr = len(BRANCH.findall(new))
+
+    def steps(frm):  # 사슬로 지난 판 이름(frm 부터 lid 까지)
+        out = [frm]
+        for a, b, _ in STEPS:
+            if out[-1] == a and out[-1] != lid:
+                out.append(b)
+        return " → ".join(out)
     if not old:
-        conv = f" · 레이아웃 판 변환(meta 없음 → {LAYOUT_B['layout_id']} → {lid}, details {len(DETAILS.findall(new))} · 분기 {nbr})"
+        conv = f" · 레이아웃 판 변환(meta 없음 → {steps(LAYOUT_B['layout_id'])}, details {len(DETAILS.findall(new))} · 분기 {nbr})"
     elif old.group(1) != lid:
-        conv = f" · 레이아웃 판 변환({old.group(1)} → {lid}, 분기 {nbr})"
+        conv = f" · 레이아웃 판 변환({steps(old.group(1))}, 분기 {nbr})"
     else:
         conv = f" · 레이아웃 판 {lid}(변환 건너뜀)"
     print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + (" (변경 없음)" if new == h else ""))

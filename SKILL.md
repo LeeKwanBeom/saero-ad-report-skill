@@ -23,7 +23,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 
 이 스킬의 설명만 보고 처음부터 코딩하면 여백·문구·세부 스타일이 반드시 달라진다.
 **배포본이 유일한 원본이고, 이 문서는 그 원본을 어떻게 다루는지에 대한 설명서다.**
-**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-C`(사용자 결정 2026-10-06 — 판 B 접기형 + 01·06 모바일 가로 막대, references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
+**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-D`(사용자 결정 2026-10-06·07 — 판 B 접기형 + 01·06 모바일 가로 막대(판 C) + 모바일 01·06 처음 최근 14일·펼치기 버튼(판 D), references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
 
 ## 배포 정보
 
@@ -261,10 +261,10 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 "$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·표·목록·차트·masthead·og·접기 summary) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
 "$PY" work/n<날짜>.py                                                                  # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
 ```
-`--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만(판 C 분기 도우미의 M 줄 포함),
-meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C), meta r2026-10-B 판이면 r2026-10-C 로 바꾼 뒤 값.
-`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B 판이면 `… 레이아웃 판 meta r2026-10-B ≠ config r2026-10-C — --layout …`,
-meta 가 그 밖의 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 합계 맨 위 + 최근 `recent_days`(7)일 최신 위,
+`--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만(분기 도우미의 M 줄 포함),
+meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D), meta r2026-10-B·C 판이면 사슬을 따라 r2026-10-D 로 바꾼 뒤 값.
+`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B·C 판이면 `… 레이아웃 판 meta r2026-10-C ≠ config r2026-10-D — --layout …`(B 도 같은 꼴),
+meta 가 사슬 밖의 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 합계 맨 위 + 최근 `recent_days`(7)일 최신 위,
 나머지 날짜는 접힌 표에 최신 위. **접기 머리(summary)의 개수·날짜(03 "이전 N일(M/D~M/D)" · 07 "(N개 · 펼치기)" · 경쟁사 "표 N행" · 08 "(N개 지역·클릭 M건)")는 apply 가 compute.json 으로 매 회차 쓴다**
 — 서술 스크립트는 summary·details 를 건드리지 않는다.
 서술 자리 이름·종류(매회차/고정)·compare 가 읽는 문구는 `references/report-structure.md` "서술 표지" 표가 정본이고, 글 길이는 같은 문서 "서술 공통 규칙"과
@@ -502,7 +502,7 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 2. `<meta property="og:description">` (카톡 공유 미리보기 문구)
 3. 01번 x축 날짜 라벨 + 차트 컨테이너 `min-width` = 날짜 수 × `per_day_px`
    (최소 `floor_px`, 값은 config `chart_min_width`) — 라벨 배열·min-width 는 PC·HTML 그대로, 모바일 가로 막대(판 C)는
-   같은 배열을 화면에서만 분기한다(높이는 JS — config `report_layout.mobile`)
+   같은 배열을 화면에서만 분기한다(높이는 JS — config `report_layout.mobile`, 판 D 는 처음에 최근 `mobile.recent_days` 일만 그리고 버튼으로 펼친다 — 배열은 그대로)
 4. 06번 x축 날짜 라벨 + 차트 컨테이너 `min-width` (3번과 같은 규칙.
    대상 섹션은 config `date_based_sections`, 모바일은 3번과 같이 화면 분기)
 5. 09번 심야(22시~09시) 노출·클릭·비용 콜아웃
@@ -548,13 +548,14 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
 - (2026-10-06 회차 2 추가) **"레이아웃 판"** — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`, `<details` 수 =
   `report_layout.markers.details`(5), details 마다 바로 안에 summary. meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것 — 옛 사본 통째 교체·세션의 "복원").
   (판 C, 2026-10-06) 같은 검사가 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 각 1(합 = `markers.mobile_branch` 2) · 분기 도우미 M 줄 = config `report_layout.mobile` ·
-  `matchMedia('(max-width: ' + M.maxPx + 'px)')` 1곳 · CSS `@media (max-width: 640px){` 1곳 = `mobile.max_px`(JS 경계 = CSS 경계)도 본다(이름·검사 수 그대로)
+  `matchMedia('(max-width: ' + M.maxPx + 'px)')` 1곳 · CSS `@media (max-width: 640px){` 1곳 = `mobile.max_px`(JS 경계 = CSS 경계)도 본다(이름·검사 수 그대로).
+  (판 D, 2026-10-07) M 줄에 `recent: {"01": 14, "06": 14}` = config `mobile.recent_days` 까지 대조 — PASS `r2026-10-D · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640`
 
 그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(99항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
 접기 summary 4항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
 compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
-precheck **밖**(판 C, 2026-10-06): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
-01·06 의 tick·datalabels·겹침(390·1280·회전 390→844→390)과 page.pdf 실물을 잰다. 리허설·검증·첫 적용 "보류" 회차·정기점검에서 돌린다(데이터 회차의 6단계에는 없음).
+precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
+01·06 의 tick·datalabels·겹침(390 접힘·펼침·다시 접힘·짧은 사본 · 1280 · 회전 390→844→390)과 page.pdf 실물을 잰다. `--out`·`--base` 면 전후 비교 페이지 `<폴더>/compare.html` 도 쓴다. 리허설·검증·첫 적용 "보류" 회차·정기점검에서 돌린다(데이터 회차의 6단계에는 없음).
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.
@@ -599,8 +600,8 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/narrative_check.py`(6단계 서술 미교체) · `scripts/precheck.sh`(6단계 한 번에) ·
   `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>`·push `--layout-change`(레이아웃 판 게이트) — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존 — 레이아웃 판 변조·0건 가드·config 실험 포함) · `tests/overflow_check.py`(360/390/430px 넘침, 접기 전부 열고, file:// 밖 요청 차단) ·
-  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환(옛 → B → C 사슬·B → C)·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
-  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 C 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 누락 0·1280 = 기준·회전·page.pdf 실물) ·
+  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환(옛 → B → C → D 사슬·B → D·C → D)·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
+  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 D 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 접힘·펼침 누락 0·1280 = 기준·회전·page.pdf 실물 · 전후 비교 compare.html) ·
   `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구) ·
   `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제·03 오름차순 복귀·summary 옛 값 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·

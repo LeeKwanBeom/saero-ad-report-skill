@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2 + 판 r2026-10-C 01 차트 회차 1) + compute.py 직전 경쟁사표 0행 가드.
+"""scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2 + 판 r2026-10-C 01 차트 회차 1 + 판 r2026-10-D 모바일 기간 접기 2026-10-07) + compute.py 직전 경쟁사표 0행 가드.
 
 fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지·레이아웃 meta 없는 옛 판) +
           tests/fixtures/layout_old.compute.json(같은 가짜 값의 compute 출력 꼴 — 03.rows 만 10일(12/29~1/7)이라 "최근 7 + 접힌 3" 분배가 보인다).
 - 판 고르기: meta 없음 + --layout 없음 → `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`(옛 배치로 쓰지 않음, 작업본 그대로) ·
   meta 다름·details 수 다름 → FAIL · --layout 변환 = 사슬(옛 → r2026-10-B: meta + details 5 + 접기 CSS·스크립트 → r2026-10-C: 분기 표지 2 ·
-  01·06 템플릿 · 분기 도우미 · 왼쪽 페이드 · 안내 4줄), 두 번째(변환 건너뜀)는 바이트 같음.
-- 판 C(ApplyLayoutC): meta r2026-10-B 판 + --layout 없음 → `레이아웃 판 meta r2026-10-B ≠ config r2026-10-C — --layout …` · + --layout → 사슬과 같은 바이트 ·
-  분기 표지 하나 지운 C 판 → FAIL "분기 표지" · 묵은 M 줄 → config 값으로 다시 씀 · 변환이 섹션 HTML·서술 표지·min-width 를 건드리지 않음 · 판 C 앵커 없음 → FAIL.
+  01·06 템플릿 · 분기 도우미 · 왼쪽 페이드 · 안내 4줄 → r2026-10-D: 버튼 CSS · 01 비용 라벨 간격 2곳 · 판 D 분기 도우미), 두 번째(변환 건너뜀)는 바이트 같음.
+- 판 D(ApplyLayoutD): meta r2026-10-B·r2026-10-C 판 + --layout 없음 → `레이아웃 판 meta r2026-10-B|C ≠ config r2026-10-D — --layout …` · + --layout → 사슬과 같은 바이트 ·
+  판 C 도우미·비용 라벨 간격 줄을 손으로 바꾼 C 판 → FAIL(변환 안 함) · 분기 표지 하나 지운 D 판 → FAIL "분기 표지" · 묵은 M 줄(recent 포함) → config 값으로 다시 씀 ·
+  판 C 꼴 M 줄(recent 없음)이 남은 D 판 → FAIL · C → D 변환이 섹션 HTML·서술 표지·min-width·배열·안내 스크립트를 건드리지 않음(바뀌는 곳 = meta·버튼 CSS·비용 간격 2·도우미) ·
+  HTML 에 버튼 태그·"이전 N일" 문구 0(03 summary 하나뿐) · B → C 중간 단계 범위도 그대로.
 - 멱등: 같은 compute.json 으로 두 번 돌리면 바이트 같음(--layout 있음·없음, 서술 표지를 넣은 fixture 도 — 표지 안쪽 바이트 불변·details 밖).
 - 앵커·행 수: masthead·og·KPI·차트·01 표 5행·순위 5칸(오름차순 그대로)·03 = 합계 맨 위 + 최근 7일 최신 위 + 접힌 표 나머지 최신 위 ·
   04·06·07 정식표/목록/경쟁사표·08·10 이 compute 값과 같음. 동률은 직전 순서(클릭 1건 목록) · 신규 변형 행 = config competitor_defaults.
@@ -15,7 +17,7 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
-- 리허설 산출(work/R3/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-C 있음)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
+- 리허설 산출(work/RD/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-D 있음 — 배포본 판 C 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
 import hashlib
@@ -231,33 +233,44 @@ class ApplyLayoutSelect(unittest.TestCase):
         self.assertEqual(A.apply(o, R2, self.cfg), self.out)
 
 
-class ApplyLayoutC(unittest.TestCase):
-    """판 r2026-10-C(01·06 모바일 가로 막대) — 사슬·B → C·멱등·손 수정 FAIL·M 줄 기계 자리·변환 범위."""
+class ApplyLayoutD(unittest.TestCase):
+    """판 r2026-10-D(모바일 01·06 기간 접기 — 판 C 가로 막대 위) — 사슬(옛 → B → C → D)·B → D·C → D·멱등·손 수정 FAIL·M 줄 기계 자리·변환 범위."""
     @classmethod
     def setUpClass(cls):
         cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
         cls.lay = cls.cfg["report_layout"]
         cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
         cls.B = A.convert_layout(cls.H, A.LAYOUT_B)                          # meta r2026-10-B 판(배포본 014472d 꼴 — 값은 fixture 옛 값)
+        cls.C = A.convert_b_to_c(cls.B, cls.lay)                             # meta r2026-10-C 판(배포본 479d866·60d2aee 꼴 — 배열은 빈 [], 값은 apply 가 채움)
 
     def block(self, h, cid):
         i = h.index(f"getElementById('{cid}')")
         return h[i:h.index("new Chart", i + 10)]
 
-    def test_chain_old_to_c(self):
+    def helper(self, h):
+        i = h.index("/* saero:mobile-helper")
+        return h[i:h.index("\n})();\n", i) + len("\n})();\n")]
+
+    def test_chain_old_to_d(self):
         o, R = self.out, self.R
-        self.assertEqual(self.lay["layout_id"], "r2026-10-C")
-        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-C"])
+        self.assertEqual(self.lay["layout_id"], "r2026-10-D")
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-D"])
         self.assertEqual(o.count("/* saero:mobile-branch 01 */"), 1)
         self.assertEqual(o.count("/* saero:mobile-branch 06 */"), 1)
         self.assertEqual(len(A.BRANCH.findall(o)), self.lay["markers"]["mobile_branch"])
         self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), self.lay["markers"]["details"])
         self.assertEqual(A.M_LINE.findall(o), [A.m_line(self.lay)])
-        self.assertIn('var M = {maxPx: 640, printMaxH: 1000, row: {"01": 26, "06": 22}, pad: {"01": 90, "06": 70}};', o)
+        self.assertIn('var M = {maxPx: 640, printMaxH: 1000, row: {"01": 26, "06": 22}, pad: {"01": 90, "06": 70}, recent: {"01": 14, "06": 14}};', o)
+        self.assertEqual(A.M_LINE_C.findall(o), [])                              # 판 C 꼴 M 줄은 남지 않는다
         self.assertEqual(o.count("matchMedia("), 1)
-        self.assertEqual(o.count(".scroll-fade.at-start::before{opacity:0;}"), 1)
-        self.assertEqual(o.count("wrapper.classList.toggle('at-start', box.scrollLeft <= 2);"), 1)
-        self.assertEqual(o.count("box.parentNode.classList.add('at-end', 'at-start'); // 페이드 둘 다 숨김"), 1)
+        self.assertEqual(o.count(".scroll-fade.at-start::before{opacity:0;}"), 1)   # 판 C 몫 그대로
+        self.assertEqual(o.count(".chart-fold{"), 1)                              # 판 D 버튼 CSS
+        self.assertEqual(o.count("/* saero:mobile-helper — 판 D"), 1)
+        self.assertEqual(o.count("/* saero:mobile-helper"), 1)
+        self.assertEqual(o.count("createElement('button')"), 1)
+        for old, new in A.COSTGAP_C_TO_D:                                         # 01 비용 라벨 간격 = 그리는 data
+            self.assertEqual(o.count(new), 1)
+            self.assertEqual(o.count(old), 0)
         self.assertEqual(o.count("window.__saeroSync = sync;"), 1)
         self.assertEqual(o.count("window.__saeroMobile.scrollEnd(); }, 0); });"), 1)
         d1, d6 = self.block(o, "dailyChart"), self.block(o, "rankChart")       # 블록 안 첫 new Chart 앞에 배열이 하나씩 채워짐(apply·compare 첫 일치 앵커)
@@ -270,19 +283,42 @@ class ApplyLayoutC(unittest.TestCase):
         self.assertIn("data: [" + ", ".join(f"{x:.2f}" for x in R["06"]["rankChart"]) + "]", d6)
         self.assertEqual(o.count("getElementById('dailyChart')"), 1)            # 도우미는 id 리터럴을 쓰지 않는다
         self.assertEqual(o.count("getElementById('rankChart')"), 1)
-        self.assertEqual(len(re.findall(r"labels:\s*\[((?:'\d+/\d+\(.\)',?)+)\]", o)), 2)   # compare "01/06 labels" 정확히 2개
+        self.assertEqual(len(re.findall(r"labels:\s*\[((?:'\d+/\d+\(.\)',?)+)\]", o)), 2)   # compare "01/06 labels" 정확히 2개(배열 1벌)
         self.assertEqual(len(re.findall(rf'min-width:{R["minwidth"]}px;">\s*<canvas id="(?:dailyChart|rankChart)"', o)), 2)
         self.assertNotIn("<details", o[o.index("<script>"):])                   # 스크립트·주석에 태그 꺾쇠 없음(details 수·태그 짝)
+        self.assertNotIn("<button", o)                                          # 버튼은 화면에서만(HTML 텍스트에 태그 0)
+        self.assertEqual(len(re.findall(r"이전 \d+일", o)), 1)                  # "이전 N일" 글자는 03 summary 하나뿐 — 01·06 버튼 문구는 런타임에 labels 로(HTML 기계 자리 0)
         self.assertEqual(A.apply(o, R, self.cfg), o)                            # 값만(멱등)
         self.assertEqual(A.apply(o, R, self.cfg, layout=True), o)
 
-    def test_b_to_c(self):
+    def test_b_and_c_to_d(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.B), ["r2026-10-B"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-C — --layout 을 붙여 r2026-10-B → r2026-10-C"):
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.C), ["r2026-10-C"])
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-D — --layout 을 붙여 r2026-10-B → r2026-10-D"):
             A.apply(self.B, self.R, self.cfg)
-        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C 만 = 옛 → B → C 사슬과 같은 바이트
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-D — --layout 을 붙여 r2026-10-C → r2026-10-D"):
+            A.apply(self.C, self.R, self.cfg)
+        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D = 옛 → B → C → D 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D 만도 같은 바이트
+        self.assertEqual(A.chain("r2026-10-C", "r2026-10-D"), [A.convert_c_to_d])
+        self.assertEqual(A.chain("r2026-10-B", "r2026-10-D"), [A.convert_b_to_c, A.convert_c_to_d])
+        self.assertEqual(A.chain("r2026-10-D", "r2026-10-D"), [])
+        self.assertIsNone(A.chain("r2026-10-D", "r2026-10-C"))                       # 거꾸로는 없다
+        with self.assertRaisesRegex(A.ApplyError, "이 판에서 바꾸는 변환은 없음"):
+            A.apply(self.out, self.R, dict(self.cfg, report_layout=dict(self.lay, layout_id="r2026-10-C")), layout=True)
 
     def test_hand_edited_c_fails(self):
+        """C → D 변환 앵커 — 판 C 도우미가 템플릿과 다르거나·비용 라벨 간격 줄이 없거나·도우미가 둘이면 변환하지 않는다."""
+        cases = (("도우미 한 줄 바뀜", self.C.replace("    if (!m) scrollEnd();\n", "    if (!m) { scrollEnd(); }\n", 1), "판 C 분기 도우미가 템플릿"),
+                 ("비용 라벨 간격 줄 바뀜", self.C.replace("Number(data.datasets[0].data[i])", "Number(data.datasets[0].data[i] || 0)", 1), "앵커가 정확히 하나가 아님"),
+                 ("도우미 표지 둘", self.C.replace("</script>\n", "/* saero:mobile-helper */\n</script>\n", 1), "분기 도우미 시작 표지가 2개"))
+        for label, bad, msg in cases:
+            with self.subTest(label=label):
+                self.assertNotEqual(bad, self.C)
+                with self.assertRaisesRegex(A.ApplyError, msg):
+                    A.apply(bad, self.R, self.cfg, layout=True)
+
+    def test_hand_edited_d_fails(self):
         for k in ("01", "06"):
             bad = self.out.replace(f"/* saero:mobile-branch {k} */", "", 1)
             for flag in (False, True):
@@ -293,28 +329,56 @@ class ApplyLayoutC(unittest.TestCase):
             A.apply(dup, self.R, self.cfg)
         with self.assertRaisesRegex(A.ApplyError, "앵커가 정확히 하나가 아님"):            # M 줄이 없어진 판
             A.apply(self.out.replace("var M = {", "var MX = {", 1), self.R, self.cfg)
+        with self.assertRaisesRegex(A.ApplyError, "앵커가 정확히 하나가 아님"):            # recent 가 빠진 판 C 꼴 M 줄 — 판 D 도우미가 읽을 값이 없다
+            A.apply(A.M_LINE.sub(A.m_line_c(self.lay), self.out, count=1), self.R, self.cfg)
 
     def test_stale_m_line_rewritten(self):
-        stale = self.out.replace("var M = {maxPx: 640, printMaxH: 1000,", "var M = {maxPx: 641, printMaxH: 999,", 1)
-        self.assertNotEqual(stale, self.out)
+        stale = (self.out.replace("var M = {maxPx: 640, printMaxH: 1000,", "var M = {maxPx: 641, printMaxH: 999,", 1)
+                 .replace('recent: {"01": 14, "06": 14}', 'recent: {"01": 13, "06": 15}', 1))
+        self.assertEqual(stale.count('recent: {"01": 13, "06": 15}'), 1)
         self.assertEqual(A.apply(stale, self.R, self.cfg), self.out)                # M 줄은 compute 가 아니라 config 에서 온다
+        cfg2 = json.loads(json.dumps(self.cfg))
+        cfg2["report_layout"]["mobile"]["recent_days"] = {"01": 7, "06": 21}
+        o2 = A.apply(self.out, self.R, cfg2)
+        self.assertIn('recent: {"01": 7, "06": 21}};', o2)
+        self.assertEqual(o2.replace('recent: {"01": 7, "06": 21}', 'recent: {"01": 14, "06": 14}', 1), self.out)   # 바뀌는 곳은 M 줄뿐
 
-    def test_conversion_scope(self):
-        """B → C 변환은 섹션 HTML(서술 표지 포함)·min-width 텍스트를 건드리지 않는다 — 바뀌는 곳은 meta·style 끝·스크립트뿐."""
+    def test_conversion_scope_c_to_d(self):
+        """C → D 변환은 섹션 HTML(서술 표지 포함)·min-width 텍스트·배열·01/06 블록 나머지·안내 스크립트를 건드리지 않는다 —
+        바뀌는 곳은 meta · style 끝(버튼 CSS) · 01 비용 라벨 간격 두 곳 · 분기 도우미뿐."""
         H2 = self.H.replace('<div class="note">닷새 동안 가짜 순위 서술.</div>',
                             '<div class="note"><!-- n:01-rank:매회차 -->닷새 가짜 순위 서술.<!-- /n --></div>', 1)
         H2 = H2.replace("        4일차. 가짜 카드 서술.", "        <!-- n:06-card-가짜그룹B:매회차 -->4일차. 가짜 카드 서술.<!-- /n -->", 1)
+        c2 = A.convert_b_to_c(A.convert_layout(H2, A.LAYOUT_B), self.lay)
+        d2 = A.convert_c_to_d(c2, self.lay)
+        blk = r"<!-- n:[^>]+-->.*?<!-- /n -->"
+        self.assertEqual(len(re.findall(blk, d2, re.S)), 2)
+        self.assertEqual(re.findall(blk, d2, re.S), re.findall(blk, c2, re.S))
+        for n in range(1, 13):
+            self.assertEqual(section(d2, n), section(c2, n), n)
+        self.assertEqual(re.findall(r"min-width:\s*\d+px", d2[d2.index("<body>"):]), re.findall(r"min-width:\s*\d+px", c2[c2.index("<body>"):]))
+        head_d, head_c = d2[:d2.index("<body>")], c2[:c2.index("<body>")]
+        self.assertEqual(head_d.replace(A.MOBILE_CSS_D.rstrip("\n") + "\n", "", 1).replace('content="r2026-10-D"', 'content="r2026-10-C"', 1), head_c)
+        self.assertEqual(d2[d2.index("<body>"):d2.index("<script>")], c2[c2.index("<body>"):c2.index("<script>")])
+        back = d2.replace(self.helper(d2), self.helper(c2), 1)
+        for old, new in A.COSTGAP_C_TO_D:
+            back = back.replace(new, old, 1)
+        self.assertEqual(back[back.index("<body>"):], c2[c2.index("<body>"):])   # 스크립트에서 바뀐 곳 = 도우미 + 비용 라벨 간격 두 곳뿐
+        self.assertEqual(self.helper(d2), A.MOBILE_JS.lstrip("\n").replace("@@M@@", A.m_line(self.lay)))
+
+    def test_conversion_scope_b_to_c(self):
+        """B → C 변환(사슬 중간)은 섹션 HTML(서술 표지 포함)·min-width 텍스트를 건드리지 않는다 — 바뀌는 곳은 meta·style 끝·스크립트뿐(판 C 꼴 M 줄)."""
+        H2 = self.H.replace('<div class="note">닷새 동안 가짜 순위 서술.</div>',
+                            '<div class="note"><!-- n:01-rank:매회차 -->닷새 가짜 순위 서술.<!-- /n --></div>', 1)
         b2 = A.convert_layout(H2, A.LAYOUT_B)
         c2 = A.convert_b_to_c(b2, self.lay)
-        blk = r"<!-- n:[^>]+-->.*?<!-- /n -->"
-        self.assertEqual(len(re.findall(blk, c2, re.S)), 2)
-        self.assertEqual(re.findall(blk, c2, re.S), re.findall(blk, b2, re.S))
         for n in range(1, 13):
             self.assertEqual(section(c2, n), section(b2, n), n)
-        self.assertEqual(re.findall(r"min-width:\s*\d+px", c2[c2.index("<body>"):]), re.findall(r"min-width:\s*\d+px", b2[b2.index("<body>"):]))
         head_c, head_b = c2[:c2.index("<body>")], b2[:b2.index("<body>")]
         self.assertEqual(head_c.replace(A.MOBILE_CSS.rstrip("\n") + "\n", "", 1).replace('content="r2026-10-C"', 'content="r2026-10-B"', 1), head_b)
         self.assertEqual(c2[c2.index("<body>"):c2.index("<script>")], b2[b2.index("<body>"):b2.index("<script>")])
+        self.assertEqual(A.M_LINE_C.findall(c2), [A.m_line_c(self.lay)])
+        self.assertEqual(self.helper(c2), A.MOBILE_JS_C.lstrip("\n").replace("@@M@@", A.m_line_c(self.lay)))
 
 
 class ApplyFailsLoudly(unittest.TestCase):
@@ -341,7 +405,7 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
-        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C, details 5 · 분기 2)", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D, details 5 · 분기 2)", out)
 
     def test_cli_twice_same_bytes_and_flag_required(self):
         td = tempfile.mkdtemp()
@@ -421,14 +485,14 @@ class ComputeCompetitorGuard(unittest.TestCase):
             shutil.rmtree(td, ignore_errors=True)
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "R3", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "R3", "compute.json")),
-                     "리허설 산출 work/R3 없음(구현·검증 회차 리허설 뒤에만)")
+@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "RD", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "RD", "compute.json")),
+                     "리허설 산출 work/RD 없음(구현·검증 회차 리허설 뒤에만)")
 class ApplyRehearsal(unittest.TestCase):
-    def test_r3_output_idempotent(self):
-        H = read(os.path.join(ROOT, "work", "R3", "index.html"))
-        R = jread(os.path.join(ROOT, "work", "R3", "compute.json"))
+    def test_rd_output_idempotent(self):
+        H = read(os.path.join(ROOT, "work", "RD", "index.html"))
+        R = jread(os.path.join(ROOT, "work", "RD", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
-        self.assertIn('<meta name="report-layout" content="r2026-10-C">', H)               # 리허설 R3 = 판 C(meta 로 판 선택 — --layout 없이)
+        self.assertIn('<meta name="report-layout" content="r2026-10-D">', H)               # 리허설 RD = 판 D(meta 로 판 선택 — --layout 없이)
         self.assertEqual(A.apply(H, R, load_config()), H)
 
 

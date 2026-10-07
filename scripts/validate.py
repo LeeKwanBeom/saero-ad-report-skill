@@ -49,6 +49,8 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      `matchMedia(` 는 `matchMedia('(max-width: ' + M.maxPx + 'px)')` 꼴 정확히 1건 · 분기 도우미 M 줄(`var M = {maxPx: …};`) 정확히 1건이고
      값 = config `report_layout.mobile`(max_px · print_max_height_px · row_px · pad_px) · 배포본 CSS `@media (max-width: Npx){` 정확히 1건이고 N = max_px
      (JS 분기 경계 = CSS 경계). 하나라도 0건·불일치면 FAIL(이름·검사 수는 그대로).
+     (판 D, 2026-10-07 모바일 기간 접기) M 줄 꼴에 `recent: {"01": K, "06": K}` 가 붙고 값 = config `report_layout.mobile.recent_days` 까지 대조
+     (recent 없는 판 C 꼴 M 줄은 0건 → FAIL). PASS 문구에 `최근 K/K`.
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -88,7 +90,7 @@ RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style", "details", "summary"]  # details·summary: 2026-10-06(접기 모양 회차 2 선반영)
 N_TARGETS = len(CFG["exclusions"]["targets"])  # 07 각주 ② 확인 a/b 의 b = 등록 수 × 대상 그룹 수
-LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2 · 판 C 01 차트 회차 1) — layout_id · markers.details·mobile_branch · mobile
+LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07) — layout_id · markers.details·mobile_branch · mobile
 
 results = []
 
@@ -375,7 +377,7 @@ def check_07_footnotes(s7):
 
 
 def check_layout(html):
-    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계). 0건이면 FAIL."""
+    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계 · 판 D M 줄 recent). 0건이면 FAIL."""
     name = "레이아웃 판(meta report-layout = config · 접기 details 수·짝)"
     metas = re.findall(r'<meta name="report-layout" content="([^"]*)">', html)
     n_det = len(re.findall(r"<details(?:\s[^>]*)?>", html))
@@ -397,14 +399,17 @@ def check_layout(html):
     n_mm = len(re.findall(r"matchMedia\(", html))
     n_mm_ok = len(re.findall(r"matchMedia\('\(max-width: ' \+ M\.maxPx \+ 'px\)'\)", html))
     if n_mm != 1 or n_mm_ok != 1: bad.append(f"matchMedia {n_mm}건(그중 M.maxPx 꼴 {n_mm_ok}) ≠ 1")
-    ml = re.findall(r'var M = \{maxPx: (\d+), printMaxH: (\d+), row: \{"01": (\d+), "06": (\d+)\}, pad: \{"01": (\d+), "06": (\d+)\}\};', html)
-    want_m = (int(mob["max_px"]), int(mob["print_max_height_px"]), int(mob["row_px"]["01"]), int(mob["row_px"]["06"]), int(mob["pad_px"]["01"]), int(mob["pad_px"]["06"]))
-    if len(ml) != 1: bad.append(f"M 줄(var M = {{maxPx…}}) {len(ml)}건 ≠ 1")
-    elif tuple(int(x) for x in ml[0]) != want_m: bad.append(f"M 줄 {tuple(int(x) for x in ml[0])} ≠ config mobile {want_m}(maxPx·printMaxH·row 01·06·pad 01·06)")
+    # 판 D(2026-10-07 — 모바일 기간 접기): M 줄에 recent(모바일 처음 그리는 최근 일수 01·06) = config mobile.recent_days
+    ml = re.findall(r'var M = \{maxPx: (\d+), printMaxH: (\d+), row: \{"01": (\d+), "06": (\d+)\}, pad: \{"01": (\d+), "06": (\d+)\}, '
+                    r'recent: \{"01": (\d+), "06": (\d+)\}\};', html)
+    want_m = (int(mob["max_px"]), int(mob["print_max_height_px"]), int(mob["row_px"]["01"]), int(mob["row_px"]["06"]), int(mob["pad_px"]["01"]), int(mob["pad_px"]["06"]),
+              int(mob["recent_days"]["01"]), int(mob["recent_days"]["06"]))
+    if len(ml) != 1: bad.append(f"M 줄(var M = {{maxPx… recent…}}) {len(ml)}건 ≠ 1")
+    elif tuple(int(x) for x in ml[0]) != want_m: bad.append(f"M 줄 {tuple(int(x) for x in ml[0])} ≠ config mobile {want_m}(maxPx·printMaxH·row 01·06·pad 01·06·recent 01·06)")
     css = [int(x) for x in re.findall(r"@media\s*\(max-width:\s*(\d+)px\)\s*\{", html)]
     if len(css) != 1 or css[0] != want_m[0]: bad.append(f"CSS @media (max-width: Npx) {css} ≠ config max_px [{want_m[0]}](정확히 1건)")
     check(name, not bad, "; ".join(bad) if bad else
-          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · CSS {css[0]}")
+          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]}")
 
 
 def main():
