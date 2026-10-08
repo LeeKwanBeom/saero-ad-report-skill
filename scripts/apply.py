@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07).
+"""compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
+판 E 01 모바일 터치 날짜 2026-10-08).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-D):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-E):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
-    분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)). meta 가 사슬 위의 옛 판이면
-    `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-C ≠ config …`.
-  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d`) 뒤 값을 바꾼다.
+    분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)) → r2026-10-E(`convert_d_to_e` — meta ·
+    01 모바일 모양의 interaction 한 줄에 axis:'y' — 가로 막대에서 터치한 줄(날짜)의 팝업이 뜨게). meta 가 사슬 위의 옛 판이면
+    `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-D ≠ config …`.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch`)는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
@@ -162,6 +164,7 @@ def convert_layout(h, lay):
 LAYOUT_B = {"layout_id": "r2026-10-B", "markers": {"details": 5}}
 LAYOUT_C = "r2026-10-C"
 LAYOUT_D = "r2026-10-D"
+LAYOUT_E = "r2026-10-E"
 BRANCH = re.compile(r"/\* saero:mobile-branch (01|06) \*/")
 M_LINE_C = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}\};')   # 판 C 도우미의 M 줄(사슬 중간 단계)
 
@@ -547,6 +550,13 @@ SYNC_JS = ("  window.__saeroSync = sync; // 판 C: 01·06 분기 도우미(차�
 
 M_LINE = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "06": \d+\}, pad: \{"01": \d+, "06": \d+\}, recent: \{"01": \d+, "06": \d+\}\};')
 
+# ── 판 E(r2026-10-E, 2026-10-08 — 01 모바일 터치 날짜): 01 모바일 모양(가로 막대 · indexAxis 'y')의 interaction 에 axis:'y' ──
+# Chart.js 4 의 index 모드는 axis 를 안 주면 x(가로 거리)로 가장 가까운 요소를 고른다 — 날짜가 세로로 쌓인 모바일 01 에서는 터치한 줄과 무관하게
+# 가로 위치가 비슷한 막대 끝·비용 점의 날짜 팝업이 떴다(배포본 10-08 재현: 10/7 줄 왼쪽 → 9/25). 앵커 = 01 mobile() 의 interaction 줄 + 바로 다음 padding 줄
+# (PC 모양 padding top:24 · 09 hourlyChart 들여쓰기 4칸과 갈린다 — 정확히 하나). 판 C·D 템플릿(CHART01_C)은 사슬 중간 단계라 그대로 둔다.
+TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        layout: { padding: {right: 64} },",
+                "        interaction: {mode:'index', intersect:false, axis:'y'},\n        layout: { padding: {right: 64} },")
+
 
 def m_line_c(lay):
     """판 C 도우미의 M 줄(사슬 중간 단계 B → C 전용 — 판 D 변환이 도우미째 바꾼다)."""
@@ -620,8 +630,17 @@ def convert_c_to_d(h, lay):
     return h
 
 
+def convert_d_to_e(h, lay):
+    """레이아웃 판 r2026-10-D → r2026-10-E(01 모바일 터치 날짜). 바뀌는 곳은 meta 와 01 모바일 interaction 한 줄뿐 — 앵커 둘 다 정확히 하나.
+    01 블록을 손으로 바꿔 그 줄이 없거나 둘이면 FAIL(변환 안 함)."""
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_D}">', f'<meta name="report-layout" content="{LAYOUT_E}">', h)        # ①
+    h = once(re.escape(TOUCH_D_TO_E[0]), lambda m: TOUCH_D_TO_E[1], h)                                                            # ② 01 모바일 터치 축
+    check_branches(h, lay, "변환 뒤")                                                                                              # ③
+    return h
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
-STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d))
+STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e))
 
 
 def chain(frm, to):
@@ -650,8 +669,8 @@ def tr(cells, style=""):
 
 def apply(h, R, cfg, layout=False):
     """layout = --layout(옛 판·사슬 위 옛 판이면 config 판까지 변환). meta = config layout_id 면 변환 없이 값만(멱등).
-    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d · meta r2026-10-B → C → D · meta r2026-10-C → D ·
-    meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e · meta r2026-10-B → C → D → E ·
+    meta r2026-10-C → D → E · meta r2026-10-D → E · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
@@ -853,7 +872,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·r2026-10-C)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()

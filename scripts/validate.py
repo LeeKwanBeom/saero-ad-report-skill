@@ -51,6 +51,8 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      (JS 분기 경계 = CSS 경계). 하나라도 0건·불일치면 FAIL(이름·검사 수는 그대로).
      (판 D, 2026-10-07 모바일 기간 접기) M 줄 꼴에 `recent: {"01": K, "06": K}` 가 붙고 값 = config `report_layout.mobile.recent_days` 까지 대조
      (recent 없는 판 C 꼴 M 줄은 0건 → FAIL). PASS 문구에 `최근 K/K`.
+     (판 E, 2026-10-08 01 모바일 터치 날짜) 01 모바일 모양의 `interaction: {mode:'index', intersect:false, axis:'y'}` 정확히 1건(0건이면 터치한 줄과
+     다른 날짜 팝업 — FAIL). PASS 문구 끝에 `01 터치 y`.
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -377,7 +379,8 @@ def check_07_footnotes(s7):
 
 
 def check_layout(html):
-    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계 · 판 D M 줄 recent). 0건이면 FAIL."""
+    """23. 레이아웃 판 = config report_layout(meta 값 · details 수 · details/summary 짝 · 판 C 분기 표지·M 줄·matchMedia·CSS 경계 · 판 D M 줄 recent ·
+    판 E 01 모바일 터치 축). 0건이면 FAIL."""
     name = "레이아웃 판(meta report-layout = config · 접기 details 수·짝)"
     metas = re.findall(r'<meta name="report-layout" content="([^"]*)">', html)
     n_det = len(re.findall(r"<details(?:\s[^>]*)?>", html))
@@ -408,8 +411,12 @@ def check_layout(html):
     elif tuple(int(x) for x in ml[0]) != want_m: bad.append(f"M 줄 {tuple(int(x) for x in ml[0])} ≠ config mobile {want_m}(maxPx·printMaxH·row 01·06·pad 01·06·recent 01·06)")
     css = [int(x) for x in re.findall(r"@media\s*\(max-width:\s*(\d+)px\)\s*\{", html)]
     if len(css) != 1 or css[0] != want_m[0]: bad.append(f"CSS @media (max-width: Npx) {css} ≠ config max_px [{want_m[0]}](정확히 1건)")
+    # 판 E(2026-10-08 — 01 모바일 터치 날짜): 01 모바일 모양(indexAxis 'y' 가로 막대)의 interaction 에 axis:'y' 정확히 1건 —
+    # 빠지면 Chart.js index 모드가 가로 거리로 골라 터치한 줄과 다른 날짜 팝업이 뜬다
+    n_ty = len(re.findall(r"interaction:\s*\{mode:'index', intersect:false, axis:'y'\}", html))
+    if n_ty != 1: bad.append(f"01 모바일 터치 축 interaction axis:'y' {n_ty}건 ≠ 1 — apply.py --layout 으로 판 E")
     check(name, not bad, "; ".join(bad) if bad else
-          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]}")
+          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y")
 
 
 def main():

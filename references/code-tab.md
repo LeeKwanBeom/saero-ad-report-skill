@@ -105,9 +105,10 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 작업본·직전 배포본이 그대로면 도장이 유효하다(deploy.py 가 도장 md5 = `--file`·`--base` 를 대조). 둘 중 하나라도 바뀌었으면 6단계부터.
 리포트 글·모양을 바꾸는 기능의 **첫 적용 회차**(예: 글 줄이기 회차 1 — 경로 C "다시 계산", 직전 배포본에 서술 표지 없음)는 사용자가 첫 말에
 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"이라고 하고, 세션은 도장 뒤 작업본(`work/index.html`)을 사용자가 열어 보게 한 다음 "배포" 답에서 7단계로 간다.
-**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
-(판 C·D) `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` 결과(전부 PASS · 390·1280 섹션 1·6 캡처 · PDF —
-판 D 부터 같은 명령이 전후 비교 페이지 `work/chart_<날짜>/compare.html`(옛 판 · 새 판 모바일 접힘·펼침 · PC 나란히)도 쓴다)도 보이고,
+**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C · **판 E 첫 적용** — 직전 배포본 meta r2026-10-D)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
+(판 C·D·E) `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` 결과(전부 PASS · 390·1280 섹션 1·6 캡처 · PDF —
+판 D 부터 같은 명령이 전후 비교 페이지 `work/chart_<날짜>/compare.html`(옛 판 · 새 판 모바일 접힘·펼침 · PC 나란히)도 쓴다 · 판 E 는 "01 모바일 터치 팝업(처음·펼침) = 누른 줄 날짜"
+두 줄이 핵심 — 판 E 는 모양이 그대로라 비교 그림은 옛·새가 같다)도 보이고,
 사용자의 "배포" 답이 있을 때만 7단계 실제 push 에 `--layout-change` 를 붙인다(답 전에는 dry-run 의 `[주의] 레이아웃 판이 바뀜`만 — 세션이 스스로 붙이지 않는다).
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**

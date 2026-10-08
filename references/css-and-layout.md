@@ -275,5 +275,9 @@ scrollWidth 418). 한글 나열(`노원역아기·아기랑노원구·…`)은 �
 (7) (판 D, 2026-10-07) 모바일 접힘은 배열을 자르지 않고 도우미가 그리는 범위만 잘라 새 data 로 다시 그린다 — 데이터셋 설정(라벨 함수 포함)은 얕은 복사로 같이 가고,
 `ctx.dataIndex` 는 그 범위 안 번호다: 라벨 위치 함수(01 비용 라벨 간격)가 블록의 전 기간 `data` 를 읽으면 다른 날짜 값으로 계산한다 → 차트가 그리는 `ctx.chart.data` 를 읽는다.
 인쇄 때 접힌 차트를 전 기간으로 다시 만들 때는 애니메이션을 끈다(`animation:false` — 첫 그림이 동기라 `resize()` 가 미뤄지지 않는다 · 벡터로 실림 [실측 chart_check]).
-재발 방지: `tests/chart_check.py`(precheck 밖 — 390 접힘·펼침·다시 접힘·짧은 사본 K·K+1일 · 1280 · 회전 · page.pdf 실물 · 외부 요청 CDN 2건만) · validate "레이아웃 판"(분기 표지·M 줄·matchMedia·CSS 경계) ·
-`tests/test_apply.py` ApplyLayoutD.
+(8) (판 E, 2026-10-08 — 사용자 신고 "다른 날짜 팝업이 뜨는 경우가 많아") 모바일 가로 막대로 바꿀 때 `indexAxis: 'y'` 만 바꾸고 PC 의 `interaction: {mode:'index', intersect:false}` 를
+그대로 두면, Chart.js 4 index 모드는 `axis` 기본값 x 로 **가로 거리**가 가장 가까운 요소(막대 끝·비용 점)를 골라 누른 줄과 무관한 날짜의 툴팁을 띄운다
+(배포본 04abd00 실측 — 14줄 어디를 눌러도 9/24·9/25·9/30 셋 중 하나). 날짜축이 세로인 모양에는 `axis:'y'` 를 같이 준다(Chart.js 문서의 가로 막대 예와 같음) →
+01 모바일 `interaction: {mode:'index', intersect:false, axis:'y'}`. 06·02·05·10 의 가로 모양은 기본 nearest·intersect(점·막대를 직접 눌러야 뜸)라 해당 없음.
+재발 방지: `tests/chart_check.py`(precheck 밖 — 390 접힘·펼침·다시 접힘·짧은 사본 K·K+1일 · 01 터치 팝업 = 누른 줄 날짜(줄마다 왼쪽·가운데·오른쪽 진짜 tap) · 1280 · 회전 · page.pdf 실물 ·
+외부 요청 CDN 2건만) · validate "레이아웃 판"(분기 표지·M 줄·matchMedia·CSS 경계·01 터치 축) · `tests/test_apply.py` ApplyLayoutD·ApplyLayoutE · mutation_test 0건 가드(터치 축 지우기).
