@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-D(01·06 모바일 가로 막대 + 처음 최근 mobile.recent_days 일 · 펼치기 버튼)의 "보이는 숫자 누락 0" 을 진짜 Chart.js 로 잰다.
+"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-E(01·06 모바일 가로 막대 + 처음 최근 mobile.recent_days 일 · 펼치기 버튼 + 01 모바일 터치 날짜)의
+"보이는 숫자 누락 0" 과 "누른 줄의 팝업" 을 진짜 Chart.js 로 잰다.
 
 사용법: "$PY" tests/chart_check.py <index.html> <compute.json> [--base <직전 배포본 html>] [--out <캡처 폴더>] [--widths 390,1280]
 
@@ -24,6 +25,8 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
 - 회전(모바일 폭 → 01 펼침 → 가로 844 → 모바일): 844 에서 01 'x'·tick n·scrollWidth = compute minwidth·뱃지·scrollLeft 끝 · 06 'x'·tick n · 버튼 0 /
   복귀에서 처음(접힘)과 같음('y'·그리는 날짜 K·높이 K×row+pad·라벨 2K · 버튼 문구·aria-expanded false) · .scroll-fade 래퍼가 남아 있으면 at-start·at-end 둘 다(페이드 0) ·
   뱃지 0 · pageerror 0.
+- 터치(판 E, 2026-10-08): 모바일 폭 새 컨텍스트에서 01 처음(접힘 — 줄 K)·펼침(줄 n) 각각, 그리는 날짜 줄마다 chartArea 왼쪽 8%·가운데·오른쪽 8% 를
+  touchscreen.tap 으로 진짜 눌러 툴팁 제목 = 그 줄 날짜(맞음 3×줄 수 / 3×줄 수) · pageerror 0. 판 D 배포본은 여기서 FAIL(가로 위치로 날짜를 고름).
 - 인쇄 = page.pdf 실물(A4 · 여백 0.4in): 모바일 컨텍스트(처음 = 접힘)에서 `__ev` 훅(add_init_script — DOMContentLoaded 에 걸어 페이지 리스너 뒤에 돈다)으로
   beforeprint 때 01·06 이 전 기간(날짜 n)·컨테이너 높이 = min(n×row+pad, print_max_height_px) · indexAxis 'y' 유지 · afterprint 뒤 접힘(날짜 K·높이 K×row+pad)·indexAxis 복구,
   pypdf 로 01·06 이 PDF 에 한 쪽 안·날짜 n 개 전부(누락 0) —
@@ -140,6 +143,15 @@ document.addEventListener('DOMContentLoaded', function(){
     if (mq.addEventListener) mq.addEventListener('change', f); else mq.addListener(f); }
 });"""
 
+# 판 E 터치 — 01 이 그리는 날짜 줄마다 세로 위치(카테고리 축 픽셀)와 가로 세 자리(chartArea 왼쪽 8% · 가운데 · 오른쪽 8%), 캔버스 문서 위치
+TOUCH = """(id) => {
+  const c = Chart.getChart(id); if (!c) return null;
+  const ca = c.chartArea, s = c.options.indexAxis === 'y' ? c.scales.y : c.scales.x, r = c.canvas.getBoundingClientRect(), w = ca.right - ca.left;
+  return {labels: c.data.labels.slice(), top: r.top + window.scrollY, left: r.left + window.scrollX,
+          xs: [ca.left + w * 0.08, ca.left + w / 2, ca.right - w * 0.08], ys: c.data.labels.map((_, i) => s.getPixelForValue(i))};
+}"""
+TIP = "(id) => { const c = Chart.getChart(id), t = c && c.tooltip; return (t && t.getActiveElements().length) ? (t.title || []).join('') : null; }"
+
 
 class Run:
     def __init__(self):
@@ -187,6 +199,28 @@ def load(pg, path):
 
 def measure(pg):
     return {"01": pg.evaluate(INFO, "dailyChart"), "06": pg.evaluate(INFO, "rankChart"), "page": pg.evaluate(PAGE)}
+
+
+def taps01(pg):
+    """판 E 01 모바일 터치 팝업 — 그리는 날짜 줄마다 가로 세 자리를 진짜 손가락(touchscreen.tap)으로 눌러 팝업 제목 = 그 줄 날짜인지.
+    줄이 화면 가운데 오게 문서를 스크롤한 뒤 누른다(펼친 01 은 화면보다 길다). (맞음, 누른 수, 그린 줄 수, 틀린 예 ≤ 3)"""
+    g = pg.evaluate(TOUCH, "dailyChart")
+    if not g:
+        return 0, 0, 0, ["Chart.getChart(dailyChart) 없음"]
+    good, bad, vh = 0, [], pg.viewport_size["height"]
+    for i, lab in enumerate(g["labels"]):
+        y = g["top"] + g["ys"][i]
+        pg.evaluate(f"window.scrollTo(0, {max(0, int(y - vh / 2))})")
+        sx, sy = pg.evaluate("[window.scrollX, window.scrollY]")
+        for x in g["xs"]:
+            pg.touchscreen.tap(g["left"] + x - sx, y - sy)
+            pg.wait_for_timeout(120)
+            t = pg.evaluate(TIP, "dailyChart")
+            if t == lab:
+                good += 1
+            else:
+                bad.append(f"{lab} 줄 x{int(x)} → {t}")
+    return good, 3 * len(g["labels"]), len(g["labels"]), bad[:3]
 
 
 def shot(pg, page_info, out, tag):
@@ -422,7 +456,7 @@ def same_view(a, b):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인(레이아웃 판 r2026-10-D — precheck 밖)")
+    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인(레이아웃 판 r2026-10-E — precheck 밖)")
     ap.add_argument("html")
     ap.add_argument("compute")
     ap.add_argument("--base", help="직전 배포본 html — PC 폭 측정값·padding 겹침 기준·PC 인쇄 이미지 구성의 기준")
@@ -630,6 +664,21 @@ def main():
                           f"06 같음 {same_view(m2['06'], m0['06'])} · 펼치기 버튼 {m2['page']['foldBtns']}(처음 {m0['page']['foldBtns']}) · "
                           f"래퍼 01 {m2['01']['fade']}(at-end {m2['01']['atEnd']} · at-start {m2['01']['atStart']}) · 06 {m2['06']['fade']}(at-end {m2['06']['atEnd']} · at-start {m2['06']['atStart']}) · "
                           f"뱃지 {m2['01']['hint']}/{m2['06']['hint']} · pageerror {len(errs)}")
+
+                # ── 터치(판 E): 01 모바일 처음(접힘)·펼침 — 줄마다 왼쪽·가운데·오른쪽을 눌러 팝업 = 그 줄 날짜(판 D 까지는 가로 위치로 골라 다른 날짜) ──
+                ctx, pg, errs = new_ctx(b, run, w, 844, True)
+                load(pg, a.html)
+                for tag, want in (("처음", kv["01"]), ("펼침", n)):
+                    if tag == "펼침":
+                        if not folds["01"]:
+                            break
+                        if click(pg, "dailyChart") is None:
+                            run.check(f"{w} 01 모바일 터치 팝업({tag}) = 누른 줄 날짜", False, "01 펼치기 버튼이 하나가 아님 — 누르지 못함")
+                            break
+                    good, total, nrow, bad = taps01(pg)
+                    run.check(f"{w} 01 모바일 터치 팝업({tag}) = 누른 줄 날짜", total > 0 and good == total and nrow == want and not errs,
+                              f"줄 {nrow}(= {want}) × 왼쪽·가운데·오른쪽 → 맞음 {good}/{total}" + (f" · 틀린 예 {bad}" if bad else "") + f" · pageerror {len(errs)}")
+                ctx.close()
 
                 # ── 짧은 사본(판 D 가장자리): apply 로 01·06 배열을 최근 K일·K+1일로 자른 판 — K일이면 버튼 없이 전부, K+1일이면 "이전 1일(…)" ──
                 if n > max(K.values()):

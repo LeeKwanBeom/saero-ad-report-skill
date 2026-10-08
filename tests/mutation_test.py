@@ -21,6 +21,7 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
      + config 실험(report_layout.layout_id 를 바꾸면 기준 사본이 "레이아웃 판" FAIL — config 를 실제로 읽는지).
   (2026-10-06 판 C) "레이아웃 판": 변조 +1(분기 표지 주석 06 제거) + 0건 가드 +1(분기 도우미 M 줄 이름 변조 var M → var MX)
      + config 실험(report_layout.mobile.max_px 를 1 올리면 기준 사본이 "레이아웃 판" FAIL — M 줄·CSS 경계를 config 와 대조하는지).
+  (2026-10-08 판 E) "레이아웃 판": 0건 가드 +1(01 모바일 터치 축 axis:'y' 지우기 — 판 D 꼴로 되돌림).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -346,6 +347,10 @@ def main():
         guards.append(("0건: 접기 전부 풀기(옛 모양 복원 흉내)", "레이아웃 판", {"html": unfold(H) if "<details" in H else None}))
         # (2026-10-06 판 C) 분기 도우미 M 줄 이름 변조 → M 줄 0건
         guards.append(("0건: 판 C M 줄 변조(var M = { → var MX = {)", "레이아웃 판", {"html": H.replace("var M = {", "var MX = {", 1) if H.count("var M = {") == 1 else None}))
+        # (2026-10-08 판 E) 01 모바일 터치 축 axis:'y' 지우기(판 D 꼴로 되돌림) → 터치 축 0건
+        ty = "interaction: {mode:'index', intersect:false, axis:'y'}"
+        guards.append(("0건: 판 E 01 모바일 터치 축 axis:'y' 지우기", "레이아웃 판",
+                       {"html": H.replace(ty, "interaction: {mode:'index', intersect:false}", 1) if H.count(ty) == 1 else None}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
