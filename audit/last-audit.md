@@ -6,6 +6,7 @@
 **시험**: test_apply 25 OK(리허설 포함) · test_deploy 21 · test_exclusions 49 · test_fetch_reports 15 · test_ingest 10 · test_narrative_check 7 · test_validate_07 6 · test_compare_sections(work/RE) 전부 맞음.
 **첫 적용**(다음 `/saero-run` — code-tab 4절 "레이아웃 판을 바꾸는 첫 적용 회차" 판 E): 직전 배포본 meta r2026-10-D → 5단계 `apply.py --layout` 이 D → E 로 바꾸고, dry-run 에 `[주의] 레이아웃 판이 바뀜` — 사용자 "배포" 답이 있을 때만 `--layout-change`. 보류 멈춤에서 보일 것: chart_check 의 터치 두 줄(모양은 그대로라 전후 비교 그림은 옛·새가 같다). 실기기 확인(폰에서 01 줄 몇 개 눌러 보기)은 사용자 몫.
 **효율**: 벽시계 약 70분 · 도구 호출 약 75회 · 즉석 코드 약 40행(브라우저 재현 JS) · 하위 에이전트 0. 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+**병합**: 사용자 "병합해줘"(17:06 KST 무렵 — 별도 검증 세션 없이, 위 음성 대조·리허설로 갈음한다는 권고에 답). 시작 때 origin/main = `4491819`(분기 뒤 main 변경 0) · 운영 작업 폴더 HEAD `f004fda`(origin/main 보다 뒤 — pull 은 다음 운영 세션 몫) · `work/` 마지막 변경 01:40 → 갱신 회차 돌지 않음. `git merge --no-ff` → **`9fd8351`**(부모 4491819 · 8c4594f, 충돌 0 · 트리 = 8c4594f 트리) → push 직전 origin/main = 4491819 재확인 → main push. 브랜치 `fix-20261008-touchaxis` 는 지우지 않고 둔다.
 
 ---
 
