@@ -5,6 +5,8 @@
 #   작업본을 넣으면 작업본의 표가 정본이 돼 검사가 무력화되므로(2026-09-27 검증 (c)) md5가 같으면 멈춘다.
 #   --pending 은 validate에만 넘긴다(사용자 답 대기 배포 — 잔존 문구 검사 허용). 답을 반영한 재배포에는 금지.
 #   compute.json은 작업본 옆(같은 폴더)에 쓴다. validate·compare는 통과면 끝 3줄, 실패면 전체 출력(종료 코드는 그대로).
+#   (2026-10-09 판 F) 광고비 잔액 카드 — 작업본 옆 balance.json(5단계 balance.py 의 잔액 기록)을 validate·compute 에 --balance 로 넘긴다.
+#   없거나 꼴이 다르거나 지난 회차 기록이면 validate "광고비 잔액 카드" FAIL(그 뒤 compute 도 [FAIL]) — 이 스크립트가 따로 검사하지는 않는다.
 #   전부 통과하면 작업본 옆에 도장 precheck_ok.md5를 쓴다 — 1줄 `<작업본 md5>  <이름>` · 2줄 `<직전 배포본 md5>  <이름>` · 3줄 `mode full|pending`.
 #   deploy.py 실제 push는 작업본 md5 = --file, 직전 배포본 md5 = --base일 때만 PUT(수정 회차 3 W11·4 X2 — pending이면 [주의]만).
 #   인자 수가 맞으면 무엇보다 먼저 옛 도장을 지우고(파일 없음 FAIL에도 — 이번 실행이 끝까지 통과해야 다시 생긴다), 작업본 md5를 시작·끝 두 번 재 같을 때만 쓴다(도중에 바뀌면 [FAIL]).
@@ -14,7 +16,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; PENDING=(); ARGS=()
 PY="${PY:-python3}"; export PYTHONUTF8=1
 for a in "$@"; do if [ "$a" = "--pending" ]; then PENDING=(--pending); else ARGS+=("$a"); fi; done
 if [ "${#ARGS[@]}" -ne 3 ]; then echo "사용법: PY=<venv 파이썬> scripts/precheck.sh <작업중 index.html> <합본폴더> <직전 배포본 index.html> [--pending]"; exit 2; fi
-HTML="${ARGS[0]}"; C="${ARGS[1]}"; PREV="${ARGS[2]}"; J="$(dirname "$HTML")/compute.json"; STAMP="$(dirname "$HTML")/precheck_ok.md5"
+HTML="${ARGS[0]}"; C="${ARGS[1]}"; PREV="${ARGS[2]}"; J="$(dirname "$HTML")/compute.json"; STAMP="$(dirname "$HTML")/precheck_ok.md5"; BAL="$(dirname "$HTML")/balance.json"
 rm -f "$STAMP"
 for f in "$HTML" "$PREV"; do [ -f "$f" ] || { echo "[FAIL] 파일 없음: $f — 작업본(work/index.html)·직전 배포본(work/prev.html) 경로 확인"; exit 2; }; done
 "$PY" -c 'import sys' 2>/dev/null || { echo "[FAIL] 파이썬을 실행할 수 없음: PY=$PY — Code 탭은 PY=<venv 파이썬>(references/code-tab.md 1절)"; exit 1; }
@@ -27,8 +29,8 @@ run() {  # 통과면 끝 3줄(종전과 같음), 실패면 전체 출력 뒤 같
   out="$("$@")" || rc=$?
   if [ "$rc" -eq 0 ]; then printf '%s\n' "$out" | tail -n 3; else printf '%s\n' "$out"; exit "$rc"; fi
 }
-echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML" "$C/키워드.csv" "$C/검색어.csv" "$C/시간대별.csv" "$C/상세지역.csv" ${PENDING[@]+"${PENDING[@]}"}
-echo "== compute(직전 배포본 $PREV 경쟁사표 기준) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" -o "$J"
+echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML" "$C/키워드.csv" "$C/검색어.csv" "$C/시간대별.csv" "$C/상세지역.csv" --balance "$BAL" ${PENDING[@]+"${PENDING[@]}"}
+echo "== compute(직전 배포본 $PREV 경쟁사표 기준) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" --balance "$BAL" -o "$J"
 run "$PY" "$ROOT/scripts/compare.py" "$HTML" "$J"
 echo "== overflow"; "$PY" "$ROOT/tests/overflow_check.py" "$HTML"
 echo "== narrative(서술 미교체)"; run "$PY" "$ROOT/scripts/narrative_check.py" "$HTML" "$PREV"

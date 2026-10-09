@@ -3,7 +3,8 @@
 validate.py · archive.py 검사 생존 확인(파괴 실험).
 
 사용법:
-    "$PY" tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV>
+    "$PY" tests/mutation_test.py <배포본 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV> [<잔액 기록 balance.json>]
+    (판 F — 6번째 인자가 없으면 index.html 옆 balance.json. 사본으로만 validate 에 --balance 로 넘긴다)
 
 동작:
   1. 스킬 저장소의 scripts/·config/·data/ 와 인자로 받은 index.html·CSV 4개를 임시 디렉토리에
@@ -22,6 +23,8 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   (2026-10-06 판 C) "레이아웃 판": 변조 +1(분기 표지 주석 06 제거) + 0건 가드 +1(분기 도우미 M 줄 이름 변조 var M → var MX)
      + config 실험(report_layout.mobile.max_px 를 1 올리면 기준 사본이 "레이아웃 판" FAIL — M 줄·CSS 경계를 config 와 대조하는지).
   (2026-10-08 판 E) "레이아웃 판": 0건 가드 +1(01 모바일 터치 축 axis:'y' 지우기 — 판 D 꼴로 되돌림).
+  (2026-10-09 판 F) "광고비 잔액 카드": 변조 4(카드 값 +1원 · 기준 시각 +1분 · 며칠분 +1 — 실패 기록이면 보조 줄 끝 글자 · 잔액 기록 읽은 시각을 집계 마지막 날로(지난 회차 기록))
+     + 0건 가드 2(카드 표지 data-balance 지우기 → "광고비 잔액 카드" · "레이아웃 판" 각각).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -178,9 +181,11 @@ def archive_experiments(work):
 
 
 def main():
-    if len(sys.argv) != 6:
+    if len(sys.argv) not in (6, 7):
         sys.exit(__doc__)
     orig = dict(zip(["html", "kw", "sr", "hr", "rg"], sys.argv[1:6]))
+    bal_src = sys.argv[6] if len(sys.argv) == 7 else os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "balance.json")
+    bal_base = read(bal_src) if os.path.exists(bal_src) else None   # 판 F 잔액 기록(없으면 기준 실행이 "광고비 잔액 카드" FAIL — 아래에서 멈춘다)
     data_files = sorted(glob.glob(os.path.join(REPO, "data", "*", "*.csv")))
     orig_md5 = {k: md5(v) for k, v in orig.items()}
     data_md5 = {p: md5(p) for p in data_files}
@@ -197,8 +202,14 @@ def main():
         base = {k: read_sig(v) if k != "html" else read(v) for k, v in orig.items()}
         print(f"작업 디렉토리 {work} (원본에는 쓰지 않음)")
 
-        def run(html=None, csv=None, cfg_override=None):
+        def run(html=None, csv=None, cfg_override=None, bal=None):
             paths = {}
+            bal_p = os.path.join(work, "balance.json")
+            if bal is not None or bal_base is not None:
+                with open(bal_p, "w", encoding="utf-8") as f:
+                    f.write(bal if bal is not None else bal_base)
+            elif os.path.exists(bal_p):
+                os.remove(bal_p)
             for k in orig:
                 p = os.path.join(work, f"{k}.{'html' if k == 'html' else 'csv'}")
                 src = (html if (k == "html" and html is not None) else (csv or {}).get(k, base[k]))
@@ -207,7 +218,7 @@ def main():
                 paths[k] = p
             with open(cfg_path, "w", encoding="utf-8") as f:
                 f.write(cfg_override if cfg_override else cfg_text)
-            r = subprocess.run([sys.executable, validate, paths["html"], paths["kw"], paths["sr"], paths["hr"], paths["rg"]],
+            r = subprocess.run([sys.executable, validate, paths["html"], paths["kw"], paths["sr"], paths["hr"], paths["rg"], "--balance", bal_p],
                                capture_output=True, text=True, encoding="utf-8")
             lines = r.stdout.splitlines()
             passed = [l[7:] for l in lines if l.startswith("[PASS] ")]
@@ -318,6 +329,27 @@ def main():
         br06 = "/* saero:mobile-branch 06 */"
         muts.append(("판 C 분기 표지 06 주석 제거", "레이아웃 판", {"html": H.replace(br06, "", 1) if H.count(br06) == 1 else None}))
 
+        # (2026-10-09 판 F) 광고비 잔액 카드 — 값 +1원 · 기준 시각 +1분 · 며칠분 +1(실패 기록이면 보조 줄 글자) · 잔액 기록을 지난 회차 것으로(읽은 날 = 집계 마지막 날)
+        m = re.search(r'(<div class="value" data-balance="value">)([\d,]+)(<span class="unit">)', H)
+        fail_v = 'data-balance="value">확인 못 함<'   # 실패 기록 회차의 카드 — 옛 값이 들어간 꼴로 변조
+        muts.append(("잔액 카드 값 +1원(실패 기록이면 '확인 못 함' → 0원)", "광고비 잔액 카드",
+                     {"html": H.replace(m.group(0), f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}", 1) if m else
+                      (H.replace(fail_v, 'data-balance="value">0<span class="unit">원</span><', 1) if fail_v in H else None)}))
+        m = re.search(r'(<div class="sub" data-balance="sub">[^<]*? )(\d{2}):(\d{2})( [^<]*</div>)', H)
+        muts.append(("잔액 카드 기준 시각 +1분", "광고비 잔액 카드",
+                     {"html": H.replace(m.group(0), f"{m.group(1)}{m.group(2)}:{(int(m.group(3)) + 1) % 60:02d}{m.group(4)}", 1) if m else None}))
+        m = re.search(r'(<div class="sub" data-balance="sub">[^<]*약 )([\d,]+)(일분</div>)', H) or re.search(r'(<div class="sub" data-balance="sub">[^<]*)()(</div>)', H)
+        muts.append(("잔액 카드 며칠분 +1(없으면 보조 줄 끝 글자)", "광고비 잔액 카드",
+                     {"html": H.replace(m.group(0), f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1 if m.group(2) else '!'}{m.group(3)}", 1) if m else None}))
+        stale = None
+        if bal_base:
+            from datetime import datetime as _dt
+            _rec = json.loads(bal_base)
+            _last = max(re.findall(r"(\d{4}\.\d{2}\.\d{2})\.", base["kw"].split("\n", 2)[2]))   # 키워드 CSV 일별 최댓값 = 집계 마지막 날
+            _rec["read_at"] = _dt.strptime(_last, "%Y.%m.%d").strftime("%Y-%m-%dT23:59:00+09:00")
+            stale = json.dumps(_rec, ensure_ascii=False)
+        muts.append(("잔액 기록 읽은 시각 = 집계 마지막 날(지난 회차 기록)", "광고비 잔액 카드", {"html": H if stale else None, "bal": stale}))
+
         # --- 4. 0건 가드 ---
         guards = [
             ("0건: masthead 문구 변조", "masthead 집계 기간", {"html": H.replace("집계 기간<b>", "집계기간<b>", 1)}),
@@ -351,6 +383,10 @@ def main():
         ty = "interaction: {mode:'index', intersect:false, axis:'y'}"
         guards.append(("0건: 판 E 01 모바일 터치 축 axis:'y' 지우기", "레이아웃 판",
                        {"html": H.replace(ty, "interaction: {mode:'index', intersect:false}", 1) if H.count(ty) == 1 else None}))
+        # (2026-10-09 판 F) 잔액 카드 표지 지우기 → 카드 값·보조 줄 0건(잔액 검사) · 카드 표지 0(레이아웃 판)
+        nob = H.replace(' data-balance="value"', "", 1).replace(' data-balance="sub"', "", 1) if 'data-balance="value"' in H else None
+        guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 잔액 검사", "광고비 잔액 카드", {"html": nob}))
+        guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nob}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
@@ -363,7 +399,7 @@ def main():
         print("\n== 검사별 변조 (겨냥한 검사가 FAIL로 바뀌어야 함)")
         covered = set()
         for name, target, spec in muts + guards:
-            if spec.get("html") is None and "csv" not in spec:
+            if spec.get("html") is None and "csv" not in spec and spec.get("bal") is None:
                 print(f"  [SKIP] {name} — 변조 위치를 못 찾음 (마크업이 바뀌었으면 이 스크립트를 고칠 것)")
                 ok = False
                 continue

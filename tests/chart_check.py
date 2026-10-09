@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-E(01·06 모바일 가로 막대 + 처음 최근 mobile.recent_days 일 · 펼치기 버튼 + 01 모바일 터치 날짜)의
-"보이는 숫자 누락 0" 과 "누른 줄의 팝업" 을 진짜 Chart.js 로 잰다.
+"""01·06 라이브 차트 확인 — 레이아웃 판 r2026-10-F(01·06 모바일 가로 막대 + 처음 최근 mobile.recent_days 일 · 펼치기 버튼 + 01 모바일 터치 날짜 +
+상단 광고비 잔액 카드)의 "보이는 숫자 누락 0" 과 "누른 줄의 팝업" 을 진짜 Chart.js 로 잰다.
 
 사용법: "$PY" tests/chart_check.py <index.html> <compute.json> [--base <직전 배포본 html>] [--out <캡처 폴더>] [--widths 390,1280]
 
@@ -34,9 +34,11 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
   한 쪽에만 n 개 전부, 위에서 아래로 최신 → 오래된) 또는 **비트맵**(beforeprint 때 캔버스 비트맵 크기와 같은 이미지가 정확히 한 번·쪽 안·클립 없이·그려진 픽셀 > 0) /
   PC 컨텍스트 PDF 는 --base 와 같은 이미지 구성(큰 이미지 크기·배치 수·보이는 비율 같음 — 폭 3,280 캔버스가 종이 폭에 잘린 일수 그대로. 어느 날짜 구간이 찍히는지는
   대조하지 않는다 — 판 C 는 화면 스크롤 자리(S, 최신 쪽)를 따른다).
+- 상단(판 F, 2026-10-09): 폭마다 광고비 잔액 카드 하나가 .kpi-row 마지막 자식 · 좌우 = .kpi-row(한 줄 전체) · 카드 넷 아래 · 카드 넷은 PC 한 줄 / 모바일(≤ max_px) 2·2 ·
+  값·보조 줄 글자 넘침 0 · 값 글자 크기 = 카드 넷 · 값·보조 줄 글자 = compute.json "잔액"(apply 와 같은 꼴).
 - --out 이 있으면 모바일·PC 폭의 섹션 1·6 PNG(로드 상태 — 모바일은 접힘 `<폭>_sec1.png` + 둘 다 펼침 `<폭>_open_sec1.png`)와 PDF 를 저장하고,
   --base 도 있으면 기준 캡처 `base_<폭>_sec1.png` 와 전후 비교 페이지 `<out>/compare.html`(옛 판 · 새 판 처음 · 새 판 펼침 나란히, 그림 내장 한 파일 ·
-  높이 표)을 쓴다 — 첫 적용 보류 회차에 사용자에게 보이는 비교 페이지(2026-10-07 — 이전 회차 생성기 mk_compare.py 는 작업 clone 과 함께 지워짐).
+  높이 표 · 판 F 부터 맨 앞에 상단 카드 영역 `base_<폭>_top.png`·`<폭>_top.png` 옛/새 나란히)을 쓴다 — 첫 적용 보류 회차에 사용자에게 보이는 비교 페이지(2026-10-07 — 이전 회차 생성기 mk_compare.py 는 작업 clone 과 함께 지워짐).
 
 검사로 못 지키는 것 — **사용자 시크릿 창(실기기) 몫**: 실기기 폰트 폭(iOS Safari·삼성 인터넷 — 라벨 겹침이 달라질 수 있음) · 회전 체감·첫 페인트 깜빡임 ·
 iOS 공유→PDF·실제 인쇄 대화상자(beforeprint 가 오는지) · PWA 설치본의 service-worker 캐시(network-first — 온라인이면 첫 열기에 새 판).
@@ -151,6 +153,60 @@ TOUCH = """(id) => {
           xs: [ca.left + w * 0.08, ca.left + w / 2, ca.right - w * 0.08], ys: c.data.labels.map((_, i) => s.getPixelForValue(i))};
 }"""
 TIP = "(id) => { const c = Chart.getChart(id), t = c && c.tooltip; return (t && t.getActiveElements().length) ? (t.title || []).join('') : null; }"
+
+# 판 F 상단 카드 — .kpi-row 와 자식(카드 넷 · 잔액 카드 .kpi-wide)의 문서 좌표, 잔액 카드 글자·글자 넘침·값 글자 크기(카드 넷 값과 같은 모양인지)
+# 글자 넘침 = 값·보조 줄의 scrollWidth − clientWidth(카드 자체 scrollWidth 는 .kpi::after 장식 원이 −20px 밖이라 카드 넷과 같이 +20 — overflow:hidden 으로 잘린다, 2026-10-09 실측)
+TOPJS = """() => {
+  const row = document.querySelector('.kpi-row'); if (!row) return {err: '.kpi-row 없음'};
+  const R = (e) => { const b = e.getBoundingClientRect(); return {x: b.left + window.scrollX, y: b.top + window.scrollY, w: b.width, h: b.height, r: b.right + window.scrollX, b: b.bottom + window.scrollY}; };
+  const kids = [...row.children], wides = [...document.querySelectorAll('.kpi-wide')], w = wides.length === 1 ? wides[0] : null;
+  const val = w ? w.querySelector('[data-balance="value"]') : null, sub = w ? w.querySelector('[data-balance="sub"]') : null;
+  const v4 = row.querySelector('.kpi:not(.kpi-wide) .value');
+  return {row: R(row), n: kids.length, cards: kids.filter(e => !e.classList.contains('kpi-wide')).map(R), wideCount: wides.length, wide: w ? R(w) : null,
+          wideLast: !!(w && kids[kids.length - 1] === w), value: val ? val.textContent : null, sub: sub ? sub.textContent : null,
+          over: (val && sub) ? [val.scrollWidth - val.clientWidth, sub.scrollWidth - sub.clientWidth] : null,
+          font: [val ? getComputedStyle(val).fontSize : null, v4 ? getComputedStyle(v4).fontSize : null]};
+}"""
+
+
+def top_want(R):
+    """compute.json "잔액" → 카드에 보일 글자(값 textContent · 보조 줄) — apply.balance_values 와 같은 꼴(이 도구는 화면 대조)."""
+    b = R.get("잔액")
+    if not isinstance(b, dict):
+        return None, None
+    if b.get("상태") == "ok":
+        return f"{b['원']:,}원", f"{b['기준']} 기준" + ("" if b.get("일분") is None else f" · 약 {b['일분']:,}일분")
+    return "확인 못 함", f"{b['기준']} 조회 실패"
+
+
+def top_ok(t, w, maxpx, R):
+    """판 F 상단 — 잔액 카드 하나 · .kpi-row 마지막 자식 · 좌우 = .kpi-row(한 줄 전체) · 카드 넷 아래 · 카드 넷 = PC 한 줄 / 모바일 2·2 · 글자 넘침 0 · 값 글자 크기 = 카드 넷 · 글자 = compute "잔액"."""
+    if "err" in t:
+        return False, t["err"]
+    rows = sorted({round(c["y"]) for c in t["cards"]})
+    want_rows = 2 if w <= maxpx else 1
+    wd = t["wide"]
+    v, sv = top_want(R)
+    ok = (t["wideCount"] == 1 and t["wideLast"] and len(t["cards"]) == 4 and len(rows) == want_rows and wd is not None
+          and abs(wd["x"] - t["row"]["x"]) <= 1 and abs(wd["r"] - t["row"]["r"]) <= 1 and wd["y"] >= max(c["b"] for c in t["cards"])
+          and t["over"] is not None and max(t["over"]) <= 0 and t["font"][0] == t["font"][1] and t["value"] == v and t["sub"] == sv)
+    det = (f"잔액 카드 {t['wideCount']}개 · 마지막 자식 {t['wideLast']} · 카드 넷 {len(t['cards'])}개 {len(rows)}줄(기대 {want_rows}) · "
+           + (f"카드 x {wd['x']:.1f}~{wd['r']:.1f} = 줄 {t['row']['x']:.1f}~{t['row']['r']:.1f} · 위 {wd['y']:.1f} ≥ 넷 아래 {max(c['b'] for c in t['cards']):.1f} · 높이 {wd['h']:.1f} · "
+              f"글자 넘침(값·보조 줄 px) {t['over']} · 값 글자 {t['font'][0]}(넷 {t['font'][1]}) · 글자 {t['value']!r} / {t['sub']!r}(기대 {v!r} / {sv!r})" if wd else "잔액 카드 없음"))
+    return ok, det
+
+
+def shot_top(pg, out, tag):
+    """상단(마스트헤드 ~ .kpi-row 아래 12px) 캡처 — 전후 비교 페이지 재료(옛 판은 카드 넷까지, 새 판은 잔액 카드까지)."""
+    if not out:
+        return
+    t = pg.evaluate(TOPJS)
+    if "err" in t:
+        return
+    pg.evaluate("window.scrollTo(0, 0)")
+    pg.wait_for_timeout(200)
+    vw = pg.viewport_size["width"]
+    pg.screenshot(path=os.path.join(out, f"{tag}_top.png"), clip={"x": 0, "y": 0, "width": vw, "height": int(t["row"]["b"]) + 12})
 
 
 class Run:
@@ -269,7 +325,9 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
     (lo, po), (ln, pn) = meta(base_path), meta(new_path)
     rows = "".join(f"<tr><td>{w}</td><td>{k}</td>" + "".join(f"<td class='n'>{v if v is not None else '—'}</td>" for v in hts[w].get(k, (None, None, None))) + "</tr>"
                    for w in widths for k in ("옛 판", "새 판(처음)", "새 판(펼침)") if k in hts.get(w, {}))
-    secs = ""
+    secs = "<h2>상단 카드(KPI · 광고비 잔액 — 판 F)</h2>"
+    for w in widths:
+        secs += f"<h3>{w}px 폭</h3><div class='pair'>" + img(f"base_{w}_top.png", f"옛 판 {lo} · {w}px") + img(f"{w}_top.png", f"새 판 {ln} · {w}px") + "</div>"
     for s, name in (("1", "01 일별 추이"), ("6", "06 파워링크 키워드 노출순위 추이")):
         secs += f"<h2>{name}</h2>"
         for w in widths:
@@ -288,7 +346,7 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
             ".pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} .pair.w3{grid-template-columns:repeat(3,minmax(0,420px))}"
             "figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px} figcaption{font-size:12px;font-weight:700;color:var(--mint-dark);margin-bottom:6px}"
             "img{width:100%;height:auto;display:block} @media (max-width:700px){.pair,.pair.w3{grid-template-columns:1fr}}"
-            "</style></head><body><div class='wrap'><h1>전후 비교 — 01, 06번</h1>"
+            "</style></head><body><div class='wrap'><h1>전후 비교 — 상단 카드 · 01, 06번</h1>"
             f"<p class='meta'>옛 판 <b>{H.escape(base_path)}</b> (레이아웃 meta {lo} · 집계 기간 {H.escape(po)})<br>새 판 <b>{H.escape(new_path)}</b> (레이아웃 meta {ln} · 집계 기간 {H.escape(pn)})<br>"
             "캡처: tests/chart_check.py(Chart.js CDN 2건만 허용 · networkidle + 1.8초). 새 판 모바일은 처음(접힘)과 01·06 버튼을 누른 뒤(펼침) 두 가지.</p>"
             "<h2>높이(px)</h2><div class='tw'><table><thead><tr><th>폭</th><th>판</th><th class='n'>섹션 1</th><th class='n'>섹션 6</th><th class='n'>문서 전체</th></tr></thead>"
@@ -456,7 +514,7 @@ def same_view(a, b):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인(레이아웃 판 r2026-10-E — precheck 밖)")
+    ap = argparse.ArgumentParser(description="01·06 라이브 차트 확인 + 상단 잔액 카드(레이아웃 판 r2026-10-F — precheck 밖)")
     ap.add_argument("html")
     ap.add_argument("compute")
     ap.add_argument("--base", help="직전 배포본 html — PC 폭 측정값·padding 겹침 기준·PC 인쇄 이미지 구성의 기준")
@@ -495,6 +553,7 @@ def main():
                         return None
                     mb = measure(pg)
                     shot(pg, mb["page"], out, f"base_{w}")   # 전후 비교 재료(로드 상태)
+                    shot_top(pg, out, f"base_{w}")            # 판 F 상단(옛 판 — 카드 넷)
                     if not mobile:  # 기준도 같은 스크롤 자리(맨 왼쪽)에서 — 판 C 이후 기준은 로드 때 최신 쪽(S)이라
                         to_left(pg)
                         mb["start"] = measure(pg)
@@ -535,6 +594,9 @@ def main():
                 m = measure(pg)
                 shot(pg, m["page"], out, f"{w}")
                 hts.setdefault(w, {})["새 판(처음)"] = sec_h(m["page"])
+                ok_t, det_t = top_ok(pg.evaluate(TOPJS), w, maxpx, R)                # 판 F 상단 잔액 카드(로드 상태 — 버튼 누르기 전)
+                run.check(f"{w} 상단 잔액 카드 한 줄 전체(판 F)", ok_t, det_t)
+                shot_top(pg, out, f"{w}")
                 m_start = None
                 if not mobile:  # PC 모양 대조는 기준과 같은 스크롤 자리(맨 왼쪽)에서 — S 는 로드 상태(m)로 따로 본다
                     to_left(pg)

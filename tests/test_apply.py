@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2 + 판 r2026-10-C 01 차트 회차 1 + 판 r2026-10-D 모바일 기간 접기 2026-10-07 +
-판 r2026-10-E 01 모바일 터치 날짜 2026-10-08) + compute.py 직전 경쟁사표 0행 가드.
+판 r2026-10-E 01 모바일 터치 날짜 2026-10-08 + 판 r2026-10-F 광고비 잔액 카드 2026-10-09) + compute.py 직전 경쟁사표 0행 가드.
 
 fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지·레이아웃 meta 없는 옛 판) +
           tests/fixtures/layout_old.compute.json(같은 가짜 값의 compute 출력 꼴 — 03.rows 만 10일(12/29~1/7)이라 "최근 7 + 접힌 3" 분배가 보인다).
 - 판 고르기: meta 없음 + --layout 없음 → `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`(옛 배치로 쓰지 않음, 작업본 그대로) ·
   meta 다름·details 수 다름 → FAIL · --layout 변환 = 사슬(옛 → r2026-10-B: meta + details 5 + 접기 CSS·스크립트 → r2026-10-C: 분기 표지 2 ·
-  01·06 템플릿 · 분기 도우미 · 왼쪽 페이드 · 안내 4줄 → r2026-10-D: 버튼 CSS · 01 비용 라벨 간격 2곳 · 판 D 분기 도우미 → r2026-10-E: 01 모바일 터치 축 한 줄),
+  01·06 템플릿 · 분기 도우미 · 왼쪽 페이드 · 안내 4줄 → r2026-10-D: 버튼 CSS · 01 비용 라벨 간격 2곳 · 판 D 분기 도우미 → r2026-10-E: 01 모바일 터치 축 한 줄
+  → r2026-10-F: .kpi-wide CSS · KPI 카드 넷 아래 광고비 잔액 카드 하나),
   두 번째(변환 건너뜀)는 바이트 같음.
-- 판 E(ApplyLayoutE): meta r2026-10-D 판 + --layout 없음 → `레이아웃 판 meta r2026-10-D ≠ config r2026-10-E — --layout …` · + --layout → 사슬과 같은 바이트 ·
+- 판 F(ApplyLayoutF): meta r2026-10-E 판 + --layout 없음 → `레이아웃 판 meta r2026-10-E ≠ config r2026-10-F — --layout …` · + --layout → 사슬과 같은 바이트 ·
+  E → F 가 바꾸는 곳 = meta · .kpi-wide CSS · 카드 하나뿐(카드 넷·섹션 바이트 그대로 · 기존 KPI 정규식에 새 카드 안 잡힘) · 값·보조 줄 매 회차(ok · 일분 없음 · fail —
+  실패 → 성공 글자 남김 0) · compute.json "잔액" 없음·꼴 다름 FAIL · 손 수정 E(넷째 카드 끝 앵커 없음·표지 있음)·F(카드 지움·둘·01 섹션 뒤) FAIL.
+- 판 E(ApplyLayoutE — config 는 판 F, E 는 사슬 중간): meta r2026-10-D 판 + --layout 없음 → `레이아웃 판 meta r2026-10-D ≠ config r2026-10-F — --layout …` · + --layout → 사슬과 같은 바이트 ·
   D → E 가 바꾸는 곳 = meta · 01 mobile() interaction 한 줄(axis:'y')뿐 · PC 01·09 interaction 그대로 · 그 줄을 손으로 바꾼 D 판(이미 axis 있음 포함) → FAIL(변환 안 함).
-- 판 D(ApplyLayoutD — config 는 판 E, D 는 사슬 중간): meta r2026-10-B·r2026-10-C 판 + --layout 없음 → `레이아웃 판 meta r2026-10-B|C ≠ config r2026-10-E — --layout …` · + --layout → 사슬과 같은 바이트 ·
+- 판 D(ApplyLayoutD — config 는 판 F, D 는 사슬 중간): meta r2026-10-B·r2026-10-C 판 + --layout 없음 → `레이아웃 판 meta r2026-10-B|C ≠ config r2026-10-F — --layout …` · + --layout → 사슬과 같은 바이트 ·
   판 C 도우미·비용 라벨 간격 줄을 손으로 바꾼 C 판 → FAIL(변환 안 함) · 분기 표지 하나 지운 D 판 → FAIL "분기 표지" · 묵은 M 줄(recent 포함) → config 값으로 다시 씀 ·
   판 C 꼴 M 줄(recent 없음)이 남은 D 판 → FAIL · C → D 변환이 섹션 HTML·서술 표지·min-width·배열·안내 스크립트를 건드리지 않음(바뀌는 곳 = meta·버튼 CSS·비용 간격 2·도우미) ·
   HTML 에 버튼 태그·"이전 N일" 문구 0(03 summary 하나뿐) · B → C 중간 단계 범위도 그대로.
@@ -21,7 +25,7 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
-- 리허설 산출(work/RE/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-E 있음 — 배포본 판 D 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
+- 리허설 산출(work/RF/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-F 있음 — 배포본 판 E 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
 import hashlib
@@ -257,8 +261,8 @@ class ApplyLayoutD(unittest.TestCase):
 
     def test_chain_old_to_d(self):
         o, R = self.out, self.R
-        self.assertEqual(self.lay["layout_id"], "r2026-10-E")                     # config 는 판 E — 판 D 몫은 사슬 끝(E) 결과에 그대로 남는다
-        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-E"])
+        self.assertEqual(self.lay["layout_id"], "r2026-10-F")                     # config 는 판 F — 판 D 몫은 사슬 끝(F) 결과에 그대로 남는다
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-F"])
         self.assertEqual(o.count("/* saero:mobile-branch 01 */"), 1)
         self.assertEqual(o.count("/* saero:mobile-branch 06 */"), 1)
         self.assertEqual(len(A.BRANCH.findall(o)), self.lay["markers"]["mobile_branch"])
@@ -298,12 +302,12 @@ class ApplyLayoutD(unittest.TestCase):
     def test_b_and_c_to_d(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.B), ["r2026-10-B"])
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.C), ["r2026-10-C"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-E — --layout 을 붙여 r2026-10-B → r2026-10-E"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-F — --layout 을 붙여 r2026-10-B → r2026-10-F"):
             A.apply(self.B, self.R, self.cfg)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-E — --layout 을 붙여 r2026-10-C → r2026-10-E"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-F — --layout 을 붙여 r2026-10-C → r2026-10-F"):
             A.apply(self.C, self.R, self.cfg)
-        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E = 옛 → B → C → D → E 사슬과 같은 바이트
-        self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E 도 같은 바이트
+        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E → F = 옛 → B → … → F 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E → F 도 같은 바이트
         self.assertEqual(A.chain("r2026-10-C", "r2026-10-D"), [A.convert_c_to_d])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-D"), [A.convert_b_to_c, A.convert_c_to_d])
         self.assertEqual(A.chain("r2026-10-D", "r2026-10-D"), [])
@@ -386,7 +390,7 @@ class ApplyLayoutD(unittest.TestCase):
 
 
 class ApplyLayoutE(unittest.TestCase):
-    """판 r2026-10-E(01 모바일 터치 날짜 — 판 D 위) — D → E · 사슬과 같은 바이트 · 바뀌는 곳 = meta·터치 축 한 줄 · 손 수정 D FAIL."""
+    """판 r2026-10-E(01 모바일 터치 날짜 — 판 D 위, config 는 판 F) — D → E · 사슬과 같은 바이트 · 바뀌는 곳 = meta·터치 축 한 줄 · 손 수정 D FAIL."""
     @classmethod
     def setUpClass(cls):
         cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
@@ -394,12 +398,15 @@ class ApplyLayoutE(unittest.TestCase):
         cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
         cls.cfg_d = dict(cls.cfg, report_layout=dict(cls.lay, layout_id="r2026-10-D"))
         cls.D = A.apply(cls.H, cls.R, cls.cfg_d, layout=True)                    # meta r2026-10-D 판(배포본 04abd00 꼴 — 값 채움)
+        cls.cfg_e = dict(cls.cfg, report_layout=dict(cls.lay, layout_id="r2026-10-E"))
+        cls.E = A.apply(cls.H, cls.R, cls.cfg_e, layout=True)                    # meta r2026-10-E 판(사슬 끝이 E 인 값 채운 판)
 
     def test_d_to_e(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.D), ["r2026-10-D"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-E — --layout 을 붙여 r2026-10-D → r2026-10-E"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-F — --layout 을 붙여 r2026-10-D → r2026-10-F"):
             A.apply(self.D, self.R, self.cfg)
-        self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E = 옛 → B → C → D → E 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.D, self.R, self.cfg_e, layout=True), self.E)   # D → E = 옛 → B → C → D → E 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E → F 도 사슬과 같은 바이트
         self.assertEqual(A.chain("r2026-10-D", "r2026-10-E"), [A.convert_d_to_e])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-E"), [A.convert_b_to_c, A.convert_c_to_d, A.convert_d_to_e])
         self.assertEqual(A.chain("r2026-10-E", "r2026-10-E"), [])
@@ -424,7 +431,7 @@ class ApplyLayoutE(unittest.TestCase):
     def test_conversion_scope_d_to_e(self):
         """D → E 가 바꾸는 곳은 meta 와 01 모바일 interaction 한 줄뿐(서술 표지·섹션 HTML·배열·도우미·M 줄 그대로)."""
         e = A.convert_d_to_e(self.D, self.lay)
-        self.assertEqual(e, self.out)
+        self.assertEqual(e, self.E)
         back = e.replace(A.TOUCH_D_TO_E[1], A.TOUCH_D_TO_E[0], 1).replace('content="r2026-10-E"', 'content="r2026-10-D"', 1)
         self.assertEqual(back, self.D)
 
@@ -437,6 +444,109 @@ class ApplyLayoutE(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertNotEqual(bad, self.D)
                 with self.assertRaisesRegex(A.ApplyError, "앵커가 정확히 하나가 아님"):
+                    A.apply(bad, self.R, self.cfg, layout=True)
+
+
+class ApplyLayoutF(unittest.TestCase):
+    """판 r2026-10-F(광고비 잔액 카드 — 판 E 위) — E → F = 사슬 바이트 · 바뀌는 곳 = meta·CSS·카드 하나(카드 넷·섹션 그대로) · 값·보조 줄 매 회차 ·
+    "잔액" 없음·꼴 다름 FAIL · 손 수정 E/F FAIL."""
+    @classmethod
+    def setUpClass(cls):
+        cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
+        cls.lay = cls.cfg["report_layout"]
+        cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
+        cls.cfg_e = dict(cls.cfg, report_layout=dict(cls.lay, layout_id="r2026-10-E"))
+        cls.E = A.apply(cls.H, cls.R, cls.cfg_e, layout=True)                      # meta r2026-10-E 판(배포본 5e33f38·765cf77 꼴 — 값 채움)
+
+    def card(self, o):
+        i = o.rindex("\n", 0, o.index('<div class="kpi kpi-wide"')) + 1           # 줄 머리(들여쓰기 포함)부터
+        return o[i:o.index("\n    </div>\n", i) + len("\n    </div>\n")]
+
+    def test_e_to_f(self):
+        self.assertEqual(self.lay["layout_id"], "r2026-10-F")
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.E), ["r2026-10-E"])
+        self.assertNotIn("data-balance", self.E)
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-F — --layout 을 붙여 r2026-10-E → r2026-10-F"):
+            A.apply(self.E, self.R, self.cfg)
+        self.assertEqual(A.apply(self.E, self.R, self.cfg, layout=True), self.out)   # E → F = 옛 → B → C → D → E → F 사슬과 같은 바이트
+        self.assertEqual(A.chain("r2026-10-E", "r2026-10-F"), [A.convert_e_to_f])
+        self.assertEqual(A.chain("r2026-10-B", "r2026-10-F"), [A.convert_b_to_c, A.convert_c_to_d, A.convert_d_to_e, A.convert_e_to_f])
+        self.assertIsNone(A.chain("r2026-10-F", "r2026-10-E"))                       # 거꾸로는 없다
+        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)              # 값만(멱등)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)
+        o = self.out
+        self.assertEqual(o.count('data-balance="value"'), 1)
+        self.assertEqual(o.count('data-balance="sub"'), 1)
+        self.assertEqual(o.count(".kpi-wide{grid-column:1 / -1;}"), 1)
+        kr = o.index('<div class="kpi-row">')
+        self.assertTrue(kr < o.index("클릭당 평균") < o.index('<div class="kpi kpi-wide"') < o.index("<!-- Section 1:"))   # 넷째 카드 뒤 · .kpi-row 안
+        self.assertIn('style="--accent:#1c2b2a;"', self.card(o))                    # 새 색 0 — 넷째 카드의 accent 값
+        self.assertNotIn("<details", o[o.index("<style>"):o.index("</style>")])     # CSS 주석에 태그 꺾쇠 없음
+
+    def test_conversion_scope_e_to_f(self):
+        """E → F 가 바꾸는 곳은 meta · CSS 한 덩이 · 카드 하나뿐 — 카드 넷·섹션 HTML·스크립트·서술 표지 그대로."""
+        f = A.convert_e_to_f(self.E, self.lay)
+        back = (f.replace(self.card(f), "", 1).replace("\n" + A.BALANCE_CSS.rstrip("\n"), "", 1)
+                .replace('content="r2026-10-F"', 'content="r2026-10-E"', 1))
+        self.assertEqual(back, self.E)
+        sec = lambda h: h[h.index("<!-- Section 1:"):]
+        self.assertEqual(sec(f), sec(self.E))
+        row = lambda h: h[h.index('<div class="kpi-row">'):h.index("클릭당 평균")]
+        self.assertEqual(row(f), row(self.E))                                       # 카드 넷 바이트 그대로
+        tiles = re.findall(r'<div class="label">([^<]+)</div>\s*<div class="value">([^<]+)<span class="unit">', self.out)
+        self.assertEqual([t[0] for t in tiles], ["총 노출수", "총 클릭수", "평균 클릭률", "총 광고비"])   # validate parse_kpi_tiles 에 새 카드가 안 잡힘
+        subs = re.findall(r'<div class="sub">([^<]+)</div>', self.out)
+        self.assertEqual(len(subs), 4)                                               # compare _kpi 의 sub 순번(0·1·3) 그대로
+        self.assertTrue(subs[3].startswith("클릭당 평균"))
+
+    def test_values_every_run(self):
+        o, R = self.out, self.R
+        self.assertIn('<div class="value" data-balance="value">123,456<span class="unit">원</span></div>', o)
+        self.assertIn('<div class="sub" data-balance="sub">1/8(목) 09:05 기준 · 약 28일분</div>', o)
+        R2 = jread(FIXJ)
+        R2["잔액"] = dict(R2["잔액"], 일분=None)                                       # 평균 0 → 며칠분 생략
+        o2 = A.apply(o, R2, self.cfg)
+        self.assertIn('<div class="sub" data-balance="sub">1/8(목) 09:05 기준</div>', o2)
+        R3 = jread(FIXJ)
+        R3["잔액"] = {"상태": "fail", "기준": "1/9(금) 10:00"}                        # 조회 실패 → 옛 값이 남지 않는다
+        o3 = A.apply(o, R3, self.cfg)
+        self.assertIn('<div class="value" data-balance="value">확인 못 함</div>', o3)
+        self.assertIn('<div class="sub" data-balance="sub">1/9(금) 10:00 조회 실패</div>', o3)
+        self.assertNotIn("123,456", o3)
+        self.assertEqual(A.apply(o3, R, self.cfg), o)                                # 실패 → 성공도 글자 남김 없이
+        R4 = jread(FIXJ)
+        R4["잔액"] = dict(R4["잔액"], 원=1234567, 일분=1234)
+        self.assertIn(">1,234,567<span class=\"unit\">원</span></div>", A.apply(o, R4, self.cfg))
+        self.assertIn("기준 · 약 1,234일분</div>", A.apply(o, R4, self.cfg))
+
+    def test_missing_or_bad_balance_fails(self):
+        R = jread(FIXJ)
+        del R["잔액"]
+        for page in (self.E, self.out):                                              # 변환 회차·값만 회차 둘 다
+            with self.assertRaisesRegex(A.ApplyError, '"잔액" 없음'):
+                A.apply(page, R, self.cfg, layout=True)
+        for label, b, frag in (("기준 꼴", {"상태": "ok", "원": 1, "기준": "2026-01-08 09:05", "일분": 1}, "기준"),
+                               ("상태", {"상태": "unknown", "기준": "1/8(목) 09:05"}, "상태"),
+                               ("원 문자열", {"상태": "ok", "원": "123", "기준": "1/8(목) 09:05", "일분": 1}, "원"),
+                               ("원 음수", {"상태": "ok", "원": -1, "기준": "1/8(목) 09:05", "일분": 1}, "원"),
+                               ("일분 bool", {"상태": "ok", "원": 1, "기준": "1/8(목) 09:05", "일분": True}, "원")):
+            with self.subTest(label=label):
+                R = jread(FIXJ)
+                R["잔액"] = b
+                with self.assertRaisesRegex(A.ApplyError, frag):
+                    A.apply(self.out, R, self.cfg)
+
+    def test_hand_edited_fails(self):
+        cases = (("E 넷째 카드 끝 앵커 없음", self.E.replace('<div class="sub">클릭당 평균', '<div class="sub" >클릭당 평균', 1), "앵커가 정확히 하나가 아님"),
+                 ("E 인데 카드 표지 있음", self.E.replace("</body>", '<div data-balance="value"></div></body>', 1), "이미 있음"),
+                 ("F 카드 지움", self.out.replace(self.card(self.out), "", 1), "잔액 카드 표지 값 0"),
+                 ("F 카드 둘", self.out.replace(self.card(self.out), self.card(self.out) * 2, 1), "잔액 카드 표지 값 2"),
+                 ("F 카드를 01 섹션 뒤로", self.out.replace(self.card(self.out), "", 1).replace("<!-- Section 2:", self.card(self.out) + "<!-- Section 2:", 1),
+                  ".kpi-row 안"))
+        for label, bad, frag in cases:
+            with self.subTest(label=label):
+                self.assertNotEqual(bad, self.E)
+                with self.assertRaisesRegex(A.ApplyError, frag):
                     A.apply(bad, self.R, self.cfg, layout=True)
 
 
@@ -464,7 +574,8 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
-        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E, details 5 · 분기 2)", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F, details 5 · 분기 2)", out)
+        self.assertIn("· 잔액 카드 123,456원 · 1/8(목) 09:05 기준 · 약 28일분", out)                  # 판 F — 운영 세션이 출력에서 카드 글을 본다
 
     def test_cli_twice_same_bytes_and_flag_required(self):
         td = tempfile.mkdtemp()
@@ -481,7 +592,8 @@ class ApplyFailsLoudly(unittest.TestCase):
             m1 = md5(h)
             r = run("--layout")                                                           # 두 번째: 변환 건너뜀 · 바이트 같음
             self.assertEqual(r.returncode, 0, r.stdout)
-            self.assertIn("(변환 건너뜀) (변경 없음)", r.stdout)
+            self.assertIn("(변환 건너뜀) · 잔액 카드 ", r.stdout)
+            self.assertTrue(r.stdout.rstrip().endswith("(변경 없음)"), r.stdout)
             self.assertEqual(md5(h), m1)
             self.assertEqual(run().returncode, 0)                                         # 새 판이면 --layout 없이도 값만(멱등)
             self.assertEqual(md5(h), m1)
@@ -544,15 +656,17 @@ class ComputeCompetitorGuard(unittest.TestCase):
             shutil.rmtree(td, ignore_errors=True)
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "RE", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "RE", "compute.json")),
-                     "리허설 산출 work/RE 없음(구현·검증 회차 리허설 뒤에만)")
+@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "RF", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "RF", "compute.json")),
+                     "리허설 산출 work/RF 없음(구현·검증 회차 리허설 뒤에만)")
 class ApplyRehearsal(unittest.TestCase):
-    def test_re_output_idempotent(self):
-        H = read(os.path.join(ROOT, "work", "RE", "index.html"))
-        R = jread(os.path.join(ROOT, "work", "RE", "compute.json"))
+    def test_rf_output_idempotent(self):
+        H = read(os.path.join(ROOT, "work", "RF", "index.html"))
+        R = jread(os.path.join(ROOT, "work", "RF", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
-        self.assertIn('<meta name="report-layout" content="r2026-10-E">', H)               # 리허설 RE = 판 E(meta 로 판 선택 — --layout 없이)
+        self.assertIn('<meta name="report-layout" content="r2026-10-F">', H)               # 리허설 RF = 판 F(meta 로 판 선택 — --layout 없이)
         self.assertEqual(H.count(A.TOUCH_D_TO_E[1]), 1)
+        self.assertEqual(H.count('data-balance="value"'), 1)
+        self.assertIn("잔액", R)
         self.assertEqual(A.apply(H, R, load_config()), H)
 
 
