@@ -23,7 +23,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 
 이 스킬의 설명만 보고 처음부터 코딩하면 여백·문구·세부 스타일이 반드시 달라진다.
 **배포본이 유일한 원본이고, 이 문서는 그 원본을 어떻게 다루는지에 대한 설명서다.**
-**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-E`(사용자 결정 2026-10-06·07·08 — 판 B 접기형 + 01·06 모바일 가로 막대(판 C) + 모바일 01·06 처음 최근 14일·펼치기 버튼(판 D) + 01 모바일 터치 날짜(판 E), references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
+**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-F`(사용자 결정 2026-10-06·07·08·09 — 판 B 접기형 + 01·06 모바일 가로 막대(판 C) + 모바일 01·06 처음 최근 14일·펼치기 버튼(판 D) + 01 모바일 터치 날짜(판 E) + KPI 카드 넷 아래 광고비 잔액 카드(판 F), references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
 
 ## 배포 정보
 
@@ -256,15 +256,23 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 결정된 항목을 11번이 "미반영"으로 서술하는 모순을 막기 위해서다(11번·12번
 "작성 기준" 참고).
 
-교체는 두 단계(2026-10-06 — E2 저장소화 · 서술 표지 · 레이아웃 판):
+교체는 잔액 읽기 + 두 단계(2026-10-06 — E2 저장소화 · 서술 표지 · 레이아웃 판 / 2026-10-09 판 F 광고비 잔액 카드 — 앞 두 줄):
 ```bash
-"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·표·목록·차트·masthead·og·접기 summary) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
+"$PY" scripts/balance.py --key-file ~/naver-api.keys.json                              # 광고비 잔액(비즈머니) GET 1회(읽기) → work/balance.json — 실패해도 exit 0(카드 "확인 못 함")
+"$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json -o work/compute.json   # 잔액 카드 값("잔액")까지 — 기록이 없거나 지난 회차 것이면 [FAIL] exit 1
+"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·잔액 카드·표·목록·차트·masthead·og·접기 summary) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
 "$PY" work/n<날짜>.py                                                                  # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
 ```
+**광고비 잔액 카드(판 F)**: `balance.py` 는 네이버 검색광고 API `GET /billing/bizmoney` 를 한 번 읽어(서명·키는 exclusions.py 의 NaverApi·load_keys 그대로 — 키 파일은 경로만)
+`work/balance.json` 에 원 단위 버림 값과 읽은 시각(KST)을 쓴다. 시작하자마자 옛 기록을 지우고, 조회가 실패하면(키 파일·네트워크·401/403·5xx·응답 꼴 다름) 실패 기록을 쓰고 exit 0 —
+카드는 `확인 못 함` · `M/D(요일) HH:MM 조회 실패`(옛 값을 새 시각으로 보이지 않는다, 회차는 멈추지 않는다 — 사용자 결정 2026-10-09). 성공이면 카드 값 `217,817원` · 보조 줄
+`10/9(금) 14:34 기준 · 약 24일분`(며칠분 = 잔액 ÷ 집계 마지막 날까지 7일 평균 총비용, 버림 — 평균 0 이면 생략). compute 는 읽은 날(KST)이 집계 마지막 날 이하인 기록(지난 회차 것)을
+`[FAIL]` 로 멈추고, apply 는 compute.json 에 "잔액" 이 없으면(5a 의 `--balance` 없는 compute 그대로) `[FAIL] apply: … "잔액" 없음` 으로 멈춘다 — 세 줄은 이 순서로 매 회차(2-1 같음 경로 포함).
+세션은 `work/balance.json` 을 손으로 쓰거나 고치지 않는다(다시 읽으려면 balance.py 를 다시 — 그 뒤 compute·apply 도 다시).
 `--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만(분기 도우미의 M 줄 포함),
-meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D → 01 모바일 터치 날짜 = r2026-10-E),
-meta r2026-10-B·C·D 판이면 사슬을 따라 r2026-10-E 로 바꾼 뒤 값.
-`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B·C·D 판이면 `… 레이아웃 판 meta r2026-10-D ≠ config r2026-10-E — --layout …`(B·C 도 같은 꼴),
+meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D → 01 모바일 터치 날짜 = r2026-10-E → 광고비 잔액 카드 = r2026-10-F),
+meta r2026-10-B·C·D·E 판이면 사슬을 따라 r2026-10-F 로 바꾼 뒤 값.
+`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B·C·D·E 판이면 `… 레이아웃 판 meta r2026-10-E ≠ config r2026-10-F — --layout …`(B·C·D 도 같은 꼴),
 meta 가 사슬 밖의 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 합계 맨 위 + 최근 `recent_days`(7)일 최신 위,
 나머지 날짜는 접힌 표에 최신 위. **접기 머리(summary)의 개수·날짜(03 "이전 N일(M/D~M/D)" · 07 "(N개 · 펼치기)" · 경쟁사 "표 N행" · 08 "(N개 지역·클릭 M건)")는 apply 가 compute.json 으로 매 회차 쓴다**
 — 서술 스크립트는 summary·details 를 건드리지 않는다.
@@ -278,7 +286,7 @@ meta 가 사슬 밖의 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 �
 
 한 번에: `scripts/precheck.sh work/index.html work/combined work/prev.html [--pending]`(환경 변수 `PY` = venv 파이썬)
 — 아래 넷을 순서대로, 하나라도 실패하면 멈춘다. validate·compare는 통과면 끝 3줄(요약 `검사 N개: PASS … / FAIL 0` 포함), 실패면 전체 출력을 보인다.
-compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
+compute.json은 작업본 옆(`work/compute.json`)에 쓴다(판 F — 작업본 옆 `work/balance.json` 을 validate·compute 에 `--balance` 로 넘긴다). 3번째 인자는 **4단계 fetch 파일(직전 배포본)** 이 필수이며 작업본과 md5가
 같으면 "[FAIL] 직전 배포본이 작업본과 같다 — …"로 exit 1. `--pending`은 validate에만 넘어간다. 전부 통과하면 작업본 옆에
 도장 `work/precheck_ok.md5`(1줄 작업본 md5 · 2줄 직전 배포본 md5 · 3줄 `mode full|pending`)를 쓴다 — 7단계 실제 push는 작업본 md5 = `--file`·
 직전 배포본 md5 = `--base`일 때만 PUT한다(pending이면 `[주의]`만). 인자 수가 맞으면 무엇보다 먼저(파일 없음 FAIL에도) 옛 도장을 지우고, 작업본 md5를 시작·끝에 재 다르면
@@ -287,7 +295,7 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다. 3번째 인자는 
 
 1. `scripts/validate.py`(독립 검산 — 태그 짝·클릭수·CTR 강조·top5·카드·경쟁사·11·12번 등, 아래 "배포 전 검산")
    ```bash
-   "$PY" scripts/validate.py <작업중인 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV> [--pending]
+   "$PY" scripts/validate.py <작업중인 index.html> <키워드CSV> <검색어CSV> <시간대별CSV> <상세지역CSV> [--pending] [--balance work/balance.json]
    ```
    `--pending`은 사용자 답을 기다리며 채팅 질문을 남긴 채 배포하는 회차에만 붙인다(07 각주·11·12번 잔존 문구 검사 21만 허용,
    건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다. 잔존 문구를 보는 자리는 이 검사 하나뿐이다(compare.py에 없음).
@@ -514,7 +522,7 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 
 ## 배포 전 검산
 
-`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 회차 2 기준 24개,
+`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 회차 2 기준 24개 · 2026-10-09 판 F 기준 25개,
 config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부른다):
 
 - HTML 태그 짝 (div/table/tr/td/th/span/script 등)
@@ -551,13 +559,17 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   (판 C, 2026-10-06) 같은 검사가 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 각 1(합 = `markers.mobile_branch` 2) · 분기 도우미 M 줄 = config `report_layout.mobile` ·
   `matchMedia('(max-width: ' + M.maxPx + 'px)')` 1곳 · CSS `@media (max-width: 640px){` 1곳 = `mobile.max_px`(JS 경계 = CSS 경계)도 본다(이름·검사 수 그대로).
   (판 D, 2026-10-07) M 줄에 `recent: {"01": 14, "06": 14}` = config `mobile.recent_days` 까지 대조.
-  (판 E, 2026-10-08) 01 모바일 터치 축 `interaction: {mode:'index', intersect:false, axis:'y'}` 정확히 1건 — PASS `r2026-10-E · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640 · 01 터치 y`
+  (판 E, 2026-10-08) 01 모바일 터치 축 `interaction: {mode:'index', intersect:false, axis:'y'}` 정확히 1건
+  (판 F, 2026-10-09) 잔액 카드 표지(`data-balance` 값·보조 줄 각 `markers.balance_card` 1) · `.kpi-row` 안 넷째 카드 뒤 · `.kpi-wide` CSS 1 — PASS `r2026-10-F · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640 · 01 터치 y · 잔액 카드 1`
+- (2026-10-09 판 F 추가) **"광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분"** — `--balance work/balance.json` 을 직접 읽어(compute 와 계산 공유 0) 카드 값 = ⌊bizmoney_raw⌋ 원 ·
+  보조 줄 = 읽은 시각 KST + 며칠분(키워드 CSV 에서 제외 그룹 뺀 마지막 날까지 달력 7일 총비용 — 정수 나눗셈, 0 이면 생략) / 실패 기록이면 `확인 못 함` · `… 조회 실패` ·
+  읽은 날 ≤ 집계 마지막 날(지난 회차 기록)·기록 없음·꼴 다름·카드 0건이면 FAIL. 이것으로 validate 검사는 **25개**
 
 그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(99항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
 접기 summary 4항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
 compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
-precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07 · 판 E 2026-10-08): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
-01·06 의 tick·datalabels·겹침(390 접힘·펼침·다시 접힘·짧은 사본 · 1280 · 회전 390→844→390)과 page.pdf 실물을 재고, 390 에서 01 줄마다 왼쪽·가운데·오른쪽을 진짜로 눌러 팝업 = 그 줄 날짜(판 E)를 본다. `--out`·`--base` 면 전후 비교 페이지 `<폴더>/compare.html` 도 쓴다. 리허설·검증·첫 적용 "보류" 회차·정기점검에서 돌린다(데이터 회차의 6단계에는 없음).
+precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07 · 판 E 2026-10-08 · 판 F 2026-10-09): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
+01·06 의 tick·datalabels·겹침(390 접힘·펼침·다시 접힘·짧은 사본 · 1280 · 회전 390→844→390)과 page.pdf 실물을 재고, 390 에서 01 줄마다 왼쪽·가운데·오른쪽을 진짜로 눌러 팝업 = 그 줄 날짜(판 E)를 본다. 판 F 는 폭마다 광고비 잔액 카드 = .kpi-row 마지막 자식 · 한 줄 전체 · 카드 넷 아래(1280 한 줄 / 390 2·2) · 글자 = compute "잔액". `--out`·`--base` 면 전후 비교 페이지 `<폴더>/compare.html`(맨 앞 상단 카드 옛/새) 도 쓴다. 리허설·검증·첫 적용 "보류" 회차·정기점검에서 돌린다(데이터 회차의 6단계에는 없음).
 
 검사 대상이 0건이면 PASS가 아니라 **FAIL**이다. 마크업이 바뀌어 정규식이 안 맞는데
 조용히 통과하는 것을 막기 위한 것이다.
@@ -598,12 +610,13 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
   미로그인 exit 1 검사 — 정기 점검 때).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ = HEAD·추적 안 된 파일 0·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
-  `scripts/compute.py`(5단계 값) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL · `--layout` 레이아웃 판 변환·summary) ·
+  `scripts/balance.py`(5단계 첫 명령 — 광고비 잔액 GET 1회 → work/balance.json, 판 F) · `scripts/compute.py`(5단계 값 — `--balance` 면 잔액 카드 값) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL · `--layout` 레이아웃 판 변환·summary) ·
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/narrative_check.py`(6단계 서술 미교체) · `scripts/precheck.sh`(6단계 한 번에) ·
   `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>`·push `--layout-change`(레이아웃 판 게이트) — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존 — 레이아웃 판 변조·0건 가드·config 실험 포함) · `tests/overflow_check.py`(360/390/430px 넘침, 접기 전부 열고, file:// 밖 요청 차단) ·
-  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환(옛 → B → C → D 사슬·B → D·C → D)·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
-  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 E 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 접힘·펼침 누락 0·01 터치 팝업 = 누른 줄 날짜·1280 = 기준·회전·page.pdf 실물 · 전후 비교 compare.html) ·
+  `tests/test_balance.py`(판 F — balance.py 가짜 API 성공·실패 범주·키 비출력·옛 기록 지움 · compute 잔액 창·지난 기록 FAIL · validate 잔액 검사) ·
+  `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환(옛 → B → C → D → E → F 사슬·E → F 범위·잔액 카드 값)·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
+  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 F 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 접힘·펼침 누락 0·01 터치 팝업 = 누른 줄 날짜·1280 = 기준·회전·page.pdf 실물 · 상단 잔액 카드 한 줄 전체 · 전후 비교 compare.html) ·
   `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구) ·
   `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제·03 오름차순 복귀·summary 옛 값 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·

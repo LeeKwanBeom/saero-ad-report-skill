@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
-판 E 01 모바일 터치 날짜 2026-10-08).
+판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-E):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-F):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
     분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)) → r2026-10-E(`convert_d_to_e` — meta ·
-    01 모바일 모양의 interaction 한 줄에 axis:'y' — 가로 막대에서 터치한 줄(날짜)의 팝업이 뜨게). meta 가 사슬 위의 옛 판이면
+    01 모바일 모양의 interaction 한 줄에 axis:'y' — 가로 막대에서 터치한 줄(날짜)의 팝업이 뜨게) → r2026-10-F(`convert_e_to_f` — meta ·
+    `.kpi-wide` CSS · KPI 카드 넷 아래 한 줄 전체 광고비 잔액 카드 하나(.kpi-row 다섯째 자식 — 카드 넷 그대로)). meta 가 사슬 위의 옛 판이면
     `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-D ≠ config …`.
-  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e`) 뒤 값을 바꾼다.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
-  · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch`)는 사슬 끝에 한 번 — 값만 경로도 같다.
+  · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
+    `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안)는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
   02 도넛 제목 총액 · 01 표 5행·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
-  분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D).
+  분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D) ·
+  판 F 광고비 잔액 카드의 값·보조 줄(compute.json "잔액" — 없으면 `[FAIL] apply: … "잔액" 없음`, 실패 기록이면 "확인 못 함" · "M/D(요일) HH:MM 조회 실패").
   01·06 모바일 펼치기 버튼 문구("이전 N일(M/D~M/D) 펼치기")는 HTML 에 없다 — 도우미가 화면에서 data.labels 로 만든다(apply 기계 자리 0).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다. summary·details 는 apply 몫.
@@ -557,6 +560,28 @@ M_LINE = re.compile(r'var M = \{maxPx: \d+, printMaxH: \d+, row: \{"01": \d+, "0
 TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        layout: { padding: {right: 64} },",
                 "        interaction: {mode:'index', intersect:false, axis:'y'},\n        layout: { padding: {right: 64} },")
 
+# ── 판 F(r2026-10-F, 2026-10-09 — 광고비 잔액 카드): KPI 카드 넷 아래 한 줄 전체 카드 하나(.kpi-row 다섯째 자식 · 데스크톱·모바일 같은 모양) ──
+# 카드 넷 마크업은 그대로 두고 넷째 카드(총 광고비 — "클릭당 평균 N원" sub) 바로 뒤, .kpi-row 닫힘 앞에 넣는다. 값·보조 줄은 data-balance 표지 안 — 매 회차 apply 가
+# compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
+# data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
+LAYOUT_F = "r2026-10-F"
+CARD_LAYOUTS = (LAYOUT_F,)   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판)
+BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
+     값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
+  .kpi-wide{grid-column:1 / -1;}
+"""
+BALANCE_CARD = """    <div class="kpi kpi-wide" style="--accent:#1c2b2a;">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7V5.5A1.5 1.5 0 0 0 17.5 4H5a2 2 0 0 0 0 4h14a1 1 0 0 1 1 1v3"/><path d="M3 6v12a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/><path d="M21 12h-4a2 2 0 0 0 0 4h4z"/></svg></div>
+      <div class="label">광고비 잔액</div>
+      <div class="value" data-balance="value">확인 못 함</div>
+      <div class="sub" data-balance="sub">—</div>
+    </div>
+"""
+KPI_END = r'(<div class="sub">클릭당 평균 [\d,]+원</div>\n    </div>\n)(  </div>\n)'   # 넷째 카드 끝 + .kpi-row 닫힘(정확히 하나)
+BAL_VALUE = r'(<div class="value" data-balance="value">)[^\n]*?(</div>)'
+BAL_SUB = r'(<div class="sub" data-balance="sub">)[^<\n]*(</div>)'
+BAL_STAMP = re.compile(r"\d{1,2}/\d{1,2}\([월화수목금토일]\) \d{2}:\d{2}")
+
 
 def m_line_c(lay):
     """판 C 도우미의 M 줄(사슬 중간 단계 B → C 전용 — 판 D 변환이 도우미째 바꾼다)."""
@@ -639,8 +664,54 @@ def convert_d_to_e(h, lay):
     return h
 
 
+def check_balance(h, lay, why):
+    """판 F 잔액 카드 표지 — 값·보조 줄 각 config markers.balance_card(1) · .kpi-row 안 넷째 카드("클릭당 평균") 뒤 · 01 섹션 앞."""
+    want = int(lay["markers"].get("balance_card", 1))
+    nv, ns = h.count('data-balance="value"'), h.count('data-balance="sub"')
+    if nv != want or ns != want:
+        raise ApplyError(f"{why} 잔액 카드 표지 값 {nv} · 보조 줄 {ns} ≠ config {want} — 손으로 바꾼 판으로 보임")
+    kr, iv, s1 = h.find('<div class="kpi-row">'), h.find('data-balance="value"'), h.find("<!-- Section 1:")
+    if not (-1 < kr < h.rfind("클릭당 평균", 0, iv) < iv < s1):
+        raise ApplyError(f"{why} 잔액 카드가 .kpi-row 안 넷째 카드 뒤(01 섹션 앞)가 아님 — 손으로 옮긴 판으로 보임")
+
+
+def convert_e_to_f(h, lay):
+    """레이아웃 판 r2026-10-E → r2026-10-F(광고비 잔액 카드). 바뀌는 곳 = meta · `</style>` 앞 CSS(.kpi-wide) · .kpi-row 끝(넷째 카드 뒤)에 카드 하나 —
+    앵커 셋 다 정확히 하나. 카드 넷·섹션 HTML·서술 표지·스크립트는 건드리지 않는다. 카드 값·보조 줄은 뒤의 apply 가 compute.json "잔액"으로 쓴다(템플릿은 자리만)."""
+    if "data-balance=" in h:
+        raise ApplyError("판 E 인데 잔액 카드 표지(data-balance)가 이미 있음 — 손으로 넣은 판으로 보임, 변환하지 않음")
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_E}">', f'<meta name="report-layout" content="{LAYOUT_F}">', h)        # ①
+    h = once(r"(\n</style>)", lambda m: "\n" + BALANCE_CSS.rstrip("\n") + m.group(1), h)                                         # ② 한 줄 전체 CSS
+    h = once(KPI_END, lambda m: m.group(1) + BALANCE_CARD + m.group(2), h)                                                         # ③ 카드(넷째 카드 뒤)
+    check_balance(h, lay, "변환 뒤")                                                                                               # ④
+    return h
+
+
+def balance_values(h, R):
+    """판 F 카드 값·보조 줄(매 회차 — 변환을 건너뛴 회차에도). compute.json "잔액" 이 없으면 FAIL(카드를 옛 값으로 두지 않는다).
+    ok → `217,817<span class="unit">원</span>` · `10/9(금) 14:34 기준 · 약 24일분`(일분 None 이면 ` · 약 …` 없음) / fail → `확인 못 함` · `10/9(금) 14:34 조회 실패`."""
+    b = R.get("잔액")
+    if not isinstance(b, dict):
+        raise ApplyError('compute.json 에 "잔액" 없음 — 5단계는 balance.py → compute.py … --balance work/balance.json → apply.py 순서(카드를 옛 값으로 두지 않음)')
+    stamp = b.get("기준")
+    if not isinstance(stamp, str) or not BAL_STAMP.fullmatch(stamp):
+        raise ApplyError(f'compute.json "잔액" 기준 {stamp!r} 꼴이 다름(M/D(요일) HH:MM)')
+    if b.get("상태") == "ok":
+        won, days = b.get("원"), b.get("일분")
+        if isinstance(won, bool) or not isinstance(won, int) or won < 0 or not (days is None or (isinstance(days, int) and not isinstance(days, bool) and days >= 0)):
+            raise ApplyError(f'compute.json "잔액" 원 {won!r} · 일분 {days!r} 꼴이 다름')
+        val, sub = f'{c(won)}<span class="unit">원</span>', f"{stamp} 기준" + ("" if days is None else f" · 약 {c(days)}일분")
+    elif b.get("상태") == "fail":
+        val, sub = "확인 못 함", f"{stamp} 조회 실패"
+    else:
+        raise ApplyError(f'compute.json "잔액" 상태 {b.get("상태")!r} — ok|fail 이어야')
+    h = once(BAL_VALUE, lambda m: m.group(1) + val + m.group(2), h)
+    return once(BAL_SUB, lambda m: m.group(1) + sub + m.group(2), h)
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
-STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e))
+STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
+         (LAYOUT_E, LAYOUT_F, convert_e_to_f))
 
 
 def chain(frm, to):
@@ -669,8 +740,9 @@ def tr(cells, style=""):
 
 def apply(h, R, cfg, layout=False):
     """layout = --layout(옛 판·사슬 위 옛 판이면 config 판까지 변환). meta = config layout_id 면 변환 없이 값만(멱등).
-    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e · meta r2026-10-B → C → D → E ·
-    meta r2026-10-C → D → E · meta r2026-10-D → E · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수)는 사슬 끝에 한 번(값만 경로 포함)."""
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e → convert_e_to_f · meta r2026-10-B → C → D → E → F ·
+    meta r2026-10-C·D·E → … → F · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지)는 사슬 끝에 한 번(값만 경로 포함).
+    판 F 는 compute.json "잔액" 이 없으면 FAIL(balance_values)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
@@ -699,7 +771,11 @@ def apply(h, R, cfg, layout=False):
     if len(DETAILS.findall(h)) != int(lay["markers"]["details"]):
         raise ApplyError(f"레이아웃 판 {lid} 인데 details {len(DETAILS.findall(h))}개 ≠ config {lay['markers']['details']} — 접기를 손으로 바꾼 판으로 보임")
     check_branches(h, lay, f"레이아웃 판 {lid} 인데")
+    if lid in CARD_LAYOUTS:
+        check_balance(h, lay, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
+    if lid in CARD_LAYOUTS:
+        h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)
@@ -903,7 +979,9 @@ def main():
         conv = f" · 레이아웃 판 변환({steps(old.group(1))}, 분기 {nbr})"
     else:
         conv = f" · 레이아웃 판 {lid}(변환 건너뜀)"
-    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + (" (변경 없음)" if new == h else ""))
+    mv, ms = re.search(BAL_VALUE, new), re.search(BAL_SUB, new)
+    card = (f" · 잔액 카드 {re.sub(r'<[^>]+>', '', mv.group(0))} · {re.sub(r'<[^>]+>', '', ms.group(0))}" if mv and ms else "")   # 판 F — 운영 세션이 출력에서 카드 글을 본다
+    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + (" (변경 없음)" if new == h else ""))
     return 0
 
 

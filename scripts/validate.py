@@ -53,8 +53,15 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      (recent 없는 판 C 꼴 M 줄은 0건 → FAIL). PASS 문구에 `최근 K/K`.
      (판 E, 2026-10-08 01 모바일 터치 날짜) 01 모바일 모양의 `interaction: {mode:'index', intersect:false, axis:'y'}` 정확히 1건(0건이면 터치한 줄과
      다른 날짜 팝업 — FAIL). PASS 문구 끝에 `01 터치 y`.
+     (판 F, 2026-10-09 광고비 잔액 카드) 카드 표지 `data-balance="value"`·`"sub"` 각 config `markers.balance_card`(1) · `.kpi-row` 안(카드 넷 뒤 · 01 섹션 앞) ·
+     CSS `.kpi-wide{grid-column:1 / -1;}` 1건. PASS 문구 끝에 `잔액 카드 1`.
+ 24. (2026-10-09 추가) "광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분" — `--balance <work/balance.json>`(balance.py 기록 — precheck 는 작업본 옆 파일)을
+     직접 읽어(compute.py 와 계산 공유 0) 기록이 ok 면 카드 값 = ⌊bizmoney_raw⌋ 원(콤마 · 기록의 bizmoney 도 같은 값) · 보조 줄 = 읽은 시각 KST `M/D(요일) HH:MM 기준`
+     + ` · 약 N일분`(N = ⌊원 × 창일수 ÷ 창합계⌋ — 창 = 키워드 CSV `일별` 달력 날짜로 마지막 날까지 7일(첫날 앞은 자름 · 행 없는 날 0원), 합계 = 제외 그룹 뺀 총비용,
+     합계 0 이면 며칠분 없음) / fail 이면 값 `확인 못 함` · 보조 줄 `M/D(요일) HH:MM 조회 실패`. 읽은 날(KST)이 집계 마지막 날 이하(지난 회차 기록)·기록 없음·
+     꼴 다름·카드 값/보조 줄 0건 또는 둘 이상이면 FAIL.
 
-사용법(옵션): "$PY" scripts/validate.py ... [--pending]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
+사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
 안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
@@ -63,6 +70,9 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
 종료 코드: 0=전부 통과, 1=실패 있음
 """
 
+import datetime as dt
+import json
+import math
 import re
 import sys
 
@@ -415,13 +425,90 @@ def check_layout(html):
     # 빠지면 Chart.js index 모드가 가로 거리로 골라 터치한 줄과 다른 날짜 팝업이 뜬다
     n_ty = len(re.findall(r"interaction:\s*\{mode:'index', intersect:false, axis:'y'\}", html))
     if n_ty != 1: bad.append(f"01 모바일 터치 축 interaction axis:'y' {n_ty}건 ≠ 1 — apply.py --layout 으로 판 E")
+    # 판 F(2026-10-09 — 광고비 잔액 카드): 값·보조 줄 표지 각 markers.balance_card · .kpi-row 안(넷째 카드 "클릭당 평균" 뒤 · 01 섹션 앞) · .kpi-wide CSS 한 줄
+    want_bc = int(LAYOUT["markers"].get("balance_card", 0))
+    nv, ns = html.count('data-balance="value"'), html.count('data-balance="sub"')
+    kr, iv, s1 = html.find('<div class="kpi-row">'), html.find('data-balance="value"'), html.find("<!-- Section 1:")
+    if nv != want_bc or ns != want_bc: bad.append(f"잔액 카드 표지 값 {nv} · 보조 줄 {ns} ≠ config {want_bc} — apply.py --layout 으로 판 F")
+    elif want_bc and not (-1 < kr < html.rfind("클릭당 평균", 0, iv) < iv < s1): bad.append("잔액 카드가 .kpi-row 안 넷째 카드 뒤(01 섹션 앞)가 아님")
+    n_kw = html.count(".kpi-wide{grid-column:1 / -1;}")
+    if want_bc and n_kw != 1: bad.append(f"CSS .kpi-wide{{grid-column:1 / -1;}} {n_kw}건 ≠ 1(잔액 카드 한 줄 전체)")
     check(name, not bad, "; ".join(bad) if bad else
-          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y")
+          f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y"
+          + (f" · 잔액 카드 {nv}" if want_bc else ""))
+
+
+KST = dt.timezone(dt.timedelta(hours=9))
+YOIL = "월화수목금토일"
+
+
+def check_balance_card(html, kw, bal_path):
+    """24. 판 F 광고비 잔액 카드 = 잔액 기록(balance.py 의 balance.json)·며칠분 — compute.py 와 계산 공유 0(제외 그룹 필터·일수만 reportlib).
+    카드 값·보조 줄 표지가 하나씩이 아니거나·기록이 없거나·꼴이 다르거나·지난 회차 기록(읽은 날 ≤ 집계 마지막 날)이면 FAIL."""
+    name = "광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분"
+    vals = re.findall(r'<div class="value" data-balance="value">(.*?)</div>', html)
+    subs = re.findall(r'<div class="sub" data-balance="sub">([^<]*)</div>', html)
+    if len(vals) != 1 or len(subs) != 1:
+        check(name, False, f"카드 값 {len(vals)}건 · 보조 줄 {len(subs)}건 ≠ 1 — 카드가 없거나 마크업 변경 의심(apply.py --layout 판 F)")
+        return
+    if not bal_path:
+        check(name, False, "잔액 기록 인자 없음 — validate.py … --balance work/balance.json(precheck 는 작업본 옆 balance.json 을 넘긴다)")
+        return
+    try:
+        with open(bal_path, encoding="utf-8") as f:
+            rec = json.load(f)
+        st, ra = rec["status"], rec["read_at"]
+        t = dt.datetime.fromisoformat(ra.replace("Z", "+00:00"))
+        if st not in ("ok", "fail") or t.tzinfo is None:
+            raise ValueError(f"status {st!r} · read_at {ra!r}")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        check(name, False, f"잔액 기록을 못 읽음·꼴 다름({type(e).__name__}: {str(e)[:80]}): {bal_path}")
+        return
+    k = t.astimezone(KST)
+    dmin, dmax, _ = parse_days(kw)
+    stamp = f"{k.month}/{k.day}({YOIL[k.weekday()]}) {k.hour:02d}:{k.minute:02d}"
+    bad = []
+    if k.date() <= dmax.date():
+        bad.append(f"읽은 날 {k.date()}(KST) ≤ 집계 마지막 날 {dmax.date()} — 지난 회차 잔액 기록(balance.py 를 이번 회차에)")
+    if st == "fail":
+        want_v, want_s, extra = "확인 못 함", f"{stamp} 조회 실패", "기록 fail"
+    else:
+        raw, won = rec.get("bizmoney_raw"), rec.get("bizmoney")
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not math.isfinite(raw) or raw < 0:
+            check(name, False, f"잔액 기록 꼴 다름(bizmoney_raw {raw!r}): {bal_path}")
+            return
+        floor_won = int(math.floor(raw))
+        if won != floor_won or isinstance(won, bool):
+            bad.append(f"기록 bizmoney {won!r} ≠ ⌊bizmoney_raw {raw!r}⌋ {floor_won}")
+        inc = exclude_groups(kw, CFG)
+        window = []
+        for i in range(7):  # 마지막 날부터 거꾸로 달력 7일 — 첫날 앞은 자른다(행 없는 날도 창에 들어간다 = 0원)
+            day = dmax - dt.timedelta(days=i)
+            if day < dmin:
+                break
+            window.append(day.strftime("%Y.%m.%d."))
+        spend = int(inc[inc["일별"].astype(str).isin(window)]["총비용"].sum())
+        want_v = f'{floor_won:,}<span class="unit">원</span>'
+        want_s = f"{stamp} 기준" + (f" · 약 {floor_won * len(window) // spend:,}일분" if spend > 0 else "")
+        extra = f"기록 ok ⌊{raw}⌋ · 창 {len(window)}일 총비용 {spend:,}원"
+    if vals[0] != want_v:
+        bad.append(f"값 화면 {vals[0]!r} ≠ 기대 {want_v!r}")
+    if subs[0] != want_s:
+        bad.append(f"보조 줄 화면 {subs[0]!r} ≠ 기대 {want_s!r}")
+    check(name, not bad, "; ".join(bad) if bad else f"{re.sub(r'<[^>]+>', '', vals[0])} · {subs[0]} ({extra} · 읽은 시각 {ra})")
 
 
 def main():
-    pending = "--pending" in sys.argv
-    args = [a for a in sys.argv[1:] if a != "--pending"]
+    argv = sys.argv[1:]
+    bal_path = None
+    if "--balance" in argv:  # 판 F 잔액 기록(precheck 가 작업본 옆 balance.json 을 넘긴다) — 없으면 "광고비 잔액 카드" FAIL
+        i = argv.index("--balance")
+        if i + 1 >= len(argv):
+            sys.exit(__doc__)
+        bal_path = argv[i + 1]
+        del argv[i:i + 2]
+    pending = "--pending" in argv
+    args = [a for a in argv if a != "--pending"]
     if len(args) != 5:
         sys.exit(__doc__)
 
@@ -493,6 +580,7 @@ def main():
     check_11_12(html, pending)
     check_07_footnotes(s7)  # 2026-10-06 — 글 줄이기 회차 1
     check_layout(html)  # 2026-10-06 — 레이아웃 판 회차 2
+    check_balance_card(html, kw, bal_path)  # 2026-10-09 — 판 F 광고비 잔액 카드
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

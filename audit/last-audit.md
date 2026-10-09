@@ -14,6 +14,131 @@ propose 창 2026-10-08~2026-10-08 · 등록 미룸(사용자): 아니오
 
 ---
 
+## 기능 추가 구현 기준선(광고비 잔액 카드 — 판 F, 2026-10-09) · 브랜치 `feat-20261009-balance`
+
+점검일: 2026-10-09 20:28~21:35 KST 무렵 (기능 추가 — **작은 작업**(작업 + 검증 세션 2개), 레이아웃 판 **r2026-10-E → r2026-10-F**. 데스크톱 앱 Code 탭, 이 PC, `D:\saero` 로 연 작업 세션, **Opus 5.5 · 울트라코드 켬**(지시는 Fable 5.1 — 임의 결정 1)).
+지시문 `D:\saero\saero-ad-report_광고비잔액카드_작업지시_2026-10-09.md`(질문 세션이 씀 — 사용자 결정 1~3 · 완료 기준 표 · 막음 기준 · 제약). 작업 clone `D:\saero\feat-20261009-balance`(origin/main **`9d90145`** 에서 분기 — 시작·21:20 fetch 둘 다 origin/main 그대로).
+외부 쓰기 0: 배포 PUT 0 · 네이버 POST·DELETE 0 · **네이버 `GET /billing/bizmoney` 1회**(리허설 R2 — 20:54:19 KST · 그 밖 네이버 호출 0) · `deploy.py push --dry-run` 2회(R8 20:59·21:18 — 읽기·자격 확인만, PUT 0) · 운영 main 작업 폴더는 `work/` 재료 읽기 복사만(쓰기 0) ·
+배포 저장소는 공개 읽기 clone(`work/pages` — 옛 판 실물) · 스킬 저장소는 fetch 와 브랜치 push 만.
+효율: 벽시계 약 70분 · 하위 에이전트 2(설계 반박 1 — 하위 토큰 약 28만 · 구현 자체 검토 워크플로 1(막음 후보 0 → 반박 0) — 약 26만, 합 약 54만 < 상한 150만) · 즉석 코드 약 300행(패치 스크립트·탐침 — 스크래치, `work/RF/rehearse.sh`·`fulltest.sh` 제외).
+표기: [실측] 이번에 파일·명령으로 확인 / [추론] 확인 못 함 / [미확인] 사용자 대조 전.
+
+### 사용자 결정(2026-10-09 — 지시문 원문, 다시 묻지 않음)
+목표(사용자 원문): "현재 보고서 사이트에 스킬을 돌릴당시의 광고비 잔액을 상단 4개의 카드섹션영역에 추가할수 있을까?"
+1. 배치 = **카드 넷 아래 긴 카드 한 장**(데스크톱·모바일 같은 모양 — 모바일은 위 넷이 2·2, 잔액 카드는 한 줄 전체). 다섯째 칸·총 광고비 카드 안 한 줄은 고르지 않음.
+2. 보조 줄 = **기준 시각 + 며칠분**: 예 `10/9(금) 14:34 기준 · 약 24일분` — 며칠분 = 잔액 ÷ 최근 7일(집계 마지막 날까지 7일) 평균 총비용, 버림. 7일 이하 빨강 경고는 고르지 않음.
+3. 질문 세션이 정한 기본값(사용자에게 알림 — 바꾸라는 답 없음): 잔액은 원 단위 **버림** · 조회 실패해도 **배포는 멈추지 않고** 카드에 "확인 못 함"(옛 값을 새 시각으로 보이지 않는다) · 공개 사이트에 잔액이 보이는 것(총 광고비는 이미 공개).
+
+### 바뀐 것(파일별, `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `20d8526`) [실측]
+
+| 파일 | 행 | md5 | 무엇 |
+|---|---|---|---|
+| `scripts/balance.py`(새) | 0 → 136 | 22798629 | `GET /billing/bizmoney` 1회 → `work/balance.json`. exclusions.py 의 `NaverApi`·`load_keys`·`ApiError`·`NetworkBlocked`·`KST` 를 import(exclusions.py 변경 0). 시작에 옛 기록 지움 · 성공 `{status ok, read_at KST, bizmoney ⌊raw⌋, bizmoney_raw, budgetLock, refundLock}` / 실패 `{status fail, read_at, reason 범주}` · exit 0(기록 씀)·1(못 씀)·2(인자) · 임시 파일 뒤 바꿔 넣기 |
+| `scripts/compute.py` | 261 → 322 | 0ee57389 | `--balance` → `"잔액"`(`balance_card` — 창 = `일별` 달력 7일 · 제외 그룹 뺀 총비용 · 일분 = 원×창일수//창합계 · 합계 0 → null · 실패 기록 → `{상태 fail, 기준}`) · 기록 없음·꼴 다름·읽은 날 ≤ 집계 마지막 날이면 `[FAIL] 잔액 기록…` exit 1(출력 파일 안 씀) · 출력 줄 끝 `잔액 {…}` |
+| `scripts/apply.py` | 911 → 989 | 329faeca | `LAYOUT_F`·`CARD_LAYOUTS`·`BALANCE_CSS`·`BALANCE_CARD`(지갑 아이콘 · accent #1c2b2a · `data-balance` 표지)·`KPI_END`·`convert_e_to_f`(① meta ② `</style>` 앞 CSS ③ 넷째 카드 끝 + `.kpi-row` 닫힘 사이에 카드 — 판 E 인데 표지 있으면 FAIL ④ `check_balance`) · `balance_values`(매 회차 값·보조 줄 둘 다 — "잔액" 없음·기준 꼴·원·일분·상태 꼴 다르면 FAIL) · `STEPS` 에 E → F · 출력 줄 끝 `· 잔액 카드 …` · docstring |
+| `scripts/validate.py` | 509 → 597 | 2a2521fb | 새 검사 24 `check_balance_card`(balance.json 직접 · 자체 창 계산 · 지난 회차 기록 FAIL — 검사 24 → **25**) · "레이아웃 판" 에 판 F 표지(값·보조 줄 각 `markers.balance_card` · `.kpi-row` 안 넷째 카드 뒤 · `.kpi-wide` CSS 1 — PASS 끝 `· 잔액 카드 1`) · `--balance` 인자 |
+| `scripts/precheck.sh` | 38 → 40 | 4372d70a | 작업본 옆 `balance.json` 을 validate·compute 에 `--balance` 로(그 밖·도장 꼴 그대로) |
+| `config/report-config.json` | 175 → 176 | d5fe92ad | `report_layout.layout_id` r2026-10-E → **r2026-10-F** · `markers.balance_card` 1 · `_comment` 판 F |
+| `tests/test_balance.py`(새) | 0 → 330 | 430f9228 | balance.py 가짜 sender 8(성공·버림·호출 1 · 401/403·5xx·404·429 두 번 · 네트워크·프록시·끊김·못 읽음·알 수 없는 오류 · 꼴 다름 10 · 키 파일 4 · 옛 기록 지움·못 씀 exit 1 · 인자) — 모든 경우 화면·json 에 키 0 / compute 잔액 3 / validate 잔액 2(PASS 꼴 3 · FAIL 꼴 12) → **Ran 13 OK** |
+| `tests/test_apply.py` | 560 → 674 | f465fec0 | **`ApplyLayoutF`** 5(E → F = 사슬 바이트 · 변환 범위 = meta·CSS·카드뿐 · 카드 넷 바이트·KPI 정규식 그대로 · 값 ok/일분 없음/fail/큰 수 · "잔액" 없음·꼴 FAIL · 손 수정 E/F FAIL) + 기존 기대값 E → F · ApplyRehearsal `work/RF` → **Ran 30 OK**(리허설 포함) |
+| `tests/fixtures/layout_old.compute.json` | 636 → 645 | a33b9ab6 | `"잔액"`(가짜 값 — 123,456원 · 1/8(목) 09:05 · 28일분) |
+| `tests/mutation_test.py` | 423 → 459 | 50628db2 | 6번째 인자 balance.json(없으면 작업본 옆) · 잔액 변조 4(값 +1원 · 시각 +1분 · 며칠분 +1 · 기록 읽은 시각 = 마지막 날) · 0건 가드 2(`data-balance` 지우기 → 잔액·레이아웃 판) |
+| `tests/chart_check.py` | 782 → 844 | 28aa901b | 폭마다 "상단 잔액 카드 한 줄 전체(판 F)"(카드 1 · `.kpi-row` 마지막 자식 · 좌우 = 줄 · 넷 아래 · 넷 = 1280 한 줄/390 2·2 · 값·보조 줄 글자 넘침 0 · 값 글자 크기 = 넷 · 글자 = compute "잔액") · 상단 캡처 `<폭>_top.png`·`base_<폭>_top.png` · compare.html 맨 앞 "상단 카드" 절 |
+| `SKILL.md` | 611 → 624 | 8ab2bbb7 | 원칙 판 r2026-10-F · 5단계 세 명령 + "광고비 잔액 카드" 문단 · 사슬·FAIL 문구 F · 6단계 balance.json · 검산 25개·판 F · chart_check · 참고 파일 |
+| `references/code-tab.md` | 246 → 252 | ec46b75e | 1절 작업물 `work/balance.json` · 3절 5단계 행(세 명령)·6단계 · 2-1 "미룬 등록만" 도 잔액 세 줄 · 4절 판 F 첫 적용(상단 카드 비교·화면 대조) · ⓑ 표 잔액 두 행 · 5절 balance.py 종료 코드 · 7절 balance.json 손으로 쓰기 금지 |
+| `references/report-structure.md` | 641 → 671 | 997d838f | 절 제목·목차 앵커 r2026-10-F · 표지·바꾸는 코드 줄 · **"판 F" 문단**(사용자 원문·결정 · 카드 마크업 · 값 꼴 · 앵커 보호 · 검사 · 변환) · KPI 요약 "광고비 잔액 카드" 정의(compute.py) |
+| `references/css-and-layout.md` | 283 → 286 | 7bb7339f | 시각 요소에 잔액 카드 한 줄(장식 원 scrollWidth +20 은 넘침 아님) · 유틸리티 `.kpi-wide` |
+| `audit/checklist.md` | 538 → 545 | 93867d6e | 갱신 이력 한 줄(v4.7 유지) · [의도된 동작] 27 판 F 문단 · 16 validate 25개 · [되돌리면 안 되는 것] 잔액 카드 행 · 대상 파일 목록 balance.py·test_balance.py |
+| `audit/last-audit.md` | — | (커밋 뒤) | 이 절 |
+
+지시 밖 변경 0: `compare.py`·`deploy.py`·`exclusions.py`·`reportlib.py`·`narrative_check.py`·`fetch_reports.py`·`archive.py`·`ingest.sh`·`overflow_check.py`·`test_deploy.py`·`test_exclusions.py`·`test_compare_sections.py`·`tests/fixtures/layout_old.html`·`local/`·`data/`·`audit/exclusions.csv` 불변(`git diff --stat 9d90145 20d8526` 16파일 +1066/−90). 배포본의 카드 넷·서술 표지·섹션 1~12·차트 스크립트 그대로, service-worker(배포 저장소) 손대지 않음.
+
+### 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **세션 모델**: 지시는 작업 세션 Fable 5.1 · 울트라코드였으나 이 세션은 Opus 5.5 로 열려 있었다 — 그대로 진행. 작업 알고리즘 "구현과 검증은 다른 모델"을 지키려고 **검증은 Fable 5.1 · 울트라코드**(지시문 [넘길 때] 의 Opus 5.5 에서 바꿈), 수정은 구현과 같은 Opus 5.5 · xhigh, 재검증 Fable 5.1 · xhigh.
+2. **잔액 읽기 자리 = 새 스크립트 `balance.py`, 5단계 첫 명령**(apply 바로 앞 — 카드 시각이 배포에 가장 가깝고, 2-1 같음 세 경로가 모두 5단계를 지난다). exclusions.py 에 하위 명령을 넣지 않음(외부 쓰기 스크립트 변경 0).
+3. **apply 에 넘기는 길 = compute.py `--balance` → compute.json `"잔액"`**("숫자는 compute 출력만" 원칙). apply 는 판 F 인데 "잔액" 이 없으면 FAIL(5a 의 `--balance` 없는 compute.json 으로 apply 하면 멈춘다). 5a 는 그대로(2-1 대조용).
+4. **며칠분 정의**: 창 = 키워드 `일별` 의 달력 날짜로 마지막 날까지 7일(첫날 앞은 자름 · 행 없는 날 0원) · 합계 = 제외 그룹 뺀 총비용(01 총비용·KPI 광고비 정의 — 지시 사실 줄과 같은 63,274 · 제외 그룹 비용은 8/31 뒤 0 [실측]) · 일분 = ⌊원 × 창일수 ÷ 합계⌋(정수 나눗셈 — 평균 9,039 로 반올림해 나누면 경계에서 하루 달라질 수 있어 정수식으로 고정).
+5. **지난 회차 기록 가드**: 읽은 날(KST) ≤ 집계 마지막 날이면 compute·validate 둘 다 FAIL(데이터는 늘 어제까지 — 어제 회차 기록이 오늘 값처럼 배포되는 길을 막음). 같은 날 다시 돌린 회차의 앞 기록은 못 잡는다 → 이월 1.
+6. **실패 카드 글**: 값 `확인 못 함`(단위 없음) · 보조 줄 `M/D(요일) HH:MM 조회 실패`(시도 시각).
+7. **실패 범주와 출력**: 키 파일 문제·네트워크 오류·네트워크 차단(프록시)·인증·권한 오류(401/403)·429 요청 한도·서버 오류(5xx)·응답 코드 N·요청 결과 모름·응답 꼴 다름·알 수 없는 오류(종류). json 의 reason 은 이 범주 글뿐(서버 문구 0) · 화면 세부는 `_mask` 뒤 300자 · 실패해도 exit 0.
+8. **응답 꼴**: dict · `bizmoney` 숫자(bool 아님)·유한·0 이상 · `customerId` 가 있으면 요청한 고객 번호와 같아야(리허설 GET 에서 같음 [실측]). budgetLock·refundLock 은 기록만(카드에 안 보임).
+9. 시작에 옛 balance.json 지움(못 지우면 exit 1) · 임시 파일에 쓴 뒤 바꿔 넣기 · 키 파일이 객체가 아니어도 실패 기록(설계 반박 이월 4 반영).
+10. **카드 마크업**: `.kpi kpi-wide` · accent #1c2b2a(넷째 카드 "총 광고비" 값 — 새 색 0) · 지갑 라인 SVG · 라벨 "광고비 잔액" · `data-balance` 표지(기존 KPI 정규식 밖) · `.kpi-row` 다섯째 자식 + CSS `.kpi-wide{grid-column:1 / -1;}`(인라인 대신 CSS 한 줄 — 판 B~E 변환과 같은 방식).
+11. validate: 새 검사 1(24 → 25) + "레이아웃 판" 에 표지. **compare.py 는 바꾸지 않음**(99 그대로 — 카드는 validate 독립 대조로).
+12. precheck 는 작업본 옆 balance.json 을 넘기기만(존재 검사는 validate 몫 — test_ingest 의 precheck 래퍼 시험 그대로). 도장 꼴 불변(balance.json md5 는 도장에 없음 → 이월 2).
+13. chart_check 가 상단 판정·캡처·compare.html 상단 절까지(첫 적용 전후 비교 페이지 = 이 도구). 카드 넘침은 값·보조 줄 글자 넘침으로 잼 — 카드 자체 scrollWidth 는 `.kpi::after` 장식 원(−20px, overflow:hidden)이 카드 넷과 같이 +20 [실측 390: 192/172 · 376/356].
+14. mutation_test 6번째 인자(없으면 작업본 옆 balance.json).
+15. 문서: 지시 목록(SKILL.md·code-tab 3절 표·report-structure 레이아웃 판 절·checklist) 밖으로 code-tab 1·4·5·7절 · report-structure KPI 요약 · css-and-layout 두 줄도 맞춤(운영 세션이 읽는 자리라). local/ 변경 0 — 설치본 갱신 불필요.
+16. apply 출력 줄 끝에 카드 글(`· 잔액 카드 217,817원 · 10/9(금) 20:54 기준 · 약 24일분`) — precheck 는 validate 끝 3줄만 보여 잔액 줄이 안 보이므로 운영 세션이 5단계 출력에서 본다.
+17. clone 은 처음에 이 PC 기본 `core.autocrlf=true` 로 받아 43파일이 CRLF 로 풀렸다 → clone 안에서만 `core.autocrlf=false` 로 다시 풂(전역 설정 불변, 커밋 바이트 영향 0). 검증 지시문 준비 1에 `-c core.autocrlf=false` 를 적음.
+
+### 리허설 결과(전부 clone 안 사본, 최종 코드 — `work/RF/rehearse.sh`(590e3ea4) 두 번 돌려 md5 목록·로그(시각 줄 빼고) 같음) [실측]
+- **R1** 재료: `work/RF/prev.html` = 배포 `765cf77`(7d1cebca · 판 E · 44일 — 배포 저장소 `git show 765cf77:index.html` 과 cmp 같음) · `compute_5a.json` 19812f78(운영 `work/compute.json`) · combined 4(검색어 585f6cb1 · 상세지역 1ebf1462 · 시간대별 b9f15376 · 키워드 1441162b — 운영 `work/` 읽기 복사).
+- **R2 실제 GET 1회**(20:54:19 KST): `balance.py --key-file ~/naver-api.keys.json --out work/RF/balance.json` → `[잔액] 217,817원 · 10/9(금) 20:54 기준(KST) · GET /billing/bizmoney 1회` rc 0 · 기록 d42ba5fd(`bizmoney_raw` 217817.915506 · budgetLock false · refundLock false · 키 0) — 14시대 질문 세션 실측과 같은 값.
+- **R3** compute `--balance` → `잔액 {상태 ok, 원 217817, 기준 '10/9(금) 20:54', 창 '10/2~10/8', 창일수 7, 창합계 63274, 일분 24}` · "잔액" 밖은 5a 와 같음 · apply `--layout` 없음 → `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-E ≠ config r2026-10-F — --layout 을 붙여 r2026-10-E → r2026-10-F` rc 1·파일 그대로 →
+  `--layout` → `106,868 → 107,693자 · 레이아웃 판 변환(r2026-10-E → r2026-10-F, 분기 2) · 잔액 카드 217,817원 · 10/9(금) 20:54 기준 · 약 24일분` **93dc7d96** → 두 번째 `(변환 건너뜀) … (변경 없음)` · `git diff --no-index` = meta 1줄 + CSS 3줄 + 카드 6줄(10+/1−).
+- **R4** precheck(`work/RF/index.html work/RF/combined work/RF/prev.html`): **validate 25/25**(`[PASS] 레이아웃 판 … r2026-10-F · details 5 · summary 짝 5 · 분기 2 · M 640/1000 · 최근 14/14 · CSS 640 · 01 터치 y · 잔액 카드 1` · `[PASS] 광고비 잔액 카드 … — 217,817원 · 10/9(금) 20:54 기준 · 약 24일분 (기록 ok ⌊217817.915506⌋ · 창 7일 총비용 63,274원 …)` · KPI 타일 4개 PASS) ·
+  **compare OK 99 / DIFF 0** · overflow 360/390/430 넘침 0 · narrative `[주의] 같은 기간` · 도장 `93dc7d96 · 7d1cebca · full` · compute.json 766d7745.
+- **R5** `tests/chart_check.py work/RF/index.html work/RF/compute.json --base work/RF/prev.html --out work/RF/shots` → **PASS 31 / FAIL 0 · 외부 허용 2 · 차단 0**: `390 상단 잔액 카드 한 줄 전체(판 F)` — 카드 x 16~374 = 줄 · 위 389.8 ≥ 넷 아래 379.8 · 높이 97 · 넷 2줄 · 글자 넘침 [0, 0] · 값 21px = 넷 /
+  `1280 …` — 카드 x 208~1072 = 줄 · 위 267 ≥ 넷 아래 255 · 높이 111 · 넷 1줄 · 26px = 넷 · 판 E 몫(01·06 접힘·펼침·터치 42/42·129/129 등) 그대로 · `1280 섹션 1·6 높이 = 기준 [841, 606]` · `인쇄 1280 PC PDF = 기준`(카드가 위에 생겨도 이미지 구성 같음) ·
+  상단 PNG 1280 6d29ffb1 · 390 6122f522 · base_1280 03691eda · base_390 bd912b0b · **전후 비교 `work/RF/shots/compare.html`**(맨 앞 상단 카드 옛/새 1280·390 + 01·06, 3.4MB). 첫 실행은 카드 자체 scrollWidth 로 재서 FAIL 2(장식 원 +20 — 카드 넷도 같음 [실측]) → 시험 도구를 글자 넘침으로 고친 뒤 31/0.
+- **R6** 옛 판 사슬(배포 저장소 실물 + 그 판 경쟁사표 기준 compute — 옛 판엔 뒤에 생긴 경쟁사 행이 없어 apply 경쟁사 가드가 멈추므로): `037aca8`(meta 없음) `meta 없음 → r2026-10-B → C → D → E → F, details 5 · 분기 2` · `014472d`(B) · `479d866`(C) · `04abd00`(D) · `5e33f38`(E) — 다섯 다 rc 0 · 두 번째 (변경 없음) · **카드 블록 md5 1e163cae 로 RF 와 같음** · validate "레이아웃 판"·"광고비 잔액 카드" PASS.
+- **R7** 조회 실패 경로(GET 0 — 없는 키 파일): `[주의] 잔액 확인 못 함(키 파일 문제) — 카드에 "확인 못 함"으로 배포(회차는 계속) · … GET /billing/bizmoney 0회` rc 0 · 기록 칸 `read_at·reason·status`(숫자 칸 0) → compute `잔액 {상태 fail, 기준 …}` → apply `잔액 카드 확인 못 함 · 10/9(금) 20:59 조회 실패` · **옛 값 217,817 남은 수 0** · validate 25/25.
+  **R7b** 지난 회차 기록(읽은 시각 10/8 23:00 = 집계 마지막 날): compute `[FAIL] 잔액 기록: … 2026-10-08(KST)이 집계 마지막 날 2026-10-08 이하 — 지난 회차 기록 …` rc 1 · 출력 파일 없음 · validate "광고비 잔액 카드" FAIL.
+- **R8 실제 환경**(21:18 KST — `work/RF/deploy_dryrun.log`): `deploy.py push --file work/RF/index.html --base work/RF/prev.html --message "리허설: 판 F 잔액 카드" --dry-run` → `precheck 도장 = 작업본 md5 93dc7d96… · 직전 배포본 7d1cebca… 확인` ·
+  **`[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · 직전 배포본(--base) r2026-10-E → 작업본(--file) r2026-10-F`** · 배포본 = --base md5 확인(sha a250d33) · 자격 증명 확인됨(출처: git) · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0(20:59 에도 같은 출력 1회).
+- **R9** mutation_test(RF 산출 + balance.json) rc 0 — 기준 25/25 · 커버리지 25/25 · 잔액 변조 4·가드 2 [OK] · config 실험 4 · archive 7 · 원본 md5 같음 · `[OK]` 59줄.
+
+**병합 전 전체 시험 한 번**(21:02~21:07 KST, `work/RF/fulltest.sh` ac7deaa1 — 결과 `work/RF/full/`): test_balance 13 OK · test_apply 30 OK · test_exclusions OK(registry md5 aa21b2e1 전후 같음) · **test_deploy Ran 21 OK**(GIT_* 제거·`GIT_CONFIG_NOSYSTEM=1`·빈 `GIT_CONFIG_GLOBAL`) · test_ingest OK(data/ 12파일 같음) ·
+test_fetch_reports OK(data/2026-09·config 같음) · test_narrative_check OK · test_validate_07 OK · test_compare_sections(work/RF) 전부 맞음 · mutation_test rc 0(위 R9) · py_compile 23/23 · config json.load OK · `bash -n` ingest·precheck 통과.
+md5 전후: `cat data/*/*.csv audit/exclusions.csv | md5sum` **e1badbb8** 전 = 후 · registry aa21b2e1 · config d5fe92ad(전체 시험 때 이미 판 F).
+네이버 API 호출 합계: **GET 1회**(R2) — test_balance·test_exclusions 는 가짜 sender, R7 은 키 파일 없음으로 0회.
+
+### 자체 검토(지시의 [검토 깊이 규칙] — 에이전트 2 · 막음 후보 반박 0)
+- **설계 반박**(검토자 1, 코드 쓰기 전 — 스크래치에 설계대로 카드 넣은 사본으로 기존 검사·앵커 실측): **막음 0** — 완료 기준 8줄 전부 "설계로 참". 이월 9 중 3을 구현에 반영(키 파일 객체 아님 → 실패 기록 · mutation 에 validate 지난 기록 가드 변조 · ApplyRehearsal work/RF), 나머지는 아래 이월.
+- **구현 검토**(검토자 1, 최종 코드 — 스크래치 무작위 교차 1,200건(빈 날·제외 그룹·1~15일 창·UTC·합계 0·실패 기록)에서 compute→apply 글을 validate 에 넣어 불일치 0 · 같은 흐름 재실행 index md5 93dc7d96 일치): **막음 0** — 완료 기준 1~7 "참", 8(리허설)은 deploy dry-run 출력이 파일에 없고 기록이 아직 없어 "구멍" → R8 출력을 `work/RF/deploy_dryrun.log` 로 남기고 이 절에 적음. 결과: **"다음 단계로 가도 된다"**.
+
+### 이월(한 줄씩 — 막음 아님, 첫 적용(보류 회차) 뒤 또는 정기점검)
+1. 같은 날 balance.py 를 건너뛰고 다시 돌린 회차는 그날 앞 회차 기록이 "지난 회차" 가드를 통과한다(카드는 그 기록의 값·시각 짝 그대로 — 새 시각으로 보이지 않음, 문서가 세 줄을 매 회차 강제). 강화안: 직전 배포본이 판 F 면 그 카드 시각보다 뒤인지 대조.
+2. precheck 도장에 balance.json md5 가 없다 — 도장 뒤 balance.py 를 다시 돌려도 배포되는 카드는 앞 기록(정직 · validate 를 다시 돌리면 FAIL).
+3. 며칠분 분모(키워드 보고서 총비용 — VAT 포함 여부)와 비즈머니 차감 단위·쿠폰 포함 여부가 같은지 [미확인] — 첫 적용 회차 화면 대조 때 같이 본다.
+4. 보류가 길면 카드 기준 시각이 배포 시각보다 이르다(정직 — 문서에 적음).
+5. 응답 customerId 가 다른 번호 체계가 되면 매 회차 "확인 못 함"(요란 — 이번 GET 에서는 같음 [실측]).
+6. budgetLock·refundLock 은 꼴 확인 없이 기록만(카드에 안 쓰임) · budgetLock true 여도 카드에 표시 없음.
+7. 손 다운로드 CSV 에 오늘 부분 데이터가 들면 읽은 날 = 마지막 날 → compute FAIL(요란 — 수집 규칙상 어제까지).
+8. config 가 깨져 `import exclusions` 가 실패하면 balance.py 가 옛 기록을 지우기 전에 Traceback(같은 날 옛 기록이면 그 값·시각 짝 그대로 — 막음 아님).
+9. 문구: `validate.py` 머리 사용법 L6 에 `--balance` 없음(L64·SKILL.md 에는 있음) · checklist [수정·검증 회차] 의 mutation_test 실행 줄에 6번째 인자 안내 없음(balance.json 없는 폴더면 기준 실행 FAIL — 요란).
+10. chart_check 는 390·1280 만 잰다 — 641~900 태블릿 폭(4칸 그대로)은 캡처 없음([추론] 같은 CSS 라 한 줄 전체).
+11. validate 끝 3줄 요약(precheck)에 잔액 줄이 안 보인다(검증 이월 7 과 같은 꼴) — apply 출력 끝 카드 글로 대신(임의 결정 16).
+12. 판 D·E 이월(검증 이월 1~9 · 수정 기록 이월 1~10)은 그대로(다시 올리지 않음).
+
+### 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1. 잔액 = API 값 원 단위 버림 · 기준 시각 = 읽은 시각 KST — test_balance(BalanceScript·ComputeBalance) · validate "광고비 잔액 카드" · R3·R4(`work/RF/balance.json` 사본으로 — **GET 0**).
+2. 며칠분 = ⌊원 × 창일수 ÷ 창합계⌋ · 합계 0 생략 · compute·validate 계산 공유 0 — compute.py `balance_card` ↔ validate.py `check_balance_card` 코드 대조 · test_balance 창 시험 · R4(24일분).
+3. 조회 실패 → "확인 못 함"(옛 값 0 · 회차 계속) · 지난 회차 기록 FAIL — test_balance 실패 범주·옛 기록 지움 · test_apply `test_values_every_run` · R7·R7b.
+4. 키 비노출 — test_balance(서버가 키를 되돌려 줘도 화면·json 에 키 0) · `work/RF` 산출 grep.
+5. 카드 넷·다른 섹션·서술 표지 바이트 그대로 · validate 기존 검사 PASS — R3 diff(10+/1−) · R4(validate 25/25 · compare 99/0) · test_apply `test_conversion_scope_e_to_f` · mutation_test.
+6. 판 F 사슬·멱등·1280/390 한 줄·넘침 0 — test_apply ApplyLayoutF · R6(옛 판 5벌 카드 블록 1e163cae) · overflow · chart_check "상단 잔액 카드 한 줄 전체(판 F)".
+7. 문서 = 코드 — SKILL.md 5단계·검산 · code-tab 3절 5단계 행·4절·ⓑ·5절 · report-structure 판 F·KPI 정의 · checklist(출력 문구·명령·판 이름·개수).
+8. 실제 환경 리허설 — R2·R8 은 이 기록과 `work/RF/deploy_dryrun.log`·`balance.json` 으로 확인(검증은 GET·deploy 실행 0), 나머지는 `rehearse.sh` 재실행 md5 대조.
+
+### 마무리 기록(이번 회차)
+- 커밋(경로 지정 add · `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`): `20d8526` 코드·시험·문서 · 그리고 이 절(기록 커밋 — 해시는 자기 참조라 적지 않는다).
+- 끝 확인: `git fetch` → origin/main = `9d90145` 그대로 · 브랜치 push 1회(`feat-20261009-balance`, main 아님) · 재clone 대조는 채팅 보고. 배포 PUT 0 · 네이버 쓰기 0 · 잔액 GET 1회.
+- 다음 단계: ④ 검증 `D:\saero-verify` 새 세션 **Fable 5.1 · 울트라코드 켬**(임의 결정 1) — 지시문 `D:\saero\saero-ad-report_광고비잔액카드_검증지시_회차1_2026-10-09.md` / ⑤ 수정(막음이 있을 때만) 새 세션 **Opus 5.5 · xhigh · 울트라코드 끔** /
+  재검증 새 세션 · 바뀐 것만 · **Fable 5.1 · xhigh** / ⑥ 병합은 검증 뒤·갱신 회차가 돌지 않을 때 / 설치본(`D:\saero\CLAUDE.md`·`saero-run`)은 `local/` 변경 0 이라 갱신 불필요.
+
+### 첫 적용 본보기(운영 세션이 그대로 쓴다)
+- 병합 뒤 운영 main 작업 폴더 `git pull --ff-only`(ingest·S0 의 "HEAD = origin/main" 이 막는다) → 다음 `/saero-run`(**Opus 5.5 · high · 울트라코드 끔**), 첫 말 **"판 F(광고비 잔액 카드) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"** — 데이터 회차와 같이 돌아도 된다.
+- 5단계 = 세 줄(code-tab.md 3절): `balance.py --key-file ~/naver-api.keys.json`(기대 `[잔액] N원 · M/D(요일) HH:MM 기준(KST) · GET /billing/bizmoney 1회` — 실패면 `[주의] 잔액 확인 못 함(…)` 로 계속) → `compute.py … --balance work/balance.json`(출력 끝 `잔액 {…}`) →
+  `apply.py --layout`(4 fetch = 판 E 배포본 → 출력 `레이아웃 판 변환(r2026-10-E → r2026-10-F, 분기 2) · 잔액 카드 …`) → 서술 n<날짜>.py.
+- 6 precheck 기대: validate **25/25** · compare DIFF 0 · 도장. 잔액·레이아웃 판 줄은 validate 를 따로 돌려 본다(`… --balance work/balance.json` — `· 잔액 카드 1` · `광고비 잔액 카드 … PASS`).
+- **보류 멈춤**: `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(기대 PASS 31 · 외부 허용 2·차단 0 — `390`·`1280 상단 잔액 카드 한 줄 전체(판 F)` 두 줄) →
+  **전후 비교 `work/chart_<날짜>/compare.html`(맨 앞 "상단 카드" 옛/새 1280·390)** 와 작업본을 보이고, **사용자에게 광고시스템 화면의 비즈머니 숫자와 카드 값(`[apply]` 출력 끝 `잔액 카드 …`)을 한 번 대조해 달라고 한다**(쿠폰 포함 여부·끝자리·VAT [미확인] — 이월 3).
+- 사용자 **"배포"** → 7 `deploy.py push … --dry-run`(`[주의] 레이아웃 판이 바뀜 … r2026-10-E → … r2026-10-F`) → `push … --layout-change` → `verify --ref <커밋>` → 8 기록(대조 결과 — 같음/다름·차이 원인). 그 다음 회차부터 직전 배포본이 판 F — `apply --layout` 은 값만(카드 포함), 게이트 조용히 통과(자동 배포 그대로).
+
+---
+
 ## 갱신 회차 (2026-10-08 17:11~17:20 KST — Code 탭 `/saero-run`, main 작업 폴더, **판 E(01 모바일 터치 날짜) 첫 적용 · 2-1 같음 "다시 계산"**) · **배포 완료 `5e33f38`**
 합본 `일별` 2026.08.26 — 10.07 (43일, 01:10 ingest 합본 그대로 — ① 수집 안 함) · 배포 커밋 `5e33f38`(직전 `04abd00`, 파일 sha 8235f55 → 3271f68) · 집계 기간 `2026.08.26 — 10.07 (43일)`
 사용자 첫 말 "판 E(01 모바일 터치 날짜) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함. chart_check 1280 PC 기준 FAIL 이 날짜 수 차이뿐이면 10-08 판 D 때처럼 같은 데이터 기준으로 다시 확인하고, "01 모바일 터치 팝업" 두 줄 결과를 보여 줘". `git pull --ff-only`(f004fda → **626146c**, 작업 트리 깨끗 — 위 병합 기록 "pull 은 다음 운영 세션 몫" 대로, 묻지 않음) → S0 17:11 PASS → ① 수집·ingest 생략(01시 회차가 10/7까지 반영 · 10/8 집계는 10/9 01:00 뒤 — 10-07 08시 선례. `archive.py combine` 스크래치 재합본 = `work/combined` md5 4/4) → 4 fetch(배포본 `04abd00` = e5bf5f3e, meta r2026-10-D, sha 8235f55) → `cp` → 5a compute → 2-1 같음(43일) → 앞 질문 → 사용자 "전체 다 하는거는 CSV 다시인가?" → 설명(오늘 CSV 다시는 같은 10/1~10/7 을 받아 같은 질문으로 돌아옴) → 사용자 "다시 계산" → 3 신규 0 → 5-0a pull(3그룹 각 322 · registry 968행 바이트 불변 2910c804)·propose `--since 2026-10-08`(`[주의] 빈 창`, 후보 0 · 재노출 0) → ⓐ 해당 0(질문 없음) → **5 = `apply.py --layout` 1회**(`106,021 → 106,031자 · 레이아웃 판 변환(r2026-10-D → r2026-10-E, 분기 2)`, 서술 스크립트 없음 — 같은 데이터라 배포본 서술 그대로) → 작업본 26f51eb9, 배포본과 차이 = meta 한 줄 + 01 모바일 interaction 한 줄(`axis:'y'` — 수정 기록 리허설 work/RE 와 같은 글자 수·범위) → 6 precheck → **보류 멈춤**(chart_check · compare.html · 판 D 폰 확인 결과 질문) → 사용자 "배포" → 7 dry-run(`[주의] 레이아웃 판이 바뀜 … r2026-10-D → … r2026-10-E`) → `push … --layout-change` 1회 → `verify --ref 5e33f383…` 1회째 일치(재수령 sha 3271f68 · md5 26f51eb9).

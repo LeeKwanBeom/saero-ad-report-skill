@@ -2,7 +2,7 @@
 """합본 4종 + config → 12개 섹션 값 JSON (5단계의 유일한 계산 출처 — 즉석 계산 금지).
 
 사용법:
-    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [-o out.json]
+    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [--balance <work/balance.json>] [-o out.json]
 
 - 키는 report-structure.md 절 번호("KPI","01"~"10") + "masthead","og","minwidth","nlabels". 자리마다 값이 있어
   다음 회차의 자동 교체(E2)가 그대로 쓸 수 있게 한다. 11·12번은 계산 대상이 아니다(사람이 쓴다).
@@ -12,9 +12,13 @@
   --competitors-html 을 줬는데 그 표가 0행이면 `[FAIL]` exit 1(2026-10-06 — 소제목·행 마크업이 바뀌면 어순 변형 행이
   조용히 빠지던 경로, 탐색 기준선 프로브 r10: 36행 exit 0).
 - validate.py 와 값 계산을 공유하지 않는다(reportlib은 읽기·필터·일수·섹션 자르기까지).
+- (2026-10-09 판 F) --balance 가 있으면 "잔액"(광고비 잔액 카드 — balance_card 정의)을 더 낸다. 기록이 없거나·못 읽거나·꼴이 다르거나·읽은 날이
+  집계 마지막 날 이하(지난 회차 기록)면 `[FAIL] 잔액 기록…` exit 1(출력 파일 안 씀). 5단계(balance.py 바로 뒤)·precheck 는 늘 붙이고, 5a(2-1 대조용)는 붙이지 않는다.
 """
 import argparse
+import datetime as dt
 import json
+import math
 import re
 import sys
 
@@ -72,7 +76,7 @@ def deployed_competitors(html):
     return re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td>[^<]*</td>\s*<td><span class="tag', seg)
 
 
-def compute(D, cfg, comp_prev=()):
+def compute(D, cfg, comp_prev=(), bal=None):
     kw, sr, rg, hr = (read_csv(f"{D}/{k}.csv") for k in ("키워드", "검색어", "상세지역", "시간대별"))
     EXC, TARGET, CTRH = cfg["excluded_groups"], cfg["target_districts"], cfg["ctr_high_threshold"]
     out = {}
@@ -232,13 +236,57 @@ def compute(D, cfg, comp_prev=()):
                  "최근7일": f"{md(days[-7:][0])}~{md(days[-1])}",
                  "파트너마지막날": int(inc[(inc["일별"] == days[-1]) & iss & ~isn]["노출수"].sum()),
                  "B분해": {k: int(v) for k, v in inc[iss & ~isn].groupby("매체이름")["노출수"].sum().items()}}
+    if bal is not None:
+        out["잔액"] = balance_card(bal, kw, inc)
     return out
+
+
+class BalanceError(ValueError):
+    """잔액 기록(balance.py 의 work/balance.json)이 꼴이 다르거나 이번 회차 것이 아님 — 카드 값을 만들지 않는다."""
+
+
+KST = dt.timezone(dt.timedelta(hours=9))
+
+
+def balance_card(bal, kw, inc):
+    """레이아웃 판 r2026-10-F 광고비 잔액 카드(report-structure.md "KPI 요약" — 정의(compute.py)).
+    원 = balance.py 가 버린 bizmoney(= ⌊bizmoney_raw⌋ 대조) · 기준 = 읽은 시각 KST 'M/D(요일) HH:MM' ·
+    창 = 키워드 보고서 `일별` 의 달력 날짜로 집계 마지막 날까지 7일(첫날보다 앞은 자른다 · 행 없는 날 = 0원) · 창합계 = 그 창의 총비용(제외 그룹 뺌 = 01 총비용·KPI 광고비 정의) ·
+    일분 = ⌊원 × 창일수 ÷ 창합계⌋(정수 나눗셈 — 평균을 반올림하지 않는다) · 창합계 0 이면 None(며칠분 생략).
+    실패 기록이면 {"상태": "fail", "기준": …}(값 없음 — 카드 "확인 못 함"). 읽은 날(KST)이 집계 마지막 날 이하면 BalanceError(지난 회차 기록 — 데이터는 언제나 어제까지)."""
+    if not isinstance(bal, dict) or bal.get("status") not in ("ok", "fail") or not isinstance(bal.get("read_at"), str):
+        raise BalanceError("잔액 기록 꼴이 다름(status ok|fail · read_at 문자열)")
+    try:
+        t = dt.datetime.fromisoformat(bal["read_at"].replace("Z", "+00:00"))
+    except ValueError:
+        raise BalanceError(f"잔액 기록 꼴이 다름(read_at {bal['read_at']!r})")
+    if t.tzinfo is None:
+        raise BalanceError(f"잔액 기록 꼴이 다름(read_at 시간대 없음 {bal['read_at']!r})")
+    t = t.astimezone(KST)
+    d = pd.to_datetime(kw["일별"].astype(str).str.rstrip("."), format="%Y.%m.%d")
+    first, last = d.min(), d.max()
+    if t.date() <= last.date():
+        raise BalanceError(f"잔액 기록을 읽은 날 {t.date()}(KST)이 집계 마지막 날 {last.date()} 이하 — 지난 회차 기록, 이번 회차에 balance.py 를 다시")
+    shown = f"{t.month}/{t.day}({WD[t.weekday()]}) {t:%H:%M}"
+    if bal["status"] == "fail":
+        return {"상태": "fail", "기준": shown}
+    won, raw = bal.get("bizmoney"), bal.get("bizmoney_raw")
+    if (isinstance(won, bool) or not isinstance(won, int) or isinstance(raw, bool) or not isinstance(raw, (int, float))
+            or not math.isfinite(raw) or raw < 0 or won != math.floor(raw)):
+        raise BalanceError(f"잔액 기록 꼴이 다름(bizmoney {won!r} · bizmoney_raw {raw!r} — 원 = ⌊raw⌋ 정수여야)")
+    lo = max(first, last - dt.timedelta(days=6))
+    di = pd.to_datetime(inc["일별"].astype(str).str.rstrip("."), format="%Y.%m.%d")
+    total = int(inc.loc[(di >= lo) & (di <= last), "총비용"].sum())
+    n = (last - lo).days + 1
+    return {"상태": "ok", "원": won, "기준": shown, "창": f"{lo.month}/{lo.day}~{last.month}/{last.day}", "창일수": n, "창합계": total,
+            "일분": (won * n // total) if total > 0 else None}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("combined")
     ap.add_argument("--competitors-html")
+    ap.add_argument("--balance", help="balance.py 의 잔액 기록(work/balance.json) — 판 F 광고비 잔액 카드 값(\"잔액\")을 낸다. 5단계·precheck 는 늘 붙인다")
     ap.add_argument("-o", "--out")
     a = ap.parse_args()
     cfg = load_config()
@@ -246,13 +294,26 @@ def main():
     if a.competitors_html and not comp_prev:  # 합본을 읽기 전에 멈춘다 — 직전 표 0행으로 계산하면 어순 변형 행이 조용히 빠진다
         print(f'[FAIL] 직전 배포본 경쟁사표 0행 — 머리글 "경쟁사 브랜드명 검색어" 또는 행 마크업 확인 ({a.competitors_html})')
         sys.exit(1)
-    out = compute(a.combined, cfg, comp_prev)
+    bal = None
+    if a.balance:  # 합본을 읽기 전에 — 기록이 없거나 못 읽으면 compute.json 을 쓰지 않는다(카드 값을 옛 값으로 두는 길 0)
+        try:
+            with open(a.balance, encoding="utf-8") as f:
+                bal = json.load(f)
+        except (OSError, ValueError) as e:
+            print(f"[FAIL] 잔액 기록을 못 읽음({type(e).__name__}): {a.balance} — 5단계 첫 명령 balance.py 를 이번 회차에 돌렸는지")
+            sys.exit(1)
+    try:
+        out = compute(a.combined, cfg, comp_prev, bal)
+    except BalanceError as e:
+        print(f"[FAIL] 잔액 기록: {e} ({a.balance})")
+        sys.exit(1)
     text = json.dumps(out, ensure_ascii=False, indent=1, default=str)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
             f.write(text)
         print(f"[compute] {a.out}  {out['masthead']}  KPI {out['KPI']['노출']:,}/{out['KPI']['클릭']}/{out['KPI']['CTR']}%/{out['KPI']['광고비']:,}원"
-              f"  경쟁사 {len(out['07']['경쟁사표'])}행(신규 변형 후보 {out['07']['신규변형후보']})")
+              f"  경쟁사 {len(out['07']['경쟁사표'])}행(신규 변형 후보 {out['07']['신규변형후보']})"
+              + ("" if "잔액" not in out else f"  잔액 {out['잔액']}"))
     else:
         print(text)
 

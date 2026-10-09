@@ -29,7 +29,7 @@
 | 자격 증명 | **이 PC git 자격 증명 하나**(GCM, `credential.helper=manager`) — 스킬 저장소 `git push`와 배포 PUT(`deploy.py`가 `git credential fill`로 얻어 변수에만 둔다) 둘 다. 토큰 파일·대화창 토큰 0. 세션은 `git credential fill`을 직접 치지 않는다 |
 | 네이버 API 키 | 키 파일 `~/naver-api.keys.json`(저장소 밖) — `--key-file` 경로만 넘긴다. 세션은 열지도 출력하지도 않는다(`test -f`로 존재만) |
 | 수집 폴더 | config `report_fetch.download_dir` `~/saero-fetch/downloads` · 전용 프로필 `profile_dir` `~/saero-fetch/chrome-profile`(`~` = 사용자 홈) |
-| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`(propose — 창이 다르면 다른 파일) · `work/approved_<날짜>_<시분초>.txt`(push 참조 선택 모드 — 실제 push만, 덮어쓰기 없음) · `work/exclusions_proposal_<창시작>_<창끝>.md5`(propose 출처 기록) · `work/precheck_ok.md5`(precheck 통과 도장) · `work/exclusions_pull_<날짜>.json` |
+| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`(propose — 창이 다르면 다른 파일) · `work/approved_<날짜>_<시분초>.txt`(push 참조 선택 모드 — 실제 push만, 덮어쓰기 없음) · `work/exclusions_proposal_<창시작>_<창끝>.md5`(propose 출처 기록) · `work/precheck_ok.md5`(precheck 통과 도장) · `work/exclusions_pull_<날짜>.json` · `work/balance.json`(5단계 광고비 잔액 기록 — balance.py 가 매 회차 지우고 다시 쓴다, 판 F) |
 | 줄바꿈 | `.gitattributes`: `*.csv -text`(바이트 그대로) · `*.sh text eol=lf`. 작업 폴더가 커밋과 다르게 풀려 있으면 8절 "작업 폴더 줄바꿈" |
 
 ## 2. S0 사전 점검 — Bash 한 번, 외부 쓰기·작업 트리 변경 0
@@ -72,8 +72,8 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | ⓐ | **승인 묶음 한 번** | (1) 새 경쟁사 · (2) 애매 후보 · (3) 제외 그룹 · (4) 제외 검색어(propose 승인 문구 원문) 중 **해당하는 것만** 한 메시지. (1)~(4)가 모두 0일 때만 묻지 않는다 | 답을 기다린다 |
 | 5-0b | 답 반영 | config(`competitors`·`excluded_groups`)가 바뀌면 → config 커밋(push는 5-0c와 함께) → compute 재실행(경쟁사가 바뀌면 propose도 — **propose를 다시 돌리면 번호·출처 기록이 바뀌니 재승인**) | — |
 | 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(답의 번호를 그대로 `--drop`·`--industry-lines`에 · 호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 FAIL(승인 파일 안 씀) → 승인 목록을 `work/approved_<날짜>_<시분초>.txt`에 쓰고 → POST → verify) → `exclusions.py report` → registry(+config) 커밋 → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false·요청 결과 모름·pull 뒤 이미 있음) → 재시도는 ⓐ |
-| 5 | 교체 | `"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json`(기계 자리 + 접기 summary 개수·날짜 + 레이아웃 판 — `--layout` 은 매 회차: 이미 그 판이면 변환 건너뜀(멱등), meta 없는 옛 판이면 변환. 앵커가 하나가 아니면 `[FAIL] apply:` exit 1, 작업본 그대로) → `"$PY" work/n<날짜>.py`(서술 — 저장소 밖 스크래치, 서술 표지마다 `rep('<자리>', 새 문장)` — 자리 이름은 `references/report-structure.md` "서술 표지" 표가 정본, 길이는 같은 문서 "서술 공통 규칙"). 12번 먼저, 11번 마지막. 07 각주 ②·11·12번에 **등록 n · 확인 a/b · 실패 n**(07 ② 형식 `제외 검색어: <M/D> 등록 N개 · 확인 a/b · 실패 n` — exclusion-ui.md 9절)을 사실 그대로 | ⓑ `[FAIL] apply:` |
-| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — validate → compute+compare → overflow → **narrative**(매회차 서술 표지가 직전 배포본과 바이트 같으면 `[FAIL] 서술 미교체 <자리>`) — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음). `tests/chart_check.py`(라이브 차트 — 판 C·D)는 precheck **밖**: 첫 적용 보류 회차에 운영 세션이 도장 뒤 돌린다(4절) | ⓑ 세션이 고치고 재실행 |
+| 5 | 교체 | (판 F — 앞 두 줄, 매 회차·2-1 같음 경로 포함) `"$PY" scripts/balance.py --key-file ~/naver-api.keys.json`(광고비 잔액 `GET /billing/bizmoney` 1회 — 읽기 · 시작에 옛 `work/balance.json` 을 지우고 새 기록을 쓴다 · 조회 실패면 `[주의] 잔액 확인 못 함(<사유>)` 과 실패 기록, exit 0 — 카드 "확인 못 함"으로 회차는 계속) → `"$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json -o work/compute.json`(5a 결과에 "잔액" 을 더한 것 — 5a 는 `--balance` 없이 그대로) → `"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json`(기계 자리 + 잔액 카드 값·보조 줄 + 접기 summary 개수·날짜 + 레이아웃 판 — `--layout` 은 매 회차: 이미 그 판이면 변환 건너뜀(멱등), meta 없는 옛 판이면 변환. 앵커가 하나가 아니면 `[FAIL] apply:` exit 1, 작업본 그대로) → `"$PY" work/n<날짜>.py`(서술 — 저장소 밖 스크래치, 서술 표지마다 `rep('<자리>', 새 문장)` — 자리 이름은 `references/report-structure.md` "서술 표지" 표가 정본, 길이는 같은 문서 "서술 공통 규칙"). 12번 먼저, 11번 마지막. 07 각주 ②·11·12번에 **등록 n · 확인 a/b · 실패 n**(07 ② 형식 `제외 검색어: <M/D> 등록 N개 · 확인 a/b · 실패 n` — exclusion-ui.md 9절)을 사실 그대로 | ⓑ `[FAIL] apply:` · compute `[FAIL] 잔액 기록…` |
+| 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — (작업본 옆 `work/balance.json` 을 validate·compute 에 `--balance` 로) validate → compute+compare → overflow → **narrative**(매회차 서술 표지가 직전 배포본과 바이트 같으면 `[FAIL] 서술 미교체 <자리>`) — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음). `tests/chart_check.py`(라이브 차트 — 판 C·D)는 precheck **밖**: 첫 적용 보류 회차에 운영 세션이 도장 뒤 돌린다(4절) | ⓑ 세션이 고치고 재실행 |
 | 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run이 통과하고 남은 사람 질문이 없으면 **묻지 않고 바로**(자동 배포 — 4절) 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `배포 완료 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회). 레이아웃 판 게이트: `--file`·`--base` 의 `<meta name="report-layout">` 가 다르면 실제 push 는 `--layout-change` 없이 `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함`(dry-run 은 `[주의]`) — `--layout-change` 는 첫 적용 회차에 사용자 "배포" 답이 있을 때만(4절) | 자동 배포 — 남은 사람 질문이 있거나 사용자가 "보류"라고 했으면 PUT 없이 8 기록하고 끝냄 / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`·`[FAIL] 레이아웃 판이 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
 | 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함) → 1절 신원으로 커밋(pull로 바뀐 registry가 아직 커밋 안 됐으면 함께 — 경로 지정 add) → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
 
@@ -84,7 +84,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 배포 = `deploy.py verify --file work/index.html --ref <커밋>`(push 성공 줄의 커밋 — 없으면 `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD` 값). state 파일·대화 기억은 근거가 아니다.
 
 **2-1 같음**: 2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0b(해당 시) → 5-0c → 5 → 6 → 7 → 8 /
-"CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만) →
+"CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만 — 잔액 세 줄(balance → compute `--balance` → apply)은 그대로 돌아 카드가 이번 회차 값) →
 6(`--pending` 없이, 3번째 인자 = 이번 4단계 fetch) → 7 → 8.
 (2-1 질문은 ⓐ 묶음에 넣지 않는다 — "다시 계산"·"미룬 등록만"이면 그 뒤에 ⓐ 묶음을 해당하는 것만 한 번 묻는다.)
 2-1 같음 경로(기간이 같다)에서는 6단계 narrative 가 `[주의] 같은 기간 — 대조 생략` exit 0 으로 지나간다(같은 데이터라 서술이 같아도 정상) — 서술은 사람이 그 회차 사실로 다시 쓴다.
@@ -105,10 +105,11 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 작업본·직전 배포본이 그대로면 도장이 유효하다(deploy.py 가 도장 md5 = `--file`·`--base` 를 대조). 둘 중 하나라도 바뀌었으면 6단계부터.
 리포트 글·모양을 바꾸는 기능의 **첫 적용 회차**(예: 글 줄이기 회차 1 — 경로 C "다시 계산", 직전 배포본에 서술 표지 없음)는 사용자가 첫 말에
 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"이라고 하고, 세션은 도장 뒤 작업본(`work/index.html`)을 사용자가 열어 보게 한 다음 "배포" 답에서 7단계로 간다.
-**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C · **판 E 첫 적용** — 직전 배포본 meta r2026-10-D)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
+**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C · **판 E 첫 적용** — 직전 배포본 meta r2026-10-D · **판 F 첫 적용** — 직전 배포본 meta r2026-10-E)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
 (판 C·D·E) `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` 결과(전부 PASS · 390·1280 섹션 1·6 캡처 · PDF —
 판 D 부터 같은 명령이 전후 비교 페이지 `work/chart_<날짜>/compare.html`(옛 판 · 새 판 모바일 접힘·펼침 · PC 나란히)도 쓴다 · 판 E 는 "01 모바일 터치 팝업(처음·펼침) = 누른 줄 날짜"
-두 줄이 핵심 — 판 E 는 모양이 그대로라 비교 그림은 옛·새가 같다)도 보이고,
+두 줄이 핵심 — 판 E 는 모양이 그대로라 비교 그림은 옛·새가 같다 · 판 F 는 compare.html 맨 앞 "상단 카드" 옛/새(1280·390)와 `상단 잔액 카드 한 줄 전체(판 F)` 두 줄 PASS 가 핵심 —
+사용자에게 광고시스템 화면의 비즈머니 숫자와 카드 값(`[apply]` 출력 끝 `잔액 카드 …`)을 한 번 대조해 달라고 한다(쿠폰 포함 여부·끝자리 [미확인] — 2026-10-09 기준선))도 보이고,
 사용자의 "배포" 답이 있을 때만 7단계 실제 push 에 `--layout-change` 를 붙인다(답 전에는 dry-run 의 `[주의] 레이아웃 판이 바뀜`만 — 세션이 스스로 붙이지 않는다).
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**
@@ -132,6 +133,8 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | exclusions `요청 결과 모름(<종류>)`(exit 1 — POST·GET 도중 끊김·응답을 못 읽음) | 재PUT·재등록 금지. `verify --key-file … --approved <그 승인 파일>`로 실제 상태를 읽어 보고(registry는 저장돼 있다). 첫 pull에서 났으면 `POST 전에 멈춤(POST 0 — 승인 파일 안 씀)` | 재시도 여부 |
 | exclusions `[push] 완료: … — 요청 실패·결과 모름이 있었지만 다시 읽은 목록엔 전부 있음`(exit 1) | **재시도하지 않는다** — `verify --key-file … --approved <그 승인 파일>`로 확인해 보고(등록은 됨 — 11·12번에는 verified 수 그대로) | — |
 | exclusions exit 1 | 성공/실패를 그룹×이름으로 나눠 보고 | 재시도·keep |
+| 5단계 compute `[FAIL] 잔액 기록…`(못 읽음·꼴 다름·지난 회차 기록) · apply `[FAIL] apply: … "잔액" 없음` | 5단계 세 줄을 balance.py 부터 다시(작업본은 그대로 — apply 는 실패하면 쓰지 않는다). `work/balance.json` 을 손으로 고치지 않는다 | — |
+| balance.py `[주의] 잔액 확인 못 함(<사유>)`(exit 0) | 멈추지 않는다 — 카드 "확인 못 함"으로 진행하고 끝 보고에 사유 한 줄(사용자 결정 2026-10-09 "조회 실패해도 배포는 멈추지 않는다"). 재시도는 사용자가 원할 때 balance.py 부터 | 키 파일·네트워크 확인 |
 | precheck FAIL | 전체 출력 보고 → 원인 고쳐 재실행(배포 금지) | — |
 | deploy `[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0) | 지금 배포본 sha·md5를 보고 — 다른 배포가 있었다 | 4단계부터 다시 할지 |
 | deploy `[FAIL] precheck 통과본이 아님`(PUT 0) | precheck가 끝난 뒤 작업본이 바뀌었거나(6단계부터), 도장의 직전 배포본 ≠ `--base`(4단계를 다시 받았으면 5·6단계부터) | — |
@@ -155,6 +158,9 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | `ingest.sh` | 1 | `[FAIL] 현재 브랜치가 main이 아님` / `[FAIL] HEAD … ≠ origin/main — 시작 전`(쓰기 0) · `— push …`(push 뒤) / `[FAIL] data/가 HEAD와 다름`·`[FAIL] data/에 추적 안 된 파일이 있음`(쓰기 0) / `[FAIL] data/ CSV 줄바꿈이 커밋과 다름`(쓰기 0) / `[FAIL] push 실패`(커밋은 로컬에만) / `[FAIL] 파이썬을 실행할 수 없음` / archive `[FAIL] …` |
 | | 128 | `fatal:`(git fetch 실패 — 네트워크·자격 증명, 또는 `== push data/` 뒤 커밋 실패 — `set -e`로 멈춤). `== push data/` 뒤에 났으면 `git fetch` 뒤 HEAD = origin/main **이고** `git status --short -- data`가 비어 있어야 보관본 완료 — `A`·`M`이 남았으면 커밋 실패(보관본 미완료) → 4절 되돌리기 뒤 ingest 다시 |
 | | 그 밖 | 2 = 사용법(인자 없음) |
+| `balance.py` | 0 | `[잔액] N원 · M/D(요일) HH:MM 기준(KST) · GET /billing/bizmoney 1회`(성공) / `[주의] 잔액 확인 못 함(<사유 — 키 파일 문제·네트워크 오류·네트워크 차단(프록시)·인증·권한 오류(401/403)·429 요청 한도·서버 오류(5xx)·응답 코드 N·요청 결과 모름·응답 꼴 다름·알 수 없는 오류>)`(실패 기록 — 카드 "확인 못 함") |
+| | 1 | `[FAIL] 잔액 기록을 쓰지 못함` · `[FAIL] 옛 잔액 기록을 지우지 못함`(기록 없음 → compute `--balance` 가 FAIL) |
+| | 2 | `usage:`(`--key-file` 없음) |
 | `precheck.sh` | 1 | md5 가드 `[FAIL] 직전 배포본이 작업본과 같다` / `[FAIL] 파이썬을 실행할 수 없음` / `[FAIL] 작업본이 precheck 도중 바뀜`(도장 없음) / validate·compare 실패(전체 출력). compute·overflow가 예외로 끝나면 `[FAIL]` 줄 없이 Traceback — **마지막 `==` 줄이 멈춘 단계** |
 | | 2 | 사용법(인자 수) · `[FAIL] 파일 없음`(작업본·직전 배포본). 그 밖의 코드는 validate·compare가 낸 코드 그대로 |
 | `deploy.py` | 1 | `GET …` / `[FAIL] precheck 통과본이 아님`(PUT 0 — 네트워크 전) / `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함`(PUT 0 — 네트워크 전, 4절 ⓑ) / `[FAIL] PUT 결과 모름`(재PUT 금지 — verify 먼저) / `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` / `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`(PUT 409) · `[FAIL] PUT 403`·`PUT 404`·`[FAIL] PUT <코드>` / `불일치`(verify — ref 없이면 `캐시일 수 있다`: ls-remote HEAD·`--ref`로 다시, `--ref`면 `커밋 고정 조회라 캐시 아님`) · `[FAIL] ref …의 index.html을 찾지 못함`(verify `--ref` 404) / `[FAIL] 자격 증명을 얻지 못함` / 권한 `거짓`·`권한 조회 실패` |
@@ -209,7 +215,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 
 - `partial/`·검사 실패·summary 없는 폴더를 store에 넘기기 / `store --force`·`--chunk` 자동 부착
 - 승인 이름을 세션이 다시 타이핑하거나 기호·마침표를 지우기 · 승인 파일을 손으로 써서 넘기기(실제 등록은 6절 참조 선택 모드만) / "등록 승인 N개" 전 `push`·`delete`·`test-roundtrip`
-- `work/exclusions_proposal_*.md5`·`work/precheck_ok.md5`를 손으로 쓰기·복사하기·고치기(propose·precheck.sh만 쓴다) / 합본 밖 CSV를 `--extra-csv`로
+- `work/exclusions_proposal_*.md5`·`work/precheck_ok.md5`·`work/balance.json`을 손으로 쓰기·복사하기·고치기(propose·precheck.sh·balance.py만 쓴다) / 합본 밖 CSV를 `--extra-csv`로
 - `deploy.py push`를 `--base work/prev.html` 없이 실제로 돌리기(코드가 exit 2로 막는다) · `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` 뒤 `--base`만 새 배포본으로 바꿔 끼우기(4단계부터 다시 할지는 사용자가 정한다)
 - 실제 이름·여러 건으로 시험 / 외부 쓰기(push·POST·PUT) 자동 재시도·자동 재PUT
 - 헤드리스 실행 · 같은 프로필 동시 실행(백그라운드 fetch 중 fetch 재호출 포함) · 크래시 수정이 없는 판(Desktop 사본 `68028c8`)으로 실행
