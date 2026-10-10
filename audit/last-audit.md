@@ -1,3 +1,100 @@
+# 기능 추가 구현 기준선(매출 작업 A + C, 2026-10-10) · 브랜치 `feat-20261010-growth`
+점검일: 2026-10-10 (기능 추가 회차 **③ 구현** — 설계안 A 주간 성과 장부 + C 플레이스 화면·소재 손보기). Code 탭 `D:\saero` · **Opus 5.5 · 울트라코드 켬**(Fable 5.1 한도 98% — 지시문 [넘길 때] "아니면 Opus 5.5"). 기준 origin/main `89c1352`(시작 `git fetch` — 앞서지 않아 병합 없음) 위 브랜치 `feat-20261010-growth`(탐색 기록 `f42554c`·`c7269db`·`d831053`·`5daad0b`) → **코드 커밋 `a0b147b`** + 이 기록 커밋.
+지킨 제약: 운영 폴더 쓰기 0(파일 읽기·md5 만 · git 은 리허설마다 끝에 `--no-optional-locks rev-parse HEAD` — 리허설 3회라 3번, 지시의 "한 번"보다 많음) · data/·registry 변경 0 · 외부 쓰기 0(네이버 POST·PUT·DELETE 0 · 배포 PUT 0 · deploy 는 `--dry-run` 만) · **네이버 읽기 9회**(리허설 1회째 pull 6 GET(3그룹 × 그룹·제외 목록) + 잔액 1 · 2·3회째 잔액 1씩 — pull 생략) · 키 파일은 경로만 · 실제 `~/saero-leads/`·브랜치 `audit/place-checklist.csv` 만들지 않음 · fetch_reports·ingest·archive·exclusions push/delete 실행 0.
+방법: 조정자가 코드·문서·시험·리허설을 직접 · 자체 검토 워크플로 **에이전트 5**(검토자 2 렌즈 — 막음 / 완료 기준 · 막음 후보 반박 3) · 하위 토큰 약 91만(상한 150만 안) · 띠 재측정은 조정자 인라인(저장소 밖 스크래치).
+
+## 사용자 결정(2026-10-10 — 지시문 원문, 다시 묻지 않음 · 원문 "추천대로 하자")
+1 A + C · B 안 함 / 2 `leads.publish = "verdict"` / 3 장부 `~/saero-leads/leads.csv`(저장소 밖) / 4 칸 inquiry·trial·signup·naver + 선택 revenue·place_visit·call·direction·save · 입력 = 채팅 답(ⓐ (5)) / 5 `window_weeks` 4 · `min_weeks` 8 · `verdict_rule` poisson2 · `week_start` 월 · 질문 문구 = 전문 3.1 흐름 1 예문 / 6 C ①~⑨ = P1~P9 · `items_in_12` 2 · `window_days` 14 / 8 실측 GET 안 함(소재 = 스마트플레이스 [추론] — 리포트에 소재 효과 문장 0) / 9 이월 중 같이 A-F5·C-5 · A-F6 · A-F8 · C-4 · C-1·C-2 / 11 첫 실사용 = 보류로 시작 + 전후 비교(12번 구역).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `a0b147b`, 15파일 +2,368/−23) [실측]
+| 파일 | 줄 | md5 | 무엇 |
+|---|---|---|---|
+| `scripts/leads.py`(새) | 0 → 567 | aab87e93 | A — path·status·add·skip·guard·row · 판정 `verdict` · 공개 가드 `label_hits` · 줄 추가만·정정 `.bak` · 네트워크 0 |
+| `scripts/place.py`(새) | 0 → 444 | 4bd82fee | C — path·status·set·done·row · 상태 넷·`in12_since` · 줄 추가만 · 네트워크 0 |
+| `scripts/compute.py` | 322 → 464 | 9e6f4c7a | `--leads`·`--place` → "성과장부"(판정 낱말·M/D까지·입력 주 수뿐 — publish ≠ verdict 면 FAIL) · "플레이스전후"(`place_effect` — 검색 지면만·달력 일수·띠·겹침·이월 줄·채팅 신호) |
+| `scripts/validate.py` | 597 → 659 | f8206a55 | 검사 25 → **27**: "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)" · "12번 장부·플레이스 행" |
+| `scripts/compare.py` | 219 → 233 | 2c2c2634 | 구역 "12 장부·플레이스" 2항목 → **101** |
+| `scripts/precheck.sh` | 40 → 43 | 403a8174 | compute 에 `--leads "$(leads.py path)" --place "$(place.py path)"` |
+| `config/report-config.json` | 176 → 263 | cb733728 | `leads`·`place_checklist` 블록(값은 여기에만 — `band_pct` 실측 포함) |
+| `tests/test_leads.py`(새) | 0 → 496 | 9c0e75ef | 21시험 — 주·월요일 경계 · 입력 검사 · 줄 추가만·같은 주·정정 · skip = 구멍 · 판정 규칙 · compute 건수 0 · 라벨 패턴 · guard 4 · config 값 grep(완료 기준 3) · validate 25·26 · compare · 같은 주 이틀 narrative |
+| `tests/test_place.py`(새) | 0 → 304 | b290a4bf | 9시험 — 첫 set·쓰기 가드·in12_since · 검색 지면·달력 일수·띠·겹침·측정 중·자료 부족 · 12번 목록·빠짐·이월 줄(같은 기간 포함)·채팅 신호 · compare |
+| `tests/section_compare.py`(새) | 0 → 141 | 7d84e23b | 섹션 전후 비교 페이지(옛/새 · 1280·390 · CDN 2건만) |
+| `tests/mutation_test.py` | 459 → 479 | 8f458044 | 변조 +3 · 0건 가드 +2 · config 실험 +1(`leads.publish`) |
+| `SKILL.md` | 624 → 642 | ca51960c | config 키 · 5단계 compute 줄·매출 작업 문단 · 6단계 101 · 배포 전 검산 27 · 8단계 양식 한 줄 + guard(마감 포함) · 승인 지점 한 줄 · 참고 목록 |
+| `references/code-tab.md` | 252 → 272 | e9198828 | 1절 표 한 행 · 3절 3a·3b 행·ⓐ·5-0c·5·6·8행 · 4절 ⓐ 정보 질문 한 줄·ⓑ 4행 · 5절 leads·place exit · 7절 금지 |
+| `references/report-structure.md` | 671 → 691 | ad44c15c | 12번 작성 기준 6)(매출 작업 행) · 서술 표지 표 `12-3`… · 표지 수 39 |
+| `audit/checklist.md` | 545 → 552 | 86667cc2 | 갱신 이력 · [의도된 동작] 28 · 16 검사 수 · [되돌리면 안 되는 것] 4행 · 대상 파일 목록 |
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. **스크립트 나눔** — `scripts/leads.py`(A) · `scripts/place.py`(C) · compute `--leads`·`--place` · 둘 다 네트워크 0.
+2. **판정 줄 = 서술 표지 + compare 리터럴**(apply 기계 자리 아님 — "12번 행 추가는 서술 표지 범위"). 행 안쪽 HTML 은 `leads.row_html(R)`·`place.rows_html(R)` 고정 꼴(서술 스크립트가 import), compare 2항목(`장부 기준 판정 = X` · 플레이스 행 (id·상태/판정) 집합).
+3. **validate 새 검사 둘**(25 → 27) — 0건 가드 FAIL 이라 **첫 적용 전 배포본(59c5313)은 "12번 장부·플레이스 행"이 FAIL 인 것이 기대값**(라벨 검사는 PASS). 그래서 **병합 뒤 첫 `/saero-run` 은 반드시 첫 적용 회차**(장부 행 없이 precheck 를 통과하는 길 없음 — compare 도 DIFF).
+4. **guard 패턴**(config `leads.public_labels` · `label_skip_context`): 라벨 바로 뒤 숫자, 단 '등록 N개'·'N행'·'· verified'·날짜(M/D·ISO)는 안 셈 · '등록'은 제외 검색어 기록과 낱말이 겹쳐 사람 단위 'N명'이 아니면 '→ 등록 N' 꼴과 제외 검색어 맥락 줄(제외 검색어·registry·verified·미등록·propose)에서 안 셈. 저장소 문서 이력 약 3,500줄 오탐 15곳(검색어 이름 꼴 — 다시 쓸 때만 걸림, 따옴표로 떼면 통과) · 지금 배포본 01·11·12 오탐 0(설계 원문 패턴이면 5곳). guard 범위 = staged 추가 줄 중 `audit/`·`config/`·`references/`·`local/`·루트 `*.md`(CSV 제외) + 커밋 메시지(`--message-file` — `git commit -F` 와 같은 파일) + 어느 staged 파일이든 장부 머리줄·데이터 줄 꼴 + 장부 최근 매출 값(config `guard_value_min` 이상 — 원·콤마·만 꼴).
+5. **경로 덮어쓰기** = `--ledger`/`--checklist` > 환경 변수 `SAERO_LEADS`/`SAERO_PLACE` > config. precheck 는 `leads.py path`·`place.py path` 로 정해 compute 에 늘 넘긴다(명령 첫 줄에 쓰는 경로가 찍힘). 운영 회차의 경로 바꾸기는 7절 금지.
+6. **(5) 무응답** = 쓰기 0, 다음 회차 3a 가 다시 묻는다(장부 skip 줄은 사용자 "건너뜀" 답일 때만). **C 첫 회 별도 메시지 무응답** = 체크리스트 없음 그대로(12번 플레이스 행 0 · 다음 회차 다시). (7)은 (5)를 묻는 회차에만 같은 묶음 끝에.
+7. **주(A-F8)** = 합본 키워드 `일별` 마지막 날 기준 다 찬 월~일(벽시계 아님 — 월요일 01~09시에 합본이 아직 토요일까지면 그 전 주). add 는 `--week` 를 받지 않고(주면 exit 2), 정정 `--replace --week` 는 월요일·그 주 일요일 ≤ 집계 끝·장부에 있는 주만, 옛 장부는 `<장부>.bak-<YYYYmmdd-HHMMSS>`('x' 모드 — 덮어쓰기 없음).
+8. **입력 상한** config `leads.max_per_week`(오타 막기) · 모순 셋(체험 > 문의 · 등록 > 문의 + 체험 · 네이버 경유 > 등록)은 A-F7 이월 그대로 FAIL.
+9. **C 판정** = 하루 클릭 변화%·CTR 변화%가 **둘 다** 띠 위면 좋아짐 · 둘 다 아래면 나빠짐 · 그 밖 구별 안 됨(보수적 — A 의 포아송과 같은 쪽). 띠 `band_pct` = 이번 회차 실측(요일 맞춘 부트스트랩 20,000회 · 9/17~10/9 23일 플레이스 검색 지면 · 14일 대 14일 95%: 하루 클릭 −27.0~+36.1% · CTR −25.5~+33.5% → 바깥으로 올려 클릭 −27~+37 · CTR −26~+34 — 탐색 반박 검토자 값과 같음). 판정이 난 뒤 `final_show_days` 동안 12번에 남기고, 빠지는 회차에 "빠짐"(12-note 이월 줄 재료).
+10. **한 번에 한 항목** = 바꾼 날 앞뒤 `window_days` 안에 다른 바꿈(다른 항목·같은 항목의 지난 바꿈)이 있으면 둘 다 `겹침(따로 못 잼)` · 바꾸기 전 창이 집계 첫날보다 앞이거나 분모 0 이면 `비교 불가(자료 부족)` · 뒤 창이 덜 찼으면 `측정 중(n/<window_days>일)`.
+11. **체크리스트 꼴** = `recorded,id,state(done|todo|no|later),state_date,revisit,in12_since` — id 마다 마지막 줄이 지금 상태. 첫 set 은 P1~P9 전부 · `P<n>=done`(날짜 없이) = "처음부터 됨"(판정 안 함) · 쓸 때마다 12번 ✗ 행(todo 중 config 순서 위 `items_in_12`)을 다시 정해 상태나 in12_since 가 바뀐 id 의 줄을 덧붙임(순서에 밀려 내려간 ✗ 도 줄 — 이월 줄에 한 번). 채팅 신호 = in12_since 뒤 `chat_after_days` · 미룸 다시 볼 날 지남.
+12. **이월 줄 "한 번"** = 지난 배포본 끝 날 P 뒤에 적힌 결정만(적힌 날 > P + 1) · 같은 기간 다시 계산(P = 이번 끝 날)이면 이번 회차 날 기록이고 지난 배포본 12번에 그 줄이 아직 없을 때만(리허설 중 2-1 같음 경로에서 빈틈을 찾아 고침).
+13. **12번 행 순서(첫 적용)** = 기존 1 제외 검색어 · 2 상계동 뒤에 3 장부 · 4·5 플레이스(새 표지 12-3·12-4·12-5 — 06 카드·11번의 "12번 2번" 교차 참조를 안 바꾸려고). 서술 표지 36 → 39(매회차 24 → 27).
+14. **전후 비교 도구** = 새 `tests/section_compare.py`(chart_check 를 늘리지 않음 — 서술 행만 바뀌는 첫 적용용 · 섹션 element 캡처 1280·390 · CDN 2건만).
+15. **local/saero-run(진입 스킬 사본)은 안 바꿈** — "정본은 저장소"를 가리키는 얇은 글이고 설치는 사용자 몫(단계 줄에 3a·3b 가 없는 것은 이월).
+16. **12번 상한·guard 하한도 config**(자체 검토 기준 3 거짓 → 고침): `place_checklist.max_open_rows_12`(✓ 아닌 행 상한) · `leads.guard_value_min` · status 숫자 줄 수 = `min_weeks`. 새 코드에 config 값 숫자가 없음을 `test_leads.ConfigOnly`(tokenize — 7·100·만(10000)·0·1·2 는 구조 상수)가 지킨다.
+
+## 리허설 결과(전부 작업 clone 안 사본 `work/RG/`, 최종 코드 — `work/RG/rehearse.sh` 8ec5cdb1 · 서술 본보기 `work/RG/n_rg.py` ca5f60a4) [실측]
+세 번 돌림: 1회째(13:08 KST, pull 포함 — 로그 `rehearse_1.log`) → 자체 검토 뒤 고침 → 2회째(13:42, `NOPULL=1`) → guard 한 줄 고침 → **3회째 = 최종 코드(13:46~13:47, `NOPULL=1`, 로그 `rehearse.log`)**. 값은 3회째, pull 은 1회째.
+- R0 시작: 운영 작업 폴더·data·config·registry md5 23줄 기록 · 브랜치 `audit/exclusions.csv` 2fc341d5 · 브랜치 `audit/place-checklist.csv` 없음 · `~/saero-leads` 없음.
+- R1 S0(code-tab.md 2절 블록 — `cd` 만 작업 clone): 기대 FAIL 3(브랜치 · HEAD ≠ origin/main · 작업 트리) + **자격 증명 FAIL 2(스킬 저장소 `push --dry-run` · `deploy.py push --dry-run` — "Cannot prompt because user interactivity has been disabled")**: 이 세션에서 GCM 자격 증명을 비대화식으로 못 얻음(샌드박스 밖에서도 같음 · 새벽 02:19 운영 회차는 PASS) — 코드와 무관한 환경, 사용자 로그인 몫. 나머지 줄(fetch · data · 줄바꿈 · pandas·playwright · KST · 키 파일 존재 · 프로필) PASS.
+- R2 4단계 fetch(GET): 배포본 42ff7abb(59c5313 · 45일) · 입력 사본 = 운영 `work/combined` 4(검색어 c08a921f · 상세지역 46d9bfc4 · 시간대별 1f359dcb · 키워드 ad439b31) · 운영 `work/prev.html` 7d1cebca(765cf77 · 44일).
+- R3·R4: 5a compute → 2-1 **같음**(45일 = 45일) → 리허설 답 "다시 계산" 경로.
+- R5(1회째만): `exclusions.py --registry <사본> pull` rc 0 — 3그룹 각 397 · 사본 1193행(브랜치 registry 그대로).
+- R6 3a: `leads.py status` → `STATUS ask5=yes week=2026-09-28 verdict=확인 못 함`((5) 질문 = config 문구 + 주 9/28(월)~10/4(일)) · `place.py status` → `first=yes`(9항목 별도 메시지 문구).
+- R7 3b 장부: `add --dry-run` 파일 없음 → 실제 1줄(가짜 값) → 같은 주 `skip` `[FAIL]`·md5 그대로 → 다른 스크래치 장부에 `skip` → status `ask5=no`(입력·건너뜀 둘 다) · 판정 `판정 전(1/8주)`.
+- R8 3b 체크리스트: `set` P1~P9 `--dry-run` 파일 없음 → 실제 9줄 · 12번 ✗ 행 P2·P3 · status `ask7=P2,P3`.
+- R9 5단계: `balance.py` **GET 1**(215,608원 · 13:46 기준) → compute `--balance --leads --place`(성과장부 `판정 전(1/8주)` · 플레이스 12번 P2·P3 ✗ · 이월 P5 안 함·P6 미룸) → `apply.py --layout`(판 F 변환 건너뜀 · 108,375자 그대로) → `n_rg.py`(12-3·12-4·12-5 이어 붙임 + 12-note) → 작업본 6350d8f1 · compute.json 08101b12 · balance.json e539df71.
+- R10 precheck(스크래치 경로 — 환경 변수): **validate 27/27 · compare OK 101 / DIFF 0** · overflow 넘침 0(외부 요청 차단 6) · narrative `[주의] 같은 기간`(표지 39 · 매회차 27) · 도장 6350d8f1 · 42ff7abb · full.
+- R11 `deploy.py push --file … --base … --dry-run`: 도장·base 대조 확인 뒤 자격 증명 FAIL(R1 과 같은 환경) — **PUT 0**.
+- R12 전후 비교 `tests/section_compare.py` → `work/RG/run/cmp/compare.html`(dee82a6f — 12번 1280: 옛 864×306 → 새 864×563 · 390: 358×523 → 358×964 · 밖 요청 막음 0).
+- R13 다른 기간 narrative(운영 prev 사본 7d1cebca, 44일): `[PASS] 서술 표지 39개 · 매회차 27개 전부 다름` + 새 표지 12-3~12-5 `[주의]`.
+- R14 해당 없음·기존 결과 그대로: 옛 코드(`git archive 89c1352 scripts config`)와 새 코드 — 작업본·배포본 둘 다 **validate 옛 25줄 = 새 앞 25줄(바이트)** · **compare 옛 99항목 = 새 앞 99**. 새 검사·항목: 작업본 PASS 2·OK 2 / 배포본(장부 행 없음) 라벨 PASS·12번 행 FAIL·compare DIFF 2(기대값). 질문 0: 지난주 줄 있음 `ask5=no` · 전부 ✓ 체크리스트 `ask7=none`.
+- R15 무응답(장부·체크리스트 없음 — 사본 `run/na`): compute `[주의]` 둘(exit 0) → 12번 장부 행 `확인 못 함` · 플레이스 행 0 → validate 27/27 · compare 101/0 · 도장 → deploy dry-run(자격 증명 FAIL 만 — PUT 0). 배포를 막지 않음(완료 기준 22).
+- R16 끝: **운영 작업 폴더·data·config·registry md5 23줄 전후 같음 · 브랜치 registry OK · 배포본 전후 같음(42ff7abb) · 운영 HEAD 89c1352 · `~/saero-leads` 없음 · 브랜치 `audit/place-checklist.csv` 없음**.
+- 전체 시험(커밋 전): test_apply 30(skip 1) · test_balance 13 · test_deploy 21 · test_exclusions 49 · test_fetch_reports 15 · test_ingest 10 · test_narrative_check 7 · test_validate_07 6 · **test_leads 21 · test_place 9** · test_compare_sections(리허설 산출) PASS · **mutation_test 전부 살아 있음(검사 27 전부 · 변조 33 + 0건 가드 24 + archive 7 · config 실험 5 · 원본 md5 그대로)** · chart_check(1회째 산출) PASS 31 / FAIL 0 — 자체 검토 뒤 고친 코드로 test_leads·test_place·test_validate_07·test_narrative_check·mutation·compare_sections 를 다시 돌림(나머지는 바뀐 코드에 닿지 않음).
+- 이 커밋 자체 guard: `leads.py guard --staged --message-file`(staged 15파일 · 추가 2,368줄) **PASS** — 첫 실행에서 `scripts/leads.py` 코드 안 머리줄 문자열을 장부 파일로 오인(FAIL)해 "줄 전체가 머리줄·데이터 줄 꼴"일 때만으로 좁힘.
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 워크플로 에이전트 5 · 하위 토큰 약 91만 · 도구 143회 · 약 17분)
+- 검토자 2(막음 렌즈 · 완료 기준 렌즈 — 둘 다 탐침은 `work/RG/review/` 스크래치만) → 막음 후보 4 → 앞 3건 반박(후보당 1) — **전부 "막음 아님"**(재현은 됨): ① guard 가 라벨 없는 숫자 답(숫자만·조사·숫자 먼저 꼴)을 놓침 ② validate·guard 라벨 패턴이 조사·접미 꼴을 놓침 ③ 스마트플레이스 통계 라벨이 `public_labels` 에 없음 — 셋 다 세션이 문서 네~다섯 곳의 금지("답 원문·장부 숫자·캡처 숫자를 리포트·last-audit·커밋에 적지 않는다" — SKILL.md 5·8단계 · code-tab 3절 8행·7절 · report-structure 12번 6))를 먼저 어겨야 나는 길이라 정상 흐름 밖, ③ 은 매출·등록·개인정보 범주도 아님. 4번째(조사 꼴 — 완료 기준 렌즈)는 ② 와 같은 부류라 조정자가 원문 재확인으로 이월. **막음 0건 → 다음 단계로 가도 된다.**
+- 완료 기준 렌즈 판정: 1·2·4·5·6·7·8·9·10·11·12·13·21·22·24·25·26 참 / **3 거짓 → 고침**(guard 하한·12번 상한·status 줄 수를 config 로 · grep 시험 `ConfigOnly` · report-structure 6) 은 낱말을 config 키로 가리킴) / **23 거짓 → 고침**("A 장부 행은 12번 작성 기준 5) 3주 미반영 규칙 밖" — report-structure 6)·checklist 28).
+- 같이 고친 글(기준 줄 안): code-tab ⓐ "(1)~(4)·(5)·(7)이 모두 0일 때만 묻지 않는다" · checklist 28 "(5)는 지난주 줄이 없는 회차마다" · validate `M/D까지` 대조를 숫자 경계 정규식으로('11/1까지'가 '1/1까지'로 통과하던 것) · report-structure 6) "validate 는 라벨만 — 통계·라벨 없는 숫자는 규칙으로만".
+
+## 이월(한 줄씩 — 막음 아님, 첫 실사용(보류 회차) 뒤 또는 정기점검) · 탐색 이월(A-F7·F9~F11·C-6·C-7·C-10 · B 전부)은 탐색 기준선 그대로
+1. guard 가 라벨 없는 숫자 답('(5) 4 2 1 1' 꼴·조사·숫자 먼저)을 못 잡음 — 최근 ok 줄 필수 넷 합 > 0 이면 순서 정규식 하나를 추가 줄·커밋 메시지 대조에 더하기(검토 탐침: 브랜치 last-audit 헛걸림 0~1줄).
+2. validate·guard 라벨 정규식(leads.py `label_regex`)이 조사·접미 꼴('등록이 …명'·'매출은 …만원'·'등록자 …명')을 놓침 — 후보 수정 `(?P<lab>…)` 뒤 `(?:자|\s?(?:수|건수|인원))?(?:은|는|이|가|도)?`(탐침: 기존 PASS 문서 새 걸림 0, code-tab 한 줄은 새로 add 할 때만 요란).
+3. 스마트플레이스 통계 라벨(플레이스 방문·전화·길찾기·저장)을 `public_labels` 에 더할지 — 오탐 대조와 함께(이번엔 문서 문구만 맞춤).
+4. guard 는 `--message-file` 없이도 PASS(출력에 '없음'만) — `-m` 커밋이면 메시지 무검사(문서가 플래그를 요구).
+5. '등록'은 제외 검색어 맥락 줄에서 'N명' 없이면 안 셈 — 같은 줄에 장부 등록 숫자를 섞으면 놓침.
+6. validate 라벨 검사는 01·11·12 만 봄(그 밖 자리에 장부 숫자를 쓸 흐름은 없음) · 한글 숫자('한 명')·회원 이름 같은 글자는 문서 규칙만.
+7. 체크리스트 줄이 운영 작업 트리에 쓰인 뒤 8단계 커밋 전에 세션이 끊기면 다음 S0 '작업 트리 변경' FAIL — 4절 ⓑ 에 "체크리스트 줄은 checkout 으로 지우지 말고 8단계로 커밋" 한 줄 없음(S0 멈춤이 지킴).
+8. 판정 중인 ✓ 플레이스 행은 ✗ `items_in_12` 밖이라 12번 플레이스 행이 3개 이상이 될 수 있음(report-structure 6) 은 허용 — 기준 13 글자는 ✗ 행).
+9. test_leads·test_place 일부가 임시 폴더를 남김(위생).
+10. `local/saero-run` 단계 줄(14행)에 3a·3b 없음(임의 결정 15 — 정본은 저장소).
+11. 리허설은 2-1 같음 경로라 12-1·12-2·11·01 등 다른 매회차 표지를 다시 쓰지 않았다(narrative 같은 기간 `[주의]`) — 다른 기간 narrative 는 R13 으로만 봄. 첫 적용은 데이터 회차라 n<날짜>.py 가 전부 다시 쓴다.
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1 새 스크립트 URI·메서드 grep(leads·place 네트워크 0 · guard 의 `git diff --cached` 읽기만) · 새 push 대상 = `audit/place-checklist.csv`(code-tab 8행 add 목록) / 2 test_leads AddSkip·test_place Write dry-run md5 · 리허설 R7·R8 / 3 `test_leads.ConfigOnly` + config `leads`·`place_checklist` / 4 새 코드 키 읽기 0 · rehearse.log 키 0 / 5 리허설 R14(옛 25·99 = 새 앞부분 바이트) · 기존 시험 / 6 validate 26 · test_leads `test_validate_checks`·`test_narrative_same_week_two_days` · row_html·rows_html 금칙어·잔존 0 / 7 test_leads Public·Guard(현실 값 초안·커밋 메시지 FAIL · 10/10 절 PASS · 장부 파일 FAIL) · R14 배포본 라벨 PASS · 문서 guard 자리 넷 / 8 test_leads `test_compare_diff_on_stale_verdict` · precheck.sh · R10 101/0 / 9 test_leads Verdict(경계 12 대 4 · 13 대 4 · skip 구멍) / 10 test_leads `test_input_checks` / 11 test_leads AddSkip·`test_replace_backup_and_checks` · test_place Write / 12 test_place `test_missing_or_broken` · test_leads `test_compute_card_has_no_counts` · R15 / 13 test_place `test_rows_12_keep_drop_carry_chat`·`test_search_only_calendar_days_and_verdicts`(손 계산 대조) / 21 `rehearse.log`(3회째)·`rehearse_1.log`(pull) — 네이버 읽기 9 · S0 자격 증명 FAIL 은 환경 / 22 code-tab 4절 ⓐ 줄 · SKILL.md 승인 지점 한 줄 · R15 / 23 test_leads skip·status · report-structure 6)·checklist 28(3주 규칙 밖) / 24 test_leads Weeks·`test_week_only_with_replace` / 25 test_place Write·`test_rows_12_keep_drop_carry_chat`(이월 줄 한 번·같은 기간) / 26 test_place Effect(행 빠진 날·콘텐츠·파워링크 행 섞임 · 둘 다 띠 · 겹침 · 자료 부족 · 측정 중).
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 1시간 20분(12:30~13:50 KST 무렵 — 검토 대기 약 17분 포함) · 하위 에이전트 5 · 즉석 코드(저장소 밖) 띠 측정 약 40행 · 리허설 스크립트 약 150행 · 서술 본보기 약 60행. 커밋: 코드 `a0b147b` + 이 기록. push: 브랜치 `feat-20261010-growth` 1회(main 아님) — 이 세션의 자격 증명 상태에 달림(끝 보고). 다음: ④ 검증(지시문 `D:\saero\saero-ad-report_매출작업_검증지시_회차1_2026-10-10.md` — Fable 5.1 · 울트라코드 켬).
+
+## 첫 적용 본보기(운영 세션이 그대로 쓴다)
+- **병합 뒤 첫 `/saero-run` 이 곧 첫 적용 회차**(임의 결정 3 — 장부 행 없이 precheck 를 통과하는 길이 없다). 첫 말: **"매출 작업 A + C 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"**. 그 전에 사용자: S0 자격 증명 두 줄이 PASS 인지(이 세션에서 FAIL — GCM 로그인) · 설치본 wrapup `D:\saero\.claude\skills\wrapup\SKILL.md` 에 "스킬 저장소 커밋 전 `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>` → 통과면 `git commit -F <같은 파일>`" 한 줄(병합 뒤 사용자 몫 — 저장소 밖이라 브랜치로 못 바꿈).
+- 흐름: S0 → ① 수집 → 1 ingest → 4 fetch → 5a → 2-1 → 3 → **3a** `leads.py status`(ask5=yes · 지난주 = 합본 집계 끝 기준 다 찬 월~일) · `place.py status`(first=yes) → 5-0a → **ⓐ 한 메시지 끝에 (5)** status 의 `(5) 질문:` 줄 그대로 + **C 체크리스트 9항목은 별도 메시지**(status 가 찍은 P1~P9 · 확인 방법 · 답 예) → **3b** (5) 답 → `add … --dry-run`(답 원문과 칸 나란히 — 캡처에서 읽은 숫자는 "캡처에서 읽음" + 확인 답) → 실제 / C 답 → `place.py set P1=… … P9=… --dry-run` → 실제 → 5-0b·5-0c(제외 검색어 그대로 — registry 커밋 전 guard) → **5** balance → compute `--balance --leads "$(leads.py path)" --place "$(place.py path)"` → apply `--layout` → `n<날짜>.py`(평소 서술 + 12번 `<tbody>` 끝에 장부 행 `leads.row_html(R)` + 플레이스 행 `place.rows_html(R)` — 표지 12-3…, 12-note 정렬·이월 판정·신규 줄 · 본보기 `D:\saero\feat-20261010-growth\work\RG\n_rg.py`(clone 이 지워졌으면 report-structure.md 12번 작성 기준 6)) → **6** precheck(validate 27 · compare 101 — 첫 적용이 데이터 회차면 narrative 는 새 표지 12-3~ 를 `[주의]` 로) → **보류 멈춤**: `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 12` → `work/cmp_<날짜>/compare.html`(12번 옛/새 1280·390) + 작업본을 사용자에게 → 사용자 **"배포"** → 7 dry-run → push(레이아웃 판 그대로라 `--layout-change` 없음) → verify `--ref` → **8** 기록 "매출 작업: (5) 장부 입력됨(로컬) · 장부 판정 = 판정 전(1/8주) · (7) 없음 · 12번 플레이스 행 P… · 채팅 질문 신호 0"(답 원문·숫자 0) → 경로 지정 add(`audit/last-audit.md` · `audit/place-checklist.csv` · 필요하면 registry·config) → **guard** → `commit -F` → push.
+- 다음 회차부터: 3a 가 묻지 않으면 질문 0 — 12번 장부 행·플레이스 행만 그 회차 compute 값으로 다시(같은 표지 안쪽) · 플레이스 행 수가 바뀌면 그 `<tr>` 을 다시 짠다 · `플레이스전후.채팅질문` 이 있으면 리포트보다 먼저 채팅으로.
+
+---
+
 # 기능 추가 탐색 기준선(매출로 이어질 광고 작업 찾기, 2026-10-10)
 점검일: 2026-10-10 (기능 추가 회차 **① 탐색·설계만** — 설계안은 사용자가 ②에서 고른다). Code 탭 `D:\saero` · Opus 5.5 · 울트라코드 켬(Fable 5.1 한도). 기준 main `89c1352`(= origin/main · 작업 트리 깨끗 — 운영 폴더는 `git --no-optional-locks` 읽기만). 이 절은 clone `D:\saero\feat-20261010-growth` 브랜치 `feat-20261010-growth` 로컬 커밋(push 안 함).
 추가할 기능: 매일 `/saero-run` 이 하는 생산적인 일은 "제외 검색어 등록" 하나뿐 — 광고의 목적(새로필라테스 매출)에 닿는 일을 찾아 영향 큰 순으로 고르고 위 3개를 설계안으로.
