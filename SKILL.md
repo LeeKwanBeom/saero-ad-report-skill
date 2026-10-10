@@ -52,7 +52,7 @@ git 자격 증명은 계정 로그인 하나라 두 저장소 쓰기가 같은 �
 ## 설정값은 config/report-config.json 하나에서 읽는다
 
 개업일·제외 그룹·경쟁사 목록·타겟 지역·CTR 강조 기준·차트 폭 규칙은 전부
-`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`·`exclusions.py`(`exclusions` 블록: 대상 그룹·금지 패턴·registry 경로)·`fetch_reports.py`(`report_fetch` 블록: 목록 URL·보고서 이름·기간 규칙·컬럼 원문·허용/금지 동작). **값을 정의하는 자리(판정 목록·계산 기준)는
+`config/report-config.json`에 있다. 읽는 코드: `scripts/validate.py`·`compute.py`·`archive.py`·`deploy.py`·`exclusions.py`(`exclusions` 블록: 대상 그룹·금지 패턴·registry 경로)·`fetch_reports.py`(`report_fetch` 블록: 목록 URL·보고서 이름·기간 규칙·컬럼 원문·허용/금지 동작)·`leads.py`(`leads` 블록: 장부 경로·질문 문구·칸·상한·공개 범위·판정 규칙·라벨)·`place.py`(`place_checklist` 블록: 체크리스트 경로·항목 P1~P9·12번 자리 수·창·띠·상태 낱말). **값을 정의하는 자리(판정 목록·계산 기준)는
 이 문서나 references에 값을 적지 않고 설정 파일의 키를 가리킨다.** validate.py도
 값을 하드코딩하지 않고 그 파일을 읽는다. 값이 바뀌면 그 파일만 고친다.
 
@@ -259,7 +259,7 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 교체는 잔액 읽기 + 두 단계(2026-10-06 — E2 저장소화 · 서술 표지 · 레이아웃 판 / 2026-10-09 판 F 광고비 잔액 카드 — 앞 두 줄):
 ```bash
 "$PY" scripts/balance.py --key-file ~/naver-api.keys.json                              # 광고비 잔액(비즈머니) GET 1회(읽기) → work/balance.json — 실패해도 exit 0(카드 "확인 못 함")
-"$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json -o work/compute.json   # 잔액 카드 값("잔액")까지 — 기록이 없거나 지난 회차 것이면 [FAIL] exit 1
+"$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json --leads "$("$PY" scripts/leads.py path)" --place "$("$PY" scripts/place.py path)" -o work/compute.json   # 잔액 카드 값("잔액")·성과장부·플레이스전후까지 — 잔액 기록이 없거나 지난 회차 것이면 [FAIL] exit 1
 "$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·잔액 카드·표·목록·차트·masthead·og·접기 summary) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
 "$PY" work/n<날짜>.py                                                                  # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
 ```
@@ -269,6 +269,11 @@ report-structure.md 각 절의 "정의(compute.py)" 줄과 1:1이다 — 둘이 
 `10/9(금) 14:34 기준 · 약 24일분`(며칠분 = 잔액 ÷ 집계 마지막 날까지 7일 평균 총비용, 버림 — 평균 0 이면 생략). compute 는 읽은 날(KST)이 집계 마지막 날 이하인 기록(지난 회차 것)을
 `[FAIL]` 로 멈추고, apply 는 compute.json 에 "잔액" 이 없으면(5a 의 `--balance` 없는 compute 그대로) `[FAIL] apply: … "잔액" 없음` 으로 멈춘다 — 세 줄은 이 순서로 매 회차(2-1 같음 경로 포함).
 세션은 `work/balance.json` 을 손으로 쓰거나 고치지 않는다(다시 읽으려면 balance.py 를 다시 — 그 뒤 compute·apply 도 다시).
+**매출 작업 A·C(2026-10-10 — 주간 성과 장부 + 플레이스 화면 손보기, 새 외부 쓰기 0 · 네이버 호출 0)**: 3단계 뒤 `leads.py status`·`place.py status`(읽기)가 (5) 지난주 숫자 · (7) 지난주 플레이스에서 바꾼 것 ·
+C 첫 회 9항목을 물을지 정하고(질문은 ⓐ 묶음 끝의 **정보 질문** — 답이 없으면 미입력/바꾼 것 없음으로 진행, `references/code-tab.md` 3절 3a·3b·4절), 답이 오면 `leads.py add|skip`·`place.py set|done`(dry-run → 실제, 줄 추가만)이
+장부(config `leads.path` — 저장소 밖, 공개 안 함)·체크리스트(config `place_checklist.path` — 저장소, 공개)에 쓴다. compute 의 "성과장부"는 config `leads.publish` = verdict 라 **판정 낱말·'M/D까지'·입력 주 수만**(건수·매출은 없음),
+"플레이스전후"는 12번 플레이스 행(✗ 항목 · 바꾼 항목의 효과 판정 — 플레이스 검색 지면만·달력 일수·띠 `band_pct` 밖일 때만 좋아짐/나빠짐)과 채팅 질문 신호·이월 줄. 12번 행 꼴은
+`references/report-structure.md` 12번 작성 기준 6). 장부 숫자·(5) 답 원문·캡처 숫자는 리포트·last-audit·커밋 어디에도 쓰지 않는다(공개 저장소·공개 배포본 — validate "장부 라벨+숫자 0"·`leads.py guard`).
 `--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만(분기 도우미의 M 줄 포함),
 meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D → 01 모바일 터치 날짜 = r2026-10-E → 광고비 잔액 카드 = r2026-10-F),
 meta r2026-10-B·C·D·E 판이면 사슬을 따라 r2026-10-F 로 바꾼 뒤 값.
@@ -301,7 +306,8 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다(판 F — 작업본
    건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다. 잔존 문구를 보는 자리는 이 검사 하나뿐이다(compare.py에 없음).
 2. `"$PY" scripts/compare.py <작업중인 index.html> <compute.json>` — 배포본 값이 compute.py 출력과 **차이 0**인지
    (2026-10-06 회차 2 기준 99항목: 표·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어 95 + 접기 summary 4(07 클릭 1건·클릭 0·경쟁사표 개수 = 목록 길이,
-   03 "이전 N일(M/D~M/D)" = 접힌 표). 03 일별 표는 두 표를 이어 읽어 거꾸로 = 오름차순(최신 위가 정본 — 오름차순으로 되돌린 판은 DIFF).
+   03 "이전 N일(M/D~M/D)" = 접힌 표) · 2026-10-10 매출 작업 A·C **101항목**(+ 12번 `장부 기준 판정 = X` = 성과장부.판정 · 12번 플레이스 행 = 플레이스전후.12번).
+   03 일별 표는 두 표를 이어 읽어 거꾸로 = 오름차순(최신 위가 정본 — 오름차순으로 되돌린 판은 DIFF).
    09-27 의 95 는 09-26의 99에서 잔존 문구 5항목을 validate 검사 21로 일원화하고 08 컴팩트를 집합+정렬 2항목으로 나눈 것. 경쟁사표 정본은 3번째 인자의 직전 배포본.
 3. `"$PY" tests/overflow_check.py <작업중인 index.html>` — 360·390·430px 가로 넘침 0(css-and-layout.md 버그 기록 10). file:// 밖 요청은 막고 잰다(Chart.js 미로드 — checklist [의도된 동작] 17).
    재기 전에 접기(details)를 전부 연다(2026-10-06 — 접힌 안의 표·목록까지).
@@ -364,7 +370,10 @@ validate.py 검사 N개 전부 PASS(precheck가 보이는 요약 줄 `검사 N�
 2-1단계 선확인 / 제외 그룹 신규 후보 / 01·06 min-width·라벨 / 11번 판정(유지·뒤집힘·근거 소멸) / 12번 이월 판정 / 경쟁사·제외 검색어 대조 / 사용자에게 요청한 값 / 다음 회차 대조
 제외 검색어(5-0단계): 재노출 판정 n건(등록돼 있는데도 노출 a · 등록 누락 b · 미확인 c) / 후보 n → 승인 n → 등록 n · verified n · 실패 n(description) / registry 행수
 propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n — 다음 회차 `--since` = lo)
+매출 작업: (5) 장부 입력됨(로컬)/건너뜀/미입력 · 장부 판정 = <낱말> · (7) P<n> M/D 바꿈/없음 · 12번 플레이스 행 <P 번호> · 채팅 질문 신호 <n> — 답 원문·장부 숫자·캡처 숫자는 적지 않는다(공개 저장소)
 ```
+스킬 저장소 커밋 전(이 8단계 · 5-0c registry · config 커밋 · **마감(wrapup) 커밋 전에도**) `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>` 을 돌려 통과(`[PASS] guard`)일 때만
+`git commit -F <같은 파일>` — staged 추가 줄(audit/·config/·references/·local/·루트 *.md)·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값이 있으면 `[FAIL]` 커밋 0(`references/code-tab.md` 4절 ⓑ).
 
 효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤 같은 재현은
 **precheck.sh 1회·약 15초·0행**(재현 시험 — 계산·대조만, last-audit.md 효율표와 같은 값). 기록이 쌓여야 E3(도구 호출 묶기)를 실측할 수 있다.
@@ -428,6 +437,8 @@ propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n —
 
 **(4) 제외 검색어 등록** — 5-0단계의 승인 문구에 "등록 승인 N개"(또는 번호 — "3 빼고"·"업종어 2 넣기") 답이 오기 전에는 `push`·`delete`·`test-roundtrip`을 돌리지 않는다.
 등록 여부 자체는 묻지 않는다(registry가 답한다). 금지 패턴(config `never_exclude_patterns`)·경쟁사 이름은 코드가 막는다(실제 등록 = 참조 선택 모드는 쓰기 전 `[FAIL]`, `--approved` dry-run은 `[거부]`).
+
+(5)·(7)은 정보 질문 — 이 절의 멈춤·배포 보류에 들지 않음(`references/code-tab.md` 4절).
 
 **배포(7단계 실제 PUT)** — 따로 묻지 않는다. 위 묶음(과 2-1·되묻기 등 사람 질문)의 답을 모두 받고 6단계 precheck·7단계 `--dry-run`이 통과하면 자동으로 PUT한다(사용자 결정 2026-09-30, 7단계 "자동 배포").
 사용자가 "보류"라고 했거나 검사가 하나라도 실패하면 PUT하지 않는다.
@@ -522,7 +533,7 @@ OFF 그룹이 생기면 조용히 깨지는데, 깨져도 숫자가 그럴듯해
 
 ## 배포 전 검산
 
-`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 회차 2 기준 24개 · 2026-10-09 판 F 기준 25개,
+`scripts/validate.py`가 자동으로 확인하는 항목(개수는 실행 출력의 [PASS]/[FAIL] 줄을 세어 확인 — 2026-10-06 회차 2 기준 24개 · 2026-10-09 판 F 기준 25개 · 2026-10-10 매출 작업 27개,
 config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부른다):
 
 - HTML 태그 짝 (div/table/tr/td/th/span/script 등)
@@ -564,9 +575,13 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
 - (2026-10-09 판 F 추가) **"광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분"** — `--balance work/balance.json` 을 직접 읽어(compute 와 계산 공유 0) 카드 값 = ⌊bizmoney_raw⌋ 원 ·
   보조 줄 = 읽은 시각 KST + 며칠분(키워드 CSV 에서 제외 그룹 뺀 마지막 날까지 달력 7일 총비용 — 정수 나눗셈, 0 이면 생략) / 실패 기록이면 `확인 못 함` · `… 조회 실패` ·
   읽은 날 ≤ 집계 마지막 날(지난 회차 기록)·기록 없음·꼴 다름·카드 0건이면 FAIL. 이것으로 validate 검사는 **25개**
+- (2026-10-10 매출 작업 A·C 추가) **"01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)"** — 01·11·12 본문에 config `leads.public_labels` 바로 뒤 숫자 0(제외 검색어 문구
+  '등록 N개'·'→ 등록 N'·'· verified'·날짜는 안 셈 — `scripts/leads.py` label_hits, guard 와 같은 규칙), `leads.publish` ≠ verdict 면 FAIL /
+  **"12번 장부·플레이스 행"** — `장부 기준 판정 = X` 행 정확히 1(X = config 판정 낱말 · `판정 전(N/8주)`) · 장부·플레이스 행의 `M/D까지` = 집계 마지막 날 ·
+  플레이스 ✗ 행 ≤ `place_checklist.items_in_12` · ✓ 아닌 행 ≤ 7 · 12번 표 행 0 이면 FAIL. 이것으로 validate 검사는 **27개**(첫 적용 전 배포본 — 12번 장부 행 없음 — 은 이 검사가 FAIL 인 것이 기대값)
 
-그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(99항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
-접기 summary 4항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
+그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(101항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
+접기 summary 4항목, 2026-10-10 "12 장부·플레이스" 2항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
 compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
 precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07 · 판 E 2026-10-08 · 판 F 2026-10-09): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
 01·06 의 tick·datalabels·겹침(390 접힘·펼침·다시 접힘·짧은 사본 · 1280 · 회전 390→844→390)과 page.pdf 실물을 재고, 390 에서 01 줄마다 왼쪽·가운데·오른쪽을 진짜로 눌러 팝업 = 그 줄 날짜(판 E)를 본다. 판 F 는 폭마다 광고비 잔액 카드 = .kpi-row 마지막 자식 · 한 줄 전체 · 카드 넷 아래(1280 한 줄 / 390 2·2) · 글자 = compute "잔액". `--out`·`--base` 면 전후 비교 페이지 `<폴더>/compare.html`(맨 앞 상단 카드 옛/새) 도 쓴다. 리허설·검증·첫 적용 "보류" 회차·정기점검에서 돌린다(데이터 회차의 6단계에는 없음).
@@ -620,5 +635,8 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
   `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구) ·
   `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제·03 오름차순 복귀·summary 옛 값 → 그 구역만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·
+  `scripts/leads.py`(매출 작업 A — 주간 성과 장부 status·add·skip·guard·row, 네트워크 0) · `scripts/place.py`(매출 작업 C — 플레이스 체크리스트 status·set·done·row, 네트워크 0) ·
+  `tests/test_leads.py`(주 = 집계 끝 기준·월요일 경계 · 입력 검사 · 줄 추가만·같은 주 FAIL·정정 .bak · skip = 구멍 · 판정 규칙 · compute 건수 0 · guard · validate 25·26 · compare · 같은 주 이틀 narrative) ·
+  `tests/test_place.py`(첫 set·쓰기 가드·in12_since · 검색 지면만·달력 일수·띠·겹침·측정 중 · 12번 목록·이월 줄·채팅 신호 · compare) · `tests/section_compare.py <작업본> <직전 배포본> --out <폴더> [--sections 12]`(precheck 밖 — 서술 행을 바꾸는 첫 적용 보류 회차의 전후 비교 페이지, 1280·390 캡처 나란히) ·
   `tests/test_deploy.py`(가짜 API + 가짜 자격 증명 도우미: 값 출력 0·dry-run PUT 0·base 불일치·권한 거짓·필드 없음·token 파일 인코딩·
   precheck 도장(직전 배포본·모드)·PUT 본문 = 도장 바이트·PUT 409/403·PUT 결과 모름·이미 반영 exit 0·`***` 가림·인자 오류 GET 0(exit 2)·토큰 모양·레이아웃 판 게이트 4건) — 정기 점검 때.

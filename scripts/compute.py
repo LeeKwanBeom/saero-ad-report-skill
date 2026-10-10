@@ -14,6 +14,10 @@
 - validate.py 와 값 계산을 공유하지 않는다(reportlib은 읽기·필터·일수·섹션 자르기까지).
 - (2026-10-09 판 F) --balance 가 있으면 "잔액"(광고비 잔액 카드 — balance_card 정의)을 더 낸다. 기록이 없거나·못 읽거나·꼴이 다르거나·읽은 날이
   집계 마지막 날 이하(지난 회차 기록)면 `[FAIL] 잔액 기록…` exit 1(출력 파일 안 씀). 5단계(balance.py 바로 뒤)·precheck 는 늘 붙이고, 5a(2-1 대조용)는 붙이지 않는다.
+- (2026-10-10 매출 작업 A·C) --leads <장부> 면 "성과장부"(leads.verdict — 판정 낱말·'M/D까지'·입력 주 수뿐, **건수·매출 0** — config leads.publish = verdict 만,
+  다른 값이면 [FAIL]) · --place <체크리스트> 면 "플레이스전후"(place_effect — 12번 플레이스 행 목록·효과 판정·채팅 질문 신호·이월 줄). 장부·체크리스트가 없거나 꼴이
+  다르면 `[주의]` 를 찍고 판정 '확인 못 함'(장부) / 12번 플레이스 행 0(체크리스트 없음) — exit 0. 5단계·precheck 는 늘 붙인다(precheck 는 config 경로, 시험은
+  환경 변수 SAERO_LEADS·SAERO_PLACE). 'M/D까지' 는 합본 마지막 날(masthead 끝).
 """
 import argparse
 import datetime as dt
@@ -76,7 +80,7 @@ def deployed_competitors(html):
     return re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td>[^<]*</td>\s*<td><span class="tag', seg)
 
 
-def compute(D, cfg, comp_prev=(), bal=None):
+def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=None):
     kw, sr, rg, hr = (read_csv(f"{D}/{k}.csv") for k in ("키워드", "검색어", "상세지역", "시간대별"))
     EXC, TARGET, CTRH = cfg["excluded_groups"], cfg["target_districts"], cfg["ctr_high_threshold"]
     out = {}
@@ -238,7 +242,136 @@ def compute(D, cfg, comp_prev=(), bal=None):
                  "B분해": {k: int(v) for k, v in inc[iss & ~isn].groupby("매체이름")["노출수"].sum().items()}}
     if bal is not None:
         out["잔액"] = balance_card(bal, kw, inc)
+    end = dt.date(*(int(x) for x in days[-1].rstrip(".").split(".")))
+    if leads is not None:
+        out["성과장부"] = leads_card(leads, end, cfg)
+    if place is not None:
+        first = dt.date(*(int(x) for x in days[0].rstrip(".").split(".")))
+        out["플레이스전후"] = place_effect(inc, first, end, place, cfg, prev_period_end(prev_html), section(prev_html or "", 12),
+                                       out["성과장부"]["판정"] if "성과장부" in out else cfg["leads"]["verdict_words"]["unknown"])
     return out
+
+
+class LeadsPublishError(ValueError):
+    """config leads.publish 가 verdict 가 아님 — 건수를 내는 길은 설계 회차 몫."""
+
+
+def leads_card(path, end, cfg):
+    """12번 장부 행 값 — 판정 낱말·'M/D까지'·입력 주 수(공개 범위 verdict: 건수·매출 0). 장부 없음·꼴 다름 = '확인 못 함' + [주의]."""
+    import leads as L
+    c = cfg["leads"]
+    if c.get("publish") != "verdict":
+        raise LeadsPublishError(f"config leads.publish {c.get('publish')!r} — verdict 만(건수를 공개하는 길은 설계 회차 몫)")
+    rows, st = L.load_ledger(path)
+    word, n = L.verdict(rows, end, cfg)
+    if rows is None:
+        print(f"[주의] 장부 확인 못 함({st}) — 12번 장부 판정 '{word}' ({path})", file=sys.stderr)
+    return {"판정": word, "기준": f"{end.month}/{end.day}까지", "상태": "ok" if rows is not None else st.split(":")[0],
+            "입력주수": n, "창주": int(c["window_weeks"]), "최소주": int(c["min_weeks"])}
+
+
+def place_effect(inc, first, end, path, cfg, prev_end, prev12, leads_word):
+    """플레이스 손보기 효과(독립 계산 — 01 avg_pl 재사용 안 함). 플레이스 캠페인 **검색 지면만**(콘텐츠 행 뺌) · 바꾼 날 D 앞 W일 [D−W, D−1] vs 뒤 W일 [D+1, D+W] ·
+    **달력 일수**(행 없는 날 = 0) · 하루 클릭 변화%·CTR 변화%가 둘 다 band 위 = 좋아짐 / 둘 다 아래 = 나빠짐 / 그 밖 = 구별 안 됨 · 앞뒤 W일 안에 다른 바꿈(다른 항목·
+    같은 항목의 지난 바꿈) = 겹침 · D−W < 집계 첫날 = 비교 불가 · 뒤 W일이 덜 찼으면 측정 중(n/W일). 12번 = 판정 난 뒤 final_show_days 일까지의 바꾼 항목(바꾼 날 순) +
+    ✗ 행(place.py 가 적은 in12_since — config 순서, items_in_12 개)."""
+    import place as PL
+    c = cfg["place_checklist"]
+    W, keep, chat_days = int(c["window_days"]), int(c["final_show_days"]), int(c["chat_after_days"])
+    vw, sw, band = c["verdict_words"], c["state_words"], c["band_pct"]
+    names = {it["id"]: it["문구"] for it in c["items"]}
+    mdd = lambda d: f"{d.month}/{d.day}"
+    out = {"기준": f"{mdd(end)}까지", "창일수": W, "띠": band, "남김일": keep, "낱말": vw, "장부판정": leads_word,
+           "12번": [], "측정": [], "채팅질문": [], "이월줄": [], "빠짐": []}
+    rows, st = PL.load_checklist(path, cfg)
+    if rows is None:
+        out["상태"] = st.split(":")[0]
+        print(f"[주의] {st} — 12번 플레이스 행 0 ({path})", file=sys.stderr)
+        return out
+    out["상태"] = "ok"
+    s = inc[inc["캠페인"].str.startswith("플레이스") & (inc["검색/콘텐츠 매체"] == "검색")]
+    sd = pd.to_datetime(s["일별"].astype(str).str.rstrip("."), format="%Y.%m.%d").dt.date
+    daily = {d: (int(g["노출수"].sum()), int(g["클릭수"].sum())) for d, g in s.groupby(sd)}
+
+    def window(a, b):  # 달력 날짜 a~b(포함) 합 — 행 없는 날 0
+        imp = clk = 0
+        for k in range((b - a).days + 1):
+            i, cl = daily.get(a + dt.timedelta(days=k), (0, 0))
+            imp += i
+            clk += cl
+        return imp, clk
+
+    cur = PL.current(rows)
+    events = PL.done_events(rows)
+    measured = sorted([r for r in cur.values() if r["state"] == "done" and r["state_date"]], key=lambda r: (r["state_date"], r["id"]))
+    for r in measured:
+        Dd, rid = r["state_date"], r["id"]
+        m = {"id": rid, "문구": names[rid], "바꾼날": mdd(Dd), "끝날": mdd(Dd + dt.timedelta(days=W))}
+        others = [d for (i2, d) in events if (i2, d) != (rid, Dd)]
+        n_after = max(0, min(W, (end - Dd).days))
+        if Dd - dt.timedelta(days=W) < first:
+            word = vw["short"]
+        elif any(abs((d - Dd).days) <= W for d in others):
+            word = vw["overlap"]
+        elif n_after < W:
+            word = f"{vw['measuring']}({n_after}/{W}일)"
+        else:
+            ib, cb = window(Dd - dt.timedelta(days=W), Dd - dt.timedelta(days=1))
+            ia, ca = window(Dd + dt.timedelta(days=1), Dd + dt.timedelta(days=W))
+            if cb == 0 or ib == 0 or ia == 0:
+                word = vw["short"]
+            else:
+                dc, dctr = (ca / cb - 1) * 100, ((ca / ia) / (cb / ib) - 1) * 100
+                if dc > band["clicks"][1] and dctr > band["ctr"][1]:
+                    word = vw["up"]
+                elif dc < band["clicks"][0] and dctr < band["ctr"][0]:
+                    word = vw["down"]
+                else:
+                    word = vw["same"]
+                m.update({"전": {"노출": ib, "클릭": cb, "하루클릭": round(cb / W, 1), "CTR": pct(cb, ib)},
+                          "후": {"노출": ia, "클릭": ca, "하루클릭": round(ca / W, 1), "CTR": pct(ca, ia)},
+                          "변화%": {"하루클릭": round(dc, 1), "CTR": round(dctr, 1)}})
+        m["판정"] = word
+        out["측정"].append(m)
+        age = (end - (Dd + dt.timedelta(days=W))).days  # 판정 날(D+W) 뒤 지난 날 — 음수면 측정 중
+        if age < keep:
+            out["12번"].append(dict({k: v for k, v in m.items() if k != "판정"}, 종류="판정", 값=word))
+        if prev_end is not None and (prev_end - (Dd + dt.timedelta(days=W))).days < keep <= age:
+            out["빠짐"].append(f"{rid} {word}")
+    for rid in PL.in12_ids(cur, cfg):
+        since = cur[rid]["in12_since"]
+        out["12번"].append({"id": rid, "문구": names[rid], "종류": "상태", "값": sw["todo"], "since": mdd(since)})
+        if (end - since).days >= chat_days:
+            out["채팅질문"].append(f"{rid} 12번 {mdd(since)}부터 {(end - since).days}일 그대로")
+    # 이월 줄은 한 번 — 지난 배포본(끝 날 P) 뒤에 적힌 결정만: 보통은 적힌 날 > P + 1(P 회차는 P + 1 에 돌았다). 같은 기간 다시 계산(P = 이번 끝 날)이면
+    # 이번 회차 날(> 끝 날)에 적혔고 지난 배포본 12번에 그 줄이 아직 없을 때만(앞 배포가 이미 실었으면 다시 안 씀)
+    same = prev_end is not None and prev_end >= end
+    gate = end if (prev_end is None or same) else prev_end + dt.timedelta(days=1)
+    seen = (lambda line: line in (prev12 or "")) if same else (lambda line: False)
+    for it in c["items"]:
+        r = cur.get(it["id"])
+        if r and r["state"] == "later" and r["revisit"] <= end:
+            out["채팅질문"].append(f"{r['id']} 미룸 다시 볼 날({mdd(r['revisit'])}) 지남")
+        line = None
+        if r and r["state"] in ("no", "later") and r["recorded"] > gate:
+            line = (f"{r['id']} {sw['no']}({mdd(r['state_date'])} 결정)" if r["state"] == "no"
+                    else f"{r['id']} {sw['later']}({mdd(r['revisit'])} 다시 봄)")
+        if r and r["state"] == "todo" and r["in12_since"] is None and r["recorded"] > gate:  # 순서에 밀려 12번에서 내려간 ✗ — 조용히 사라지지 않게 한 번
+            hist = [x for x in rows if x["id"] == r["id"]]
+            if len(hist) >= 2 and hist[-2]["state"] == "todo" and hist[-2]["in12_since"] is not None:
+                line = f"{r['id']} {sw['todo']}(12번 자리 순서로 내림)"
+        if line and not seen(line):
+            out["이월줄"].append(line)
+    return out
+
+
+def prev_period_end(html):
+    """직전 배포본 masthead `집계 기간<b>YYYY.MM.DD — MM.DD (N일)</b>` 의 끝 날짜(date) — 못 찾으면 None."""
+    m = re.search(r"집계 기간<b>(\d{4})\.(\d{2})\.(\d{2}) — (\d{2})\.(\d{2}) \(\d+일\)</b>", html or "")
+    if not m:
+        return None
+    y, m1, _, m2, d2 = (int(x) for x in m.groups())
+    return dt.date(y + (1 if m2 < m1 else 0), m2, d2)
 
 
 class BalanceError(ValueError):
@@ -287,10 +420,13 @@ def main():
     ap.add_argument("combined")
     ap.add_argument("--competitors-html")
     ap.add_argument("--balance", help="balance.py 의 잔액 기록(work/balance.json) — 판 F 광고비 잔액 카드 값(\"잔액\")을 낸다. 5단계·precheck 는 늘 붙인다")
+    ap.add_argument("--leads", help="주간 성과 장부(저장소 밖 — precheck 는 config leads.path·환경 변수 SAERO_LEADS) → \"성과장부\"(판정 낱말만)")
+    ap.add_argument("--place", help="플레이스 체크리스트(precheck 는 config place_checklist.path·SAERO_PLACE) → \"플레이스전후\"")
     ap.add_argument("-o", "--out")
     a = ap.parse_args()
     cfg = load_config()
-    comp_prev = deployed_competitors(read_html(a.competitors_html)) if a.competitors_html else ()
+    prev_html = read_html(a.competitors_html) if a.competitors_html else None
+    comp_prev = deployed_competitors(prev_html) if a.competitors_html else ()
     if a.competitors_html and not comp_prev:  # 합본을 읽기 전에 멈춘다 — 직전 표 0행으로 계산하면 어순 변형 행이 조용히 빠진다
         print(f'[FAIL] 직전 배포본 경쟁사표 0행 — 머리글 "경쟁사 브랜드명 검색어" 또는 행 마크업 확인 ({a.competitors_html})')
         sys.exit(1)
@@ -303,9 +439,12 @@ def main():
             print(f"[FAIL] 잔액 기록을 못 읽음({type(e).__name__}): {a.balance} — 5단계 첫 명령 balance.py 를 이번 회차에 돌렸는지")
             sys.exit(1)
     try:
-        out = compute(a.combined, cfg, comp_prev, bal)
+        out = compute(a.combined, cfg, comp_prev, bal, a.leads, a.place, prev_html)
     except BalanceError as e:
         print(f"[FAIL] 잔액 기록: {e} ({a.balance})")
+        sys.exit(1)
+    except LeadsPublishError as e:
+        print(f"[FAIL] 성과 장부: {e}")
         sys.exit(1)
     text = json.dumps(out, ensure_ascii=False, indent=1, default=str)
     if a.out:
@@ -313,7 +452,10 @@ def main():
             f.write(text)
         print(f"[compute] {a.out}  {out['masthead']}  KPI {out['KPI']['노출']:,}/{out['KPI']['클릭']}/{out['KPI']['CTR']}%/{out['KPI']['광고비']:,}원"
               f"  경쟁사 {len(out['07']['경쟁사표'])}행(신규 변형 후보 {out['07']['신규변형후보']})"
-              + ("" if "잔액" not in out else f"  잔액 {out['잔액']}"))
+              + ("" if "잔액" not in out else f"  잔액 {out['잔액']}")
+              + ("" if "성과장부" not in out else f"  장부 판정 {out['성과장부']['판정']}")
+              + ("" if "플레이스전후" not in out else
+                 f"  플레이스 12번 {[(x['id'], x['값']) for x in out['플레이스전후']['12번']]} 채팅 질문 {len(out['플레이스전후']['채팅질문'])}"))
     else:
         print(text)
 
