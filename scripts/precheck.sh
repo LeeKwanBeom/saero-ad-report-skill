@@ -7,6 +7,8 @@
 #   compute.json은 작업본 옆(같은 폴더)에 쓴다. validate·compare는 통과면 끝 3줄, 실패면 전체 출력(종료 코드는 그대로).
 #   (2026-10-09 판 F) 광고비 잔액 카드 — 작업본 옆 balance.json(5단계 balance.py 의 잔액 기록)을 validate·compute 에 --balance 로 넘긴다.
 #   없거나 꼴이 다르거나 지난 회차 기록이면 validate "광고비 잔액 카드" FAIL(그 뒤 compute 도 [FAIL]) — 이 스크립트가 따로 검사하지는 않는다.
+#   (2026-10-10 매출 작업 A·C) compute 에 --leads <장부> --place <체크리스트> 를 늘 넘긴다 — 경로는 leads.py path · place.py path(환경 변수 SAERO_LEADS·SAERO_PLACE >
+#   config leads.path · place_checklist.path). 5단계와 같은 입력이라야 compare "12 장부 기준 판정"·"12 플레이스 행"이 낡은 판정을 잡는다(막음 A-F3). 없으면 compute [주의] — 판정 '확인 못 함'.
 #   전부 통과하면 작업본 옆에 도장 precheck_ok.md5를 쓴다 — 1줄 `<작업본 md5>  <이름>` · 2줄 `<직전 배포본 md5>  <이름>` · 3줄 `mode full|pending`.
 #   deploy.py 실제 push는 작업본 md5 = --file, 직전 배포본 md5 = --base일 때만 PUT(수정 회차 3 W11·4 X2 — pending이면 [주의]만).
 #   인자 수가 맞으면 무엇보다 먼저 옛 도장을 지우고(파일 없음 FAIL에도 — 이번 실행이 끝까지 통과해야 다시 생긴다), 작업본 md5를 시작·끝 두 번 재 같을 때만 쓴다(도중에 바뀌면 [FAIL]).
@@ -30,7 +32,8 @@ run() {  # 통과면 끝 3줄(종전과 같음), 실패면 전체 출력 뒤 같
   if [ "$rc" -eq 0 ]; then printf '%s\n' "$out" | tail -n 3; else printf '%s\n' "$out"; exit "$rc"; fi
 }
 echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML" "$C/키워드.csv" "$C/검색어.csv" "$C/시간대별.csv" "$C/상세지역.csv" --balance "$BAL" ${PENDING[@]+"${PENDING[@]}"}
-echo "== compute(직전 배포본 $PREV 경쟁사표 기준) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" --balance "$BAL" -o "$J"
+LEADS="$("$PY" "$ROOT/scripts/leads.py" path)" && PLACE="$("$PY" "$ROOT/scripts/place.py" path)" || { echo "[FAIL] 장부·체크리스트 경로를 못 정함(leads.py path · place.py path)"; exit 1; }
+echo "== compute(직전 배포본 $PREV 경쟁사표 기준 · 장부 $LEADS · 체크리스트 $PLACE) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" --balance "$BAL" --leads "$LEADS" --place "$PLACE" -o "$J"
 run "$PY" "$ROOT/scripts/compare.py" "$HTML" "$J"
 echo "== overflow"; "$PY" "$ROOT/tests/overflow_check.py" "$HTML"
 echo "== narrative(서술 미교체)"; run "$PY" "$ROOT/scripts/narrative_check.py" "$HTML" "$PREV"

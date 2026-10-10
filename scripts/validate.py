@@ -61,6 +61,13 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      합계 0 이면 며칠분 없음) / fail 이면 값 `확인 못 함` · 보조 줄 `M/D(요일) HH:MM 조회 실패`. 읽은 날(KST)이 집계 마지막 날 이하(지난 회차 기록)·기록 없음·
      꼴 다름·카드 값/보조 줄 0건 또는 둘 이상이면 FAIL.
 
+ 25. (2026-10-10 매출 작업 A) "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)" — 01·11·12 본문(<script> 앞까지, 태그·표지 뺀 글)에 config `leads.public_labels`
+     (문의·체험·상담·등록·매출·네이버 경유 …) 바로 뒤 숫자가 0건(scripts/leads.py label_hits — '등록 N개'·'등록 N · verified'·'N행'·날짜는 제외 검색어·기록 문구라 안 셈).
+     config `leads.publish` 가 verdict 가 아니면 FAIL(건수 공개는 설계 회차 몫). 장부 파일은 읽지 않는다(공개 글만 본다).
+ 26. (2026-10-10 매출 작업 A·C) "12번 장부·플레이스 행" — 12번 표에 `장부 기준 판정 = X` 행이 정확히 1(X = config `leads.verdict_words` 낱말 또는 `판정 전(N/min_weeks주)`) ·
+     장부 행·플레이스 행(`플레이스 P<n> `)마다 `M/D까지` = 키워드 CSV 집계 마지막 날(같은 주 다음 날 회차도 바이트가 달라 narrative 가 서술 미교체를 잡는다) ·
+     플레이스 ✗ 행(`상태 = ✗`) ≤ config `place_checklist.items_in_12` · ✓ 아닌 행 ≤ config `place_checklist.max_open_rows_12`(12번 작성 기준 4). 12번 표 행 0 이면 FAIL.
+
 사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
@@ -88,6 +95,7 @@ except ImportError:
     sys.exit("pandas가 필요합니다 — Code 탭은 저장소 밖 venv 파이썬(PY)으로 실행한다(references/code-tab.md 1절)")
 
 from reportlib import exclude_groups, load_config, parse_days, read_csv, read_html, section
+from leads import label_hits  # 공개 범위 가드 규칙(라벨+숫자) — leads.py guard 와 같은 규칙(값 계산 아님)
 
 CFG = load_config()
 EXCLUDED_GROUPS = CFG["excluded_groups"]
@@ -498,6 +506,58 @@ def check_balance_card(html, kw, bal_path):
     check(name, not bad, "; ".join(bad) if bad else f"{re.sub(r'<[^>]+>', '', vals[0])} · {subs[0]} ({extra} · 읽은 시각 {ra})")
 
 
+def check_leads_public(html):
+    """25. 01·11·12 본문에 장부 라벨+숫자 0(publish = verdict) — 공개 배포본에 문의·등록·매출 숫자가 실리는 길(막음 A-F2)의 배포 전 관문."""
+    name = "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)"
+    c = CFG.get("leads", {})
+    text = re.sub(r"<[^>]+>", "", section(html, 1) + section(html, 11) + section(html, 12))
+    if not text.strip():
+        check(name, False, "01·11·12 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
+        return
+    if c.get("publish") != "verdict":
+        check(name, False, f"config leads.publish {c.get('publish')!r} ≠ verdict — 건수 공개는 설계 회차 몫")
+        return
+    hits = label_hits(text, c["public_labels"])
+    check(name, not hits, f"라벨 {len(c['public_labels'])}종 · {len(text):,}자" + (f" — {', '.join(f'{a} {b}' for a, b in hits[:5])}" if hits else ""))
+
+
+def check_12_growth(html, dmax):
+    """26. 12번 장부 행 1 · 판정 낱말 꼴 · 장부·플레이스 행의 M/D까지 = 집계 끝 · 플레이스 ✗ 행 ≤ items_in_12 · ✓ 아닌 행 ≤ max_open_rows_12."""
+    name = "12번 장부·플레이스 행(장부 판정 1 · M/D까지 = 집계 끝 · ✗ ≤ items_in_12 · 항목 ≤ 7)"
+    lc, pc = CFG["leads"], CFG["place_checklist"]
+    trs = re.findall(r"<tr[^>]*>(.*?)</tr>", section(html, 12), re.S)
+    plain = [re.sub(r"<[^>]+>", "", t) for t in trs]
+    if not trs:
+        check(name, False, "12번 표 행 0 — 섹션 주석 또는 마크업 변경 의심")
+        return
+    end = f"{dmax.month}/{dmax.day}까지"
+    bad = []
+    lead = [i for i, t in enumerate(plain) if "장부 기준 판정 = " in t]
+    place = [i for i, t in enumerate(plain) if re.search(r"플레이스 P\d+ ", t)]
+    if len(lead) != 1:
+        bad.append(f"장부 판정 행 {len(lead)}개 ≠ 1")
+    else:
+        m = re.search(r"장부 기준 판정 = ([^<]+?)</b>", trs[lead[0]])
+        vw = lc["verdict_words"]
+        ok_words = {vw[k] for k in ("hole", "nocompare", "up", "down", "same", "unknown")}
+        v = m.group(1) if m else None
+        if not (v in ok_words or (v and re.fullmatch(rf"{re.escape(vw['before'])}\(\d+/{int(lc['min_weeks'])}주\)", v))):
+            bad.append(f"장부 판정 낱말 {v!r} — config leads.verdict_words 밖")
+    for i in lead + place:
+        if not re.search(rf"(?<!\d){re.escape(end)}", plain[i]):
+            bad.append(f"{i + 1}번째 행에 '{end}' 없음(M/D까지 = 집계 마지막 날)")
+    todo = pc["state_words"]["todo"]
+    n_x = len([i for i in place if f"상태 = {todo}" in plain[i]])
+    if n_x > int(pc["items_in_12"]):
+        bad.append(f"플레이스 {todo} 행 {n_x}개 > items_in_12 {pc['items_in_12']}")
+    n_open = len([t for t in trs if 'tag tag-ink">✓' not in t])
+    max_open = int(pc["max_open_rows_12"])
+    if n_open > max_open:
+        bad.append(f"✓ 아닌 행 {n_open}개 > {max_open}(config place_checklist.max_open_rows_12)")
+    check(name, not bad, "; ".join(bad) if bad else
+          f"표 {len(trs)}행(✓ 아닌 {n_open}) · 장부 판정 1 · 플레이스 {len(place)}행(✗ {n_x}) · {end}")
+
+
 def main():
     argv = sys.argv[1:]
     bal_path = None
@@ -581,6 +641,8 @@ def main():
     check_07_footnotes(s7)  # 2026-10-06 — 글 줄이기 회차 1
     check_layout(html)  # 2026-10-06 — 레이아웃 판 회차 2
     check_balance_card(html, kw, bal_path)  # 2026-10-09 — 판 F 광고비 잔액 카드
+    check_leads_public(html)  # 2026-10-10 — 매출 작업 A 공개 범위
+    check_12_growth(html, dmax)  # 2026-10-10 — 매출 작업 A·C 12번 행
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

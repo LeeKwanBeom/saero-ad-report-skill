@@ -172,5 +172,92 @@
       "광고 계정",
       "비즈머니"
     ]
+  },
+  "leads": {
+    "_comment": "주간 성과 장부(설계안 A — 매출 작업, 사용자 결정 2026-10-10 \"추천대로 하자\"). scripts/leads.py·compute.py --leads·validate.py·precheck.sh 가 읽는다. path 는 저장소 밖 장부(~ = 사용자 홈 — 공개 저장소에 넣지 않는다, 시험·리허설은 --ledger 또는 환경 변수 SAERO_LEADS 로 스크래치). 주 = week_start(월)~일, '지난주' = 합본 집계 끝(키워드 일별 마지막 날) 기준 다 찬 주 — add 는 --week 를 받지 않고 이 주만(정정은 --replace --week). question 의 {week} 에 '10/5(월)~10/11(일)' 꼴. fields: required 넷(문의·체험·등록·그중 네이버 경유) + optional(매출·스마트플레이스 통계) — 숫자 칸만(글자 칸 0), max_per_week 넘으면 FAIL(오타 막기). publish = verdict: compute.json·리포트·last-audit·커밋에는 판정 낱말만(건수·매출은 채팅·로컬 장부에만 — 다른 값은 설계 회차 몫이라 compute 가 FAIL). 판정(verdict_rule poisson2): 지표 = 최근 window_weeks 주 합 등록 vs 직전 window_weeks 주 합 · 장부 줄(입력·건너뜀)이 min_weeks 주 미만이면 '판정 전(N/8주)' · 두 창 안에 미입력·건너뜀 주가 하나라도 있으면 '미입력(구멍)'(0 으로 더하지 않는다) · 직전 합 0 이면 '비교 불가' · 차이 > 2×√(두 합의 합)일 때만 좋아짐/나빠짐, 아니면 '구별 안 됨' · 장부 없음·꼴 다름 '확인 못 함'. public_labels = validate '01·11·12 서술 장부 라벨+숫자 0'·leads.py guard 가 찾는 라벨(숫자가 바로 붙으면 FAIL — '등록 N개'·'등록 N · verified' 같은 제외 검색어 문구는 빼고 센다 · '등록'은 label_skip_context 낱말이 있는 줄·'→ 등록 N' 꼴이면 'N명'만 센다). guard_value_min = guard 가 장부 최근 매출 값을 원·콤마·만 꼴로 찾을 때의 하한(작은 값은 흔한 숫자라 대조 안 함).",
+    "path": "~/saero-leads/leads.csv",
+    "week_start": "월",
+    "question": "지난주 {week}: 새 문의 몇 건(전화·톡톡·카톡·방문 합)? 체험 몇 명? 등록 몇 명? 그중 '네이버(검색·지도·플레이스) 보고 왔다' 몇 명? · (선택) 스마트플레이스 통계 캡처 1장",
+    "fields": {
+      "required": ["inquiry", "trial", "signup", "naver"],
+      "optional": ["revenue", "place_visit", "call", "direction", "save"]
+    },
+    "field_labels": {
+      "inquiry": "문의",
+      "trial": "체험",
+      "signup": "등록",
+      "naver": "네이버 경유",
+      "revenue": "매출(원)",
+      "place_visit": "플레이스 방문",
+      "call": "전화",
+      "direction": "길찾기",
+      "save": "저장"
+    },
+    "max_per_week": {
+      "inquiry": 200,
+      "trial": 100,
+      "signup": 50,
+      "naver": 50,
+      "revenue": 50000000,
+      "place_visit": 100000,
+      "call": 1000,
+      "direction": 10000,
+      "save": 10000
+    },
+    "publish": "verdict",
+    "window_weeks": 4,
+    "min_weeks": 8,
+    "verdict_rule": "poisson2",
+    "verdict_words": {
+      "before": "판정 전",
+      "hole": "미입력(구멍)",
+      "nocompare": "비교 불가",
+      "up": "좋아짐",
+      "down": "나빠짐",
+      "same": "구별 안 됨",
+      "unknown": "확인 못 함"
+    },
+    "public_labels": ["문의", "체험", "상담", "등록", "매출", "네이버 경유", "네이버 보고"],
+    "label_skip_context": ["제외 검색어", "registry", "verified", "미등록", "propose"],
+    "guard_value_min": 1000
+  },
+  "place_checklist": {
+    "_comment": "플레이스 화면·소재 손보기(설계안 C — 매출 작업, 사용자 결정 2026-10-10). scripts/place.py·compute.py --place·validate.py·precheck.sh 가 읽는다. path = 저장소 audit/place-checklist.csv(공개 — 항목 id·상태·날짜만, 글자 칸 0, 줄 추가만 · 첫 실사용이 만든다 · 시험·리허설은 --checklist 또는 SAERO_PLACE 로 스크래치). items 순서 = 12번 제안 순서. 상태 넷: done ✓(바꾼 날 있으면 효과 판정 · 첫 set 의 ✓ 는 처음부터 됨 — 판정 안 함) · todo ✗ · no 안 함(결정 날짜) · later 미룸(다시 볼 날) — 안 함·미룸은 12번·3주 셈 밖, 12-note 이월 판정 줄에 한 번. 12번 ✗ 행 = todo 중 items 순서 위 items_in_12 개(place.py 가 쓸 때마다 다시 정해 in12_since 칸에 적는다) · in12_since 가 chat_after_days 일 넘게 그대로면 채팅 질문 신호. 효과 판정(compute 플레이스전후 — 01 avg_pl 재사용 안 함): 플레이스 캠페인 검색 지면만(콘텐츠 행 뺌) · 바꾼 날 앞 window_days 일 vs 다음 날부터 window_days 일 · 달력 일수 분모(행 없는 날 0) · 하루 클릭·CTR 변화가 둘 다 band_pct 위면 좋아짐, 둘 다 아래면 나빠짐, 그 밖 구별 안 됨 · 앞뒤 window_days 일 안에 다른 바꿈이 있으면 겹침(한 번에 한 항목) · 판정이 난 뒤 final_show_days 일 동안 12번에 남긴다. max_open_rows_12 = 12번 작성 기준 4 의 ✓ 아닌 행 상한(validate '12번 장부·플레이스 행' 대조값). band_pct = 2026-10-10 구현 회차 실측(요일 맞춘 부트스트랩 20,000회 · 9/17~10/9 23일 플레이스 검색 지면 · 14일 대 14일 95% 띠: 하루 클릭 −27.0~+36.1% · CTR −25.5~+33.5% → 바깥으로 올림).",
+    "path": "audit/place-checklist.csv",
+    "items": [
+      {"id": "P1", "문구": "대표·내부 사진 최신", "확인 방법": "스마트플레이스 사진 — 대표·내부 사진이 지금 모습인지"},
+      {"id": "P2", "문구": "소개글에 체험·가격", "확인 방법": "스마트플레이스 소개 — 첫 줄에 체험 수업과 가격이 보이는지"},
+      {"id": "P3", "문구": "네이버 예약 체험 상품", "확인 방법": "네이버 예약 — 체험 수업 상품이 열려 있는지"},
+      {"id": "P4", "문구": "톡톡 연결·자동 응답", "확인 방법": "톡톡 — 플레이스에 연결돼 있고 자동 응답(운영 시간·체험 안내)이 있는지"},
+      {"id": "P5", "문구": "스마트콜(050 번호)", "확인 방법": "스마트플레이스 스마트콜 — 켜져 있는지(전화 수 통계)"},
+      {"id": "P6", "문구": "첫 방문 쿠폰·체험 이벤트", "확인 방법": "스마트플레이스 쿠폰·이벤트 — 체험 쿠폰이 걸려 있는지"},
+      {"id": "P7", "문구": "소식 주 1회", "확인 방법": "스마트플레이스 소식 — 최근 7일 안에 글이 있는지"},
+      {"id": "P8", "문구": "리뷰 답글", "확인 방법": "방문자·블로그 리뷰 — 최근 리뷰에 답글이 있는지"},
+      {"id": "P9", "문구": "영업시간·주차·샤워 정보", "확인 방법": "스마트플레이스 기본 정보 — 영업시간·주차·편의시설(샤워)이 맞는지"}
+    ],
+    "items_in_12": 2,
+    "window_days": 14,
+    "final_show_days": 7,
+    "chat_after_days": 21,
+    "max_open_rows_12": 7,
+    "band_pct": {
+      "clicks": [-27, 37],
+      "ctr": [-26, 34]
+    },
+    "state_words": {
+      "done": "✓",
+      "todo": "✗",
+      "no": "안 함",
+      "later": "미룸"
+    },
+    "verdict_words": {
+      "measuring": "측정 중",
+      "up": "좋아짐",
+      "down": "나빠짐",
+      "same": "구별 안 됨",
+      "overlap": "겹침(따로 못 잼)",
+      "short": "비교 불가(자료 부족)",
+      "unknown": "확인 못 함"
+    }
   }
 }

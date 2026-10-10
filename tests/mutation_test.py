@@ -25,6 +25,9 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   (2026-10-08 판 E) "레이아웃 판": 0건 가드 +1(01 모바일 터치 축 axis:'y' 지우기 — 판 D 꼴로 되돌림).
   (2026-10-09 판 F) "광고비 잔액 카드": 변조 4(카드 값 +1원 · 기준 시각 +1분 · 며칠분 +1 — 실패 기록이면 보조 줄 끝 글자 · 잔액 기록 읽은 시각을 집계 마지막 날로(지난 회차 기록))
      + 0건 가드 2(카드 표지 data-balance 지우기 → "광고비 잔액 카드" · "레이아웃 판" 각각).
+  (2026-10-10 매출 작업 A·C) "01·11·12 서술에 장부 라벨+숫자 0": 변조 1(11 첫 항목에 '장부 등록 1명') + 0건 가드 1(Section 1·11·12 주석 변조)
+     + config 실험(leads.publish 를 counts 로 → 기준 사본 FAIL) / "12번 장부·플레이스 행": 변조 2(판정 낱말 config 밖 · 'M/D까지' 하루 앞) + 0건 가드 1(판정 문구 변조).
+     기준 사본은 12번 장부 행이 있는 배포본(첫 적용 뒤)이어야 한다 — 첫 적용 전 배포본은 기준 실행에서 "12번 장부·플레이스 행" FAIL 로 멈춘다(기대값).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -349,6 +352,13 @@ def main():
             _rec["read_at"] = _dt.strptime(_last, "%Y.%m.%d").strftime("%Y-%m-%dT23:59:00+09:00")
             stale = json.dumps(_rec, ensure_ascii=False)
         muts.append(("잔액 기록 읽은 시각 = 집계 마지막 날(지난 회차 기록)", "광고비 잔액 카드", {"html": H if stale else None, "bal": stale}))
+        # (2026-10-10 매출 작업 A·C) 장부 라벨+숫자 삽입(01·11·12) · 12번 장부 판정 낱말 밖 · 장부 행 'M/D까지' 하루 앞
+        muts.append(("11 첫 항목에 장부 숫자 삽입(등록 1명)", "장부 라벨+숫자", {"html": replace_in_section(H, 11, "<li><b>", "<li><b>장부 등록 1명 · ")}))
+        m = re.search(r"(장부 기준 판정 = )([^<]+)(</b>)", H)
+        muts.append(("12 장부 판정 낱말을 config 밖으로(좋아질 듯)", "12번 장부·플레이스 행", {"html": H.replace(m.group(0), f"{m.group(1)}좋아질 듯{m.group(3)}", 1) if m else None}))
+        m = re.search(r"(\d+)/(\d+)(까지 장부 기준 판정 = )", H)
+        muts.append(("12 장부 행 'M/D까지' 하루 앞(지난 회차 날짜)", "12번 장부·플레이스 행",
+                     {"html": H.replace(m.group(0), f"{m.group(1)}/{int(m.group(2)) - 1 or 1}{m.group(3)}", 1) if m and int(m.group(2)) > 1 else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -387,12 +397,18 @@ def main():
         nob = H.replace(' data-balance="value"', "", 1).replace(' data-balance="sub"', "", 1) if 'data-balance="value"' in H else None
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 잔액 검사", "광고비 잔액 카드", {"html": nob}))
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nob}))
+        # (2026-10-10 매출 작업 A·C) 12번 장부 판정 문구 변조 → 장부 행 0 · Section 1·11·12 주석 변조 → 01·11·12 본문 0자
+        guards.append(("0건: 12 장부 판정 문구 변조(장부 기준 판정 = → 장부 판정:)", "12번 장부·플레이스 행",
+                       {"html": H.replace("장부 기준 판정 = ", "장부 판정: ") if "장부 기준 판정 = " in H else None}))
+        guards.append(("0건: Section 1·11·12 주석 변조(장부 라벨 검사 본문 0자)", "장부 라벨+숫자",
+                       {"html": H.replace("<!-- Section 1:", "<!-- Sect 1:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
         c2 = json.loads(cfg_text); c2["chart_min_width"]["date_based_sections"] = date_secs[:1]
         c3 = json.loads(cfg_text); c3["report_layout"]["layout_id"] = lid + "-config변조"
         c4 = json.loads(cfg_text); c4["report_layout"]["mobile"]["max_px"] = int(cfg["report_layout"]["mobile"]["max_px"]) + 1
+        c5 = json.loads(cfg_text); c5["leads"]["publish"] = "counts"   # (2026-10-10) 공개 범위를 넓히면 기준 사본이 "장부 라벨+숫자" FAIL — config 를 읽는지
 
         # --- 실행 ---
         ok = True
@@ -434,6 +450,10 @@ def main():
         hit4 = [f for f in failed if "레이아웃 판" in f and str(mx) in f]
         print(f"  report_layout.mobile.max_px {cfg['report_layout']['mobile']['max_px']}→{mx}: 기준 사본 '레이아웃 판' FAIL {len(hit4)}건" + ("" if hit4 else "  ← MISS"))
         ok &= bool(hit4)
+        rc, passed, failed, err = run(cfg_override=json.dumps(c5, ensure_ascii=False))
+        hit5 = [f for f in failed if "장부 라벨+숫자" in f and "counts" in f]
+        print(f"  leads.publish verdict→counts: 기준 사본 '장부 라벨+숫자' FAIL {len(hit5)}건" + ("" if hit5 else "  ← MISS"))
+        ok &= bool(hit5)
 
         uncovered = [c for c in checks if c not in covered]
         print(f"\n== 커버리지: 기준 검사 {len(checks)}개 중 변조로 FAIL 확인 {len(covered)}개")
