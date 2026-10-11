@@ -449,15 +449,24 @@ GUARD_SCOPE = re.compile(r"^(audit/|config/|references/|local/|[^/]+\.md$)")
 LEDGER_ROW = re.compile(r"^\d{4}-\d{2}-\d{2},(ok|skip),[\d,]*,\d{4}-\d{2}-\d{2}T")  # 장부 데이터 줄 꼴(어느 파일이든 — 장부를 통째로 옮긴 것)
 
 
-def staged_added(cwd):
-    """[(경로, 추가 줄)] — git diff --cached 의 '+' 줄(머리 '+++' 빼고)."""
-    out, cur = [], None
+def staged_lines(cwd):
+    """([(경로, 추가 줄)], [지운 줄]) — git diff --cached 의 '+' 줄(머리 '+++' 빼고)과 '-' 줄(머리 '---' 빼고 — 옮긴 줄 가리기용)."""
+    out, gone, cur = [], [], None
     for line in git_out(["diff", "--cached", "-U0", "--no-color", "--no-ext-diff"], cwd).split("\n"):
         if line.startswith("+++ "):
             cur = line[6:] if line.startswith("+++ b/") else None
+        elif line.startswith("--- "):
+            continue
         elif line.startswith("+") and cur is not None:
             out.append((cur, line[1:]))
-    return out
+        elif line.startswith("-"):
+            gone.append(line[1:])
+    return out, gone
+
+
+def staged_added(cwd):
+    """[(경로, 추가 줄)] — git diff --cached 의 '+' 줄(머리 '+++' 빼고)."""
+    return staged_lines(cwd)[0]
 
 
 def cmd_guard(a):
@@ -467,10 +476,13 @@ def cmd_guard(a):
         return 2
     cwd = a.repo or os.getcwd()
     try:
-        added = staged_added(cwd)
+        added, removed = staged_lines(cwd)
+        root = git_out(["rev-parse", "--show-toplevel"], cwd).strip()
     except (RuntimeError, OSError) as e:
         print(f"[FAIL] git diff --cached 를 못 읽음: {e}")
         return 2
+    import deploy  # 회차 머리 "배포 완료 `<sha>`" ↔ work/live_ok 대조(K3 — 2026-10-11)는 deploy.py 에 둔다
+    head_hits, n_heads = deploy.record_head_hits(added, removed, root)
     msg = ""
     if a.message_file:
         with open(a.message_file, encoding="utf-8") as f:
@@ -500,13 +512,19 @@ def cmd_guard(a):
         if re.search(rf"(?<![\d,]){re.escape(v)}(?![\d,])", msg):
             hits.append("커밋 메시지: 장부 최근 매출 값과 같은 숫자")
     print(f"[guard] staged 파일 {len(files)}개 · 추가 줄 {len(added)} · 커밋 메시지 {'있음' if a.message_file else '없음(--message-file)'} · "
-          f"장부 {('값 대조 ' + str(len(values)) + '꼴') if values else st}")
-    if hits:
+          f"장부 {('값 대조 ' + str(len(values)) + '꼴') if values else st} · 회차 머리 배포 완료 {n_heads}줄")
+    if hits or head_hits:
         for h in hits[:30]:
             print(f"[FAIL] {h}")
-        print(f"[FAIL] 공개 저장소에 장부 숫자 {len(hits)}곳 — 커밋하지 말고 그 줄을 '(5) 장부 입력됨(로컬)' / '미입력' 꼴로 고쳐 다시 guard")
+        for h in head_hits[:30]:
+            print(f"[FAIL] {h}")
+        if hits:
+            print(f"[FAIL] 공개 저장소에 장부 숫자 {len(hits)}곳 — 커밋하지 말고 그 줄을 '(5) 장부 입력됨(로컬)' / '미입력' 꼴로 고쳐 다시 guard")
+        if head_hits:
+            print(f"[FAIL] 회차 머리 '배포 완료' {len(head_hits)}곳이 work/live_ok 와 다름 — 커밋하지 말고 deploy.py live 를 다시 돌려(exit 0 의 `기록 머리:` 그대로) "
+                  "쓰거나, 머리를 '저장소 반영 `<sha7>` · 공개 미반영(…)' 꼴로 고쳐 다시 guard")
         return 1
-    print("[PASS] guard — staged 추가 줄·커밋 메시지에 장부 숫자 0")
+    print("[PASS] guard — staged 추가 줄·커밋 메시지에 장부 숫자 0" + (f" · 회차 머리 배포 완료 {n_heads}줄 = work/live_ok" if n_heads else ""))
     return 0
 
 

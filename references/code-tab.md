@@ -29,9 +29,10 @@
 | 자격 증명 | **이 PC git 자격 증명 하나**(GCM, `credential.helper=manager`) — 스킬 저장소 `git push`와 배포 PUT(`deploy.py`가 `git credential fill`로 얻어 변수에만 둔다) 둘 다. 토큰 파일·대화창 토큰 0. 세션은 `git credential fill`을 직접 치지 않는다 |
 | 네이버 API 키 | 키 파일 `~/naver-api.keys.json`(저장소 밖) — `--key-file` 경로만 넘긴다. 세션은 열지도 출력하지도 않는다(`test -f`로 존재만) |
 | 수집 폴더 | config `report_fetch.download_dir` `~/saero-fetch/downloads` · 전용 프로필 `profile_dir` `~/saero-fetch/chrome-profile`(`~` = 사용자 홈) |
-| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`(propose — 창이 다르면 다른 파일) · `work/approved_<날짜>_<시분초>.txt`(push 참조 선택 모드 — 실제 push만, 덮어쓰기 없음) · `work/exclusions_proposal_<창시작>_<창끝>.md5`(propose 출처 기록) · `work/precheck_ok.md5`(precheck 통과 도장) · `work/exclusions_pull_<날짜>.json` · `work/balance.json`(5단계 광고비 잔액 기록 — balance.py 가 매 회차 지우고 다시 쓴다, 판 F) |
+| 회차 작업물 | 저장소 `work/`(gitignore): `work/combined/` · `work/prev.html` · `work/index.html` · `work/compute.json` · `work/exclusions_proposal_<창시작>_<창끝>.md`·`_candidates.txt`·`_industry.txt`(propose — 창이 다르면 다른 파일) · `work/approved_<날짜>_<시분초>.txt`(push 참조 선택 모드 — 실제 push만, 덮어쓰기 없음) · `work/exclusions_proposal_<창시작>_<창끝>.md5`(propose 출처 기록) · `work/precheck_ok.md5`(precheck 통과 도장) · `work/live_ok`(2026-10-11 — `deploy.py live` exit 0 이 쓴 커밋 sha · 공개 md5, 다음 live 시작 때 지움 — guard 가 회차 머리와 대조) · `work/exclusions_pull_<날짜>.json` · `work/balance.json`(5단계 광고비 잔액 기록 — balance.py 가 매 회차 지우고 다시 쓴다, 판 F) |
 | 줄바꿈 | `.gitattributes`: `*.csv -text`(바이트 그대로) · `*.sh text eol=lf`. 작업 폴더가 커밋과 다르게 풀려 있으면 8절 "작업 폴더 줄바꿈" |
 | 매출 작업 A·C(2026-10-10) | 주간 성과 장부 = config `leads.path`(저장소 **밖** `~/saero-leads/leads.csv` — 숫자 칸만, 공개 안 함, `leads.py` 만 쓴다) · 플레이스 체크리스트 = config `place_checklist.path`(저장소 `audit/place-checklist.csv` — 항목 id·상태·날짜만, 공개, `place.py` 만 쓴다 · 첫 실사용이 만든다). 둘 다 줄 추가만. 시험·리허설은 `--ledger`·`--checklist` 또는 환경 변수 `SAERO_LEADS`·`SAERO_PLACE` 로 스크래치(운영 회차는 쓰지 않는다 — 명령 첫 줄에 쓰는 경로가 찍힌다) |
+| 공개 반영 확인(2026-10-11) | `deploy.py live` 의 `work/live_ok`(작업본 옆) — 시험·리허설은 환경 변수 `SAERO_LIVE_OK`(live_ok 경로 덮어쓰기)로 스크래치(**운영 회차 금지** — live 첫 줄 `live_ok 자리: <경로>(덮어쓰기 SAERO_LIVE_OK …)`가 찍힌다 · guard 는 이 경로를 읽지 않는다) |
 
 ## 2. S0 사전 점검 — Bash 한 번, 외부 쓰기·작업 트리 변경 0
 
@@ -65,7 +66,7 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | S0 | 사전 점검 | 2절 블록 | ⓑ FAIL 줄 |
 | ① | 수집 | `"$PY" scripts/fetch_reports.py --prev <직전 성공 폴더 또는 data/YYYY-MM>` — **run_in_background**(사용자 화면에 크롬 창이 뜬다, 3~5분). 달의 첫날은 `--prev` 생략, 10/1처럼 `지난달` 첫 실측·화면 변경 의심 때는 `--debug` | exit 1 로그인 → `--login`을 백그라운드로 띄우고 **사용자가 창에서 로그인** → 본 실행 다시 / exit 1 차단·exit 2 → ⓑ |
 | 1 | 보관·합본·push | `scripts/ingest.sh "<성공 폴더>"/*.csv` — 성공 폴더 = fetch 출력 `[PASS] … → <폴더>`·`다음:` 줄(`partial/` 금지). 시작 검사(store 전): HEAD = origin/main · data/ = HEAD(`git diff --quiet HEAD -- data`) · data/에 추적 안 된 파일 0 · data/ CSV 줄바꿈 = 커밋 | ⓑ 시작 검사 FAIL(쓰기 0)·store 거부·combine FAIL·`[FAIL] HEAD ≠ origin/main` |
-| 4 | 배포본 받기(2-1 전에 당겨서, 읽기) | `"$PY" scripts/deploy.py fetch --out work/prev.html && cp work/prev.html work/index.html` | ⓑ GET 실패 |
+| 4 | 배포본 받기(2-1 전에 당겨서, 읽기) | `"$PY" scripts/deploy.py fetch --out work/prev.html && cp work/prev.html work/index.html` → `"$PY" scripts/deploy.py public --file work/prev.html`(2026-10-11 공개 대조 — 무압축 GET 1 · API 0 · 자격 증명 0. 다르면 `[주의] 공개 사이트가 저장소 HEAD 와 다름 — 옛 실행이 덮었을 수 있다` — 멈추지 않고 그 줄의 `--seen <md5>`를 7 의 live 에) | ⓑ GET 실패 · public `[주의]`는 멈춤 아님 |
 | 5a | 계산만(쓰기 = `work/compute.json`) | `"$PY" scripts/compute.py work/combined --competitors-html work/prev.html -o work/compute.json` — 2-1 대조를 형식까지 같게 하려고 당긴다(교체는 5단계) | ⓑ |
 | 2-1 | 기간 대조 | `compute.json`의 `masthead` 문자열 ↔ `work/prev.html`의 `집계 기간<b>…</b>` | **같으면 ⓐ와 별개의 앞 질문 하나**(SKILL.md 2-1 문구) — 답에 따른 흐름은 표 아래 "2-1 같음" |
 | 3 | 제외 그룹 | 합본 키워드로 SKILL.md "제외 그룹 판정" 규칙(세션 판정) | 신규 후보 → ⓐ 묶음 |
@@ -77,8 +78,8 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 | 5-0c | 등록·확인·기록 | 참조 선택 모드(6절) `exclusions.py push --from-candidates … [--drop …] [--industry … --industry-lines …] [--extra-csv work/combined/검색어.csv --extra-rows …] --expect N --dry-run`(답의 번호를 그대로 `--drop`·`--industry-lines`에 · 호출 0 · 파일 쓰기 0 · `[FAIL]` 0 · "승인 N개" = 답의 N · `[주의]` 쌍둥이는 사용자에게 보인다) → 같은 명령에서 `--dry-run` 대신 `--key-file ~/naver-api.keys.json`(pull → 고른 이름 중 하나라도 대상 그룹 전부에 이미 있으면 POST 0 FAIL(승인 파일 안 씀) → 승인 목록을 `work/approved_<날짜>_<시분초>.txt`에 쓰고 → POST → verify) → `exclusions.py report` → registry(+config) 커밋(커밋 전 `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>` → 통과면 `git commit -F <같은 파일>`) → `git fetch` → `git push origin main` → HEAD == origin/main | ⓑ `[FAIL] 승인 목록…`(쓰기 0) · exit 1(부분 실패·verified:false·요청 결과 모름·pull 뒤 이미 있음) → 재시도는 ⓐ |
 | 5 | 교체 | (판 F — 앞 두 줄, 매 회차·2-1 같음 경로 포함) `"$PY" scripts/balance.py --key-file ~/naver-api.keys.json`(광고비 잔액 `GET /billing/bizmoney` 1회 — 읽기 · 시작에 옛 `work/balance.json` 을 지우고 새 기록을 쓴다 · 조회 실패면 `[주의] 잔액 확인 못 함(<사유>)` 과 실패 기록, exit 0 — 카드 "확인 못 함"으로 회차는 계속) → `"$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json --leads "$("$PY" scripts/leads.py path)" --place "$("$PY" scripts/place.py path)" -o work/compute.json`(5a 결과에 "잔액"·"성과장부"(판정 낱말만)·"플레이스전후" 를 더한 것 — 5a 는 `--balance`·`--leads`·`--place` 없이 그대로. 장부·체크리스트가 없으면 `[주의]` exit 0 — 판정 '확인 못 함' / 플레이스 행 0) → `"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json`(기계 자리 + 잔액 카드 값·보조 줄 + 접기 summary 개수·날짜 + 레이아웃 판 — `--layout` 은 매 회차: 이미 그 판이면 변환 건너뜀(멱등), meta 없는 옛 판이면 변환. 앵커가 하나가 아니면 `[FAIL] apply:` exit 1, 작업본 그대로) → `"$PY" work/n<날짜>.py`(서술 — 저장소 밖 스크래치, 서술 표지마다 `rep('<자리>', 새 문장)` — 자리 이름은 `references/report-structure.md` "서술 표지" 표가 정본, 길이는 같은 문서 "서술 공통 규칙"). 12번 먼저, 11번 마지막. 07 각주 ②·11·12번에 **등록 n · 확인 a/b · 실패 n**(07 ② 형식 `제외 검색어: <M/D> 등록 N개 · 확인 a/b · 실패 n` — exclusion-ui.md 9절)을 사실 그대로. 12번 장부 행·플레이스 행은 서술 스크립트가 `leads.row_html(R)`·`place.rows_html(R)`(import — CLI `leads.py row`·`place.py row --compute work/compute.json` 은 보기용) 그대로 — 판정 낱말만, 장부 숫자 0(report-structure.md 12번 작성 기준 6)) | ⓑ `[FAIL] apply:` · compute `[FAIL] 잔액 기록…`·`[FAIL] 성과 장부` |
 | 6 | 검증 | `scripts/precheck.sh work/index.html work/combined work/prev.html` — (작업본 옆 `work/balance.json` 을 validate·compute 에 `--balance` 로 · compute 에 `--leads`·`--place`(`leads.py path`·`place.py path` — 5단계와 같은 입력, compare "12 장부 기준 판정"·"12 플레이스 행"이 낡은 판정을 잡는다)) validate → compute+compare → overflow → **narrative**(매회차 서술 표지가 직전 배포본과 바이트 같으면 `[FAIL] 서술 미교체 <자리>`) — 전부 통과하면 `work/precheck_ok.md5` 도장(작업본 md5 · 직전 배포본 md5 · 모드 full\|pending, 작업본이 도중에 바뀌면 도장 없음). `tests/chart_check.py`(라이브 차트 — 판 C·D)는 precheck **밖**: 첫 적용 보류 회차에 운영 세션이 도장 뒤 돌린다(4절) | ⓑ 세션이 고치고 재실행 |
-| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run이 통과하고 남은 사람 질문이 없으면 **묻지 않고 바로**(자동 배포 — 4절) 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `배포 완료 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회). 레이아웃 판 게이트: `--file`·`--base` 의 `<meta name="report-layout">` 가 다르면 실제 push 는 `--layout-change` 없이 `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함`(dry-run 은 `[주의]`) — `--layout-change` 는 첫 적용 회차에 사용자 "배포" 답이 있을 때만(4절) | 자동 배포 — 남은 사람 질문이 있거나 사용자가 "보류"라고 했으면 PUT 없이 8 기록하고 끝냄 / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`·`[FAIL] 레이아웃 판이 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
-| 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함 · (5)·(7)은 `입력됨(로컬)`·`건너뜀`·`미입력` / `P<n> M/D 바꿈`·`없음` 꼴만 — 답 원문·장부 숫자·캡처 숫자 0) → 1절 신원으로 커밋(경로 지정 add: `audit/last-audit.md` + 있으면 `audit/place-checklist.csv` · pull로 바뀐 registry가 아직 커밋 안 됐으면 `audit/exclusions.csv` · config) — **커밋 전 `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>`**(staged 추가 줄·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값이 있으면 `[FAIL]` — 커밋 0, 그 줄을 고쳐 다시) → 통과면 `git commit -F <같은 파일>` · **마감(wrapup) 커밋 전에도 같은 guard** → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자 시크릿 창 확인 요청 | ⓑ push 실패 |
+| 7 | 배포 | `"$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" --dry-run`(precheck 도장 · base 대조 · 자격 증명 · 쓰기 권한 참) → dry-run이 통과하고 남은 사람 질문이 없으면 **묻지 않고 바로**(자동 배포 — 4절) 같은 명령(dry-run 없이 — `--base` 필수, 도장의 작업본 md5 = `--file`·직전 배포본 md5 = `--base`일 때만 PUT) → `"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>`(push 성공 줄 `저장소 반영 커밋 <sha>`의 값 — ref 없는 GET은 PUT 직후 약 1분 옛 본문을 줄 수 있다, 2026-09-29 실측 2회) → 일치 줄 다음 `다음(읽기): deploy.py live --file work/index.html --prev work/prev.html --commit <40자>`(+ 4 의 `--seen`)를 **Bash `run_in_background`**(2026-10-11 — 읽기만 · 끝나면 알림 · exit 은 5절, 다음 행동은 4절 ⓑ live 행). 레이아웃 판 게이트: `--file`·`--base` 의 `<meta name="report-layout">` 가 다르면 실제 push 는 `--layout-change` 없이 `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함`(dry-run 은 `[주의]`) — `--layout-change` 는 첫 적용 회차에 사용자 "배포" 답이 있을 때만(4절) | 자동 배포 — 남은 사람 질문이 있거나 사용자가 "보류"라고 했으면 PUT 없이 8 기록하고 끝냄 / live exit 1 `[멈춤]` → 재배포 질문(ⓐ — 찍힌 문구 그대로) / ⓑ `[FAIL] precheck 통과본이 아님`·`[FAIL] 배포본이 4단계 fetch 뒤 바뀜`·`[FAIL] 레이아웃 판이 바뀜`(PUT 0)·권한 거짓·PUT 결과 모름(재PUT 금지 — verify 먼저)·409·403·404·verify 불일치(재PUT은 사용자) |
+| 8 | 기록 | last-audit 갱신 회차 절(Edit — SKILL.md 8단계 양식, **머리 칸·두째 줄 다음 줄 = live 의 `기록 머리:`·`기록 줄:` 글자 그대로**("배포 완료"는 live exit 0 일 때만) · **propose 창 lo~hi · 등록 미룸(사용자) 여부** 포함 · (5)·(7)은 `입력됨(로컬)`·`건너뜀`·`미입력` / `P<n> M/D 바꿈`·`없음` 꼴만 — 답 원문·장부 숫자·캡처 숫자 0) → 1절 신원으로 커밋(경로 지정 add: `audit/last-audit.md` + 있으면 `audit/place-checklist.csv` · pull로 바뀐 registry가 아직 커밋 안 됐으면 `audit/exclusions.csv` · config) — **커밋 전 `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>`**(staged 추가 줄·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값이 있으면 `[FAIL]` · 회차 머리 "배포 완료 `<sha>`" ≠ `work/live_ok` 면 `[FAIL]` — 커밋 0, 그 줄을 고쳐 다시) → 통과면 `git commit -F <같은 파일>` · **마감(wrapup) 커밋 전에도 같은 guard** → `git fetch` → `git push origin main` → 스크래치 `git clone -c core.autocrlf=false`로 행수·md5 → 사용자에게 공개 링크와 live 결과 안내(실기기·홈 화면 앱은 새로고침 — 4절 "사람만 하는 일") | ⓑ push 실패 · guard `[FAIL]` |
 
 **3a·3b(매출 작업 A·C, 2026-10-10)는 매 회차**(2-1 같음 "다시 계산"·"미룬 등록만" 경로 포함 — 3 뒤에 3a, ⓐ 답 뒤에 3b). 3a 가 묻지 않으면 (5)·(7) 질문 0 · 3b 쓰기 0 이고 리포트 12번 장부·플레이스 행만 그 회차 compute 값으로 다시 쓴다.
 재개 판정: 장부·체크리스트에 그 주·그 바꿈 줄이 있으면 쓴 것(`leads.py status` · `place.py status` 로 읽는다 — 기억으로 판정하지 않는다).
@@ -87,7 +88,7 @@ echo "S0 $([ "$F" -eq 0 ] && echo PASS || echo FAIL)"; }
 등록 = `exclusions.py verify --key-file ~/naver-api.keys.json --approved <이번 회차 propose(.md5) 뒤에 생긴 가장 최근 work/approved_*.txt>`(그런 파일이 없으면 이번 회차 실제 push는 POST 전 — 승인 파일은 pull 재검사를 통과한 뒤 첫 POST 전에 생긴다.
 registry note·기억으로 "등록 끝"이라 판정하지 않는다 —
 note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "registry에 pending 0"은 판정이 아니다. 요청 도중 끊긴 push(`요청 결과 모름`)도 이것으로) ·
-배포 = `deploy.py verify --file work/index.html --ref <커밋>`(push 성공 줄의 커밋 — 없으면 `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD` 값). state 파일·대화 기억은 근거가 아니다.
+배포 = `deploy.py verify --file work/index.html --ref <push 커밋>`(push 성공 줄의 커밋 — 없으면 `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD` 값) → 일치 줄이 찍은 `다음(읽기): deploy.py live … --commit <40자>`(2026-10-11 B-7 — **고르는 것은 deploy.py**: HEAD 메시지가 재배포 접두이고 부모 = push 커밋이면 HEAD, 아니면 push 커밋 · 세션은 손으로 API 를 읽지 않는다) → live(읽기 — 공개 반영 = live exit 0 과 `work/live_ok`. 재배포 뒤면 live 는 `--since` 뒤 실행만 고른다). 재배포를 했었는지는 배포 저장소 HEAD 메시지가 답한다(접두면 이미 함 — redeploy (d)). state 파일·대화 기억은 근거가 아니다.
 
 **2-1 같음**: 2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0b(해당 시) → 5-0c → 5 → 6 → 7 → 8 /
 "CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만 — 잔액 세 줄(balance → compute `--balance` → apply)은 그대로 돌아 카드가 이번 회차 값) →
@@ -103,9 +104,12 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 ## 4. 멈춤 표
 
 **ⓐ 사람 승인(남긴다)**: SKILL.md "승인이 필요한 지점" (1)~(4) · 2-1 같음 질문(ⓐ 묶음과 별개의 앞 질문 — 답 셋: 다시 계산 / CSV 다시 / 미룬 등록만) · 3단계 새 제외 그룹 ·
+**재배포 질문(2026-10-11)** — live exit 1 `[멈춤]`이 찍은 `재배포 질문(사용자에게 이 문구 그대로):` 줄(사용자 결정 4: "멈춘 실행 #n — Actions 화면에서 'Cancel workflow' 가 보이면 먼저 눌러 보세요(사람). 그다음 '재배포' 라고 답하면 1번만 새 배포를 일으킵니다." — Cancel 은 권하기만) · 답 "재배포" 원문 → `redeploy`(dry-run) → 같은 명령 `--confirm` 1번 → 찍힌 live · 그 밖 답·무응답 → 쓰기 0(재배포 0/1) · 두 번째 질문 없음 ·
 등록 실패 재시도·keep·한도 초과 재승인 · delete/test-roundtrip `--confirm`(사용자 입회) · 12번 N주 미반영 질문 ·
 **(5)·(7)은 정보 질문(매출 작업 A·C, 2026-10-10 — 승인이 아니다)**: 답이 없거나 빠지면 그 주 장부 미입력 / 바꾼 것 없음으로 진행하고 쓰기 0(다음 회차 3a 가 다시 묻는다 — 장부 skip 줄은 사용자 "건너뜀" 답일 때만) — 자동 배포의 "남은 질문"에 세지 않는다. C 첫 회 9항목은 ⓐ 밖 별도 메시지이고 무응답이면 체크리스트 없음 그대로(12번 플레이스 행 0 · 다음 회차 다시) — 이것도 배포를 막지 않는다 ·
-**배포는 묻지 않는다(자동 배포 — 사용자 결정 2026-09-30 "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 위 ⓐ 질문에 모두 답을 받아 남은 것이 없고 6단계 precheck·7단계 dry-run이 통과하면 바로 실제 push → `verify --ref`.
+**배포는 묻지 않는다(자동 배포 — 사용자 결정 2026-09-30 "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 위 ⓐ 질문에 모두 답을 받아 남은 것이 없고 6단계 precheck·7단계 dry-run이 통과하면 바로 실제 push → `verify --ref` → live.
+**자동 배포 = 7단계 `deploy.py push`(답을 반영한 재배포 push 포함 — 2026-09-30 그대로) — `redeploy`(빈 커밋)는 그 밖, 사용자 답 '재배포' 원문 뒤에만(그 밖 답·무응답이면 쓰기 0 · 기록 재배포 0/1).**
+옛 낱말 '재배포' = 답을 반영한 push · 답 '재배포' = redeploy.
 남은 질문이 있으면(되묻기·등록 exit 1 재시도 등) 그 답 뒤로 미루고, 사용자가 그 회차에 "보류"·"오늘 배포 안 함"이라고 했으면 PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup에 `배포: 보류(사용자 답 "<원문>")`).
 검사 FAIL은 아래 ⓑ 그대로 — PUT 0으로 멈춘다. (옛 규칙 "배포할까요? — 배포 / 보류" 고정 질문(2026-09-29)은 이 결정으로 대체.)
 **보류 뒤 같은 세션 재개 = 7단계부터**(2026-10-06): "보류"로 6단계 도장까지 하고 멈춘 뒤 같은 세션에서 사용자가 "배포"라고 하면 7단계(dry-run → push → verify)부터 —
@@ -145,7 +149,8 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | precheck FAIL | 전체 출력 보고 → 원인 고쳐 재실행(배포 금지) | — |
 | `leads.py add`·`skip` `[FAIL]`(입력 검사 — 숫자 아님·상한·모순 / 같은 주 / 장부 꼴 다름, 쓰기 0) | 그 줄과 사용자 답 원문을 나란히 보이고 되묻는다(같은 주면 "정정"인지). 꼴 다름이면 장부를 손으로 고치지 않고 보고 — 그 회차는 미입력으로 진행 | 숫자 다시·"정정"·"건너뜀" |
 | `place.py set`·`done` `[FAIL]`(id·상태 밖 · 미래 날짜 · 첫 set 에 빠진 id · 같은 상태 · 꼴 다름, 쓰기 0) | 출력과 답을 나란히 보이고 되묻는다 | 번호·날짜 다시 |
-| `leads.py guard` `[FAIL]`(staged 추가 줄·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값, 커밋 0) | 커밋하지 않는다. 걸린 줄을 `(5) 장부 입력됨(로컬)` 같은 꼴로 고치고 다시 add → guard. 장부 숫자가 아닌 오탐(검색어 이름에 라벨 낱말이 들고 바로 뒤에 횟수가 붙은 것)이면 그 이름을 따옴표로 감싸 라벨과 숫자를 떼고 다시 guard — 장부 숫자를 다른 꼴로 바꿔 넣지 않는다 | — |
+| `leads.py guard` `[FAIL]`(staged 추가 줄·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값, 커밋 0 — 끝줄 `[FAIL] 공개 저장소에 장부 숫자 N곳`) | 커밋하지 않는다. 걸린 줄을 `(5) 장부 입력됨(로컬)` 같은 꼴로 고치고 다시 add → guard. 장부 숫자가 아닌 오탐(검색어 이름에 라벨 낱말이 들고 바로 뒤에 횟수가 붙은 것)이면 그 이름을 따옴표로 감싸 라벨과 숫자를 떼고 다시 guard — 장부 숫자를 다른 꼴로 바꿔 넣지 않는다 | — |
+| `leads.py guard` `[FAIL] 회차 머리 배포 완료 <sha7> ≠ work/live_ok(없음 · 커밋 <sha7> · 다른 회차의 live_ok)`(2026-10-11 K3 — 끝줄 `[FAIL] 회차 머리 '배포 완료' N곳이 work/live_ok 와 다름`, 커밋 0) | 커밋하지 않는다. live 를 다시 돌려(읽기) exit 0 이면 그 `기록 머리:` 그대로 쓰고, exit 0 이 아니면 머리를 live 가 찍은 `저장소 반영 `<sha7>` · 공개 미반영(…)` 꼴로 고쳐 다시 add → guard. `work/live_ok` 를 손으로 쓰지 않는다 | — |
 | compute `[주의] 장부 확인 못 함`·`[주의] 체크리스트 …`(exit 0) | 멈추지 않는다 — 12번 장부 행 `확인 못 함` / 플레이스 행 0 으로 진행하고 끝 보고에 한 줄(첫 입력 전이면 정상) | — |
 | deploy `[FAIL] 배포본이 4단계 fetch 뒤 바뀜`(PUT 0) | 지금 배포본 sha·md5를 보고 — 다른 배포가 있었다 | 4단계부터 다시 할지 |
 | deploy `[FAIL] precheck 통과본이 아님`(PUT 0) | precheck가 끝난 뒤 작업본이 바뀌었거나(6단계부터), 도장의 직전 배포본 ≠ `--base`(4단계를 다시 받았으면 5·6단계부터) | — |
@@ -155,8 +160,16 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | deploy `지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨`(exit 0, PUT 0) | `deploy.py verify --file work/index.html`로 확인해 보고(결과 모름이던 앞 PUT이 반영된 것) | — |
 | deploy 권한 거짓·권한 조회 실패 | 출력 줄 그대로 보고(값 없음) | 계정·권한 확인 |
 | deploy verify 불일치 | 멈춤·**재PUT 금지**. ref 없이 돌렸으면(`[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다`) `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD`(읽기)와 `verify --ref <push 성공 줄의 커밋 — 없으면 그 HEAD>`로 다시 verify — ref 없는 contents GET은 PUT 직후 약 1분 옛 본문을 준다(2026-09-29 실측 2회: HEAD = 새 커밋, `?ref=` 본문 = 로컬). `--ref`로도 불일치(`커밋 고정 조회라 캐시 아님`)면 출력의 재수령본 sha·md5를 보고 | 재PUT 여부 |
+| live exit 1 `[멈춤] Pages 실행 #n · status …`(t0 + `cap_s` 안 success 아님 — 그 전에 공개 GET 1회) · `[멈춤] Pages 실행 없음`(시작·`--since` 뒤 60초) · `[멈춤] … GitHub 프록시 캐시일 수 있음`(실행 success · 완료 뒤 확인된 옛 판 3번) · `[멈춤] GitHub 상태 못 읽음(<사유>)` | 찍힌 `[멈춤]` 줄을 보고하고 `재배포 질문(사용자에게 이 문구 그대로):` 줄을 그대로 묻는다(ⓐ). 답 "재배포" 원문일 때만 찍힌 `redeploy …`(dry-run — 쓰기 0) → 통과면 같은 명령 `--confirm` 1번 → 찍힌 `다음(읽기): deploy.py live … --since …`. 그 밖 답·무응답 → 쓰기 0 · 8 기록 = live 의 `기록 머리:`·`기록 줄:`(재배포 0/1). `GitHub 쪽 대기 — 기다림(재배포 1/1)`(재배포 커밋 또는 `--since` 가 있는 재배포 뒤 live — exit 3·확인 못 함도 머리에 '— 기다림', 줄에 '재배포 1/1')이면 묻지 않고 그대로 기록하고 멈춘다 | Actions 화면 'Cancel workflow'(보이면) · "재배포" 답 |
+| live exit 3 `CDN 상한 … 까지 옛 판` · `한 번 실행 상한 … 같은 live 명령 한 번 더` | **재배포를 묻지 않는다.** 같은 live 명령을 한 번 더(읽기 — run_in_background). 그래도 3이면 `기록 머리: … 공개 미반영(CDN 캐시)` 그대로 기록 | — |
+| live exit 1 `[FAIL] 공개 본문 md5 … 작업본도 직전 배포본도 아님`(실행 완료 뒤 확인 객체) · `[FAIL] 공개 사이트 확인 못 함(<사유>)` · `[FAIL] live_ok 를 쓰지 못함` | 재배포를 묻지 않는다 — 출력 줄과 `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD`(읽기)를 보고, 기록은 찍힌 `기록 머리:`(공개 미반영(확인 못 함)) | 다른 배포·네트워크 확인 |
+| live·redeploy exit 2 `[FAIL] --file·--prev 가 precheck 도장 1·2행이 아님` · `--commit 은 커밋 sha 40자만` · `--file md5 = --prev md5`(네트워크 전) | 인자를 고친다 — `--file work/index.html --prev work/prev.html --commit <verify 가 찍은 40자>`. 도장이 맞지 않으면 6단계(precheck)부터 — 도장을 손으로 쓰지 않는다 | — |
+| redeploy `[FAIL] (e) 자격 증명…`·`(b) 공개 사이트를 읽지 못함`·`(a) 배포 저장소 HEAD … ≠ --commit`·`(a) … 읽지 못함`·`[FAIL] 이미 재배포함 — 두 번째 없음 · 쓰기 0`·`(c) … 2분 안 — 쓰기 0`·`(c) Pages 실행을 읽지 못함`(쓰기 0) | 출력 줄 그대로 보고 — **다시 돌리지 않는다**(두 번째 없음). 기록 = 실제(`--confirm`)면 찍힌 `기록 머리:`(GitHub 쪽 대기 — 기다림), dry-run 에서 멈췄으면(기록 머리 줄 없음) 앞 live 의 `기록 머리:`·`기록 줄:`(재배포 0/1) · `(c)`면 live 를 다시(읽기) | 계정·권한 · 다음 회차까지 기다림 |
+| redeploy `[FAIL] 재배포 커밋 만들기(POST) 결과 모름`·`ref 이동(PATCH) 결과 모름 … 다시 읽은 HEAD = <sha7>(그대로)`·`다른 배포가 겹침`·`ref 이동 거부(PATCH 4xx)`·`만든 커밋 꼴이 다름` | **재시도 0**(POST·PATCH 자동 재시도 금지 — 7절). 출력 줄 그대로 보고, 재배포 1/1(결과 모름) 또는 0/1(쓰기 거부)로 기록. PATCH 결과 모름 뒤 `HEAD = 새 커밋`이면 찍힌 live 로 | 다시 할지는 사용자(다음 회차) |
+| redeploy `(b) 공개 사이트 = 작업본 — 이미 반영됨 · 쓰기 0`(exit 0) | 찍힌 `다음(읽기): deploy.py live …`(읽기) — exit 0 이면 그 기록 머리 | — |
+| public `[주의] 공개 사이트가 저장소 HEAD 와 다름 — 옛 실행이 덮었을 수 있다`(exit 1 — 4단계 뒤) · `[주의] 공개 사이트를 읽지 못함` | **멈추지 않는다** — 그 줄의 `--seen <md5>`를 7 의 live 에 붙이고 진행(이번 회차 PUT 이 새 실행을 만든다). 끝 보고에 한 줄 | — |
 
-**사람만 하는 일**: 네이버 로그인·2단계 인증(`--login` 창) · 팝업·공지 닫기 · 라이브 시크릿 창 확인 · codegen 녹화 · 손 다운로드(8절).
+**사람만 하는 일**: 네이버 로그인·2단계 인증(`--login` 창) · 팝업·공지 닫기 · 실기기·홈 화면 앱(PWA)·브라우저 새로고침 확인(공개 반영 자체는 `deploy.py live`가 기계로 본다 — 2026-10-11, 시크릿 창 확인은 이 몫만) · Actions 화면에서 멈춘 실행 'Cancel workflow'(보이면 — 재배포 질문 문구, 409 면 GitHub Support) · codegen 녹화 · 손 다운로드(8절).
 
 ## 5. exit 코드는 출력 줄로 가른다
 
@@ -173,7 +186,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | | 1 | `[FAIL] 잔액 기록을 쓰지 못함` · `[FAIL] 옛 잔액 기록을 지우지 못함`(기록 없음 → compute `--balance` 가 FAIL) |
 | | 2 | `usage:`(`--key-file` 없음) |
 | `leads.py` | 0 | status·row·path(장부 없음·꼴 다름은 `[주의]` — 판정 '확인 못 함') / add·skip `[추가]`·`[정정]`·`[dry-run] … 파일 쓰기 0` / guard `[PASS] guard` |
-| | 1 | add·skip `[FAIL]`(입력 검사 · 같은 주 · 정정할 주 없음·월요일 아님·다 찬 주 아님 · 장부 꼴 다름 · 장부 쓰기 — 쓰기 0) / guard `[FAIL] 공개 저장소에 장부 숫자 N곳`(커밋 0) / row `[FAIL] compute.json 에 "성과장부" 없음` |
+| | 1 | add·skip `[FAIL]`(입력 검사 · 같은 주 · 정정할 주 없음·월요일 아님·다 찬 주 아님 · 장부 꼴 다름 · 장부 쓰기 — 쓰기 0) / guard `[FAIL] 공개 저장소에 장부 숫자 N곳`(장부 몫) · `[FAIL] 회차 머리 '배포 완료' N곳이 work/live_ok 와 다름`(K3 몫 — 2026-10-11)(둘 다 커밋 0) / row `[FAIL] compute.json 에 "성과장부" 없음` |
 | | 2 | `usage:` · `[FAIL] --week 는 --replace(정정)와 함께만` · `[FAIL] guard 는 --staged 로` · `[FAIL] git diff --cached 를 못 읽음` |
 | `place.py` | 0 | status·row·path / set·done `[추가]`·`[dry-run] 파일 쓰기 0` |
 | | 1 | set·done `[FAIL]`(쓰기 0 — 첫 set 빠진 id · id·상태 밖 · 미래·과거 날짜 · 같은 상태 · 꼴 다름 · 체크리스트가 아직 없음(done)) / status `[FAIL] 합본을 못 읽음` |
@@ -182,7 +195,15 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 | | 2 | 사용법(인자 수) · `[FAIL] 파일 없음`(작업본·직전 배포본). 그 밖의 코드는 validate·compare가 낸 코드 그대로 |
 | `deploy.py` | 1 | `GET …` / `[FAIL] precheck 통과본이 아님`(PUT 0 — 네트워크 전) / `[FAIL] 레이아웃 판이 바뀜 — PUT 안 함`(PUT 0 — 네트워크 전, 4절 ⓑ) / `[FAIL] PUT 결과 모름`(재PUT 금지 — verify 먼저) / `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` / `[FAIL] 배포본이 GET 뒤 바뀜(sha 불일치)`(PUT 409) · `[FAIL] PUT 403`·`PUT 404`·`[FAIL] PUT <코드>` / `불일치`(verify — ref 없이면 `캐시일 수 있다`: ls-remote HEAD·`--ref`로 다시, `--ref`면 `커밋 고정 조회라 캐시 아님`) · `[FAIL] ref …의 index.html을 찾지 못함`(verify `--ref` 404) / `[FAIL] 자격 증명을 얻지 못함` / 권한 `거짓`·`권한 조회 실패` |
 | | 2 | 인자(전부 GET 전) — `[FAIL] push에는 --file이 필요`·`verify에는 --file이 필요`·`fetch에는 --out이 필요` · `[FAIL] 실제 push에는 --base` · `--base 파일을 읽을 수 없음` · `[FAIL] --file을 읽을 수 없음` · `[FAIL] --base는 --file과 함께만` · `[FAIL] --ref는 verify에만`·`[FAIL] --ref는 커밋 sha(16진 7~40자 …)만` |
-| | 0 | `지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨`(PUT 0 — verify로 확인) |
+| | 0 | `지금 배포본 = 작업본 — 앞 PUT이 이미 반영됨`(PUT 0 — verify로 확인) / push 성공 `저장소 반영 커밋 <40자>`(2026-10-11 — "배포 완료" 낱말 없음) / verify 일치 → `다음(읽기): deploy.py live … --commit <40자>` |
+| `deploy.py live`(2026-10-11) | 0 | `기록 머리: 배포 완료 `<sha7>``(공개 md5 = 작업본 — `work/live_ok` 씀 · `공개 사이트 반영 HH:MM(커밋 뒤 n초 · Pages #n)` 또는 `(다른 실행이 올림 — HEAD <sha7>)`) |
+| | 1 | `[멈춤] Pages 실행 #n …`·`[멈춤] Pages 실행 없음`·`[멈춤] … GitHub 프록시 캐시일 수 있음`·`[멈춤] GitHub 상태 못 읽음(…)`(+ `재배포 질문` 줄 또는 `GitHub 쪽 대기 — 기다림(재배포 1/1)`) / `[FAIL] 공개 본문 … 작업본도 직전 배포본도 아님` · `[FAIL] 공개 사이트 확인 못 함` · `[FAIL] live_ok 를 쓰지 못함` — 전부 끝에 `기록 머리: 저장소 반영 `<sha7>` · 공개 미반영(GitHub 쪽 대기 · 확인 못 함 중 하나)` |
+| | 3 | `CDN 상한 … 까지 옛 판`·`한 번 실행 상한 … 같은 live 명령 한 번 더`(재배포 묻지 않음 — `공개 미반영(CDN 캐시)` 또는 `(확인 못 함)`) |
+| | 2 | 인자·도장(전부 네트워크 전) — `[FAIL] --commit 은 커밋 sha 40자만` · `--file·--prev 가 precheck 도장 1·2행이 아님` · `--file md5 = --prev md5` · `--since 는 ISO 시각` · `--seen 은 md5 32자` · `live 는 읽기만` · `옛 live_ok 를 지우지 못함` |
+| `deploy.py redeploy`(2026-10-11) | 0 | dry-run `[dry-run] 쓰기 0 — …` · `[dry-run] 실제였다면 (b)에서 멈춤 — 쓰기 0`(첫 멈춤 = 이미 반영됨) / 실제 `재배포 요청 보냄 빈 커밋 <sha7> HH:MM:SS(…)` + `다음(읽기): deploy.py live … --commit <새 HEAD> --since <ISO>` · `(b) … 이미 반영됨 · 쓰기 0` |
+| | 1 | `[FAIL] (e)`·`(b)`·`(a)`·`이미 재배포함 — 두 번째 없음 · 쓰기 0`·`(c)`(dry-run 은 끝까지 찍고 끝 줄 `실제였다면 <첫 멈춤>에서 멈춤 — 쓰기 0`) / 실제 쓰기 `POST) 결과 모름`·`PATCH) 결과 모름 … 안 됨`·`다른 배포가 겹침`·`ref 이동 거부`·`만든 커밋 꼴이 다름`(재시도 0) |
+| | 2 | live 와 같은 인자·도장 + `--since·--seen 은 live 에만` · `redeploy 는 기본 dry-run — --dry-run 과 실제 쓰기를 함께 주지 않는다` |
+| `deploy.py public`(2026-10-11) | 0 / 1 / 2 | 0 = `공개 md5 … → 같음` / 1 = `[주의] 공개 사이트가 저장소 HEAD 와 다름 …`·`[주의] 공개 사이트를 읽지 못함`(멈춤 아님) / 2 = `[FAIL] public 에는 --file 이 필요` 등 |
 
 ## 6. 승인 목록 — push 참조 선택 모드(세션은 이름을 쓰지 않는다)
 
@@ -232,9 +253,11 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 
 - `partial/`·검사 실패·summary 없는 폴더를 store에 넘기기 / `store --force`·`--chunk` 자동 부착
 - 승인 이름을 세션이 다시 타이핑하거나 기호·마침표를 지우기 · 승인 파일을 손으로 써서 넘기기(실제 등록은 6절 참조 선택 모드만) / "등록 승인 N개" 전 `push`·`delete`·`test-roundtrip`
-- `work/exclusions_proposal_*.md5`·`work/precheck_ok.md5`·`work/balance.json`을 손으로 쓰기·복사하기·고치기(propose·precheck.sh·balance.py만 쓴다) / 합본 밖 CSV를 `--extra-csv`로
+- `work/exclusions_proposal_*.md5`·`work/precheck_ok.md5`·`work/balance.json`·`work/live_ok`를 손으로 쓰기·복사하기·고치기(propose·precheck.sh·balance.py·`deploy.py live`만 쓴다) / 합본 밖 CSV를 `--extra-csv`로
 - `deploy.py push`를 `--base work/prev.html` 없이 실제로 돌리기(코드가 exit 2로 막는다) · `[FAIL] 배포본이 4단계 fetch 뒤 바뀜` 뒤 `--base`만 새 배포본으로 바꿔 끼우기(4단계부터 다시 할지는 사용자가 정한다)
-- 실제 이름·여러 건으로 시험 / 외부 쓰기(push·POST·PUT) 자동 재시도·자동 재PUT
+- 실제 이름·여러 건으로 시험 / 외부 쓰기(push·POST·PUT·PATCH) 자동 재시도·자동 재PUT
+- (공개 반영 확인 — 2026-10-11) **자동 재배포**(사용자 답 "재배포" 원문 없이 `redeploy --confirm`) · **두 번째 재배포**(재배포 커밋의 live 가 `기다림(재배포 1/1)`이면 끝 · redeploy `[FAIL]` 뒤 다시 돌리기) · **배포 저장소 `git push`**(빈 커밋 포함 — 재배포는 `redeploy` 하나) · **PATCH·POST 재시도**(결과 모름이어도) /
+  `redeploy` 를 7단계 push 로 대신하기(push 는 "앞 PUT 이미 반영됨"으로 쓰기 0 — 재배포 0/1 로 셈) / 회차 머리에 live exit 0 없이 "배포 완료" 쓰기(guard K3 가 막는다)
 - 헤드리스 실행 · 같은 프로필 동시 실행(백그라운드 fetch 중 fetch 재호출 포함) · 크래시 수정이 없는 판(Desktop 사본 `68028c8`)으로 실행
 - 로그인 폼 입력 · 로그인 실패 산출물(`not_logged_in.*` png·aria·inventory) 열기
 - 토큰·키 파일 열기·출력 · 토큰을 채팅에 요구 · **세션이 `git credential fill`을 직접 치기**(deploy.py만 쓴다)
@@ -245,7 +268,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 - 권한 허용 목록·env·settings 같은 사용자 설정 바꾸기
 - (매출 작업 A·C) 장부(`~/saero-leads/leads.csv`)·체크리스트(`audit/place-checklist.csv`)를 손으로 쓰기·고치기·지우기(leads.py·place.py 만 — 줄 추가만) / `leads.py add` 에 `--week`(정정 `--replace` 밖) /
   (5) 답 원문·장부 숫자·캡처에서 읽은 숫자를 last-audit·커밋 메시지·리포트(01·11·12 포함 어디든)에 옮기기 — 숫자는 채팅·로컬 장부에만(config `leads.publish` = verdict) /
-  `leads.py guard --staged` 없이 스킬 저장소 커밋(8단계·5-0c·config 커밋·마감 wrapup) / 운영 회차에 `SAERO_LEADS`·`SAERO_PLACE`·`--ledger`·`--checklist` 로 경로 바꾸기(시험·리허설 전용)
+  `leads.py guard --staged` 없이 스킬 저장소 커밋(8단계·5-0c·config 커밋·마감 wrapup) / 운영 회차에 `SAERO_LEADS`·`SAERO_PLACE`·`SAERO_LIVE_OK`·`--ledger`·`--checklist` 로 경로 바꾸기(시험·리허설 전용)
 
 ## 8. 수동 폴백과 작업 폴더 줄바꿈
 

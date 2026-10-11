@@ -28,7 +28,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 ## 배포 정보
 
 - 저장소: `LeeKwanBeom/saero-pilates-report`
-- 공개 링크: https://leekwanbeom.github.io/saero-pilates-report/
+- 공개 링크: config `deploy_site_url`(지금 https://leekwanbeom.github.io/saero-pilates-report/ — 바꿀 때는 config 만. `deploy.py live`·`redeploy`·`public` 이 그 키를 읽는다)
 - 갱신 대상 파일: `index.html` (이 파일 하나가 웹페이지 전체)
 - 자격 증명: **이 PC의 git 자격 증명 하나**(GCM — `credential.helper=manager`). 토큰은 대화창에서 받지 않고
   스킬·저장소에 두지 않는다(2026-09-28 Code 탭 회차에서 대화창 입력 폐지). `deploy.py --token-file`은 git 자격 증명을 못 쓸 때의
@@ -39,6 +39,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 | 쓰기 | 저장소 | 이 PC에서 |
 |---|---|---|
 | 리포트 배포(7단계) | `LeeKwanBeom/saero-pilates-report` | `deploy.py push` — deploy.py가 `git credential fill`로 얻은 값을 변수에만 둔다(출력·파일 0) |
+| 재배포(7단계 뒤 — live `[멈춤]` 뒤 사용자 답 "재배포" 원문이 있을 때만 1번, 2026-10-11) | `LeeKwanBeom/saero-pilates-report` | `deploy.py redeploy … --confirm` — 빈 커밋(Git Data API `POST git/commits` tree = HEAD tree · parents = [HEAD] → `PATCH git/refs/heads/main` force:false). 기본은 dry-run(쓰기 0). 같은 자격 증명(변수에만). 배포 저장소 `git push`(빈 커밋 포함)는 쓰지 않는다 |
 | 스킬 문서·기준선·registry·**원본 보관(data/)** push | `LeeKwanBeom/saero-ad-report-skill` | `git push origin main`(ingest.sh 포함) |
 
 채팅 운영 때의 "토큰은 용도에 따라 두 종류이고 서로 통하지 않는다"(저장소 한정 fine-grained PAT)는 **이 PC에서는 성립하지 않는다** —
@@ -193,6 +194,10 @@ cp work/prev.html work/index.html                    # 작업본은 이 사본
 
 **GET이 자격 증명으로도 안 되면 `git clone -c core.autocrlf=false https://github.com/LeeKwanBeom/saero-pilates-report`로 받는다(진단·검증 회차도 같다 — 바이트 그대로).**
 
+**공개 대조(2026-10-11)**: fetch 뒤 `"$PY" scripts/deploy.py public --file work/prev.html` — 공개 주소 무압축 GET 1(사용자 gzip 객체를 심지 않음 · API 0 · 자격 증명 0).
+같으면 공개 = 배포 저장소 HEAD. 다르면 `[주의] 공개 사이트가 저장소 HEAD 와 다름 — 옛 실행이 덮었을 수 있다`(멈추지 않는다 — 이번 회차 PUT 이 새 실행을 만든다)
+→ 그 줄의 `--seen <공개 md5>`를 7단계 live 에 붙인다(그 판을 옛 판으로 인정 — "GitHub 쪽 대기" 다음 회차).
+
 ### 5-0단계. 제외 검색어 — 후보·승인·등록·확인·기록 (2026-09-27 도입, `scripts/exclusions.py`)
 
 파워링크 3그룹 "확장 검색" 칸의 제외 검색어를 **묻지 않고 판정하고, 승인 뒤에만 등록하고, 등록 뒤 다시 읽어 확인하고, 기록**한다.
@@ -321,10 +326,13 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다(판 F — 작업본
 
 ```bash
 "$PY" scripts/deploy.py push --file work/index.html --base work/prev.html --message "리포트 갱신: <기간>" [--dry-run]
-"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>   # 그 커밋의 재수령본 md5 = 로컬
+"$PY" scripts/deploy.py verify --file work/index.html --ref <push가 찍은 커밋>   # 그 커밋의 재수령본 md5 = 로컬 → 일치면 다음 live 명령을 찍는다
+"$PY" scripts/deploy.py live --file work/index.html --prev work/prev.html --commit <verify가 찍은 40자> [--seen <4단계 public 의 공개 md5>]   # Bash run_in_background
 ```
 
-**자동 배포(사용자 결정 2026-09-30 — "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 배포 질문은 따로 하지 않는다. 사람 질문(2-1 같음 · 승인 묶음 ⓐ · 모호한 답 되묻기 · 등록 실패 재시도 등 `references/code-tab.md` 4절 ⓐ)에 **모두 답을 받아 남은 질문이 없고**, 6단계 precheck 통과(도장)와 7단계 `--dry-run` 통과(도장·base 대조·자격 증명·쓰기 권한 참)면 같은 명령을 dry-run 없이 바로 돌려 PUT → `verify --ref`까지 간다.
+**자동 배포(사용자 결정 2026-09-30 — "물어봐야 하는 거 다 물어보면 자동으로 배포까지")**: 배포 질문은 따로 하지 않는다. 사람 질문(2-1 같음 · 승인 묶음 ⓐ · 모호한 답 되묻기 · 등록 실패 재시도 등 `references/code-tab.md` 4절 ⓐ)에 **모두 답을 받아 남은 질문이 없고**, 6단계 precheck 통과(도장)와 7단계 `--dry-run` 통과(도장·base 대조·자격 증명·쓰기 권한 참)면 같은 명령을 dry-run 없이 바로 돌려 PUT → `verify --ref` → `live`까지 간다.
+**자동 배포 = 7단계 `deploy.py push`(답을 반영한 재배포 push 포함 — 2026-09-30 그대로) — `redeploy`(빈 커밋)는 그 밖, 사용자 답 '재배포' 원문 뒤에만(그 밖 답·무응답이면 쓰기 0 · 기록 재배포 0/1).**
+옛 낱말 '재배포' = 답을 반영한 push · 답 '재배포' = redeploy.
 검사가 하나라도 `[FAIL]`·exit ≠ 0이면 PUT 없이 멈추고 보고한다(자동 재시도 금지 그대로). 등록이 exit 1(부분 실패·요청 결과 모름)이면 재시도 질문이 남은 것이라 배포도 그 답 뒤로 미룬다.
 사용자가 그 회차에 "보류"·"오늘 배포 안 함"이라고 했으면 PUT 없이 기록하고 끝낸다(8단계 기록·마감이면 wrapup, 배포 커밋 칸에 `보류(사용자 답 "<원문>")`). (옛 규칙 — 2026-09-29 "배포할까요? — 배포 / 보류" 고정 질문 — 은 이 결정으로 대체.)
 
@@ -334,7 +342,8 @@ compute.json은 작업본 옆(`work/compute.json`)에 쓴다(판 F — 작업본
 (첫 적용은 "보류로 시작 — 6단계 도장까지만" → 사용자 확인 → "배포" → `push … --layout-change` → `verify --ref`). 데이터 회차에서 이 FAIL 이 나면(병합 뒤 첫 적용 전에
 데이터 회차가 먼저 돈 경우) PUT 0 으로 멈추고 사용자에게 묻는다 — 세션이 스스로 `--layout-change` 를 붙이지 않는다.
 
-**verify는 `--ref <push가 찍은 커밋>`으로** — push 성공 줄(`배포 완료 커밋 <sha> …`)과 다음 줄(`다음(읽기): deploy.py verify … --ref <sha>`)의 값.
+**verify는 `--ref <push가 찍은 커밋>`으로** — push 성공 줄(`저장소 반영 커밋 <sha> …` — 2026-10-11 전에는 `배포 완료 커밋`이었다)과 다음 줄(`다음(읽기): deploy.py verify … --ref <sha>`)의 값.
+verify 가 일치하면 deploy.py 가 배포 저장소 HEAD(·HEAD 커밋)를 읽어 `다음(읽기): deploy.py live … --commit <40자>`를 찍는다(HEAD 메시지가 재배포 접두이고 부모 = push 커밋이면 HEAD, 아니면 push 커밋 — 세션은 손으로 API 를 읽지 않는다).
 ref 없는 contents GET은 PUT 직후 약 1분 옛 본문을 돌려줄 수 있다(2026-09-29 실측 2회 — 요청의 no-cache로도 안 막힘). `--ref`는 `?ref=`로 그 커밋의 본문을 받는다(16진 7~40자, verify 전용 — 아니면 GET 전에 exit 2).
 
 `push`는 배포 직전에 `sha`를 **다시 조회**한 뒤 PUT한다(4단계 이후 값이 바뀌었을 수 있다). 그 조회 본문이 `--base`(4단계 fetch 파일)와
@@ -352,7 +361,22 @@ GET 본문이 `--base`와 다른데 작업본과 같으면 "앞 PUT이 이미 �
 **verify가 불일치(exit 1)면 멈춘다** — 재PUT 금지. ref 없이 돌린 verify면(`[FAIL] 불일치 — PUT 직후라면 캐시일 수 있다`) `git ls-remote https://github.com/LeeKwanBeom/saero-pilates-report HEAD`와
 `--ref <push가 찍은 커밋 — 없으면 그 HEAD>`로 다시 verify(읽기)한다. `--ref`로도 불일치(`커밋 고정 조회라 캐시 아님`)면 재수령본 sha·md5를 보고하고, 다시 PUT할지는 사용자가 정한다(자동 재PUT 금지).
 
-반영까지 1~2분 걸린다는 점과 공개 링크를 함께 안내한다.
+**공개 사이트 반영 확인(2026-10-11 — 사용자 결정 "추천대로", 안 B)**: verify 일치 줄 다음의 `다음(읽기): deploy.py live …`를 **Bash `run_in_background`**로 돌린다(끝나면 알림 —
+한 번 실행은 config `live_check.run_max_s` 안). live 는 읽기만이다 — 이 커밋의 Pages 실행을 무인증 API 로 폴(config `live_check` — 첫 폴 = 시작, 다음 = max(t0 + `api_poll_s`, 앞 폴 + 60초)) →
+**실행 success 뒤에만** 공개 주소를 gzip 으로 받아(사용자 화면과 같은 CDN 객체 · 쿼리 없음 · 자격 증명 0) md5 = 작업본인지 본다. **"배포 완료"는 live exit 0 의 `기록 머리:` 줄에서만 나온다**
+(push 성공 줄 = 저장소 반영, redeploy·exit 1·3·public 출력엔 그 낱말이 없다). 결과마다:
+- **exit 0** → `기록 머리: 배포 완료 `<sha7>``·`기록 줄: 저장소 반영(커밋) <sha7> HH:MM · 공개 사이트 반영 HH:MM(커밋 뒤 n초 · Pages #n)`을 8단계 머리·줄에 그대로. 작업본 옆 `work/live_ok`(커밋 sha · 공개 md5)를 쓴다 — 8단계 guard 가 회차 머리와 대조한다.
+  cap(아래)·실행 없음의 `[멈춤]` 전에 공개 GET 1회 — 이미 작업본이면 `공개 사이트 반영(다른 실행이 올림 — HEAD <sha7>)`(HEAD = 이번 커밋이면 `(… Pages #n)` 꼴)으로 exit 0.
+- **exit 3** → CDN 캐시(실행 success · 공개 = 옛 판 · 그 객체를 CDN 이 실행 완료 전에 확인 — 상한 max(t0 + `cdn_floor_s`, 완료 + `cdn_max_age_s` + `cdn_extra_s`)) 또는 한 번 실행 상한 — **재배포를 묻지 않는다.** 출력의 "같은 live 명령 한 번 더"를 한 번 더(읽기). 그래도 3이면 그 `기록 머리:`(공개 미반영(CDN 캐시)) 그대로.
+- **exit 1 `[멈춤]`**(t0 + `cap_s` 안에 실행 success 아님 — 공개 GET 1회 뒤 실행 번호·status·잡·배포 상태·멈춘 분·그 밖 미완료 실행·GitHub 상태를 찍는다 / `[멈춤] Pages 실행 없음` — 시작(재배포 뒤면 `--since`) 뒤 60초가 지나도 실행이 안 생김)
+  → 출력의 `재배포 질문(사용자에게 이 문구 그대로):` 줄을 그대로 묻는다 — "멈춘 실행 #n — Actions 화면에서 'Cancel workflow' 가 보이면 먼저 눌러 보세요(사람). 그다음 '재배포' 라고 답하면 1번만 새 배포를 일으킵니다."(사용자 결정 4 — Cancel 은 권하기만).
+  답이 **'재배포' 원문일 때만** 찍힌 `deploy.py redeploy …`(기본 dry-run — 쓰기 0: 도장 → 자격 증명·권한 → 공개(이미 작업본이면 쓰기 0) → 인증 GET HEAD = `--commit` → HEAD 메시지가 재배포 접두면
+  `[FAIL] 이미 재배포함 — 두 번째 없음 · 쓰기 0` → 이 커밋 실행이 2분 안 움직였으면 쓰기 0 → 쓰기 요약)를 보이고, 통과하면 **같은 명령에 `--confirm` 1번**(POST 1 + PATCH 1 — 결과 모름이면 재시도 0, PATCH 결과 모름은 60초 뒤 인증 GET 으로 판정 · 재배포 1/1 로 셈)
+  → 찍힌 `다음(읽기): deploy.py live … --commit <새 HEAD> --since <쓰기 시각>` → 그 live 가 exit 0 이 아니면 `GitHub 쪽 대기 — 기다림`으로 기록하고 멈춘다(**두 번째 재배포 없음** — live 는 `--commit` 이 재배포 커밋이거나 `--since` 가 있으면(재배포 뒤) 질문 대신 `GitHub 쪽 대기 — 기다림(재배포 1/1)`만 찍고, exit 3·확인 못 함이어도 머리에 '— 기다림'·줄에 '재배포 1/1').
+  그 밖 답·무응답 → 쓰기 0 · 기록 `공개 미반영 — GitHub 쪽 대기 · 재배포 0/1`. `[FAIL] 공개 본문 … 작업본도 직전 배포본도 아님`(실행 완료 뒤 확인된 객체)·`공개 사이트 확인 못 함`은 재배포를 묻지 않고 보고한다.
+- **redeploy 를 push 로 대신하지 않는다** — push 는 "앞 PUT이 이미 반영됨"으로 쓰기 0 이 되고 재배포 0/1 로 센다. 배포 저장소 `git push`(빈 커밋 포함)도 쓰지 않는다(2026-10-11 앞의 손 빈 커밋 07f4a96 은 이 기능 병합 전 일).
+- 첫 실제 멈춤이 "API ref 갱신이 Pages 를 일으키나"의 첫 실측이다(안 일으키면 재배포 뒤 live 가 `[멈춤] Pages 실행 없음`으로 요란하게 멈추고 재배포 1/1).
+사용자에게는 공개 링크(config `deploy_site_url`)와 live 결과(공개 사이트 반영 HH:MM, 또는 미반영 사유)를 함께 안내한다. 휴대폰·홈 화면 앱(PWA)은 브라우저 캐시로 최대 10분 늦게 보일 수 있어 새로고침을 권한다.
 
 보관본(`data/`)은 1단계에서 이미 push했다. 배포 후 audit 기록 push 때 `git status`로
 `data/`에 안 올라간 변경이 없는지 한 번 더 본다.
@@ -362,8 +386,9 @@ GET 본문이 `--base`와 다른데 작업본과 같으면 "앞 PUT이 이미 �
 `audit/last-audit.md`의 갱신 회차 절에 아래를 적고 스킬 저장소에 push한다(같은 회차에 config가 바뀌었으면 함께, 5-0단계 pull로 바뀐 registry가 아직 커밋 안 됐으면 그것도 — 경로 지정 add).
 
 ```
-## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차)
-합본 `일별` ~ (N일) · 배포 커밋 <해시>(직전 <해시>, 파일 sha a → b) · 집계 기간 `…`
+## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차) · **<live 의 `기록 머리:` 뒤 글자 그대로 — 예 배포 완료 `<sha7>` / 저장소 반영 `<sha7>` · 공개 미반영(GitHub 쪽 대기)>**
+합본 `일별` ~ (N일) · 저장소 반영 커밋 <해시>(직전 <배포 저장소 HEAD 해시 — 직전 회차에 재배포가 있었으면 그 빈 커밋>, 파일 sha a → b) · 집계 기간 `…`
+<live 의 `기록 줄:` 뒤 글자 그대로 — 저장소 반영(커밋) <sha7> HH:MM · 공개 사이트 반영 HH:MM(커밋 뒤 n초 · Pages #n) / 공개 미반영 — <CDN 캐시|GitHub 쪽 대기|확인 못 함> · 재배포 0/1(재배포 했으면 그 빈 커밋 <sha7> HH:MM · 1/1)>
 validate.py 검사 N개 전부 PASS(precheck가 보이는 요약 줄 `검사 N개: PASS N / FAIL 0`의 N — [PASS] 줄을 세려면 validate.py를 따로 돌린다) · compare.py 차이 0(항목 M, 직전 배포본 인자 <해시>) · overflow 360/390/430 넘침 0 · 재수령본 md5 일치
 `--pending` 사용: 아니오/예 — 채팅 질문 N건(예이면 답을 반영한 재배포에서 `--pending` 없이 다시 PASS했는지도 적는다)
 **효율: 벽시계 __분 · 도구 호출 __회 · 즉석 코드 __행**(compute/compare 밖에서 새로 쓴 코드 — 0이 목표)
@@ -374,6 +399,10 @@ propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n —
 ```
 스킬 저장소 커밋 전(이 8단계 · 5-0c registry · config 커밋 · **마감(wrapup) 커밋 전에도**) `"$PY" scripts/leads.py guard --staged --message-file <메시지 파일>` 을 돌려 통과(`[PASS] guard`)일 때만
 `git commit -F <같은 파일>` — staged 추가 줄(audit/·config/·references/·local/·루트 *.md)·커밋 메시지에 장부 라벨+숫자·장부 머리줄·최근 매출 값이 있으면 `[FAIL]` 커밋 0(`references/code-tab.md` 4절 ⓑ).
+**회차 머리 대조(2026-10-11 K3)**: 같은 guard 가 staged 추가 줄 중 회차 머리 꼴 줄(.md 파일 · `## `로 시작하고 "배포 완료 `<16진 7~40자>`"를 품은 줄 — 날짜 자리·회차 낱말·sha 뒤 괄호 무관)의 sha 를
+`work/live_ok`(live exit 0 이 쓴 커밋 sha · 공개 md5 = 지금 `work/index.html` md5)와 대조한다 — 없거나 다르면 `[FAIL] 회차 머리 배포 완료 <sha7> ≠ work/live_ok …` 커밋 0
+(다음 행동: live 를 다시 돌려 exit 0 의 `기록 머리:` 그대로 쓰거나, 머리를 '저장소 반영 `<sha7>` · 공개 미반영(…)' 꼴로). 같은 staged 에서 지운 줄과 글자가 같은 줄(옛 절 옮김)은 새 주장이 아니라 뺀다.
+양식·본보기 줄은 16진이 아닌 자리표시(`<sha7>`)로 쓴다. 설계·기록 문서의 다른 줄은 보지 않는다(머리 꼴만).
 
 효율 3항목은 매 회차 반드시 적는다 — 2026-09-26 진단 회차 기준선은 약 5분·17회·290행(재현 시험), 수정 회차 뒤 같은 재현은
 **precheck.sh 1회·약 15초·0행**(재현 시험 — 계산·대조만, last-audit.md 효율표와 같은 값). 기록이 쌓여야 E3(도구 호출 묶기)를 실측할 수 있다.
@@ -442,6 +471,8 @@ propose 창 lo~hi · 등록 미룸(사용자): 아니오/예(미룬 이름 n —
 
 **배포(7단계 실제 PUT)** — 따로 묻지 않는다. 위 묶음(과 2-1·되묻기 등 사람 질문)의 답을 모두 받고 6단계 precheck·7단계 `--dry-run`이 통과하면 자동으로 PUT한다(사용자 결정 2026-09-30, 7단계 "자동 배포").
 사용자가 "보류"라고 했거나 검사가 하나라도 실패하면 PUT하지 않는다.
+**자동 배포 = 7단계 `deploy.py push`(답을 반영한 재배포 push 포함 — 2026-09-30 그대로) — `redeploy`(빈 커밋)는 그 밖, 사용자 답 '재배포' 원문 뒤에만(그 밖 답·무응답이면 쓰기 0 · 기록 재배포 0/1).**
+옛 낱말 '재배포' = 답을 반영한 push · 답 '재배포' = redeploy. 재배포 질문은 live `[멈춤]`이 찍은 문구 그대로 한 번(7단계 "공개 사이트 반영 확인") — 두 번째는 없다.
 
 일반 지역+필라테스 조합(예: "노원구필라테스", "노원역근처필라테스")은 경쟁사가
 아니라 일반 검색어다. 이 절차 대상이 아니며 정식 표나 클릭1건 목록에 그대로 둔다.

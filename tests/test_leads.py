@@ -360,23 +360,97 @@ class Guard(unittest.TestCase):
             f.write(text)
         git(self.repo, "add", rel)
 
-    def guard(self, msg=None):
+    def guard(self, msg=None, extra_env=None):
         args = ["guard", "--staged", "--repo", self.repo, "--ledger", self.led]
         if msg is not None:
             mf = os.path.join(self.td, "msg.txt")
             with open(mf, "w", encoding="utf-8") as f:
                 f.write(msg)
             args += ["--message-file", mf]
-        return run(args, self.led)
+        return run(args, self.led, extra_env=extra_env)
+
+    def live_ok(self, commit, page=b"<html>work</html>\n", public=None):
+        """임시 repo 의 work/index.html·work/live_ok(deploy.py live exit 0 이 쓰는 꼴) — 커밋 0(작업 폴더에만)."""
+        os.makedirs(os.path.join(self.repo, "work"), exist_ok=True)
+        with open(os.path.join(self.repo, "work", "index.html"), "wb") as f:
+            f.write(page)
+        with open(os.path.join(self.repo, "work", "live_ok"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(f"commit {commit}\npublic_md5 {public or hashlib.md5(page).hexdigest()}\nat 2026-10-11T00:00:00Z\n")
 
     def test_record_form_passes(self):
         here = rt(os.path.join(ROOT, "audit", "last-audit.md"))
         a = here.index("## 갱신 회차 (2026-10-10 02:19")
         sect = here[a:here.index("\n---\n", a)]                          # 브랜치 last-audit 10/10 갱신 회차 절 그대로
+        self.live_ok("59c53137bc0235d2ca5fb9720971c69db0ff9d36")         # 그 절 머리 '배포 완료 `59c5313`' 의 live_ok(2026-10-11 K3 guard — 배포 저장소 실제 커밋)
         self.stage("audit/last-audit.md", "\n" + sect + "\n사용자에게 요청한 값: 승인 묶음 (4) · (5) 장부 입력됨(로컬)\n")
         rc, out = self.guard("audit: 2026-10-10 갱신 회차 — 배포 59c5313 · (5) 장부 입력됨(로컬)")
         self.assertEqual(rc, 0, out)
         self.assertIn("[PASS] guard", out)
+
+    # 회차 머리 원문(ac255f6 last-audit :150 · :381 · :1830) — 날짜 자리·회차 낱말·sha 뒤 괄호가 다른 세 꼴
+    HEAD_1011 = "## 갱신 회차 (2026-10-11 07:54~08:06 KST — Code 탭 `/saero-run`, main 작업 폴더, 데이터 회차) · **배포 완료 `504ea88`**"
+    HEAD_1010 = ("## 갱신 회차 (2026-10-10 02:19~02:35 KST — Code 탭 `/saero-run`, main 작업 폴더, **판 F(광고비 잔액 카드) 첫 적용 + 데이터 회차**) · "
+                 "**배포 완료 `59c5313`**")
+    HEAD_0929 = "## 첫 실사용 회차 (2026-09-29 09:27~09:52 KST — Code 탭 `/saero-run`, main 작업 폴더) · **배포 완료 `7846ddf`(09:51, 마감 뒤 후속)**"
+
+    def test_deploy_head_needs_matching_live_ok(self):
+        """완료 기준 1(K3): 회차 머리 꼴 줄(`## ` 로 시작 + "배포 완료 `<16진 7~40자>`")의 sha 는 work/live_ok 커밋과 같고 live_ok 공개 md5 =
+        work/index.html md5 일 때만 커밋 — 없음·sha 다름·다른 회차 live_ok → [FAIL] 커밋 0(장부 몫과 끝줄을 나눔)."""
+        self.stage("audit/last-audit.md", "\n".join(["", self.HEAD_1011, self.HEAD_1010, self.HEAD_0929, ""]))
+        rc, out = self.guard("audit: 갱신 회차")
+        self.assertEqual(rc, 1, out)
+        for s in ("504ea88", "59c5313", "7846ddf"):
+            self.assertIn(f"[FAIL] 회차 머리 배포 완료 {s} ≠ work/live_ok(없음) — audit/last-audit.md", out)
+        self.assertIn("[FAIL] 회차 머리 '배포 완료' 3곳이 work/live_ok 와 다름", out)
+        self.assertNotIn("장부 숫자", out)                                     # K3 몫과 장부 몫의 끝줄이 다르다
+        self.live_ok("504ea88c8ab7fa25a872ae1f6b1cecbfdb4bb372")
+        rc, out = self.guard("audit: 갱신 회차")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("[FAIL] 회차 머리 배포 완료 59c5313 ≠ work/live_ok 커밋 504ea88", out)
+        self.assertIn("[FAIL] 회차 머리 배포 완료 7846ddf ≠ work/live_ok 커밋 504ea88", out)
+        self.assertNotIn("배포 완료 504ea88 ≠", out)
+        git(self.repo, "reset", "-q")
+        self.stage("audit/last-audit.md", "\n" + self.HEAD_1011 + "\n", mode="w")
+        rc, out = self.guard("audit: 갱신 회차")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("[PASS] guard — staged 추가 줄·커밋 메시지에 장부 숫자 0 · 회차 머리 배포 완료 1줄 = work/live_ok", out)
+        self.live_ok("504ea88c8ab7fa25a872ae1f6b1cecbfdb4bb372", public="0" * 32)   # 지난 회차 live_ok(작업본이 바뀐 뒤)
+        rc, out = self.guard("audit: 갱신 회차")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("(다른 회차의 live_ok)", out)
+        self.live_ok("7846ddf" + "0" * 33)                                  # sha 뒤 괄호가 붙은 꼴도 같은 대조
+        git(self.repo, "reset", "-q")
+        self.stage("audit/last-audit.md", "\n" + self.HEAD_0929 + "\n", mode="w")
+        rc, out = self.guard()
+        self.assertEqual(rc, 0, out)
+
+    def test_deploy_head_guard_scope(self):
+        """완료 기준 1·3(K3 범위): 자리표시(`<sha7>`)·고친 머리('저장소 반영 …')·.md 밖·같은 staged 에서 옮긴 줄은 통과 · 덮어쓰기 경로(SAERO_LIVE_OK)는 읽지 않는다."""
+        self.stage("SKILL.md", "## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차) · **배포 완료 `<sha7>`**\n"
+                               "## 갱신 회차 (2026-10-11 07:54~08:06 KST) · **저장소 반영 `504ea88` · 공개 반영 07f4a96 #159 09:59:58 KST**\n", mode="w")
+        self.stage("tests/test_x.py", f"s = '''\n{self.HEAD_1011}\n'''\n", mode="w")
+        rc, out = self.guard()
+        self.assertEqual(rc, 0, out)
+        self.assertIn("회차 머리 배포 완료 0줄", out)
+        git(self.repo, "reset", "-q")
+        with open(os.path.join(self.repo, "audit", "last-audit.md"), "a", encoding="utf-8", newline="") as f:
+            f.write(self.HEAD_1010 + "\n")
+        git(self.repo, "add", "audit/last-audit.md")
+        git(self.repo, "commit", "-qm", "old record")
+        with open(os.path.join(self.repo, "audit", "last-audit.md"), "w", encoding="utf-8", newline="") as f:
+            f.write("# 기록\n")                                                 # 옛 절을 보관 파일로 글자 그대로 옮김
+        git(self.repo, "add", "audit/last-audit.md")
+        self.stage("audit/archive/old.md", self.HEAD_1010 + "\n", mode="w")
+        rc, out = self.guard()
+        self.assertEqual(rc, 0, out)
+        git(self.repo, "reset", "-q")
+        alt = os.path.join(self.td, "alt_live_ok")                           # 리허설 경로에 맞는 live_ok 가 있어도 guard 는 work/live_ok 만 본다
+        with open(alt, "w", encoding="utf-8") as f:
+            f.write("commit 504ea88c8ab7fa25a872ae1f6b1cecbfdb4bb372\npublic_md5 " + "0" * 32 + "\n")
+        self.stage("audit/new.md", self.HEAD_1011 + "\n", mode="w")
+        rc, out = self.guard(extra_env={"SAERO_LIVE_OK": alt})
+        self.assertEqual(rc, 1, out)
+        self.assertIn("≠ work/live_ok(없음)", out)
 
     def test_realistic_draft_fails(self):
         self.stage("audit/last-audit.md", "\n사용자 답 해석: (5) 답 \"문의 3 · 체험 2 · 등록 1 · 네이버 1 · 매출 1,200,000\" 그대로 장부에\n")
