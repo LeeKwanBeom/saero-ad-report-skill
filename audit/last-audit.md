@@ -129,6 +129,22 @@
 ## 마무리 기록(이번 회차)
 효율: 벽시계 약 56분(10:09~11:05 KST — 무인증 한도 리셋 대기 약 20분 포함) · 조정자 도구 호출 약 45회 · 하위 에이전트 5 · 하위 토큰 약 96만 · 즉석 코드 약 90행(API 읽기 탐침·결과 요약, 저장소 밖). 이 커밋은 `audit/last-audit.md` 이 절 추가만(코드·config·data·registry·배포본 변경 0). 다음: ② 고르기(이 세션) → ③ 구현 지시문은 답을 받은 뒤 파일로(모델·effort 같이 — ③ Opus 5.5 · 울트라코드 켬(이 세션 이어도 됨) · ④ 첫 검증 `D:\saero-verify` 새 세션 · Fable 5.1 · 울트라코드 켬(한도가 풀렸으면) 아니면 Sonnet 5.5 · 울트라코드 켬(하위 Sonnet 상속 · 기계적 확인만 Haiku · Opus 0) · ⑤ 수정 새 세션 Opus 5.5 · xhigh · 울트라코드 끔 · ⑥ 병합·첫 실사용 Opus 5.5 · high · 울트라코드 끔 — 갱신 회차가 돌지 않을 때). 단계마다 에이전트 5개 이내(설계안 반박 포함 · 막음 후보 반박은 후보당 1개 · 하위 토큰 상한 +150만 — 넘기 전에 멈추고 묻는다)는 다음 지시문에도 옮긴다.
 
+## 사용자 결정(2026-10-11 — ② 고르기, 탐색 세션에서 받음 · 원문 "추천대로")
+추천 표시가 있던 자리는 전부 추천대로 했다(12개 모두 추천이 있었다). 바꾸려면 말로.
+1. 설계안 **B — 빈 커밋(Git Data API)**: 인증 `GET /git/commits/<HEAD>`(tree·메시지) → `POST /git/commits {message: redeploy_message, tree: HEAD tree, parents: [HEAD]}` → `PATCH /git/refs/heads/main {sha: 새 커밋, force: false}`. 안 A·C 는 안 함 — K5 는 해당 없음, 이월 A-4(안 A)·C-9(안 C)도 해당 없음.
+2. config `deploy_site_url` "https://leekwanbeom.github.io/saero-pilates-report/" · `live_check` {`api_poll_s` [40,100,160,220,300] · `interval_s` 15 · `cap_s` 300 · `cdn_max_age_s` 600 · `cdn_extra_s` 30 · `cdn_floor_s` 660 · `run_max_s` 570 · `api_poll_max` 5 · `api_status_max` 6 · `pages_workflow` "pages build and deployment" · `redeploy_message` "Pages 재배포 — {commit7} 실행 #{run} {status}" · `status_url` githubstatus components}. CDN 상한 = max(t0 + `cdn_floor_s`, 실행 완료 + `cdn_max_age_s` + `cdn_extra_s`) · 한 번 실행 `run_max_s` 안(넘으면 exit 3 → 같은 명령 한 번 더 — 읽기).
+3. live 는 Bash `run_in_background`(끝나면 알림 — fetch 와 같은 방식).
+4. 재배포 질문 문구: "멈춘 실행 #n — Actions 화면에서 'Cancel workflow' 가 보이면 먼저 눌러 보세요(사람). 그다음 '재배포' 라고 답하면 1번만 새 배포를 일으킵니다." Cancel 을 요구하지는 않는다(C-8 은 문구만).
+5. `deploy.py public`(무압축 공개 GET 1 · API 0 · "배포 완료" 낱말 없음) 넣음 — 다음 회차 4단계 뒤 공개 = 배포 저장소 HEAD(`work/prev.html`) 대조 + 진단 회차(checklist 라이브 확인 절) 교체.
+6. 이월 중 같이: **A-7 · A-8 · A-9 · C-7 · A-10 · A-11 · A-12 · B-4 · B-5 · B-6 · B-7 · B-9 · B-10 · C-6 · C-8(문구만 — 위 4) · C-10 · C-11 · C-12 · C-13**(19). 나머지 이월은 첫 실사용 뒤.
+7. 시험: 완료 기준 1~16 + 리허설 17.
+8. 실제 재배포 시험 1건 **안 함** — 첫 실제 멈춤이 첫 실측(B-13 남은 미확인 "API ref 갱신이 Pages 를 일으키나" — 안 일으키면 live 가 "실행 없음"으로 요란하게 멈추고 재배포 1/1 로 셈).
+9. 첫 실사용: 병합 뒤 다음 `/saero-run` 데이터 회차에서 live 만(멈춤 없으면 재배포 질문 없음) · 기록 머리·두 칸·guard 확인. 리포트 글·모양은 바뀌지 않아 보류로 시작하지 않는다.
+10. 지금 남은 #158 은 그대로 — 다음 회차 4단계 대조(`deploy.py public`)로 본다.
+11. 10/11 기록 정정(B-9)은 구현 회차에서 — 10/11 갱신 회차 절 머리 "배포 완료 `504ea88`" = 저장소 반영뿐 · 공개 반영은 07f4a96(#159 09:59:58 KST) · 배포 저장소 git push 1회(사용자 "진행" — 이 기능 병합 뒤 7절 금지). 고친 머리 줄에 "배포 완료" 부분 문자열을 남기지 않는다(K3 guard 가 머리 꼴 줄을 본다).
+12. 규모: 보통 이상 — ③ 구현 → ④ 검증 → ⑤ 수정(막음 있을 때만) → ⑥ 병합·첫 실사용.
+③ 구현: **Opus 5.5 · 울트라코드 켬**(Fable 5.1 한도 — 사용자 2026-10-11, 이 세션을 이어도 됨). 지시문 `D:\saero\saero-ad-report_공개반영확인_구현지시_회차1_2026-10-11.md`.
+
 ---
 
 ## 갱신 회차 (2026-10-11 07:54~08:06 KST — Code 탭 `/saero-run`, main 작업 폴더, 데이터 회차) · **배포 완료 `504ea88`**
