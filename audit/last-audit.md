@@ -1,3 +1,136 @@
+# 기능 추가 탐색 기준선(배포 뒤 공개 사이트 확인, 2026-10-11)
+점검일: 2026-10-11 10:09~11:05 KST(기능 추가 회차 **① 탐색·설계만** — 설계안은 사용자가 ②에서 고른다). Code 탭 `D:\saero` · Opus 5.5 · 울트라코드 켬(Fable 5.1 한도 — 사용자 2026-10-11). 기준 main `ac255f6` = origin/main(clone 직후 대조 — 지시문의 파일별 마지막 커밋 deploy.py·test_deploy.py `9ca1862` · code-tab.md·SKILL.md·checklist.md·config `a0b147b` 그대로, **달라진 것 없음**). 이 절은 clone `D:\saero\feat-20261011-livecheck`(`git clone -c core.autocrlf=false`, `w/crlf` 1) 브랜치 `feat-20261011-livecheck` 로컬 커밋(push 안 함).
+추가할 기능: 7단계가 "배포 완료"를 적기 전에 공개 사이트가 작업본을 내보내는지 기계로 확인 → 5분 안 미반영이면 Pages 실행 상태 보고 → 사용자 답 "재배포" 하나로 새 Pages 배포 1번 → 그래도 안 되면 "GitHub 쪽 대기 — 기다림" 기록·멈춤(두 번째 없음) · 기록에 "저장소 반영(커밋)"과 "공개 사이트 반영 HH:MM"을 따로.
+지킨 제약: 외부 쓰기 0(스킬 저장소 push·네이버·배포 PUT·배포 저장소 push·빈 커밋·Pages build 요청 0) · 저장소 스크립트 실행 0(`--dry-run`·`leads.py guard` 포함 — 이 커밋은 장부 라벨·숫자 없는 기록 절뿐) · 키 파일·자격 증명·`git credential` 0 · 운영 폴더는 `git --no-optional-locks` 읽기와 `work/index.html`·`work/prev.html` md5 읽기만 · 배포 저장소는 스크래치 읽기 clone · 크롬 0. **무인증 GitHub API 이 세션 14회**(조정자 11 + 검토자 3 — `GET /rate_limit` 3회는 한도 밖) · github.io GET 약 20회 · githubstatus 1회(둘 다 한도 밖).
+방법: 원문 대조 · 공개 주소·Actions·Deployments 읽기 실측 · 문서 조사 에이전트 1 · 설계안 반박 검토자 3(안마다 1 — 공통 뼈대는 셋이 나눠 봄: A 시각·CDN 판정 / B 문서·규칙·기록 정합 / C 쓰기 전 읽기·두 번째 막기·#158) · 막음 후보 5건 반박 1(후보당 1 이내) = **에이전트 5/5 · 하위 토큰 약 96만**(16.7만 + 59.5만 + 19.7만).
+표기: [실측] 이번에 명령으로 확인 / [실측·기록] 저장소·배포 저장소 기록 / [문서] docs.github.com / [비공식] 커뮤니티·이슈 / [추론] 확인 못 함. 행 번호는 `ac255f6` 파일 기준.
+
+## 0. 시작 확인과 환경 실측 [실측]
+- **무인증 한도는 이 PC 세션 전부가 하나를 같이 쓴다**: 10:11 `GET /rate_limit`(한도에 안 셈) core **60/60 다 씀**(앞 세션 조사) · 리셋 10:31:11 → 그 뒤 11회 쓰고 남은 49. 무인증 304 조건부 요청도 1회로 센다(50 → 49 — [문서]와 같음). 무인증 응답은 `Cache-Control: public, max-age=60, s-maxage=60`(검토자 실측 — 60초 안 같은 URL 은 옛 값).
+- 공개 주소(쿼리 없음): 200 · `Cache-Control: max-age=600` · `Last-Modified` 00:59:52Z(= origin 파일 시각 · `ETag "6acadf88-1ee21"` = hex(mtime)-hex(크기), 내용 해시 아님) · `Vary: Accept-Encoding` · Fastly ICN · `x-proxy-cache`(GitHub 프록시 캐시 한 겹 더) · 본문 md5 **53dce9d8 = 운영 `work/index.html` = 배포 저장소 HEAD index.html**(126,497바이트 그대로 — Jekyll 이 바꾸지 않음). `work/prev.html` 577ef334.
+- **지시문 사실과 어긋남 — 쿼리는 캐시를 못 비킨다**: `?x=1`·`?x=2`·임의 쿼리·쿼리 없음 다섯 번이 같은 `X-GitHub-Request-Id 678C:…:6ACAE264`·같은 `Age`(13 → 14)·`X-Cache HIT`. 요청 `Cache-Control: no-cache` 도 HIT. 경로 `/index.html` 은 따로 MISS(경로는 키에 듦). 10/11 앞 세션의 "?<임의 쿼리> GET 은 반영 1초 안에 새 본문"은 배포 때 비움(purge)이 있었기 때문일 수 있다 [추론 — purge 여부는 문서 미확정, 비공식 주장 상충].
+- **Accept-Encoding 으로 캐시 객체가 둘**: 무압축(curl·urllib 기본, `br` 만 보내도 이쪽) vs gzip(브라우저 `gzip, deflate, br, zstd` 도 같은 gzip 객체). 10:19 무압축 Age 451 · gzip MISS. → 사용자 화면과 같은 것은 `Accept-Encoding: gzip` 으로 받아 풀어서 본다.
+- CDN `Age` 는 600초가 지나면 Fastly 가 조건부 재검증(304)하고 0 으로 돌아간다(검토자 10:41 — 같은 요청 id 에 Age 0 · Expires 지남) → `Date − Age` = "CDN 이 origin 에 마지막으로 확인한 시각".
+- `service-worker.js`(1,529바이트) network-first — `fetch(event.request)` 기본 캐시 모드라 브라우저 HTTP 캐시(max-age=600)를 거친다 → 공개 반영 뒤에도 사용자 화면이 최대 10분 옛 판일 수 있다 [추론 — 브라우저 실측 아님].
+- githubstatus.com `/api/v2/components.json` 200(무인증·GitHub API 한도 밖): Pages·Actions·API Requests·Git Operations operational.
+- Actions(무인증 — event `dynamic`, 이름 `pages build and deployment`): 커밋 → 실행 생성 1~5초 · 정상 완료 #159 37초 · #157 37초 · #156 60초 · #155 42초 · #154 38초. **#158(504ea88) 10:31 에도 status queued · updated/started 00:32:59Z(Re-run 시각) · jobs latest 0개 · `filter=all` = attempt 1 의 build success(23:03:36Z) · report-build-status success(23:03:44Z) · deploy cancelled(00:31:56Z — 사용자 Cancel)**. 필터 `head_sha=`·`status=queued` 동작. Re-run 은 created_at·run_attempt 를 바꾸지 않았다(att=1 그대로).
+- Deployments(무인증, env github-pages, 커밋마다 1개): 07f4a96 = waiting 00:59:46 → queued → in_progress 00:59:49 → success 00:59:59(**정상에도 waiting 이 약 1초 지나간다**) · 504ea88(6988093133) = waiting 23:03:37Z → error 00:31:57Z(Cancel). REST 가 스키마에 없는 `waiting` 을 돌려준다. `GET /pages` 무인증 404 · `GET /git/ref/heads/main` 무인증 200 = `07f4a96`.
+- 배포 저장소(읽기 clone): `07f4a96` "Pages 재배포 — #158 대기열 멈춤"(09:59:16 KST, 빈 커밋 — tree 2250ea5 = 504ea88) ← `504ea88` "리포트 갱신: 2026.08.26 — 10.10 (46일)"(08:03:06) ← `ec61904` … · 커밋 159개 = 실행 #1~#159(커밋마다 하나) · `.github/` 없음 · `.nojekyll` 없음(legacy 빌드) · 파일 7개(index·service-worker·manifest·아이콘 3·og-image).
+
+## 1. 지금 상태 — 이 기능이 끼어들 자리 [실측 — 원문]
+- **7단계 verify 뒤**: SKILL.md:320-358 — `deploy.py push … → verify --file work/index.html --ref <push가 찍은 커밋>` 으로 끝나고 :355 "반영까지 1~2분 걸린다는 점과 공개 링크를 함께 안내한다." 공개 사이트를 보는 기계 단계 없음. code-tab.md:80(3절 7행)도 dry-run → push → `verify --ref` 까지. verify 는 `?ref=` 로 그 커밋의 **저장소 본문**만 본다(deploy.py:21-25·304-316) — last-audit.md:1649 이월 "`verify --ref`는 그 커밋의 본문만 본다(배포 저장소 HEAD·Pages 반영은 문서의 `ls-remote`)".
+- **"배포 완료" 낱말의 출처**: deploy.py:358 push 성공 줄 `배포 완료 커밋 {commit} · 파일 sha … · 반영까지 1~2분` → 세션이 회차 머리로 옮긴다(last-audit.md:1 `· **배포 완료 `504ea88`**` — :18·:232·:252 … 같은 관행). 10/11 은 그 머리 뒤 #158 이 멈춰 공개 반영이 07f4a96(#159 00:59:58Z)에서야 났다 — 그 머리는 새 뜻으로는 거짓이고 10/11 사건(#158 · 07f4a96 git push)은 저장소 기록에 아직 없다.
+- **8단계 양식**: SKILL.md:364-368 — 머리 `## YYYY-MM-DD 갱신 회차 (진단 아님 — 리포트 배포 회차)`(머리 낱말 칸 없음) · `배포 커밋 <해시>(직전 <해시>, 파일 sha a → b)` 한 칸 · "재수령본 md5 일치". 저장소 반영과 공개 반영을 가르는 칸 없음. code-tab.md:81(8행) 끝 "→ 사용자 시크릿 창 확인 요청".
+- **4절 표**: :108 ⓐ "배포는 묻지 않는다(자동 배포 — 사용자 결정 2026-09-30 …)" · :153-157 ⓑ deploy 행(409·403·404 · PUT 결과 모름 · verify 불일치 — 공개 미반영 행 없음) · **:159 "사람만 하는 일: … 라이브 시크릿 창 확인 …"**. :90 재개 판정 "배포 = `deploy.py verify --file work/index.html --ref <커밋>`".
+- **7절 금지**: :237 "외부 쓰기(push·POST·PUT) 자동 재시도·자동 재PUT" · :240 "세션이 `git credential fill`을 직접 치기(deploy.py만 쓴다)". SKILL.md:328 "자동 재시도 금지 그대로" · :41 쓰기 표 "리포트 배포(7단계) … `deploy.py push`" 하나.
+- **시크릿 창 확인 줄과 어긋나는 옛 문장**: checklist.md:133-141 "**라이브를 기계로 확인할 수단이 이 환경에는 없다(2026-09-07 두 회차 실측).** curl 403 `host_not_allowed` · `pages/builds/latest` 무인증 404 · web_fetch 캐시 … 라이브 확인은 사용자 시크릿 창 확인이 유일" · :189 [의도된 동작] 14 "라이브 Pages는 web_fetch 결과로 판정하지 않는다(캐시). 사용자 시크릿 창 확인이 유일." → **이 PC 는 기계 확인이 된다**(위 0절 — 컨테이너 사실은 이력으로 남길 것).
+- local/saero-run/SKILL.md:14(7 배포 줄 `verify는 --ref`) · :23(자동 재시도 금지) · :25-26 "배포는 따로 묻지 않는다". config:4 `deploy_repo` 만 — 공개 주소 키 없음(SKILL.md:31 글에만). checklist :251 service-worker network-first · :252 deploy `--dry-run` 쓰기 0.
+
+## 2. 대상 조사
+### 2-1 공개 본문 확인
+- 판정은 **본문 md5 = 작업본**(ETag·Last-Modified 는 시각·크기라 보조). 쿼리로 캐시를 못 비키므로 "옛 객체가 언제 확인됐나"(`Date − Age`)와 Pages 실행 완료 시각으로 CDN 대기와 멈춤을 가른다. 사용자 화면과 같은 gzip 객체를 본다.
+- **첫 공개 GET 은 Pages 실행 success 뒤**: purge 가 없다면 그 앞 GET 이 옛 객체를 ICN 에 600초 심는다(사용자 화면도 같이 늦어짐) [추론]. 실행 상태는 API 로 먼저 본다.
+- 감시: 정상 37~60초라 실행 폴은 t0 + 40·100·160·220·300초(무인증 응답 s-maxage=60 이라 60초 간격 이상) · 공개 GET 은 success 뒤 15초 간격 · **5분 상한**(cap 300) · CDN 대기는 max(t0+660, 완료+630)까지 · 한 번 실행 570초 안(Bash 도구 앞 실행 상한 600초).
+### 2-2 멈춤 판정에 읽을 무인증 API(공개 저장소 — 전부 [실측] 200)
+`runs?head_sha=<커밋>`(번호·status·created/updated) · `runs/<id>/jobs`(잡별 status — `filter=all` 은 옛 attempt) · `deployments?sha=&environment=github-pages` + `statuses?per_page=3`(waiting 이 몇 분째인지 — "멈춘 시간") · `runs?per_page=10`(이 커밋 아닌 미완료 실행 — 로컬에서 status ≠ completed 거름) · githubstatus components(한도 밖). **회차당 무인증: 정상 2회 안팎(+ 기존 deploy.py 4회) · 멈춤 폴 5 + 상태 6 = 11 · 재배포 뒤 다시 11** — 60/h 안이지만 다른 세션이 다 쓸 수 있어 403·429 면 deploy.py `get()` 대로 자격 증명 1회(인증은 사용자 5,000/h — IP 60 을 안 씀 [문서]).
+### 2-3 재배포 수단 후보
+| 수단 | 멈춘 실행을 넘기나 | 남는 흔적 | 자격 증명 경로 | 판단 |
+|---|---|---|---|---|
+| 빈 커밋 git push(10/11 에 한 것) | 넘김(우회) — 07f4a96 → #159 5초 뒤 생성·37초 성공 [실측·기록] · #158 은 남음 | 빈 커밋 1 | GCM 을 git push 로 직접 — deploy.py 밖, 스크래치 clone·신원 | 탈락(deploy.py 가드·시험 밖의 새 쓰기 길 — 안 B 가 같은 모양) |
+| Git Data API 빈 커밋(안 B) | 넘길 것 [추론 강함 — Pages 는 source branch push 면 게시, 예외는 GITHUB_TOKEN 커밋뿐 [문서] · 같은 tree 빈 커밋도 실행(#159) · Contents API 커밋도 실행(매 회차)] | 빈 커밋 1 | deploy.py `credential()` — Contents write(PUT 과 같은 권한표 줄 [문서]) | 후보 |
+| 같은 index.html 다시 PUT(안 A) | 넘김 — **이 저장소 실측**: 526572b(diff 0, 2026-09-17) → Pages #114 1초 뒤 생성 [실측·기록] + arcogine#327 [비공식] | 빈 커밋 1 | deploy.py `credential()` — 지금 PUT 그대로 | 후보 |
+| `POST /pages/builds`(안 C) | 넘김(우회) — legacy 에서 "has the same effect as pushing a commit" [문서] · 새 #40, 옛 #39 남음(#200809) [비공식] | 없음(실행만) | 인증 필수 — fine-grained Pages write / classic `repo` [문서+추론] · GCM gho_ 토큰 scope 미확인 | 후보 |
+| 사용자 Actions 화면 Re-run | 대부분 다시 queued — 10/11 queued·잡 0 으로 20분 넘게 [실측·기록] · 커뮤니티 같은 보고 [비공식] | 없음 | 사람 | 수단 아님 |
+| Cancel · force-cancel | queue 에 못 든 re-run 은 force-cancel 도 409 `Cannot cancel a workflow re-run that has not yet queued.` — GitHub Support 만 [비공식] | — | 사람 | 보조(사람) |
+| 표지 파일 PUT(`.pages-redeploy`) | 넘길 것 | 파일 1 + 커밋 | deploy.py | 탈락(안 A 가 파일 없이 같은 끝점) |
+| 기다림 | 24시간 정리(2023 staff) ~ 2달째 queued(2025-03) [비공식] | — | — | 마지막 기록("GitHub 쪽 대기") |
+- 새 실행은 대기 중인 옛 실행을 취소한다(`canceling since a higher priority waiting request …` [비공식]) — **그러나 #158 꼴(queue 에 못 든 Re-run)은 #159 뒤 10:31 에도 queued** [실측]. 늦게 돌면 원래 GITHUB_SHA 판(옛 판)을 올릴 수 있고 [문서], Pages 에 옛 SHA 거부 장치 근거 없음 · deploy-pages 는 진행 중 배포가 있으면 새 배포를 400 으로 거부(약 10분 상한) [비공식]. 브랜치 빌드는 시간당 10회 soft limit [문서].
+
+## 3. 설계안(≤3, 반박 반영판 — 채택은 사용자)
+### 3.0 공통 뼈대(세 안 같음 — 막음 K1~K4 고침 반영)
+**live(읽기 — 새 하위 명령)** `"$PY" scripts/deploy.py live --file work/index.html --prev work/prev.html --commit <push 성공 줄 커밋 40자> [--since <재배포 시각>]`
+1. 네트워크 전(K2): `--commit` 40자 · md5(--file) = 작업본 옆 `precheck_ok.md5` 1행 · md5(--prev) = 2행 · 둘이 다름 — 아니면 exit 2. 시작 때 옛 `work/live_ok` 를 지운다.
+2. t0 = 이 커밋 실행 created_at(재배포 뒤면 max(그것, --since)). 실행 폴 t0 + `api_poll_s`.
+3. 실행 success 뒤에만 공개 GET(gzip 풀어 · 쿼리 없음 · **자격 증명 0 — 403·429·5xx 에도**, 한 함수) `interval_s` 간격. md5 = --file → `work/live_ok`(커밋 sha · 공개 md5)를 쓰고 `기록 머리: 배포 완료 `<sha7>`` + `기록 줄: 저장소 반영(커밋) <sha7> HH:MM · 공개 사이트 반영 HH:MM(커밋 뒤 n초 · Pages #n)` exit 0. **"배포 완료" 부분 문자열은 이 머리 줄에만**(push 성공 줄은 `저장소 반영 커밋 <sha>` — 같이 B-8: deploy.py:220·358 · SKILL.md:337·355 · code-tab.md:80 · test_deploy.py:207·399 를 같은 커밋에서).
+4. 옛 판이면 CDN 대기(`Date − Age` 가 실행 완료 전) — max(t0+660, 완료+630)까지, 넘으면 exit 3 `기록 머리: 저장소 반영 `<sha7>` · 공개 미반영(CDN 캐시 — Pages #n 성공)`(재배포 권하지 않음).
+5. cap 300초에 실행 success 아님 → 공개 GET 1회(= 작업본이면 exit 0 "다른 실행으로 반영") → 상태 읽기(≤6) → `[멈춤] Pages 실행 #n · status · 잡 deploy <s> · 배포 상태 <s>(HH:MM 부터 m분) · 그 밖 미완료 실행 #k(<sha7> <s>) · GitHub 상태 Pages <s>` + `기록 머리: 저장소 반영 `<sha7>` · 공개 미반영(GitHub 쪽 대기)` exit 1. 재배포 안내는 `redeploy --commit <커밋>`(**`--confirm` 없는 꼴** — K4) + "Actions 화면에서 #n 'Cancel workflow' 가 보이면 먼저(사람)"(10/11 된 순서: Cancel → 새 커밋). **--commit 이 재배포 커밋(메시지 `redeploy_message` 접두)이면 재배포 안내 대신 `GitHub 쪽 대기 — 기다림(재배포 1/1)`**(K1). 못 읽으면 `GitHub 상태 못 읽음(<사유> — 리셋 HH:MM)`.
+**redeploy(쓰기 1번 — 사용자 답 "재배포" 원문 뒤에만)** `"$PY" scripts/deploy.py redeploy --file work/index.html --prev work/prev.html --commit <커밋> [--confirm]`
+- **기본 dry-run**(쓰기 0) — 실제는 같은 명령에 `--confirm`(K4). dry-run 은 아래 읽기를 하나도 건너뛰지 않고 전부 판정을 찍는다.
+- 네트워크 전: live 1 과 같은 도장 대조(K2). 그다음 (e) 자격 증명(deploy.py `credential()`, 값 비출력)·권한 → (b) 공개 GET(이미 작업본이면 "이미 반영됨 — 쓰기 0" exit 0) → (a) **인증 GET** HEAD(공용 캐시·공유 60 밖) = --commit, 아니면 쓰기 0 → (d) **HEAD(= --commit) 메시지가 `redeploy_message` 접두(`Pages 재배포 — ` — 07f4a96 손 커밋 포함)면 `[FAIL] 이미 재배포함 — 두 번째 없음 · 쓰기 0`**(K1) → (c) 이 커밋 실행이 2분 안에 움직였으면 "움직이는 중 — 쓰기 0". 읽기가 ≠200·꼴 다름이면 쓰기 0(C-3 같이).
+- 쓰기(안마다) → 결과 모름이면 재시도 0, 60초 뒤 인증 GET 으로 판정하고 재배포 1/1 로 셈(C-2 같이). 성공 → `재배포 요청 보냄 <방식> <sha7> HH:MM:SS`("배포 완료" 부분 문자열 없음) + `다음(읽기): deploy.py live … --commit <새 HEAD> --since <시각>`. 그 live 가 exit 0 아니면 세션은 `GitHub 쪽 대기 — 기다림`으로 기록하고 멈춘다.
+**기록 가드(K3)**: SKILL.md 8단계 양식 머리에 칸 — `## YYYY-MM-DD 갱신 회차 (…) · **<live 의 기록 머리 그대로>**` · 줄 `저장소 반영(커밋) <sha7> HH:MM · verify --ref 일치` / `공개 사이트 반영 HH:MM(…)` 또는 `공개 미반영 — <CDN 캐시|GitHub 쪽 대기|확인 못 함> · 재배포 0/1`. 모든 스킬 저장소 커밋 앞에 도는 `leads.py guard --staged`(SKILL.md:375 — 마감 포함)가 **회차 머리 꼴 줄**(`## … 갱신 회차 … · **배포 완료 `<sha>`**`)의 sha 를 `work/live_ok` 와 대조 — 없거나 다르면 커밋 0. 설계·기록 문서 안의 낱말은 안 건드린다(머리 꼴만).
+**설정**(config — 값은 여기만): `deploy_site_url` · `live_check`{`api_poll_s` [40,100,160,220,300] · `interval_s` 15 · `cap_s` 300 · `cdn_max_age_s` 600 · `cdn_extra_s` 30 · `cdn_floor_s` 660 · `run_max_s` 570 · `api_poll_max` 5 · `api_status_max` 6 · `pages_workflow` "pages build and deployment" · `redeploy_message` "Pages 재배포 — {commit7} 실행 #{run} {status}" · `status_url`}.
+**문서 자리**: SKILL.md 배포 정보(공개 링크 → config 키 · 쓰기 표에 redeploy 행) · 7단계(verify 뒤 live — `run_in_background` · 재배포 질문은 자동 배포 결정 밖의 새 질문 하나, 답 "재배포" · 두 번째 없음) · :355 · 8단계 양식 · code-tab 3절 7·8행 · :90 재개 판정 · 4절 ⓐ(재배포 질문) · ⓑ(live exit 1·3 · redeploy FAIL) · :159 사람만 하는 일(시크릿 창 → 실기기·PWA·브라우저 새로고침만 · Actions 화면 Cancel) · 5절 exit 표 · 7절(자동 재배포 · 두 번째 재배포 · 배포 저장소 git push · PATCH 재시도) · checklist 라이브 확인 절·[의도된 동작] 14·[되돌리면 안 되는 것] 2행 · local/saero-run/SKILL.md:14·25-26.
+**남은 queued 실행(#158)**: live 5 가 보고만(Cancel 은 사람 — 409 면 GitHub Support). 다음 회차 4단계 뒤 `deploy.py public --file work/prev.html`(공개 GET 1 — **무압축 객체**라 사용자 gzip 객체를 심지 않음 · API 0 · "배포 완료" 낱말 없음)로 공개 = 배포 저장소 HEAD 인지 보고, 다르면 `[주의] 공개 사이트가 저장소 HEAD 와 다름 — 옛 실행이 덮었을 수 있다`(멈추지 않음 — 이번 회차 PUT 이 새 실행을 만든다). 진단 회차(checklist 라이브 절)도 같은 명령.
+
+### 3.1 설계안 비교(다른 것은 재배포 쓰기 하나)
+| | **안 A** 같은 index.html 다시 PUT | **안 B** 빈 커밋(Git Data API) | **안 C** `POST /pages/builds` |
+|---|---|---|---|
+| 쓰기 | `PUT /contents/index.html {message, content: --file, sha}` 1요청 | `POST /git/commits {tree: HEAD tree, parents: [HEAD]}` → `PATCH /git/refs/heads/main {force: false}` 2요청(ref 이동 1번) | `POST /pages/builds` 1요청 |
+| 새 실행 근거 | [실측·기록] 526572b → #114 | [추론 강함] | [문서]+[비공식] |
+| 본문이 바뀔 수 | 있음 → **K5 고침 필수**: 쓰기 전 `GET contents?ref=<--commit>` sha = git blob sha(--file) 일 때만, PUT sha 도 그 값 | 없음(tree = HEAD tree) | 없음 |
+| HEAD 경합 | blob sha 잠금뿐(HEAD 는 (a) 인증 읽기가 잠금 — A-4 이월) | parents 고정 + force:false → 422/409 쓰기 0 | 그 순간 HEAD 를 빌드(잠금 없음) |
+| 두 번째 막기 | 메시지 접두(공통) | 메시지 접두(공통) | 흔적 없음 → created_at 판별(C-1) — **'POST 201·실행 안 보임' 갈래가 남음**(K1 반박) |
+| 부분 실패 | 결과 모름 → 인증 GET | 객체만 생기고 ref 실패 = 무해 · 결과 모름 → HEAD = 새 sha / = --commit / 그 밖 세 갈래(B-6) | 결과 모름 → 실행 created_at 판별 |
+| 자격 증명 | 지금 PUT 그대로 | 같은 값·같은 권한표 줄 [문서] | Pages write/`repo` — GCM scope 미확인(C-9), 첫 필요 때 403 가능 |
+| 흔적 | 빈 커밋 1 | 빈 커밋 1 | 없음(실행만) |
+| 비용 | 코드 약 +160행·시험 약 +12 · 재배포 API 인증 4 | 약 +180행·시험 약 +13 · 인증 5 | 약 +170행·시험 약 +13 · 인증 4~6 |
+| dry-run 이 보는 것 | 읽기 전부 + PUT 본문 md5 | 읽기 전부 + 새 커밋 tree·parent | 읽기 전부 + (scope 는 `X-OAuth-Scopes` 로만) |
+공통 비용: live 정상 경로 벽시계 +약 1분(커밋 → 공개 반영 40~75초) · 무인증 2회 · github.io GET 1~3회 / 멈춤 경로 5분 + 상태 6회 / 재배포 경로 +5분.
+
+### 3.2 조정자 의견(한 줄 — 결정은 사용자)
+**안 B 추천**: 본문을 보내지 않아(tree = HEAD tree) 본문이 바뀔 길이 구조적으로 없고, parents 고정 + force:false 가 경합·덮어쓰기를 코드로 막으며, 10/11 사용자가 실제로 해서 된 빈 커밋과 같은 모양이다. 새 실행 근거는 [추론 강함]이고, 안 되면 live 가 "실행 없음"으로 요란하게 멈춘다(쓰기 한 번 헛씀). 안 A 는 근거가 가장 세지만 본문을 다시 보내서 K5 고침이 꼭 필요하다. 안 C 는 흔적이 없어 두 번째 막기가 다 닫히지 않으므로 탈락을 권한다(반박자 같은 의견).
+
+## 4. 완료 기준 표(이후 회차는 이 표로만 판정)
+| # | 무엇이 | 왜 | 지키는 곳 |
+|---|---|---|---|
+| 1 | **공개 본문 md5 ≠ 작업본이면 "배포 완료"라고 적지 않는다** — "배포 완료" 는 live exit 0 의 `기록 머리:` 줄에서만 나오고(push 성공 줄 = `저장소 반영 커밋`, redeploy·exit 1·3 줄엔 부분 문자열 0), 회차 머리 꼴 줄의 "배포 완료 `<sha>`" 는 `work/live_ok` 와 같을 때만 커밋된다 | 10/11 "배포 완료 504ea88" 뒤 사용자 약 2시간 옛 화면 · K3 | deploy.py live·push 출력 · `leads.py guard` · test_deploy(불일치·exit 1·3·redeploy·push 출력에 "배포 완료" 0) · guard 시험(live_ok 없음·다름 → 커밋 0) |
+| 2 | live·redeploy 의 --file·--prev = precheck 도장 1·2행이고 서로 다름 — 아니면 네트워크 전 exit 2 | K2 — 뒤바뀐 인자·다시 받은 옛 본문으로 거짓 반영 | 인자 검사 · 시험 |
+| 3 | live 는 읽기만 — 요청은 GET 뿐 · 파일 쓰기는 exit 0 때 `work/live_ok` 하나 · github.io 요청에 Authorization 0(403·429·5xx 에도) · 자격 증명 값 출력 0 | 막음 4 · 읽기 전용 | 시험(요청 로그 · 가짜 값 출력 0 — 기존 test_deploy 방식) |
+| 4 | 정상: 실행 success 뒤에만 공개 GET(gzip) · md5 = 작업본이면 exit 0 · 기록 줄 두 칸(저장소 반영 커밋 HH:MM · 공개 사이트 반영 HH:MM) | 목표 · 옛 객체 심지 않기 | live · 시험(가짜 시계·가짜 응답 헤더) |
+| 5 | t0 + 5분 안 미반영 → 공개 GET 1회(다른 실행으로 반영이면 exit 0) → `[멈춤]` 보고에 실행 번호·status·잡·배포 상태·멈춘 분·그 밖 미완료 실행·GitHub 상태 → exit 1 | 목표 | live · 시험(#158 꼴 fixture — 0절 실측 값) |
+| 6 | CDN: 실행 success · 옛 객체(`Date − Age` < 완료) → max(t0+660, 완료+630)까지 기다림 · 한 번 실행 570초 안 · exit 3 은 재배포를 권하지 않음 | 재배포 헛씀 · Bash 600초 | live · 시험 |
+| 7 | 무인증 API: 정상 ≤ 2 · 멈춤 ≤ 폴 5 + 상태 6 · 403·429 → 자격 증명 1회 · 못 읽으면 `상태 못 읽음`(재배포 안내는 그대로) | 이 PC 공유 60/h | 시험(요청 수) |
+| 8 | redeploy 기본 dry-run(쓰기 0) · 실제는 `--confirm`(사용자 답 "재배포" 원문 뒤) · live·dry-run 의 '다음' 줄에 `--confirm` 없음 | K4 · 목표 "dry-run 기본" | 시험 · 문서 |
+| 9 | 쓰기 전 읽기 순서: 도장 → 자격 증명·권한 → 공개(이미 반영 → 쓰기 0 exit 0) → 인증 GET HEAD = --commit(아니면 쓰기 0) → 두 번째 막기 → 움직이는 중 · 읽기 ≠200·꼴 다름 → 쓰기 0 | 목표 · K1 · C-3 | 시험 |
+| 10 | 두 번째 없음: --commit/HEAD 메시지가 `redeploy_message` 접두면 쓰기 0 `[FAIL] 이미 재배포함` · live 는 그때 재배포 대신 `GitHub 쪽 대기 — 기다림(재배포 1/1)` · 결과 모름도 1/1 | K1 | 시험(R1 경로 · 새 세션 재개 경로 · 결과 모름) |
+| 11 | 재배포 쓰기는 사용자 답 뒤 1번 · 공개 본문 변화 0(안 B tree = HEAD tree / 안 A K5 대조) · 덮어쓰기 0(안 B force:false · 안 A sha) · 422/409 = 쓰기 0 · 결과 모름 재시도 0 | 막음 1·3 | 시험 |
+| 12 | 재배포 뒤 live `--commit <새 HEAD> --since` · 5분 안 미반영이면 `GitHub 쪽 대기 — 기다림` 머리·줄로 멈춤 | 목표 | 시험 · 문서 |
+| 13 | 값은 config 만(`deploy_site_url` · `live_check`) | 설정 원칙(SKILL.md:52) | grep · 시험 |
+| 14 | 문서 정합 — 자동 배포(2026-09-30) 그대로 · 재배포는 묻는다 · 두 번째 없음 · 시크릿 창 줄 정정 · checklist 라이브 절·[의도된 동작] 14 · 7절 · 5절 exit 표 · local/saero-run 이 같은 뜻 | 같은 규칙 여러 자리 | 검증 grep |
+| 15 | 다음 회차 4단계 공개 대조(`deploy.py public` — 무압축 GET 1 · API 0 · 다르면 `[주의]`) | #158 꼴 옛 실행이 늦게 덮음 | 시험 · 문서 |
+| 16 | 기존 시험 전부 통과(바뀐 push 문구 반영) + 새 시험 | 퇴행 | 병합 전 전체 1회 |
+| 17 | **실제 환경 리허설** — 이 PC Code 탭 · Git Bash · venv · **실제 공개 주소** · 쓰기 0 dry-run 1회: R1 `live`(스크래치 work — 도장은 precheck.sh 가 쓴 것, 손으로 쓰지 않음 · work = 배포 저장소 HEAD index.html, prev = 그 앞 배포본) → exit 0 · `기록 머리: 배포 완료` · `work/live_ok` / R2 멈춤 경로를 실제 API 로 한 번(리허설 전용 짧은 cap — config 보다 짧게만) → `[멈춤]` 보고 꼴 / R3 `redeploy`(`--confirm` 없음 — 자격 증명을 쓰는 인증 GET 은 사용자에게 묻고) → 읽기 판정 전부 · 쓰기 0 / 판정: 배포 저장소 `ls-remote` HEAD 전후 같음 · 운영 폴더·data·registry·config·배포본 md5 전후 같음 · 무인증 API 쓴 수 기록(≤ 20) · 출력에 자격 증명 0 | 가짜 서버가 못 보는 환경(공유 한도·CDN 변형·시각·인코딩·Bash 상한) | ③ 구현 끝 |
+
+## 5. 막음 기준(한 번 정함 — 넓히지 않는다)
+정상 흐름에서 조용히 틀린 외부 쓰기 · 데이터 손실 · 자격 증명 노출. 공개 배포본이 걸리므로 **"실수 둘 이하"**(실수·우연이 둘까지 겹쳐 나는 것도 막음, 셋부터 이월). 이 기능에서: (1) 재배포 쓰기가 사용자 답 없이 · 두 번 이상 · 배포 저장소 HEAD 가 이번 커밋이 아닐 때 나가거나 공개 본문을 작업본과 다른 것으로 바꿈 (2) 공개 사이트가 작업본이 아닌데 기록·출력이 "배포 완료"(공개 반영)라고 말해 공개 스킬 저장소에 push 됨 (3) 배포 저장소 커밋 덮어쓰기 · 작업본/직전 배포본 손상 (4) 자격 증명 값이 출력·파일·URL·github.io 요청 헤더에. '죽음' 부류는 공통 안전망 하나(결과 모름이면 재시도 0 · 인증 GET 으로 다시 읽기 · 재배포 1/1 로 셈).
+
+## 6. 스스로 반박(검토자 3 → 막음 후보 5 반박 1 — 기각 0)
+- **막음 5 — 전부 설계 줄 고침으로 닫음(3.0·3.1 반영)**: K1 두 번째 재배포 막기 구멍(A-2·B-1·C-1 — `--commit` = 재배포 커밋 · 새 세션 재개 · 결과 모름, live 안내가 그쪽으로 이끎 — 가끔 · 조용) · K2 live 바이트가 도장에 안 묶임(A-3·B-3 — 인자 뒤바뀜·4단계 줄 재실행 + CDN 옛 객체 — 가끔 · 조용) · K3 회차 머리 "배포 완료"를 세션이 지음(B-2 — 양식 칸 없음·맨 위 본보기가 거짓 머리, 고침은 머리 칸만으론 셈이 안 줄어 `work/live_ok` + guard 대조까지 — 가끔 · 조용) · K4 redeploy 실제 쓰기가 기본(C-4 — 플래그 빠뜨림 하나로 답 없이 쓰기 — 가끔 · 조용) · K5(안 A 만) PUT 본문이 이번 커밋 본문에 안 묶임(A-1 — 답 반영으로 고친 작업본을 "재배포" — 가끔 · 조용).
+- **같이 3**: B-8(push 성공 줄 문구를 바꾸는 6곳 — K3 줄 안) · C-2(결과 모름 다시 읽기 = 60초 뒤 인증 GET · 1/1 로 셈 — K1 줄 안) · C-3(쓰기 전 읽기 인증·실패면 쓰기 0 — K1 줄 안).
+- **근거 정정 5**: A-5(안 A 근거 = 이 저장소 526572b → #114 실측) · A-6(`Date − Age` = CDN 마지막 확인 시각, 프록시 캐시 한 겹) · B-12(Git Data 쓰기 = Contents write [문서]) · B-13(안 B 남은 미확인은 "API ref 갱신이 Pages 를 일으키나" 하나) · C-5(새 실행이 #158 꼴 Re-run 을 취소하지 않음 — 실측).
+- **이월**(한 줄씩 — 막음 아님): A-4 안 A 는 blob 잠금뿐(안 A 한정, 여러 우연) · A-7 옛 판 판정은 `Date − Age` 먼저 · 완료 뒤 옛 판은 두 번 더 본 뒤 멈춤 · "작업본도 prev 도 아님"은 완료 뒤 확인 객체에만 · A-8 CDN 상한 max(t0+660, 완료+630) · 한 번 570초 · `run_in_background` · A-9/C-7 cap 에서 멈춤 전 공개 GET 1회(다른 실행으로 반영) · redeploy 는 (b)를 (a) 앞에 · A-10 폴 60초 간격 이상(s-maxage=60) · 한도 폴/상태 나눔 · `--commit` 40자 · A-11 push 문구가 닿는 deploy.py:220·test_deploy:207·399 · A-12 redeploy 를 push 로 대신하지 않음(7절) · B-4 "배포는 묻지 않는다" 자리 다섯(code-tab:108·checklist 26·local·SKILL·메모리 — 메모리는 saero 폴더만) · B-5 재시도 금지 목록에 PATCH · B-6 안 B 부분 실패 세 갈래 · B-7 재개 판정 :90·local:15 에 "재배포가 있었으면 live --commit = 그 빈 커밋" · verify 일치 줄이 다음 live 를 찍음 · B-9 10/11 절에 사건 한 줄 + 옛 머리 "배포 완료" = 저장소 반영뿐(정정 줄) · B-10 진단 회차용 `deploy.py public` · code-tab 5절 exit 표 · C-6 재배포 뒤 live `--since` · C-8 멈춘 배포가 waiting 이면 새 실행이 그 뒤에 설 수 있음 → Cancel 먼저 권함(사람) · C-9 GCM scope(안 C 한정) · C-10 github.io GET 한 함수·자격 증명 0 · C-11 "재배포 완료" 같은 부분 문자열 0 · C-12 "기다림" 다음 회차 4단계 대조 · C-13 미완료 실행은 `runs?per_page=10` 로컬 거름. (3.0 에 이미 쓴 것: A-7 일부·A-8·A-9·A-10·B-6·B-7 일부·C-6·C-10·C-11·C-13 — 고를 항목 6 에서 빼면 구현에서 뺀다.)
+- **탈락 안 C 의 남은 문제**(K1 'POST 201·실행 안 보임' · C-9 scope)는 세지 않는다 — C 를 고르면 다시 연다.
+
+## 내가 고를 항목
+1. 설계안 — 안 A / **안 B(추천)** / 안 C(탈락 권함). A 를 고르면 K5 고침 포함.
+2. config 값 — **`api_poll_s` [40,100,160,220,300] · `interval_s` 15 · `cap_s` 300(5분) · CDN 상한 max(t0+660, 완료+630) · 한 번 570초 · 무인증 폴 5 + 상태 6(추천)** / 다른 값.
+3. live 실행 방식 — **`run_in_background`(추천 — fetch 와 같은 방식, 끝나면 알림)** / `timeout 600000` 앞 실행.
+4. 재배포 질문 — **"멈춘 실행 #n — Actions 화면 Cancel 이 보이면 먼저(사람), 그다음 '재배포' 라고 답하면 1번만"(추천)** / Cancel 먼저를 요구(C-8 강하게) / Cancel 언급 없음.
+5. 다음 회차 4단계 공개 대조 `deploy.py public`(+ 진단 회차·checklist 라이브 절 교체) — **넣음(추천)** / 안 넣음.
+6. 이월 중 같이 넣을 것 — **추천: A-7·A-8·A-9/C-7·A-10·A-11·A-12·B-4·B-5·B-6·B-7·B-9·B-10·C-6·C-8(문구만)·C-10·C-11·C-12·C-13**(전부 문서·판정 순서·시험 몫, 새 외부 쓰기 0) / 일부만.
+7. 시험 항목 — **완료 기준 1~16 + 리허설 17(추천)**.
+8. 실제 재배포 시험 1건 — **안 함 — 첫 실제 멈춤이 첫 실측(추천 — 시험만으로 배포 저장소에 빈 커밋 1이 남는다)** / ⑥ 입회 1건(정상 날, `--confirm` 1번, 흔적 빈 커밋 1).
+9. 첫 실사용 범위 — **병합 뒤 다음 `/saero-run` 데이터 회차에서 live 만(멈춤 없으면 재배포 질문 없음) · 기록 머리·두 칸·guard 확인(추천)**.
+10. 지금 남은 #158 — **그대로 두고 다음 회차 4단계 대조로 감시(추천)** / 사용자가 Actions 화면에서 Cancel 시도(409 면 GitHub Support).
+11. 10/11 기록 정정(B-9 — 머리 "배포 완료 504ea88" = 저장소 반영뿐 · 공개 반영 07f4a96 #159 09:59:58 · 배포 저장소 git push 1회) — **구현 회차에서(추천)** / 마감 때 따로.
+12. 작업 규모 — 외부 쓰기 경로를 더하므로 **보통 이상(③ 구현 → ④ 검증 → 필요하면 ⑤ 수정)** — 모델·effort 는 아래 [넘길 때].
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 75분(10:09~11:05 KST — 한도 리셋 대기 약 20분 포함) · 조정자 도구 호출 약 45회 · 하위 에이전트 5 · 하위 토큰 약 96만 · 즉석 코드 약 90행(API 읽기 탐침·결과 요약, 저장소 밖). 이 커밋은 `audit/last-audit.md` 이 절 추가만(코드·config·data·registry·배포본 변경 0). 다음: ② 고르기(이 세션) → ③ 구현 지시문은 답을 받은 뒤 파일로(모델·effort 같이 — ③ Opus 5.5 · 울트라코드 켬(이 세션 이어도 됨) · ④ 첫 검증 `D:\saero-verify` 새 세션 · Fable 5.1 · 울트라코드 켬(한도가 풀렸으면) 아니면 Sonnet 5.5 · 울트라코드 켬(하위 Sonnet 상속 · 기계적 확인만 Haiku · Opus 0) · ⑤ 수정 새 세션 Opus 5.5 · xhigh · 울트라코드 끔 · ⑥ 병합·첫 실사용 Opus 5.5 · high · 울트라코드 끔 — 갱신 회차가 돌지 않을 때). 단계마다 에이전트 5개 이내(설계안 반박 포함 · 막음 후보 반박은 후보당 1개 · 하위 토큰 상한 +150만 — 넘기 전에 멈추고 묻는다)는 다음 지시문에도 옮긴다.
+
+---
+
 ## 갱신 회차 (2026-10-11 07:54~08:06 KST — Code 탭 `/saero-run`, main 작업 폴더, 데이터 회차) · **배포 완료 `504ea88`**
 합본 `일별` 2026.08.26 — 10.10 (46일) · 배포 커밋 `504ea88`(직전 `ec61904`, 파일 sha cff3eb0 → c988a80) · 집계 기간 `2026.08.26 — 10.10 (46일)`
 S0 07:54 PASS(10/11 일) → ① 수집 PASS(`--prev 2026-10-10` → `~/saero-fetch/downloads/2026-10-11`, 10/1~10/10 4개 · 노출 2,629) → ingest(보관본 push `555aa8e`) → 4 fetch(배포본 `ec61904` = 577ef334, meta r2026-10-F, sha cff3eb0) → 5a compute → 2-1 다름(45 → 46일) → 3 신규 0 → **3a** `leads.py status`(`ask5=yes week=2026-09-28 verdict=확인 못 함` — 장부 없음) · `place.py status`(`first=no ask7=none chat=0`) → 5-0a pull(3그룹 각 397 · registry verified_at 갱신)·propose `--since 2026-10-10`(후보 24 · 업종어 3 · 재노출 판정 0) → ⓐ (2)·(4) + (5) 정보 질문 한 메시지 → 사용자 답 "(2) 둘다 제외 / (4) 6 빼고 등록 승인 23개"((5) 무응답 — 장부 쓰기 0) → dry-run 23 → 등록 → registry 커밋 `3307229` → **5** `balance.py`(`[잔액] 209,826원 · 10/11(일) 08:00 기준(KST) · GET /billing/bizmoney 1회`) → `compute.py … --balance --leads --place`(`[주의] 장부 확인 못 함(장부 없음)` exit 0 · 잔액 창 10/4~10/10 · 24일분 · 플레이스 12번 [] · 채팅 질문 0) → `apply.py --layout`(`108,947 → 109,353자 · 레이아웃 판 r2026-10-F(변환 건너뜀) · 잔액 카드 209,826원 · 10/11(일) 08:00 기준 · 약 24일분`) → `work/n1011.py`(narr_lib · 표지 37 — 12-3 = `leads.row_html(R)`, 플레이스 행 0) → 6 precheck → 7 dry-run(레이아웃 판 같음 — 게이트 조용히 통과) → push 1회(08:03) → `verify --ref 504ea88c…` 1회째 일치(재수령 sha c988a80 · md5 53dce9d8).
