@@ -20,6 +20,9 @@
 - (2026-10-10 매출 작업 A·C) 구역 "12 장부·플레이스" 2항목 — 12번 `장부 기준 판정 = X` 리터럴 = compute `성과장부.판정`(precheck 가 --leads 를 넘긴 재계산 —
   낡은 판정이 본보기 복사로 배포되는 길을 막는다, 막음 A-F3) · 12번 플레이스 행 `플레이스 P<n> … — M/D까지 (상태|판정) = X` 의 (id, 종류, 값) 집합 = compute
   `플레이스전후.12번`. 리터럴이 없거나 compute 키가 없으면 그 구역만 [DIFF]. **항목 수 N = 101**.
+- (2026-10-12 판 G 보고서 더 받기 A + B) `_s04` 는 04 구역 **첫 `<table>` 만** 읽는다(B-6 — 본 표·note 뒤에 계정 변경 기록 표가 붙는다). 판 G 블록(`<!-- saero:extra … -->`)이
+  있으면 구역 "04·05 추가(판 G)": 04 변경 기록 머리(기간·최근 n건 / 전체) · 표 줄 · 스킬 줄(등록 n회·삭제 k건) = compute `변경기록` / 05 종류마다(성별·연령대) 머리(기간 ·
+  알 수 없음 %) · 표 줄 = compute `성별연령` — compute 상태가 ok 가 아니면 그 자리 '확인 못 함' 1항목. **항목 수 N = 101 + 7**(둘 다 ok · 종류 2) — 확인 못 함이면 줄어든다.
 """
 import json
 import re
@@ -99,9 +102,10 @@ def _s03():  # 03 — 레이아웃 판 r2026-10-B: 위 표(합계 + 최근 날�
     m = grp(r"<summary[^>]*>이전 (\d+)일(?:\((\d+/\d+)~(\d+/\d+)\))? 펼치기</summary>", s3); fold = [r[0].split("(")[0] for r in rows(s3[m.start():])]
     cmp("03 summary 이전 N일·기간 = 접힌 표", [int(m.group(1)), m.group(2), m.group(3)], [len(fold), fold[-1] if fold else None, fold[0] if fold else None])
 
-def _s04():  # 04
+def _s04():  # 04 — 본 표 = 04 구역 첫 <table> 만(B-6, 2026-10-12: 판 G 의 계정 변경 기록 표가 본 표·note 뒤에 붙는다)
+    s4 = sec(4); t4 = s4[:s4.find("</table>") + len("</table>")] if "</table>" in s4 else s4
     got4 = [{"유형": r[0].replace(" 광고", ""), "그룹": re.split(r"\s*\(", r[1])[0].strip(), "노출": num(r[2]), "클릭": num(r[3]), "CTR": float(r[4].rstrip("%")),
-             "총비용": num(r[5]), "CPC": num(r[6]), "순위": None if r[8] == "—" else float(r[8].rstrip("위")), "비중": float(r[7].rstrip("%"))} for r in rows(sec(4))]
+             "총비용": num(r[5]), "CPC": num(r[6]), "순위": None if r[8] == "—" else float(r[8].rstrip("위")), "비중": float(r[7].rstrip("%"))} for r in rows(t4)]
     S["got4"] = got4
     cmp("04 표", got4, R["04"]["rows"]); cmp("04 CPC 격차 desc", float(grp(r"→ ([\d.]+)배", sec(4)).group(1)), R["04"]["CPC격차"])
     cmp("04 파워링크 비중", float(grp(r"비중은 [\d.]+ → ([\d.]+)%", sec(4)).group(1)), R["04"]["파워링크비중"])
@@ -220,9 +224,48 @@ def _s12g():  # 12 장부·플레이스(2026-10-10 매출 작업 A·C)
     cmp("12 플레이스 행(id·상태/판정) = 플레이스전후.12번", rows, sorted((x["id"], x["종류"], x["값"]) for x in R["플레이스전후"]["12번"]))
 
 
+def _plain(x): return re.sub(r"<[^>]+>", "", x).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip()
+def _blk(key):
+    a, b = html.find(f"<!-- saero:extra {key} -->"), html.find(f"<!-- /saero:extra {key} -->")
+    if not -1 < a < b: raise ValueError(f"판 G 블록 {key} 표지 없음")
+    return html[a:b]
+def _trs(x): return [t for t in (tuple(_plain(c) for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)) for tr in re.findall(r"<tr>(.*?)</tr>", x, re.S)) if t]
+
+
+def _sx():  # 판 G(2026-10-12 보고서 더 받기 A + B) — 04 계정 변경 기록 · 05 성별·연령대 = compute "변경기록"·"성별연령"(precheck 가 --extra 를 넘긴 재계산)
+    hb, gb = _blk("history"), _blk("gender-age")
+    H = R.get("변경기록") or {"상태": "없음"}
+    if H.get("상태") != "ok":
+        cmp("04 변경 기록 '확인 못 함'(compute 상태 " + str(H.get("상태")) + ")", "확인 못 함 —" in hb, True)
+    else:
+        more = f" · 최근 {H['표시']}건 / {H['건수']}건" if H["건수"] > H["표시"] else ""
+        cmp("04 변경 기록 머리(기간)", _plain(grp(r"계정 변경 기록\([^)]*\) <span[^>]*>\((.*?)\)</span>", hb).group(1)), f"{H['기간']} 기록{more}")
+        cmp("04 변경 기록 표", _trs(hb), [(r["일시"], r["유형"], r["대상"], r["내용"] or "—") for r in H["rows"]])
+        cmp("04 변경 기록 스킬 줄", [int(x) for x in grp(r"스킬 제외 검색어 등록 (\d+)회\(실행 수\) · 삭제 (\d+)건", hb).groups()], [H["스킬"]["등록회"], H["스킬"]["삭제건"]])
+    G = R.get("성별연령") or {"상태": "없음"}
+    if G.get("상태") != "ok":
+        cmp("05 성별·연령대 '확인 못 함'(compute 상태 " + str(G.get("상태")) + ")", ("확인 못 함 —" in gb) and gb.count('<div class="sub-head">') == 0, True)
+        return
+    parts = {}
+    for seg in re.split(r'<div class="sub-head">', gb)[1:]:
+        m = grp(r"([^<]+?) <span[^>]*>\((.*?)\)</span></div>", seg)
+        parts[_plain(m.group(1))] = (_plain(m.group(2)), [t for t in _trs(seg)])
+    for t in G["표"]:
+        got = parts.get(t["종류"])
+        if t.get("상태") != "ok":
+            cmp(f"05 {t['종류']} '확인 못 함'", bool(got) and got[0].startswith("확인 못 함"), True)
+            continue
+        unk = "" if t.get("알수없음%") is None else f" · 알 수 없음 {t['알수없음%']:.1f}%"
+        cmp(f"05 {t['종류']} 머리(기간·알 수 없음)", got[0] if got else None, f"{t['기간']}{unk}")
+        cmp(f"05 {t['종류']} 표", got[1] if got else None,
+            [(r["구분"], f"{r['노출']:,}", f"{r['비중']:.1f}%", f"{r['클릭']:,}", "적음" if r["적음"] else f"{r['CTR']:.2f}%", f"{r['비용']:,}원") for r in t["rows"]])
+
+
 S = {}  # 구역 사이에 넘기는 값(kpi → 07 · got4 → 06). 앞 구역이 실패해 없으면 뒤 구역의 그 항목이 KeyError → 그 구역 [DIFF]
 SECTIONS = [("masthead·KPI", _kpi), ("01", _s01), ("02", _s02), ("03", _s03), ("04", _s04), ("05", _s05), ("06", _s06),
             ("07", _s07), ("08", _s08), ("09", _s09), ("10", _s10), ("11·12", _s11), ("12 장부·플레이스", _s12g)]
+if "saero:extra" in html:  # 판 G 블록이 있는 판만(옛 판 대조는 항목 그대로)
+    SECTIONS.append(("04·05 추가(판 G)", _sx))
 for _label, _fn in SECTIONS:  # 구역별 try — 한 구역의 첫 파싱 실패가 다른 구역 항목을 생략시키지 않는다(2026-10-06, 탐색 프로브 r9: OK 17에서 멈춤)
     try:
         _fn()

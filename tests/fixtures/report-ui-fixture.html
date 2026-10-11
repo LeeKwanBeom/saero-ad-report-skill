@@ -23,6 +23,9 @@
   noperiod=<보고서 이름>(그 보고서만 기간 표시 없음 — 왕복 1 실패 재현용) · query=disabled(저장된 형식으로 열면 결과가 자동 조회되고
   `조회하기`는 비활성, 기간을 바꿔 `확인`하면 활성 — 왕복 2 실물 재현; 다운로드는 마지막으로 조회된 기간으로 만든다).
   로그인 상태는 localStorage `saero_fixture_login`. 실제 사이트와 무관하며 네트워크 0.
+  (2026-10-12 추가 수집 A) extra=1 이면 목록 맨 위에 `연령대 보고서`·`성별 보고서`(캠페인 + 일별 + 성별/연령대 꼴 CSV)가 더 붙는다 —
+  xnolink=<이름>(그 보고서 링크 없음) · xbad=<이름>(그 CSV 2행에 칸 하나 더) · xforbid=<이름>(그 보고서 화면의 `다운로드` 버튼 title 이 금지 문구 — 클릭 차단 재현).
+  이 화면의 쿼리는 localStorage `saero_fixture_q` 에도 적는다 — 변경 이력 가짜 화면은 주소에 쿼리가 없어(config history.url 은 쿼리 금지) 이것을 읽는다.
 -->
 <div id="list">
   <h1>다차원 보고서</h1>
@@ -63,6 +66,7 @@
     return;
   }
   const q = new URLSearchParams(location.search);
+  localStorage.setItem("saero_fixture_q", location.search);  // 변경 이력 가짜 화면(history-fixture.html — 주소에 쿼리 없음)이 같은 설정을 읽는다
   const TODAY = q.get("today") ? new Date(q.get("today") + "T00:00:00") : new Date("2026-09-28T00:00:00");
   const ACCT = "2580077";
   const REPORTS = [
@@ -74,6 +78,12 @@
     "상세지역": "상세지역,일별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
     "시간대별": "시간대별,노출수,클릭수,클릭률(%),평균 CPC,총비용,평균노출순위,총 전환수,총 전환율(%),총 전환매출액(원)"
   };
+  const EXTRA = q.get("extra") === "1", XNOLINK = q.get("xnolink") || "", XBAD = q.get("xbad") || "", XFORBID = q.get("xforbid") || "";
+  if (EXTRA) {  // 사용자 실측(10/12): 새 보고서는 목록 맨 위에 붙는다
+    REPORTS.unshift(["연령대 보고서", "연령대"]); REPORTS.unshift(["성별 보고서", "성별"]);
+    COLS["성별"] = "캠페인유형,캠페인,일별,성별,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)";  // 2026-10-12 리허설 실측 2행(21칸)
+    COLS["연령대"] = "캠페인유형,캠페인,일별,연령대,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)";
+  }
   const PRESETS = ["어제","이번주","지난주","전 영업주","최근 7일 (오늘 제외)","이번달","지난달","이번 분기","지난 분기","최근 30일 (오늘 제외)","최근 90일 (오늘 제외)","최근 365일 (오늘 제외)"];
   const pad = n => String(n).padStart(2, "0");
   const f = d => `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}.`;
@@ -89,6 +99,7 @@
   document.getElementById("agg").textContent = f(TODAY) + " 00:20";
   const rows = document.getElementById("rows");
   REPORTS.forEach(([name]) => {
+    if (name === XNOLINK) return;
     const tr = document.createElement("tr");
     const a = document.createElement("a"); a.href = "#"; a.textContent = name;
     a.addEventListener("click", ev => { ev.preventDefault(); open(name); });
@@ -121,6 +132,7 @@
     period = preset("이번달");  // 보고서 형식에 `이번달`이 저장돼 있다(09-28 실측 ①)
     document.getElementById("title").textContent = name;
     document.getElementById("item").textContent = cur[1];
+    document.getElementById("download").title = (cur[0] === XFORBID) ? "보고서 형식 저장" : "";
     show("list", false); show("report", true); show("result", false); show("popup", false);
     renderPeriod();
     if (QDIS) { queried = period.slice(); setQueryEnabled(false); const r = document.getElementById("result");
@@ -162,7 +174,7 @@
     const P = QDIS && queried ? queried : period;  // query=disabled 모드: 조회된 기간으로만 만든다(조회하기를 건너뛰면 옛 기간이 나와 검사에 걸린다)
     const savedPeriod = period; period = P;
     L.push(`"${cur[0]}(${f(period[0])}~${f(period[1])}),${ACCT}"`);
-    L.push(COLS[kind]);
+    L.push(COLS[kind] + (cur[0] === XBAD ? ",추가열" : ""));
     const D = days();
     if (kind === "키워드") D.forEach(d => {
       const a = Math.floor(imp(d) * 0.6), b = imp(d) - a;
@@ -177,6 +189,13 @@
       const a = Math.floor(imp(d) * 0.7), b = imp(d) - a;
       L.push(`서울특별시 노원구,${f(d)},${a},${clk(d)},0,0,${cost(d)},1.8,0,0,0,0,0,0,0,0,0,0,0,0`);
       L.push(`서울특별시 도봉구,${f(d)},${b},0,0,0,0,2.1,0,0,0,0,0,0,0,0,0,0,0,0`);
+    });
+    if (kind === "성별" || kind === "연령대") D.forEach(d => {
+      const vals = kind === "성별" ? ["남성", "여성", "알 수 없음"] : ["19세 ~ 24세", "25세 ~ 29세", "알 수 없음"];  // 값 꼴 = 리허설 실측
+      vals.forEach((v, i) => {
+        L.push(`플레이스,플레이스#1,${f(d)},${v},${10 + i * 7 + d.getDate()},${(d.getDate() + i) % 3},0,0,${((d.getDate() + i) % 3) * 900},0,0,0,0,0,0,0,0,0,0,0,0`);
+        L.push(`파워링크,새로필라테스 파워링크,${f(d)},${v},${3 + i},0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0`);
+      });
     });
     if (kind === "시간대별") {
       const tot = D.reduce((s, d) => s + imp(d), 0), tc = D.reduce((s, d) => s + clk(d), 0), tcost = D.reduce((s, d) => s + cost(d), 0);

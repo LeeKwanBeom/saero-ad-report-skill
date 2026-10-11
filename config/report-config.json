@@ -72,13 +72,14 @@
     ]
   },
   "report_layout": {
-    "_comment": "레이아웃 판(사용자 결정 2026-10-06·2026-10-07 — references/report-structure.md \"레이아웃 판\" 절, 지금 r2026-10-E). 배포본 <meta name=\"report-layout\" content=\"…\"> 값 = layout_id 여야 validate \"레이아웃 판\" PASS, deploy.py 는 --file·--base 의 meta 가 다르면 --layout-change 없이 PUT 안 함. scripts/apply.py --layout 이 meta 가 없는 옛 판은 r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E 사슬로, meta r2026-10-B·C·D 판은 사슬을 따라 r2026-10-E 로 바꾼다(접기 details = markers.details 개 · 03 합계 맨 위 + 최근 recent_days 일 최신 위, 나머지 날짜는 접힌 표에 최신 위). 판 C(2026-10-06 — 01·06 모바일 가로 막대): 화면 폭 ≤ mobile.max_px 이면 01·06 차트를 가로 막대(날짜 세로축·최신 위)로 그린다 — 분기 경계 = 배포본 CSS @media (max-width: 640px) 과 같은 값(validate 가 JS matchMedia·M 줄·CSS 를 이 값과 대조) · 인쇄 때 01·06 컨테이너 높이 ≤ mobile.print_max_height_px(한 쪽 안) · 모바일 컨테이너 높이 = 날짜 수 × row_px + pad_px · 분기 표지 주석 수 = markers.mobile_branch · apply 가 매 회차 템플릿의 M 줄(var M = {…})을 이 값으로 다시 쓴다(기계 자리). PC 차트 폭(chart_min_width.per_day_px)은 그대로. 판 D(2026-10-07 — 01 모바일 기간 접기): 모바일 01·06 은 처음에 최근 mobile.recent_days 일만 그리고(최신 위, 컨테이너 높이 = 그 일수 × row_px + pad_px) 날짜가 더 많으면 차트 카드 아래 \"이전 N일(M/D~M/D) 펼치기\" 버튼(분기 도우미가 화면에서 만든다 — HTML 배열·min-width·details 그대로, 문구는 런타임에 labels 로)이 전 기간 ↔ 최근을 오간다(01·06 따로) · 인쇄 때는 전 기간 · M 줄에 recent 를 같이 쓴다. 03 표의 recent_days(위)와는 다른 값. 판 E(2026-10-08 — 01 모바일 터치 날짜): 모바일 01 가로 막대의 터치 판정(interaction)에 axis:'y' — 터치한 줄(날짜)의 총비용·노출수 팝업이 뜬다(판 D 까지는 가로 위치로 골라 다른 날짜가 떴다). 판 F(2026-10-09 — 광고비 잔액 카드): KPI 카드 넷 아래 한 줄 전체 카드 하나(.kpi-row 다섯째 자식 .kpi-wide — 데스크톱·모바일 같은 모양) — 값·보조 줄(data-balance 표지 = markers.balance_card 개씩)은 5단계 scripts/balance.py(네이버 GET /billing/bizmoney 1회) → compute.py --balance → apply 가 매 회차 쓴다(원 단위 버림 · 'M/D(요일) HH:MM 기준 · 약 N일분' — N = 잔액 ÷ 최근 7일 평균 총비용 버림, 조회 실패면 '확인 못 함'). 판을 바꾸는 것은 설계 회차·사용자 결정으로만.",
-    "layout_id": "r2026-10-F",
+    "_comment": "레이아웃 판(사용자 결정 2026-10-06·07·08·09·12 — references/report-structure.md \"레이아웃 판\" 절, 지금 r2026-10-G). 배포본 <meta name=\"report-layout\" content=\"…\"> 값 = layout_id 여야 validate \"레이아웃 판\" PASS, deploy.py 는 --file·--base 의 meta 가 다르면 --layout-change 없이 PUT 안 함. scripts/apply.py --layout 이 meta 가 없는 옛 판은 r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G 사슬로, meta r2026-10-B·C·D·E·F 판은 사슬을 따라 config 판(지금 r2026-10-G)으로 바꾼다(접기 details = markers.details 개 · 03 합계 맨 위 + 최근 recent_days 일 최신 위, 나머지 날짜는 접힌 표에 최신 위). 판 C(2026-10-06 — 01·06 모바일 가로 막대): 화면 폭 ≤ mobile.max_px 이면 01·06 차트를 가로 막대(날짜 세로축·최신 위)로 그린다 — 분기 경계 = 배포본 CSS @media (max-width: 640px) 과 같은 값(validate 가 JS matchMedia·M 줄·CSS 를 이 값과 대조) · 인쇄 때 01·06 컨테이너 높이 ≤ mobile.print_max_height_px(한 쪽 안) · 모바일 컨테이너 높이 = 날짜 수 × row_px + pad_px · 분기 표지 주석 수 = markers.mobile_branch · apply 가 매 회차 템플릿의 M 줄(var M = {…})을 이 값으로 다시 쓴다(기계 자리). PC 차트 폭(chart_min_width.per_day_px)은 그대로. 판 D(2026-10-07 — 01 모바일 기간 접기): 모바일 01·06 은 처음에 최근 mobile.recent_days 일만 그리고(최신 위, 컨테이너 높이 = 그 일수 × row_px + pad_px) 날짜가 더 많으면 차트 카드 아래 \"이전 N일(M/D~M/D) 펼치기\" 버튼(분기 도우미가 화면에서 만든다 — HTML 배열·min-width·details 그대로, 문구는 런타임에 labels 로)이 전 기간 ↔ 최근을 오간다(01·06 따로) · 인쇄 때는 전 기간 · M 줄에 recent 를 같이 쓴다. 03 표의 recent_days(위)와는 다른 값. 판 E(2026-10-08 — 01 모바일 터치 날짜): 모바일 01 가로 막대의 터치 판정(interaction)에 axis:'y' — 터치한 줄(날짜)의 총비용·노출수 팝업이 뜬다(판 D 까지는 가로 위치로 골라 다른 날짜가 떴다). 판 F(2026-10-09 — 광고비 잔액 카드): KPI 카드 넷 아래 한 줄 전체 카드 하나(.kpi-row 다섯째 자식 .kpi-wide — 데스크톱·모바일 같은 모양) — 값·보조 줄(data-balance 표지 = markers.balance_card 개씩)은 5단계 scripts/balance.py(네이버 GET /billing/bizmoney 1회) → compute.py --balance → apply 가 매 회차 쓴다(원 단위 버림 · 'M/D(요일) HH:MM 기준 · 약 N일분' — N = 잔액 ÷ 최근 7일 평균 총비용 버림, 조회 실패면 '확인 못 함'). 판을 바꾸는 것은 설계 회차·사용자 결정으로만. 판 G(2026-10-12 — 보고서 더 받기 A + B): 04 캠페인 상세 지표 구역 끝(본 표·note 뒤) '계정 변경 기록' 카드 하나 + 05 매체·기기별 분포 구역 끝(차트 카드 아래) '성별 · 연령대' 카드 하나 — 표지 주석 `<!-- saero:extra history -->`·`<!-- saero:extra gender-age -->` 짝(합 = markers.extra_blocks) · 새 구역 0 · 새 CSS 0. 블록 안은 매 회차 apply 가 compute.json \"변경기록\"·\"성별연령\"(compute --extra work/extra ← scripts/extras.py combine)으로 통째로 쓴다(없으면 '확인 못 함').",
+    "layout_id": "r2026-10-G",
     "recent_days": 7,
     "markers": {
       "details": 5,
       "mobile_branch": 2,
-      "balance_card": 1
+      "balance_card": 1,
+      "extra_blocks": 2
     },
     "mobile": {
       "max_px": 640,
@@ -187,7 +188,59 @@
       "계정 설정",
       "광고 계정",
       "비즈머니"
-    ]
+    ],
+    "extras": {
+      "_comment": "추가 수집(보고서 더 받기 A + B — 사용자 결정 2026-10-12 \"추천대로 하자\", audit/last-audit.md 기능 추가 구현 기준선). 기존 4개(report_names·columns·성공 폴더 *.csv·ingest.sh·data/·종료 코드)는 그대로 — 4개가 PASS 한 뒤 같은 fetch 실행에서 받고, 어떤 실패·차단도 4개를 막지 않는다(scripts/fetch_reports.py 머리말). 이 블록이 없으면 지금과 같고, 꼴이 틀리면(이름·종류가 4개와 겹침 · 종류끼리 접두 · 이름에 forbidden_actions 낱말 · columns·URL 없음) `[주의] extras 설정` 으로 추가만 끈다. subdir = 성공 폴더 아래 추가 파일 폴더(ingest.sh glob 밖). archive_dir·history.ledger = 저장소 밖(scripts/extras.py store/combine/seed — 저장소 안 경로는 쓰지 않는다). reports = 다차원 보고서 목록의 이름(사용자가 2026-10-12 저장 — 캠페인 + 일별 + 성별 / 연령대, 통계기간 이번달) ↔ kind(보관 이름 <kind>.csv) · dim(성별·연령대 칸) · columns(다운로드 CSV 2행 원문 — 2026-10-12 리허설 첫 --debug 실측: `캠페인유형`(붙여 씀) … 총비용 + 전환 12칸, 21칸) · every daily · dated(일별 칸). gender_age = 05 아래 카드(min_imps 노출 미만 칸은 클릭률 대신 '적음' · show_unknown 알 수 없음 줄 보임 · unknown 그 값 이름). history = 변경 이력 관리(url = 사용자가 알려 준 주소 — 쿼리 없음, list_url 과 같은 출처 · 클릭은 `다운로드` 하나 · columns = 엑셀 머리줄 원문 · actor_rules = 변경자 끝 글자 → 주체 낱말(앞 규칙부터, 안 맞으면 '기타') — 아이디 원문은 읽는 즉시 버린다 · show = 04 아래 표에 보일 주체 · show_system false = SYSTEM 하루예산 중단은 리포트·12번에 쓰지 않는다(09-21 결정) · max_rows 표 줄 수).",
+      "subdir": "extra",
+      "archive_dir": "~/saero-fetch/extra-archive",
+      "reports": {
+        "성별 보고서": {
+          "kind": "성별",
+          "dim": "성별",
+          "columns": "캠페인유형,캠페인,일별,성별,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+          "every": "daily",
+          "dated": true
+        },
+        "연령대 보고서": {
+          "kind": "연령대",
+          "dim": "연령대",
+          "columns": "캠페인유형,캠페인,일별,연령대,노출수,클릭수,클릭률(%),평균 CPC,총비용,총 전환수,직접전환수,간접전환수,총 전환율(%),총 전환매출액(원),직접전환매출액(원),간접전환매출액(원),총 전환당비용(원),총 광고수익률(%),구매완료 전환수,구매완료 전환매출액(원),구매완료 광고수익률(%)",
+          "every": "daily",
+          "dated": true
+        }
+      },
+      "gender_age": {
+        "min_imps": 100,
+        "show_unknown": true,
+        "unknown": "알 수 없음"
+      },
+      "history": {
+        "kind": "변경이력",
+        "url": "https://ads.naver.com/manage/ad-accounts/2580077/sa/tool/history",
+        "every": "daily",
+        "columns": "변경일자,변경 유형,변경자,캠페인,광고그룹,변경 내용",
+        "actor_rules": [
+          [
+            "SYSTEM",
+            "시스템"
+          ],
+          [
+            ":naver(API)",
+            "스킬"
+          ],
+          [
+            ":naver",
+            "사람"
+          ]
+        ],
+        "ledger": "~/saero-fetch/history/ledger.csv",
+        "show": [
+          "사람"
+        ],
+        "show_system": false,
+        "max_rows": 10
+      }
+    }
   },
   "leads": {
     "_comment": "주간 성과 장부(설계안 A — 매출 작업, 사용자 결정 2026-10-10 \"추천대로 하자\"). scripts/leads.py·compute.py --leads·validate.py·precheck.sh 가 읽는다. path 는 저장소 밖 장부(~ = 사용자 홈 — 공개 저장소에 넣지 않는다, 시험·리허설은 --ledger 또는 환경 변수 SAERO_LEADS 로 스크래치). 주 = week_start(월)~일, '지난주' = 합본 집계 끝(키워드 일별 마지막 날) 기준 다 찬 주 — add 는 --week 를 받지 않고 이 주만(정정은 --replace --week). question 의 {week} 에 '10/5(월)~10/11(일)' 꼴. fields: required 넷(문의·체험·등록·그중 네이버 경유) + optional(매출·스마트플레이스 통계) — 숫자 칸만(글자 칸 0), max_per_week 넘으면 FAIL(오타 막기). publish = verdict: compute.json·리포트·last-audit·커밋에는 판정 낱말만(건수·매출은 채팅·로컬 장부에만 — 다른 값은 설계 회차 몫이라 compute 가 FAIL). 판정(verdict_rule poisson2): 지표 = 최근 window_weeks 주 합 등록 vs 직전 window_weeks 주 합 · 장부 줄(입력·건너뜀)이 min_weeks 주 미만이면 '판정 전(N/8주)' · 두 창 안에 미입력·건너뜀 주가 하나라도 있으면 '미입력(구멍)'(0 으로 더하지 않는다) · 직전 합 0 이면 '비교 불가' · 차이 > 2×√(두 합의 합)일 때만 좋아짐/나빠짐, 아니면 '구별 안 됨' · 장부 없음·꼴 다름 '확인 못 함'. public_labels = validate '01·11·12 서술 장부 라벨+숫자 0'·leads.py guard 가 찾는 라벨(숫자가 바로 붙으면 FAIL — '등록 N개'·'등록 N · verified' 같은 제외 검색어 문구는 빼고 센다 · '등록'은 label_skip_context 낱말이 있는 줄·'→ 등록 N' 꼴이면 'N명'만 센다). guard_value_min = guard 가 장부 최근 매출 값을 원·콤마·만 꼴로 찾을 때의 하한(작은 값은 흔한 숫자라 대조 안 함).",

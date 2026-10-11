@@ -68,7 +68,13 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      장부 행·플레이스 행(`플레이스 P<n> `)마다 `M/D까지` = 키워드 CSV 집계 마지막 날(같은 주 다음 날 회차도 바이트가 달라 narrative 가 서술 미교체를 잡는다) ·
      플레이스 ✗ 행(`상태 = ✗`) ≤ config `place_checklist.items_in_12` · ✓ 아닌 행 ≤ config `place_checklist.max_open_rows_12`(12번 작성 기준 4). 12번 표 행 0 이면 FAIL.
 
-사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
+ 27. (2026-10-12 판 G 보고서 더 받기 A + B) "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra" — `--extra <work/extra>`(precheck 는 작업본 옆 extra/)의
+     파일 유무가 카드 유무 기준(A-5): `<종류>.csv`(성별·연령대 합본)·`변경이력.csv`+`변경이력_기록구간.csv`(원장 사본)가 있으면 카드·표의 기간 표기·줄 값이 compute.py 와
+     따로 다시 센 값과 같아야(성별·연령대 = 합본 머리 기간 · 노출·비중·클릭·클릭률(min_imps 미만 '적음')·비용 · 알 수 없음 % / 변경 기록 = 키워드 CSV 집계 기간 ∩ 기록 구간
+     마지막 연속 구간 · 보일 주체 줄 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
+     배포본 전체 아이디 꼴 `:naver` 0. "레이아웃 판" 검사(23)에 판 G 표지(블록 여닫이 각 1 · 04 안 본 표 뒤 · 05 안) 대조가 붙는다.
+
+사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>] [--extra <work/extra>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
 안 맞는데 조용히 통과하는 것을 막기 위한 것이다.
@@ -77,9 +83,12 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
 종료 코드: 0=전부 통과, 1=실패 있음
 """
 
+import csv
 import datetime as dt
+import io
 import json
 import math
+import os
 import re
 import sys
 
@@ -441,9 +450,22 @@ def check_layout(html):
     elif want_bc and not (-1 < kr < html.rfind("클릭당 평균", 0, iv) < iv < s1): bad.append("잔액 카드가 .kpi-row 안 넷째 카드 뒤(01 섹션 앞)가 아님")
     n_kw = html.count(".kpi-wide{grid-column:1 / -1;}")
     if want_bc and n_kw != 1: bad.append(f"CSS .kpi-wide{{grid-column:1 / -1;}} {n_kw}건 ≠ 1(잔액 카드 한 줄 전체)")
+    # 판 G(2026-10-12 — 보고서 더 받기 A + B): 04 변경 기록·05 성별·연령대 블록 표지 각 1(여닫이 짝) · 합 = markers.extra_blocks · 04 블록은 04 안 본 표 뒤 · 05 블록은 05 안
+    want_eb = int(LAYOUT["markers"].get("extra_blocks", 0))
+    if want_eb:
+        n_open = [html.count(f"<!-- saero:extra {k} -->") for k in ("history", "gender-age")]
+        n_close = [html.count(f"<!-- /saero:extra {k} -->") for k in ("history", "gender-age")]
+        if n_open != [1, 1] or n_close != [1, 1] or sum(n_open) != want_eb:
+            bad.append(f"추가 블록 표지 여는 {n_open} · 닫는 {n_close} ≠ 각 1(config extra_blocks {want_eb}) — apply.py --layout 으로 판 G")
+        else:
+            s4, s5 = section(html, 4), section(html, 5)
+            if not (-1 < s4.find("</table>") < s4.find("<!-- saero:extra history -->") < s4.find("<!-- /saero:extra history -->")):
+                bad.append("변경 기록 블록이 04 구역 안 본 표 뒤가 아님")
+            if not (-1 < s5.find("<!-- saero:extra gender-age -->") < s5.find("<!-- /saero:extra gender-age -->")):
+                bad.append("성별·연령대 블록이 05 구역 안이 아님")
     check(name, not bad, "; ".join(bad) if bad else
           f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y"
-          + (f" · 잔액 카드 {nv}" if want_bc else ""))
+          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else ""))
 
 
 KST = dt.timezone(dt.timedelta(hours=9))
@@ -506,6 +528,194 @@ def check_balance_card(html, kw, bal_path):
     check(name, not bad, "; ".join(bad) if bad else f"{re.sub(r'<[^>]+>', '', vals[0])} · {subs[0]} ({extra} · 읽은 시각 {ra})")
 
 
+def _block(html, key):
+    """판 G 블록 안쪽(여는 표지 ~ 닫는 표지). 없으면 None."""
+    a, b = html.find(f"<!-- saero:extra {key} -->"), html.find(f"<!-- /saero:extra {key} -->")
+    return html[a:b] if -1 < a < b else None
+
+
+def _plain(s):
+    return re.sub(r"<[^>]+>", "", s).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip()
+
+
+def _ga_expect(path, dim, unk, min_imps, show_unknown):
+    """성별·연령대 합본 하나를 compute.py 와 따로 다시 센다(csv 모듈 · 값 계산 공유 0) → (기간 'M/D~M/D', 알 수 없음 % 글, [(구분, 노출, 비중, 클릭, 클릭률|적음, 비용)])."""
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        text = f.read()
+    head, _, rest = text.partition("\n")
+    m = re.search(r"\((\d{4})\.(\d{2})\.(\d{2})\.~(\d{4})\.(\d{2})\.(\d{2})\.\)", head)
+    rows = list(csv.reader(io.StringIO(rest)))
+    cols = rows[0]
+    i_d, i_n, i_c, i_k = cols.index(dim), cols.index("노출수"), cols.index("클릭수"), cols.index("총비용")
+    agg = {}
+    for r in rows[1:]:
+        if not r:
+            continue
+        a = agg.setdefault(r[i_d], [0, 0, 0])
+        for j, col in enumerate((i_n, i_c, i_k)):
+            try:
+                a[j] += int(float(r[col])) if r[col] != "" else 0
+            except ValueError:
+                pass
+    total = sum(v[0] for v in agg.values())
+    def key(lbl):
+        num = re.findall(r"\d+", lbl)
+        return (1 if lbl == unk else 0, int(num[0]) if num else 10**6, lbl)
+    out = []
+    for lbl in sorted(agg, key=key):
+        n, cl, k = agg[lbl]
+        if lbl == unk and not show_unknown:
+            continue
+        ctr = "적음" if (n < min_imps or n == 0) else f"{round(cl / n * 100, 2):.2f}%"
+        share = f"{(round(n / total * 100, 1) if total else 0.0):.1f}%"
+        out.append((lbl, f"{n:,}", share, f"{cl:,}", ctr, f"{k:,}원"))
+    per = f"{int(m.group(2))}/{int(m.group(3))}~{int(m.group(5))}/{int(m.group(6))}"
+    u = agg.get(unk, [0])[0]
+    return per, (f" · 알 수 없음 {round(u / total * 100, 1):.1f}%" if total else ""), out
+
+
+def _v_phrase(kind, body):
+    """변경 내용 → '내용' 한 구(compute.py change_phrase 와 따로 쓴 같은 규칙 — 둘째 줄로 가름)."""
+    lines = body.split("\n")
+    tag = lines[1].strip() if len(lines) > 1 else ""
+
+    def count(seg):
+        total = 0
+        for ln in seg:
+            val = ln.split(":", 1)[1] if ":" in ln else ln
+            total += sum(1 for x in val.strip().split(", ") if x.strip())
+        return total
+    def fields(seg):
+        seen = []
+        for ln in seg:
+            if ":" in ln:
+                f = ln.split(":", 1)[0].strip()
+                if f and f not in seen:
+                    seen.append(f)
+        return "·".join(seen)
+    if tag in ("등록된 내용", "삭제된 내용"):
+        f = fields(lines[2:])
+        return ("등록" if tag.startswith("등록") else "삭제") + f" {count(lines[2:])}개" + (f"({f})" if f else "")
+    if tag == "변경 전" and "변경 후" in lines[2:]:
+        k = lines.index("변경 후", 2)
+        if kind == "타겟팅 변경":
+            f = fields(lines[2:k])
+            return (f + " " if f else "") + f"변경(전 {count(lines[2:k])} → 후 {count(lines[k + 1:])}개)"
+        before = [(l.split(":", 1)[0].strip(), l.split(":", 1)[1].strip()) for l in lines[2:k] if ":" in l]
+        after = dict((l.split(":", 1)[0].strip(), l.split(":", 1)[1].strip()) for l in lines[k + 1:] if ":" in l)
+        bits = []
+        for f, v in before:
+            if f in after:
+                w = after[f]
+                bits.append(f"{f} {count([v])} → {count([w])}개" if (", " in v or ", " in w) else f"{f} {v} → {w}")
+        return " · ".join(bits)
+    return ""
+
+
+def check_extras(html, extra_dir, kw):
+    """27. (판 G, 2026-10-12) 추가 카드·표 = work/extra(독립 재계산). 카드 유무 기준 = `<extra>/<종류>.csv`·`<extra>/변경이력.csv`(+기록 구간) 파일 유무(A-5 —
+    precheck 가 늘 넘겨도 첫 회·실패면 '확인 못 함'이 맞음). 있으면 표 기간·줄 값이 다시 센 값과 같아야, 없으면 그 자리가 '확인 못 함' 이어야.
+    B 표 기간 = 키워드 CSV 집계 기간 ∩ 기록 구간 마지막 연속 구간(막음 B-1) · 보일 주체 줄 최신 위 max_rows · 스킬 등록 n회(고유 분)·삭제 k건 ·
+    show_system false 면 SYSTEM·하루예산 중단 0(09-21 결정) · 배포본 전체에 아이디 꼴(`:naver`) 0."""
+    import extras as X
+    name = "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra"
+    if not int(LAYOUT["markers"].get("extra_blocks", 0)):
+        return
+    ex, _ = X.extras_config(CFG["report_fetch"])
+    ga_b, hi_b = _block(html, "gender-age"), _block(html, "history")
+    bad, info = [], []
+    if ga_b is None or hi_b is None:
+        check(name, False, "추가 블록 표지를 못 찾음 — apply.py --layout(판 G)")
+        return
+    if ":naver" in html:
+        bad.append(f"배포본에 아이디 꼴 ':naver' {html.count(':naver')}곳")
+    reports = (ex or {}).get("reports") or {}
+    ga = (ex or {}).get("gender_age") or {}
+    subs = re.split(r'<div class="sub-head">', ga_b)[1:]   # [0] 표지~카드 머리(style 붙은 sub-head) · [1:] 종류마다
+    got_ga = {}
+    for s in subs:
+        m = re.match(r"([^<]+?) <span[^>]*>\((.*?)\)</span></div>", s)
+        if m:
+            cells = [[_plain(c) for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)] for tr in re.findall(r"<tr>(.*?)</tr>", s, re.S)]
+            got_ga[_plain(m.group(1))] = (_plain(m.group(2)), [tuple(c) for c in cells if c])
+    any_file = False
+    for rname, spec in reports.items():
+        k = spec["kind"]
+        p = os.path.join(extra_dir, f"{k}.csv") if extra_dir else None
+        g = got_ga.get(k)
+        if p and os.path.exists(p):
+            any_file = True
+            per, unk_txt, want_rows = _ga_expect(p, spec["dim"], ga.get("unknown", "알 수 없음"), int(ga.get("min_imps", 0)), bool(ga.get("show_unknown", True)))
+            if g is None:
+                bad.append(f"{k}: 합본이 있는데 카드에 표가 없음('확인 못 함' 또는 마크업)")
+                continue
+            if g[0] != per + unk_txt:
+                bad.append(f"{k} 머리 화면 ({g[0]}) ≠ 합본 ({per}{unk_txt})")
+            if g[1] != want_rows:
+                bad.append(f"{k} 표 {len(g[1])}줄 ≠ 다시 센 {len(want_rows)}줄" + (f" — 첫 다름 화면 {next((a for a, b in zip(g[1], want_rows) if a != b), None)} · 합본 {next((b for a, b in zip(g[1], want_rows) if a != b), None)}" if g[1] else ""))
+            info.append(f"{k} {per} {len(want_rows)}줄")
+        else:
+            if g is not None and not g[0].startswith("확인 못 함"):
+                bad.append(f"{k}: 합본(work/extra/{k}.csv)이 없는데 카드에 값이 있음 — 옛 값이 남았거나 입력이 다름")
+            info.append(f"{k} 확인 못 함")
+    if not any_file and "확인 못 함" not in ga_b:
+        bad.append("성별·연령대 합본이 하나도 없는데 카드에 '확인 못 함'이 없음")
+    # B — 계정 변경 기록
+    h = (ex or {}).get("history")
+    led = os.path.join(extra_dir, X.HISTORY_FILE) if extra_dir else None
+    cov = os.path.join(extra_dir, X.COVERED_FILE) if extra_dir else None
+    if h and led and os.path.exists(led) and os.path.exists(cov):
+        with open(cov, encoding="utf-8-sig", newline="") as f:
+            spans = [r for r in csv.reader(f)][1:]
+        days = set()
+        for r in spans:
+            if not r:
+                continue
+            a = dt.date.fromisoformat(r[0])
+            b = dt.date.fromisoformat(r[1])
+            while a <= b:
+                days.add(a)
+                a += dt.timedelta(days=1)
+        dmin, dmax, _ = parse_days(kw)
+        end = max(days) if days else None
+        start = end
+        while start is not None and (start - dt.timedelta(days=1)) in days:
+            start -= dt.timedelta(days=1)
+        lo, hi = (max(dmin.date(), start), min(dmax.date(), end)) if days else (None, None)
+        if not days or lo > hi:
+            if "확인 못 함" not in hi_b:
+                bad.append("기록 구간이 집계 기간과 겹치지 않는데 표에 '확인 못 함'이 없음")
+        else:
+            with open(led, encoding="utf-8-sig", newline="") as f:
+                lrows = [r for r in csv.reader(f)][1:]
+            inside = [r for r in lrows if r and lo <= dt.date(int(r[0][:4]), int(r[0][5:7]), int(r[0][8:10])) <= hi]
+            show = [r for r in inside if r[2] in h["show"]]
+            show = sorted(show, key=lambda r: r[0], reverse=True)
+            want = [(f"{int(r[0][5:7])}/{int(r[0][8:10])} {r[0][12:17]}", r[1], r[4] or r[3] or "—", _v_phrase(r[1], r[5]) or "—") for r in show[:int(h["max_rows"])]]
+            label = f"{lo.month}/{lo.day}~{hi.month}/{hi.day} 기록" + (f" · 최근 {len(want)}건 / {len(show)}건" if len(show) > len(want) else "")
+            mh = re.search(r"계정 변경 기록\([^)]*\) <span[^>]*>\((.*?)\)</span>", hi_b)
+            if not mh or _plain(mh.group(1)) != label:
+                bad.append(f"변경 기록 머리 화면 ({_plain(mh.group(1)) if mh else '없음'}) ≠ ({label})")
+            got = [tuple(_plain(c) for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S)) for tr in re.findall(r"<tr>(.*?)</tr>", hi_b, re.S)]
+            got = [g for g in got if g]
+            if got != want:
+                bad.append(f"변경 기록 표 {len(got)}줄 ≠ 원장 {len(want)}줄" + (f" — 첫 다름 화면 {next((a for a, b in zip(got, want) if a != b), None)} · 원장 {next((b for a, b in zip(got, want) if a != b), None)}" if got and want else ""))
+            sk = [r for r in inside if r[2] == "스킬" and r[1] == "타겟팅 변경"]
+            sec_line = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
+            n_run = len({r[0] for r in sk if sec_line(r) == "등록된 내용"})
+            n_del = len([r for r in sk if sec_line(r) == "삭제된 내용"])
+            if f"스킬 제외 검색어 등록 {n_run}회(실행 수) · 삭제 {n_del}건" not in _plain(hi_b):
+                bad.append(f"스킬 줄 ≠ 원장(등록 {n_run}회 · 삭제 {n_del}건)")
+            if not h.get("show_system") and ("하루예산 중단" in hi_b or "SYSTEM" in hi_b or "시스템" in hi_b):
+                bad.append("show_system false 인데 표에 SYSTEM·하루예산 중단")
+            info.append(f"변경 기록 {lo.month}/{lo.day}~{hi.month}/{hi.day} {len(want)}/{len(show)}줄 · 스킬 {n_run}회·삭제 {n_del}")
+    else:
+        if "확인 못 함" not in hi_b:
+            bad.append("원장 사본(work/extra/변경이력.csv·기록 구간)이 없는데 표에 '확인 못 함'이 없음 — 옛 값이 남았거나 입력이 다름")
+        info.append("변경 기록 확인 못 함")
+    check(name, not bad, "; ".join(bad) if bad else " · ".join(info) + (f" · 입력 {extra_dir}" if extra_dir else " · 입력 없음(--extra)"))
+
+
 def check_leads_public(html):
     """25. 01·11·12 본문에 장부 라벨+숫자 0(publish = verdict) — 공개 배포본에 문의·등록·매출 숫자가 실리는 길(막음 A-F2)의 배포 전 관문."""
     name = "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)"
@@ -566,6 +776,13 @@ def main():
         if i + 1 >= len(argv):
             sys.exit(__doc__)
         bal_path = argv[i + 1]
+        del argv[i:i + 2]
+    extra_dir = None
+    if "--extra" in argv:  # 판 G 추가 합본 폴더(precheck 가 작업본 옆 extra/ 를 넘긴다) — 카드 유무 기준 = 그 안 파일 유무
+        i = argv.index("--extra")
+        if i + 1 >= len(argv):
+            sys.exit(__doc__)
+        extra_dir = argv[i + 1]
         del argv[i:i + 2]
     pending = "--pending" in argv
     args = [a for a in argv if a != "--pending"]
@@ -643,6 +860,7 @@ def main():
     check_balance_card(html, kw, bal_path)  # 2026-10-09 — 판 F 광고비 잔액 카드
     check_leads_public(html)  # 2026-10-10 — 매출 작업 A 공개 범위
     check_12_growth(html, dmax)  # 2026-10-10 — 매출 작업 A·C 12번 행
+    check_extras(html, extra_dir, kw)  # 2026-10-12 — 판 G 추가 카드·표(보고서 더 받기 A + B)
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

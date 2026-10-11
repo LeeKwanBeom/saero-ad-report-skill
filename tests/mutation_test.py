@@ -28,6 +28,9 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   (2026-10-10 매출 작업 A·C) "01·11·12 서술에 장부 라벨+숫자 0": 변조 1(11 첫 항목에 '장부 등록 1명') + 0건 가드 1(Section 1·11·12 주석 변조)
      + config 실험(leads.publish 를 counts 로 → 기준 사본 FAIL) / "12번 장부·플레이스 행": 변조 2(판정 낱말 config 밖 · 'M/D까지' 하루 앞) + 0건 가드 1(판정 문구 변조).
      기준 사본은 12번 장부 행이 있는 배포본(첫 적용 뒤)이어야 한다 — 첫 적용 전 배포본은 기준 실행에서 "12번 장부·플레이스 행" FAIL 로 멈춘다(기대값).
+  (2026-10-12 판 G 보고서 더 받기 A + B) index.html 옆 extra/(precheck 와 같은 work/extra — 추가 합본·원장 사본)를 사본으로 옮겨 validate 에 --extra 로 넘긴다
+     (없으면 빈 폴더 — 카드가 '확인 못 함' 이어야 기준 PASS). "추가 카드·표": 변조 4(성별·연령대 표 첫 노출 +1 · 변경 기록 기간 끝 하루 뒤 · 스킬 등록 회수 +1 ·
+     배포본에 아이디 꼴 `:naver` 주석) — 카드가 '확인 못 함' 이면 앞 셋은 SKIP + 0건 가드 2(변경 기록 블록 표지 지우기 → "추가 카드·표" · "레이아웃 판" 각각).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -188,7 +191,8 @@ def main():
         sys.exit(__doc__)
     orig = dict(zip(["html", "kw", "sr", "hr", "rg"], sys.argv[1:6]))
     bal_src = sys.argv[6] if len(sys.argv) == 7 else os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "balance.json")
-    bal_base = read(bal_src) if os.path.exists(bal_src) else None   # 판 F 잔액 기록(없으면 기준 실행이 "광고비 잔액 카드" FAIL — 아래에서 멈춘다)
+    bal_base = read(bal_src) if os.path.exists(bal_src) else None
+    extra_src = os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "extra")   # 판 G 추가 합본(precheck 와 같은 자리 — 없으면 빈 폴더)   # 판 F 잔액 기록(없으면 기준 실행이 "광고비 잔액 카드" FAIL — 아래에서 멈춘다)
     data_files = sorted(glob.glob(os.path.join(REPO, "data", "*", "*.csv")))
     orig_md5 = {k: md5(v) for k, v in orig.items()}
     data_md5 = {p: md5(p) for p in data_files}
@@ -199,6 +203,11 @@ def main():
         shutil.copytree(os.path.join(REPO, "scripts"), os.path.join(work, "scripts"))
         shutil.copytree(os.path.join(REPO, "config"), os.path.join(work, "config"))
         validate = os.path.join(work, "scripts", "validate.py")
+        extra_w = os.path.join(work, "extra")
+        if os.path.isdir(extra_src):
+            shutil.copytree(extra_src, extra_w)
+        else:
+            os.makedirs(extra_w)
         cfg_path = os.path.join(work, "config", "report-config.json")
         cfg_text = read(cfg_path)
         cfg = json.loads(cfg_text)
@@ -221,7 +230,7 @@ def main():
                 paths[k] = p
             with open(cfg_path, "w", encoding="utf-8") as f:
                 f.write(cfg_override if cfg_override else cfg_text)
-            r = subprocess.run([sys.executable, validate, paths["html"], paths["kw"], paths["sr"], paths["hr"], paths["rg"], "--balance", bal_p],
+            r = subprocess.run([sys.executable, validate, paths["html"], paths["kw"], paths["sr"], paths["hr"], paths["rg"], "--balance", bal_p, "--extra", extra_w],
                                capture_output=True, text=True, encoding="utf-8")
             lines = r.stdout.splitlines()
             passed = [l[7:] for l in lines if l.startswith("[PASS] ")]
@@ -360,6 +369,16 @@ def main():
         muts.append(("12 장부 행 'M/D까지' 하루 앞(지난 회차 날짜)", "12번 장부·플레이스 행",
                      {"html": H.replace(m.group(0), f"{m.group(1)}/{int(m.group(2)) - 1 or 1}{m.group(3)}", 1) if m and int(m.group(2)) > 1 else None}))
 
+        # (2026-10-12 판 G) 추가 카드·표 — 성별·연령대 첫 노출 +1 · 변경 기록 기간 끝 하루 뒤 · 스킬 등록 회수 +1 · 아이디 꼴 주석
+        ga = H[H.find("<!-- saero:extra gender-age -->"):H.find("<!-- /saero:extra gender-age -->")]
+        m = re.search(r'(<td class="name-cell">[^<]+</td>\s*<td class="num">)([\d,]+)(</td>)', ga)
+        muts.append(("성별·연령대 표 첫 노출 +1", "추가 카드·표", {"html": H.replace(ga, ga.replace(m.group(0), f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}", 1), 1) if m else None}))
+        m = re.search(r"(\((?:\d+/\d+)~)(\d+)/(\d+)( 기록)", H)
+        muts.append(("변경 기록 기간 끝 하루 뒤", "추가 카드·표", {"html": H.replace(m.group(0), f"{m.group(1)}{m.group(2)}/{int(m.group(3)) + 1}{m.group(4)}", 1) if m else None}))
+        m = re.search(r"(스킬 제외 검색어 등록 )(\d+)(회\(실행 수\))", H)
+        muts.append(("스킬 등록 회수 +1", "추가 카드·표", {"html": H.replace(m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}", 1) if m else None}))
+        muts.append(("배포본에 아이디 꼴 주석(:naver)", "추가 카드·표", {"html": H.replace("</body>", "<!-- x:naver --></body>", 1) if "saero:extra" in H else None}))
+
         # --- 4. 0건 가드 ---
         guards = [
             ("0건: masthead 문구 변조", "masthead 집계 기간", {"html": H.replace("집계 기간<b>", "집계기간<b>", 1)}),
@@ -398,6 +417,9 @@ def main():
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 잔액 검사", "광고비 잔액 카드", {"html": nob}))
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nob}))
         # (2026-10-10 매출 작업 A·C) 12번 장부 판정 문구 변조 → 장부 행 0 · Section 1·11·12 주석 변조 → 01·11·12 본문 0자
+        noh = H.replace("<!-- saero:extra history -->", "", 1).replace("<!-- /saero:extra history -->", "", 1) if "<!-- saero:extra history -->" in H else None
+        guards.append(("0건: 판 G 변경 기록 블록 표지 지우기 → 추가 카드·표", "추가 카드·표", {"html": noh}))
+        guards.append(("0건: 판 G 변경 기록 블록 표지 지우기 → 레이아웃 판", "레이아웃 판", {"html": noh}))
         guards.append(("0건: 12 장부 판정 문구 변조(장부 기준 판정 = → 장부 판정:)", "12번 장부·플레이스 행",
                        {"html": H.replace("장부 기준 판정 = ", "장부 판정: ") if "장부 기준 판정 = " in H else None}))
         guards.append(("0건: Section 1·11·12 주석 변조(장부 라벨 검사 본문 0자)", "장부 라벨+숫자",
