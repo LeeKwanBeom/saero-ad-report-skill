@@ -1,3 +1,42 @@
+## 검증·병합 기록(2026-10-11 — 배포 뒤 공개 사이트 반영 확인(설계안 B 빈 커밋 Git Data API): 검증 1(막음 0) → main 병합)
+
+**병합**: `feat-20261011-livecheck`(`e480917` — ac255f6 위 6커밋: 탐색 기록 `6754415`·`7ba5e18`·`ababcbc`·`1b3ae36` · `82aed71` 코드·시험·문서 · `e480917` 구현 기록)를 main(`ac255f6` — 분기 뒤 main 변경 0, 2026-10-11 21:45 KST `ls-remote` 로 main = ac255f6 · 브랜치 = e480917 확인 · 운영 작업 폴더 `git --no-optional-locks status --short` 0줄 · `work/` 최근 변경 10/11 08:03 → 갱신 회차 돌지 않음)에 `git merge --no-ff` → 병합 커밋 **`5fc23c9`**(부모 ac255f6 · e480917, 트리 `534bfa85` = e480917 트리 — `git diff --stat e480917 HEAD` 빈 출력 · ac255f6 대비 10 파일 +1975/−72). 경우 A — 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합). 커밋 전 `leads.py guard --staged --message-file`(이 브랜치의 새 guard — staged 10파일 · 추가 줄 1975 · 회차 머리 배포 완료 0줄) PASS. 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0 — `merge --no-commit` 도 신원이 없으면 `unable to auto-detect email address` 로 멈춰 merge 명령에 붙임). clone `D:\saero-verify\merge-20261011-livecheck`(`git clone -c core.autocrlf=false`). 이 절을 더한 기록 커밋 해시는 자기 참조라 채팅 보고. 세션 = 검증 세션에 이어서(`D:\saero-verify` · Fable 5.1 · high · 울트라코드 켬 — [넘길 때] 표 ⑥ 줄은 Opus 5.5 · high · 끔이나 사용자 "병합" 한마디로 같은 세션에서 진행 · 하위 에이전트 0).
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_공개반영확인_회차1_2026-10-11.md`, 별도 세션 — `D:\saero-verify` 2026-10-11 20:45~21:13 KST, 조정자 Fable 5.1 · high · 울트라코드 켬 · 워크플로 검토자 3 = Fable 5.1(jsonl `claude-fable-5-1` — live·public 코드/시험 · redeploy·guard 코드/시험 · 문서·config·규칙) · 반박 0 · Haiku 0 · Opus 0 · 하위 토큰 573,106 · 도구 68 · 13분, clone `D:\saero-verify\feat-20261011-livecheck-1`, 대상 e480917): 구현 지시문 완료 기준 표 28줄 전부 참 · 임의 결정 1~22 어긋남 0 · 사용자 결정 뒤집는 문구 0 · test_deploy **45 OK**(96초) · test_leads **23 OK**(40초) · 지시 grep 셋(deploy.py "배포 완료" 10줄 = head_line·guard FAIL 줄뿐 · scripts/ 공개 주소·githubstatus 0 · 새 md 줄의 회차 머리 꼴 0) · guard K3 실측 6경우(임시 git 저장소 — 머리 원문 :472·:1921 → live_ok 없음 FAIL / 맞는 live_ok PASS / 공개 md5 ≠ work/index.html FAIL / SAERO_LIVE_OK 는 안 읽음 FAIL / 10/11 '저장소 반영' 꼴 머리 0줄 PASS / 옮긴 줄 제외 PASS) · 바뀐 단언 :207·:226·:399 약해지지 않음(push 출력 "배포 완료" NotIn 추가 · verify 요청 contents 정확 1 + HEAD 정확 1) · **리허설 R1 재실행 rc 0**(20:49 KST — `[폴 1] Pages 실행 #159 completed success` → `[공개 1] md5 53dce9d8 = 작업본` → 무인증 1 · 공개 GET 1 · 2초 · 머리 배포 완료 `07f4a96` · live_ok 는 `SAERO_LIVE_OK` 스크래치 · 운영 work/ 세 파일 읽기만) · 배포 저장소 HEAD 07f4a96 전 = 후 · 운영 폴더 전후 스냅샷(status·work/ 목록·5파일 md5) diff 0 · 외부 쓰기 0 · redeploy·push 0 · R2·R3 0 · 무인증 1 → **막음 0 · 이월 17 · "다음 단계로 가도 된다"**.
+
+**병합 main 확인**(경우 A — 병합 트리 = 브랜치 트리 해시 같음 · 전체 시험은 구현 세션이 커밋 전 한 번(20:24~20:30, 단위 시험 11 + py_compile + bash -n — 아래 구현 기록 "전체 시험") · 검증 세션이 바뀐 줄에 닿는 시험 2개·개별 시험 38회·리허설 R1 을 재실행 → 작업 알고리즘 4절 "전체 시험은 병합 전 한 번" 이 채워져 다시 돌리지 않음) [실측 21:47 KST]:
+- 병합 트리 `534bfa85` = e480917 트리 · `git diff --stat e480917 HEAD` 빈 출력 · 작업 트리 변경 0.
+- `cat data/*/*.csv audit/exclusions.csv | md5sum` 병합 전 origin/main = 병합 뒤 **`9410dd14`**.
+- registry(`audit/exclusions.csv`) **`63ad5c47`**(1,263행) 그대로 · config/report-config.json **`cb733728` → `51937738`**(263 → 279행 — `deploy_site_url` · `live_check` 12키, 그 밖 변화 0).
+- `git diff --stat ac255f6 HEAD -- data/ audit/exclusions.csv` 빈 출력 · `-- local/` **`local/saero-run/SKILL.md` 1파일 +8/−5**(4·7·8 줄 public·live·기록 머리 · 재개 판정 · 재시도 금지에 PATCH · 자동 배포 구절·재배포 흐름) → 설치본 교체 필요(아래 "병합 뒤" ②).
+- `py_compile` 28/28 OK · `bash -n` 2/2 OK.
+- audit/last-audit.md(이 절 전) **2,899행 · 823,065바이트** · CR 0.
+배포 PUT·POST·PATCH 0 · 네이버 0 · fetch_reports·deploy 실행 0 · 운영 작업 폴더 `D:\saero` 쓰기 0 · 작업 clone 열기 0.
+
+**이월**(한 줄씩 — 검증 1 의 이월 17건 요지(보고 6절 원문). 구현 기록 이월은 그대로 아래):
+- (검증 이월 1) `SAERO_LIVE_OK` 값을 꼴 검사 없이 시작 때 지우고(deploy.py:1206) exit 0 때 덮어씀(:599) — 운영 셸에 금지 변수가 남고 그 값이 실제 파일을 가리키는 두 실수가 겹쳐야 하며 첫 줄에 경로가 찍히고 guard 는 그 경로를 읽지 않음.
+- (검증 이월 2) `stopped()` 가 stop_report 뒤에 `is_redeploy` 를 불러 상태 예산 6 이 먼저 바닥나고 실행에 head_commit 이 없으면 None → 재배포 커밋에도 질문 + 기록 줄 0/1 — 답 뒤 redeploy (d) 가 '이미 재배포함' 으로 쓰기 0.
+- (검증 이월 3) verify `--ref` 일치 뒤 `live_commit_after_verify` 의 `get()` 둘(HEAD·HEAD 커밋)이 각각 403 이면 credential() 2회(Gh 처럼 1회 전환이 아님 · 노출 0 · 쓰기 0).
+- (검증 이월 4) 상한만 보는 단언: `test_live_cdn_wait_then_published_and_exit3` exit 3 경우(마지막 공개 GET ≤ T+330) · `test_live_stuck…` 폴 ≤5·상태 ≤6 — 실측은 정확히 그 값.
+- (검증 이월 5) `run_max_s` guard(:649)는 sleep 만 세고 urlopen timeout(60초 × cap 뒤 요청 7)은 안 셈 — 네트워크가 멈추면 벽시계 570 초과 가능(run_in_background · 결과 exit 1/3 요란).
+- (검증 이월 6) 새 세션 재개로 `--since` 없이 재배포 커밋을 live 하고 실행이 끝내 안 보인 채 guard_time/공개 GET 실패로 끝나면 머리 '— 기다림'·'1/1' 이 안 붙음(after_redeploy 가 실행의 head_commit 만 봄) — 여러 우연 · redeploy (d) 가 두 번째 쓰기를 막음.
+- (검증 이월 7) `record_head_hits` 의 옮김 제외가 파일·확장자 무관(moved = 지운 줄 전체) — 다른 파일(.py 포함)에서 같은 머리 줄을 지우고 .md 에 더하면 대조 0 — 그 줄이 HEAD 에 이미 있어야 하고 두 파일을 같이 고쳐야 함(우연 셋) · 같은 파일 또는 .md 로 좁히는 한 줄.
+- (검증 이월 8) leads.py `staged_lines` 가 내용 줄 `++ …`(diff 에서 `+++ …`)을 파일 머리로 읽어 cur=None → 그 뒤 추가 줄을 K3·장부 대조 모두 건너뜀 — ac255f6 `staged_added` 와 같은 논리(이번 회차 것 아님 · diff.noprefix 이월과 다른 갈래) · 머리 판정을 `+++ a/|b/|/dev/null` 로 좁히는 한 줄.
+- (검증 이월 9) redeploy 실제 모드 (a) HEAD ≠ --commit 멈춤의 기록 줄이 늘 '재배포 0/1' — HEAD 가 재배포 빈 커밋이어도 · verify B-7 이 --commit 을 그 빈 커밋으로 골라 주어 정상 흐름엔 안 닿음 · 쓰기 0.
+- (검증 이월 10) 시험이 안 보는 redeploy 갈래: PATCH 결과 모름 뒤 다시 읽기 실패 · PATCH 200 응답 sha ≠ 새 커밋(임의 결정 16) · POST 4xx · POST/PATCH ≥ 500 — 프로브로 코드는 맞음 · `test_redeploy_result_unknown_never_retries` 에 한 경우씩.
+- (검증 이월 11) 결정 4 문구의 '실행 없음' 변형(deploy.py:421 "멈춘 실행 없음(Pages 실행이 안 생김)")이 SKILL.md·code-tab·local 에는 '#n' 꼴만 — 세션은 찍힌 줄 그대로 묻게 돼 있어 뜻은 같음.
+- (검증 이월 12) redeploy dry-run (c) '2분 안 움직임 — 쓰기 0' → live 다시 → 또 `[멈춤]`이면 재배포 질문이 한 번 더(재배포 0 상태라 --since·접두 없음) — 쓰기 0 · '두 번째 질문 없음' 은 재배포 뒤에만 참.
+- (검증 이월 13) 임의 결정 14(자격 증명 없는 dry-run 은 (b) 만 읽고 (a)(d)(c) 생략)와 code-tab 5절·checklist 의 "dry-run 은 끝까지 찍고" 글자가 어긋남(docstring 에만 적힘 · 쓰기 0).
+- (검증 이월 14) checklist [의도된 동작] 14·17 의 옛 '시크릿 창' 문구가 새 줄('실기기·PWA·브라우저 새로고침만')과 한 항목 안에 공존(포함 관계 — 정기점검 때 한 줄 정리).
+- (검증 이월 15) leads.py guard 의 `[guard]`·`[PASS]` 줄에 "회차 머리 배포 완료 N줄" 낱말 — 머리가 이미 그 꼴이고 live_ok 와 같을 때만 찍힘 · deploy.py 밖이라 지시 grep 범위 밖 · live 머리 줄과 혼동될 자리 아님.
+- (검증 이월 16) 임의 결정 20 — ③ 전체 시험에서 mutation_test·test_compare_sections·chart_check·overflow_check 를 뺐다(배포본·합본·balance 입력 필요 · 바뀐 코드에 안 닿음) → 이 병합도 경우 A 라 다시 돌리지 않음 · 다음 데이터 회차 precheck·chart_check 가 실물로 돈다.
+- (검증 이월 17) 지시문 완료 기준 표 머리 행 번호 `:150·:381·:1830`(1b3ae36)이 머리 앞 빈 줄 — 다음 지시문은 `:151·:382·:1831`(= 지금 `:240·:472·:1921` + 이 절 줄 수).
+
+**병합 뒤**: ① main 작업 폴더 `D:\saero\saero-ad-report-skill` `git pull --ff-only`(운영 세션 몫, 다음 `/saero-run` 첫머리 — ingest·S0 의 "HEAD = origin/main" 이 막는다 · 이 병합 세션은 하지 않았다) ② **local/ 변경 1**(`local/saero-run/SKILL.md`) → 설치본 `D:\saero\.claude\skills\saero-run\SKILL.md` 를 저장소 `local/saero-run/SKILL.md` 로 교체(**사용자 몫** — 구현 기록 "첫 실사용 본보기" 6 · 바꾸기 전에는 설치본이 live·public·재배포 흐름을 모른다) ③ 메모리 `saero-ambiguous-approval.md`(saero 폴더 메모리 — 저장소 밖)에 "자동 배포 = 7단계 `deploy.py push`(답을 반영한 재배포 push 포함 — 2026-09-30 그대로) — `redeploy`(빈 커밋)는 그 밖, 사용자 답 '재배포' 원문 뒤에만(그 밖 답·무응답이면 쓰기 0 · 기록 재배포 0/1)" 구절 — **이 병합 세션이 더함**(21:5x KST · 완료 기준 23 의 ⑥ 몫) ④ **첫 실사용 = 병합 뒤 다음 데이터 회차 `/saero-run`**(Opus 5.5 · high · 울트라코드 끔 — 보류로 시작하지 않는다 · 사용자 결정 9): 4단계 fetch 뒤 `deploy.py public --file work/prev.html`(#158 이 늦게 옛 판을 덮었는지 — 결정 10 · `[주의]`면 `--seen` 을 live 에) → … → 7단계 push(성공 줄 `저장소 반영 커밋 <40자>`) → `verify --ref` → 일치 줄의 `다음(읽기): deploy.py live …` 를 Bash run_in_background → exit 0 이면 8단계 머리·줄 = live 의 `기록 머리:`·`기록 줄:` 그대로 → `leads.py guard --staged`(K3 — `work/live_ok` 대조) → 커밋 · exit 1 `[멈춤]`이면 찍힌 재배포 질문 문구 그대로 한 번(답 '재배포' 원문 → redeploy dry-run → `--confirm` 1번 → 찍힌 live · 두 번째 없음) · exit 3 이면 묻지 않고 live 한 번 더 — 순서는 아래 구현 기록 "첫 실사용 본보기".
+효율: 하위 에이전트 0 · 즉석 코드 약 20행(덧붙이기 스크립트 — 스크래치) · 벽시계 약 15분.
+
+---
+
 # 기능 추가 구현 기준선(배포 뒤 공개 사이트 확인 — 안 B, 2026-10-11) · 브랜치 `feat-20261011-livecheck`
 점검일: 2026-10-11 11:41~20:45 KST(기능 추가 회차 **③ 구현** — 설계안 B 빈 커밋(Git Data API)). Code 탭 `D:\saero` · **Opus 5.5 · 울트라코드 켬**(Fable 5.1 한도 — 사용자 2026-10-11). 기준 origin/main `ac255f6`(시작 `git fetch` — 앞서지 않아 병합 없음) 위 브랜치 `feat-20261011-livecheck`(탐색 기록 `6754415`·`7ba5e18`·`ababcbc`·`1b3ae36`) → **코드 커밋 `82aed71`** + 이 기록 커밋(자기 참조라 해시는 채팅 보고).
 지킨 제약: 운영 폴더 쓰기 0(읽기 = `git --no-optional-locks` 와 리허설 R1~R3 의 work/ 세 파일 — 전후 판정 재료로 data/·registry·config·work/ 목록 md5 를 읽음) · 외부 쓰기 0(배포 저장소 POST·PATCH·PUT·git push·빈 커밋 0 · Pages build·Actions Cancel/Re-run 0 · 네이버 0) · redeploy 는 `--confirm` 없이(dry-run)만 · 시험은 가짜 urlopen 만 · 자격 증명은 deploy.py 변수에만(R3 인증 GET 4회는 사용자 "허락" 뒤) · **무인증 GitHub API 이 회차 9회**(리허설 R1 1 · R2 2 · R2 상태 읽기 6 — `GET /rate_limit` 2회는 한도 밖) · github.io GET 3회(R1·R2·R3 (b)) · githubstatus 1회.
