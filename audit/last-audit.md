@@ -1,3 +1,95 @@
+# 기능 추가 구현 기준선(보고서 더 받기 A + B, 2026-10-12) · 브랜치 `feat-20261011-reports`
+점검일: 2026-10-12 00:44 ~ 02:1x KST (기능 추가 회차 **③ 구현** — 배포 0 · 첫 적용은 병합 뒤 운영 `/saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · 울트라코드 켬. 지시문 `D:\saero\saero-ad-report_보고서더받기_구현지시_회차1_2026-10-12.md`(저장소 밖).
+기준: 아래 탐색 기준선 절 + 전문 `D:\saero\saero-ad-report_보고서더받기_탐색_2026-10-11.md` 3.0~3.2 · 시작 `git fetch` — origin/main `8f1ac30`(앞서지 않음 — 병합 0). **코드 커밋 `85a57e0`** + 이 기록.
+지킨 제약: 네이버 쓰기 0 · 광고주센터 저장·삭제·끌어놓기·생성요청 0 · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = 리허설 전후 md5 · 배포본 사본 읽기) · 실제 `~/saero-fetch/extra-archive`·`~/saero-fetch/history` 만들지 않음 · 로그인 아이디를 이 기록·커밋·채팅·에이전트 결과에 옮기지 않음(아이디가 든 탐색자료 엑셀·debug 컷은 읽기만 · 컷은 열지 않음).
+방법: 조정자가 코드·시험·리허설 · 문서 고침 에이전트 1 · 자체 검토 워크플로 2(렌즈 코드·막음 / 문서·규칙 — 각 1, 막음 후보 0 이라 반박 0) = 하위 에이전트 3 · 하위 토큰 약 116만(문서 약 50만 · 코드 검토 약 32만 · 문서 검토 약 34만 — 상한 150만 안).
+
+## 사용자 결정(2026-10-12 — 지시문 원문, 다시 묻지 않음 · 원문 "추천대로 하자")
+1. A + B · C 안 함(사장님이 확장 소재를 붙인 뒤 판 H). 2. A·B 매일(같은 fetch 실행 안, 4개 뒤). 3. 추가 보관 저장소 밖 `~/saero-fetch/extra-archive/` · 원장 `~/saero-fetch/history/ledger.csv` · A 이름 `성별 보고서` · `연령대 보고서` 두 개 · `min_imps` 100 · `show_unknown` true · B `show` ["사람"] · `show_system` false(09-21 결정) · `max_rows` 10. 4. A 05 매체·기기별 분포 아래 카드 · B 04 캠페인 상세 지표 아래 표(본 표·note 뒤) + 12번 작성 기준 한 줄 · 레이아웃 판 G 한 번. 5. 내 손 한 번(사용자) — 끝남(10/12 00:4x). 6. A 10월부터 · B 원장은 탐색자료 엑셀(9/12~10/11)로 시드 — covered 9/12~10/10. 7. 시험 = 완료 기준 + 시험 후보(B 멱등 · 빈 셀) + 해당 없음 경로(extras 설정 없음 = 지금과 같음). 8. 첫 실사용 = 보류로 시작 + 전후 비교(04·05). 9. 이월 중 같이: A-2 · A-3 · A-4 · A-5 · B-5 · B-6 · B-8 + A-6 카드 머리. 10. 사장님께 물을 사실은 첫 실사용 전 사용자가 전함. 11. 탐색자료 폴더는 저장소 밖 그대로.
+이 회차에 받은 답: 리허설 시각 — "구현 끝나는 대로 바로(권장)"(00:4x, AskUserQuestion).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `85a57e0`, 23파일 +3,115/−138) [실측]
+- 새: `scripts/extras.py` 0 → 741(72920a68) · `tests/test_extras.py` 0 → 593(3053848e) · `tests/xlsxfix.py` 0 → 80(ed23d9e9) · `tests/fixtures/history-fixture.html` 0 → 68(1c78adfa)
+- `scripts/fetch_reports.py` 977 → 1304 · 45d4fe44 → d66c400b · `scripts/compute.py` 464 → 627 · 9e6f4c7a → 09898be3 · `scripts/apply.py` 989 → 1123 · 329faeca → 41e7509b
+- `scripts/validate.py` 659 → 877 · f8206a55 → a918fc6a · `scripts/compare.py` 233 → 276 · 2c2c2634 → 685e23e4 · `scripts/precheck.sh` 43 → 45 · 403a8174 → 16e3401c
+- `config/report-config.json` 279 → 332 · 51937738 → a011635d · `tests/test_fetch_reports.py` 607 → 944 · 8afa5ff4 → fa6b5434 · `tests/test_apply.py` 674 → 680 · f465fec0 → 9f7a68cb
+- `tests/chart_check.py` 844 → 879 · 28aa901b → dc3037cf · `tests/mutation_test.py` 479 → 501 · 8f458044 → 5c239508 · `tests/fixtures/report-ui-fixture.html` 201 → 220 · dc4347dd → 26faaeae
+- `SKILL.md` 673 → 692 · bd8efd6f → 5da96acb · `references/code-tab.md` 295 → 313 · ebe86af8 → 19862eea · `references/report-fetch.md` 112 → 158 · 8abab00b → d09a6ebc · `references/report-structure.md` 691 → 738 · ad44c15c → 63e80695
+- `audit/checklist.md` 556 → 561 · 57fa97ad → 6ad10f10 · `references/css-and-layout.md` 286 → 287 · 7bb7339f → bcd23359 · `local/saero-run/SKILL.md` 34 → 34 · c83a9b19 → 8721c126 · `audit/last-audit.md` 3024 → (이 절)
+- 흐름: fetch 한 실행 = ① 4개(그대로) → ② **브라우저를 닫기 전에** 4개 검사·이동·summary·`[PASS] 4개`·`다음:` → ③ 4개 PASS 이고 extras 가 있으면 같은 브라우저로 A(`성별 보고서`·`연령대 보고서` — fetch_one) → B(`page.goto(history.url)` · 화면 끝 = 오늘 · `다운로드` 후보 정확히 1개일 때만 click_allowed · 엑셀 → 아이디 없는 `변경이력.csv` · 엑셀 삭제 · Shot 0) → ④ try/finally ctx.close(). 종료 코드 = 4개로만. 끝 줄 `[PASS] 4개 … → <폴더> · 추가: …` + 1x 가 든 `다음:`.
+- 1x `extras.py store "<성공 폴더>/extra"` → `extras.py combine --out work/extra` → 5단계 compute `--extra work/extra` → apply 판 G 블록 → precheck 가 작업본 옆 `extra/` 를 validate·compute 에 같이.
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. 새 스크립트 `scripts/extras.py` — 하위 명령 `store`(A 보관 + B 원장 병합) · `combine` · `seed`(처음 한 번) · 표준 라이브러리만(fetch_reports 가 import — pandas 없는 PC 폴백 그대로).
+2. 스크래치 경로 덮어쓰기 = 환경 변수 `SAERO_EXTRA_ARCHIVE`·`SAERO_LEDGER` + 인자 `--archive`·`--ledger`(첫 줄에 `(config)`/`(환경 변수 … 로 덮어씀 — 시험·리허설 전용)` 표시 · 운영 금지) · 저장소 안(work/ 밖) 경로는 store·seed·combine 모두 쓰지 않음.
+3. B 는 fetch 가 엑셀을 읽어 **아이디 없는 정리본** `<성공 폴더>/extra/변경이력.csv`(첫 줄 화면 기간 헤더 · 칸 일시·유형·주체·캠페인·그룹·내용)만 남기고 엑셀 원본은 지운다(머리줄 다름·실패에도) · 원장 병합은 1x store.
+4. 기록 구간 = 원장 옆 `covered.csv`(시작·끝·출처·기록 시각 — 추가만, 같은 구간은 다시 안 적음) · 원장 병합 키 = 6칸 원문(줄바꿈만 `\n` 하나로).
+5. combine 이 원장·기록 구간 **바이트 사본**을 `work/extra/변경이력.csv`·`변경이력_기록구간.csv` 로 둔다 → compute·validate·compare·precheck 가 `--extra work/extra` 하나로 같은 입력(시작에 이 이름들만 지움 — 지난 값 0).
+6. 가짜 화면: 목록 fixture `extra=1`(성별·연령대 · `xnolink`·`xbad`·`xforbid`) + 변경 이력 fixture(주소에 쿼리 없음 — config 가 쿼리를 막아 설정은 목록 쿼리 → localStorage) + 가짜 엑셀(`tests/xlsxfix.py` — 가짜 아이디) · **기존 시험은 `rf_for` 가 extras 를 뺀다**(실제 history.url 은 광고주센터 — 네트워크 0 · 기존 단언 그대로).
+7. 카드·표 = apply 기계 자리 — 표지 주석 `<!-- saero:extra history|gender-age -->` 짝 사이를 매 회차 통째로 다시 쓴다(서술 표지 0 · narrative 무관 · 새 CSS 0 · `data-extra`) · config `report_layout.markers.extra_blocks` 2.
+8. compute.json 에 "변경기록"·"성별연령" 이 없으면 apply 는 FAIL 이 아니라 '확인 못 함'(잔액과 다름 — precheck 의 validate·compare 가 work/extra 와 대조해 '있는데 확인 못 함'·'없는데 값'을 잡는다).
+9. '내용' 한 구 = 둘째 줄 갈래 + 세부 줄 칸 이름 괄호 — `등록 6개(확장 검색)` · `삭제 1개(확장 검색)` · `제외키워드 변경(전 0 → 후 70개)` · `On/Off ON → OFF` · `하루예산 10,000원 → 20,000원` · 그 밖 `—`(목록 원문 0).
+10. A 카드 = 성별 표·연령대 표 따로, 각 sub-head 에 자기 기간·알 수 없음 % · 표는 합만(플레이스/파워링크 나눔은 compute.json "유형별"에만 — 화면 0).
+11. B 표 머리는 늘 `(M/D~M/D 기록` + 줄이 잘리면 ` · 최근 n건 / 전체 N건)`(같아도 표기 — 정직한 쪽) · 대상 = 그룹(없으면 캠페인).
+12. 추가 단계 끝에 `[PASS] 4개 … · 추가: …` 한 줄 + 1x 가 든 `다음:` 을 다시 찍는다(세션은 끝의 `다음:` 을 따른다) · 설정 오류면 끝 줄 `· 추가: 꺼짐(…)`.
+13. 같은 날 다시 돌면 `<성공 폴더>/extra/` 를 지우고 새로(summary_extra 와 파일 일치).
+14. extras 설정 오류는 extras **전체**를 끈다(항목 하나만 끄지 않음) · history.url 은 쿼리·해시 금지 + list_url 과 같은 출처(B-9 앞당김 — 같은 줄).
+15. `다운로드` 후보가 정확히 1개일 때만 클릭(B-9 앞당김) · 다른 칸에 섞인 아이디 꼴은 정규화 때 `<ID>` 로 가림 · validate 가 배포본 전체 `:naver` 0.
+16. test_apply 의 판 F 리터럴 기대값을 판 G 사슬로 고침(판 E→F 회차와 같은 관행 — 기존 4개 흐름 시험(test_fetch_reports·test_ingest) 기대값은 그대로) · ApplyRehearsal → `work/RX/same`.
+17. 전후 비교 = `tests/chart_check.py` compare.html 맨 앞에 04·05 옛/새(1280·390)를 더함(스크래치 생성기 대신 — 운영 보류 회차가 같은 명령으로 만든다) + 폭마다 `04·05 추가 카드·표 제 구역 안·넘침 0(판 G)` 줄.
+18. mutation_test 판 G 변조 4(성별·연령대 첫 노출 +1 · 변경 기록 끝 +1일 · 스킬 회수 +1 · `:naver` 주석) + 0건 가드 2.
+19. 리허설 두 갈래 — R8 새 기간(서술은 n<날짜>.py 몫이라 서술 숫자·12번 'M/D까지' FAIL 이 기대값) + R9 같은 기간 사본(clone data/ = 배포본 기간 + 오늘 추가 합본 → precheck 도장 → push dry-run).
+20. A 노출 합 대조는 WARN 만 유지(실측 2,885 vs 키워드(제외 전) 2,888 — FAIL 로 올리지 않음).
+21. 문서 고침은 에이전트 1(조정자가 쓴 지시 파일) — 조정자가 어긋남 3(apply 설명 · config 주석 · extras 종료 코드)과 검토 이월 중 문서 사실 5곳을 같은 회차에 고침.
+
+## 리허설 결과 [실측 — 01:28~01:33 KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · 전용 프로필 크롬 창(사용자 화면) · `--download-dir work/RX/dl` · 스크립트 `work/RX/rehearse.sh`]
+- **R1 fetch 1회차**(01:28:08~01:28:37, `--debug`): 4개 PASS(19초) → 추가 — 성별·연령대 **2행 다름**(실측 21칸: `캠페인유형`(붙여 씀),캠페인,일별,성별|연령대,노출수,클릭수,클릭률(%),평균 CPC,총비용 + 전환 12칸) → 추가만 실패, 파일은 `partial/2026-10-12-extra/` 에만 · 변경 이력 받음 · rc 0 → config `columns` 확정(실측 원문).
+- **R1b fetch 2회차**(01:29:21~01:29:49): `[PASS] 4개 … · 추가: 성별 받음 · 연령대 받음 · 변경이력 받음` rc 0 · **4개 구간 18초(01:29:22~01:29:40) · 추가 구간 9초(01:29:40~01:29:49)** · 성공 폴더 `*.csv` 4 · `extra/` = 성별·연령대 CSV · 변경이력.csv · summary_extra.json · debug(A) · 엑셀 원본 0 · 결과·로그의 `:naver` 0.
+- **A 실측**: 기간 10/1~10/11 · 일별 있음 · 성별 66행(값 `남성`·`여성`·`알 수 없음`) · 연령대 200행(값 `14세 ~ 18세` … `60세 ~ 99세` 10구간·`알 수 없음`) · 캠페인유형 `플레이스`·`파워링크` · **알 수 없음 비중 성별 21.2%(612/2,885) · 연령대 21.2%(611/2,885)** · **노출 합 성별·연령대 2,885 vs 키워드(제외 전) 2,888**(차 3 — WARN) · min_imps 미만 '적음' 3줄(연령대 14~18·19~24·60~99).
+- **B 실측**: 화면 기간 2026.09.13.~2026.10.12.(오늘 포함 30일) · `다운로드` 1번 클릭 · 84줄(주체 사람 28 · 스킬 45 · 시스템 11 · 기타 0) · 시드(탐색자료 엑셀 9/12~10/11) 85줄 → 같은 시드 다시 +0 → 실제 다운로드 병합 +0(같은 줄 84) · store 세 번 +0 · 기록 구간 9/12~10/10 + 9/13~10/11 → 표 9/12~10/11 · 사람 28줄 중 최근 10줄 · 스킬 제외 검색어 실행 17회(42줄 · 고유 분) · 삭제 3.
+- **R2~R7**(사본 `work/RX/repo` — .git 없음): 4개 `archive.py store/combine`(push 0 · ingest.sh 안 씀) 8/26~10/11 47일 · extras seed·store·combine(스크래치 `work/RX/extra-archive`·`work/RX/history`) · `deploy.py fetch`(GET — 53dce9d8 · sha c988a80) · `balance.py`(네이버 GET 1 — 191,880원) · compute `--extra` · apply `--layout` 없이 `[FAIL] apply: … meta r2026-10-F ≠ config r2026-10-G` rc 1(파일 그대로) → `--layout` F → G(109,270 → 117,445자) → 두 번째 (변경 없음).
+- **R8** precheck(새 기간): validate 26/28 — FAIL 2 = `08·09번 각주 N회 차이`·`12번 … M/D까지`(서술 블록 몫 — n<날짜>.py 가 쓰는 자리, 기대값) · "추가 카드·표" PASS(성별 10/1~10/11 3줄 · 연령대 11줄 · 변경 기록 9/12~10/11 10/28줄 · 스킬 17회·삭제 3).
+- **R9** 같은 기간 사본(clone data/ 8/26~10/10 = 배포본 기간 + 오늘 추가 합본): precheck **validate 28/28 · compare OK 108 / DIFF 0 · overflow 360·390·430 넘침 0 · narrative `[주의] 같은 기간`** · 도장 6f4afc4c · 53dce9d8 · full → `deploy.py push --dry-run` = `precheck 도장 … 확인` · **`[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · r2026-10-F → r2026-10-G`** · `[dry-run] PUT을 보내지 않음` rc 0.
+- **R10** `tests/chart_check.py work/RX/same/index.html … --base … --out work/RX/shots` → **PASS 33 / FAIL 0 · 외부 허용 2 · 차단 0** — `390·1280 04·05 추가 카드·표 제 구역 안·넘침 0(판 G)` · **전후 비교 `work/RX/shots/compare.html`(맨 앞 04·05 옛/새 1280·390)** · `test_compare_sections`(R9 산출) 전부 맞음 · `mutation_test`(R9 산출) 검사 28 전부 살아 있음(판 G 변조 4·가드 2 포함) · test_apply ApplyRehearsal(RX) OK.
+- **네이버 읽기 횟수**: fetch 2회 × (목록 1 · 보고서 화면 6(4 + A 2) · 변경 이력 화면 1 · 다운로드 7) = 화면 16 · 다운로드 14 + `GET /billing/bizmoney` 1. 네이버 쓰기 0 · GitHub GET(배포본 받기·dry-run 권한) 외 외부 요청 0.
+- **전후 대조**(`work/RX/snap_before.txt` 01:28:01 = `snap_after.txt` 01:33:45 — diff 0): 운영 작업 폴더(.git 밖 280파일) 18151ca8 · 운영 HEAD 8f1ac30 · 운영 data·registry·config 5fa0810d · `~/saero-fetch/downloads` 4c1af6ab(138파일) · `~/saero-fetch/extra-archive`·`~/saero-fetch/history` 없음 · clone data·registry 9410dd14 · 배포본 53dce9d8(sha c988a80).
+
+## 전체 시험(커밋 전 한 번 — 01:55:19~02:00:49 KST, 스크래치 `fulltest.sh`)
+py_compile 31 OK · bash -n 2 OK · test_apply 30 OK(리허설 RX 포함) · test_balance 13 · test_deploy 45 · test_exclusions 49 · **test_extras 17(새)** · **test_fetch_reports 25(15 + 추가 10)** · test_ingest 10 · test_leads 23 · test_narrative_check 7 · test_place 9 · test_validate_07 6 — 전부 rc 0 · md5 전 = 후: data+registry 9410dd14 · config a011635d · 작업 트리 status 같음. + chart_check 33/0 · mutation_test 전부 살아 있음 · test_compare_sections 전부 맞음(R9·R10 산출).
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 검토자 2 렌즈: 코드·막음 / 문서·규칙 · 둘 다 "다음 단계로 가도 된다" · 막음 0)
+- 완료 기준 표: 코드 렌즈 1~16 · 18~20 · 23~31 참 · 문서 렌즈 17 · 23 · 9 · 15 · 19 참(문서대로 따라 할 때 막음 경로 — `--layout-change` 무단 · 1x 를 ingest 앞 · extra 를 ingest 에 · 원장 손 수정 · 운영 SAERO_* — 모두 막힘 확인).
+- 같은 회차에 고친 것(이월 중 값싼 사실 어긋남): combine 을 감싸 디스크·권한 오류도 `[주의]`(exit 0) · combine `--out` 도 저장소 안 거부 · seed 설정 없음 exit 1 · 문서 — 실측 2행·값 집합 · 노출 합 실측 · 원장 구멍 때 손 엑셀을 `seed` 로 넣는 한 줄 · 검사 번호 낱말 · 세션은 끝의 `다음:` 을 따른다. 고친 뒤 전체 시험 다시(위) · 리허설 합본을 최종 extras.py 로 다시 만들어 바이트 같음.
+
+## 이월(한 줄씩 — 막음 아님, 첫 실사용 뒤 또는 정기점검)
+- B 표가 사장님의 제외 키워드 손 등록 줄로 채워진다 — 리허설 9/12~10/11 사람 28줄 중 최근 10줄이 전부 `타겟팅 변경 등록 n개`(9/24~9/26 · 그룹 셋에 같은 분 셋씩)라 9/17 하루예산 10,000 → 20,000원 · On/Off 줄이 밀려남 → 같은 분·같은 내용 묶기나 유형 우선(예산·On/Off 먼저)은 첫 실사용 화면을 보고 사용자 결정.
+- A 노출 합 2,885 ≠ 키워드(제외 전) 2,888(검색어 2,885 와 같음) — 원인 [추론](캠페인 단위 집계 차) · 며칠 실측 뒤 FAIL 로 올릴지(지금 WARN).
+- A `--debug`·실패 컷(`<성공 폴더>/extra/debug/`)에는 4개 컷과 같이 화면 위쪽 로그인 아이디가 남는다(저장소 밖) — B 컷은 0. 검증 넘김에서 그 폴더는 뺀다.
+- 원장·기록 구간 `.bak-<시각>` 이 거의 매일 1~2개 쌓인다(`~/saero-fetch/history`) — 정리 규칙 없음.
+- 원장 병합 키 = 6칸 원문 — 네이버가 '변경 내용' 꼴이나 캠페인·그룹 이름 표시를 바꾸거나 actor_rules 를 바꾸면 30일 겹침 줄이 다시 더해질 수 있음(B-4 · 리허설 1.5시간 차 두 엑셀은 +0).
+- 변경 이력 화면 필터가 전용 프로필에 남으면 다운로드는 일부인데 기록 구간은 화면 기간 전체로 적힌다 — 실재 [미실측](전용 프로필은 스크립트·`--login` 만 씀).
+- run_extras 가 같은 날 다시 돌면 `<성공 폴더>/extra` 를 지운다 — 아직 store 안 한 앞 실행 결과는 사라짐(다음 날 이번달·30일 창으로 회복).
+- 스킬 '등록 n회 = 고유 분' — 한 실행이 분 경계를 넘으면 2회(설계 수용 · 기준 20) · compute.json "유형별"(플레이스/파워링크)은 화면·검사에 안 씀.
+- validate 는 A 카드 기간 ⊆ masthead 를 보지 않음(R9 사본 10/1~10/11 + masthead ~10/10 PASS — 정상 흐름은 같은 실행이라 같고, 카드가 자기 기간을 적는다).
+- 탐색 이월 B-3(일부 — 줄바꿈 통일은 함) · B-4 · B-7 · A-7 · C-4~C-10 그대로.
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1(기존 시험 기대값 그대로 — test_apply 판 G 리터럴은 임의 결정 16) · 2 · 3 · 4 · 5 · 6 · 7(S0 블록 `fetch_config()` 포함) · 8(클릭 1곳 · goto 둘) · 9 · 10 · 11 · 12(B 멱등 시험 후보) · 13 · 14 · 15 · 16 · 17(문서 = 코드) · 18 · 19(세 경우) · 20 · 23(이 절 리허설 결과 — 광고주센터 실제 실행 없이: 가짜 화면 시험 · 리허설 로그 · `work/RX/` 사본) · 24 · 25 · 26 · 27 · 28 · 29 · 30 · 31. 막음 후보가 없으면 재측정 0.
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 1시간 30분(00:44~02:1x KST — 리허설 크롬 창 2회 각 30초 · 검토 대기 약 20분 포함) · 하위 에이전트 3(문서 1 · 검토 2) · 하위 토큰 약 116만 · 조정자 즉석 코드(저장소 밖) — 스크래치 엑셀 읽기·가짜 A·스냅숏·전체 시험 약 200행 · `work/RX/rehearse.sh` 약 60행.
+쓴 곳: 브랜치 커밋 `85a57e0`(코드·문서·시험) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_보고서더받기_검증지시_회차1_2026-10-12.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/saero-run` — 판 G 첫 적용 · 보류로 시작)
+1. 첫 말: "**보고서 더 받기 A + B 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. S0 PASS 뒤 **① 수집 전에 원장 시드 한 번**(실제 `~/saero-fetch/history/` 가 처음 생긴다 — 먼저 dry-run): `"$PY" scripts/extras.py seed "D:/saero/saero-ad-report_보고서더받기_탐색자료_2026-10-11/이력 목록 20261011 2356.xlsx" --start 2026-09-12 --end 2026-10-11 --dry-run` → `[dry-run] 원장 +85줄 … 기록 구간 +9/12~10/10` 확인 → 같은 명령에서 `--dry-run` 만 빼고 → `[원장] +85줄`(첫 줄 `(config)` — 덮어쓰기 표시가 있으면 멈춤).
+3. ① fetch → 출력에 `[추가] → 성별: 받음`·`→ 연령대: 받음`·`→ 변경이력: 받음` · 끝 줄 `· 추가: …` 확인(목록에 `성별 보고서`·`연령대 보고서` 가 있다는 뜻 — 실패면 원인 줄을 보이고 그대로 진행, 카드 '확인 못 함'). 1 ingest → **1x** `extras.py store "<성공 폴더>/extra"` → `extras.py combine --out work/extra`.
+4. 5단계 compute 에 `--extra work/extra` → apply `--layout`(F → G 변환 줄) → 서술 → 6 precheck(validate 28 · compare 108 · "추가 카드·표" PASS) → `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` → 사용자에게 작업본 + `compare.html`(맨 앞 04·05 옛/새 — 전후 비교)을 보인다.
+5. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜`만). 8단계 기록 칸 `추가 수집: 성별 받음 · 연령대 받음 · 변경이력 받음`(아이디·원장 원문 0).
+6. 사장님께 물을 사실(사용자 결정 10 — ADVoost Max · 확장 소재 계획 · 성별·연령 타게팅·가중치)은 첫 실사용 전에 사용자가 전한다. 병합 뒤 설치본 `D:\saero\.claude\skills\saero-run\SKILL.md` 를 저장소 `local/saero-run/SKILL.md` 로 교체(사용자).
+
+---
+
 # 기능 추가 탐색 기준선(보고서 더 받기, 2026-10-11)
 점검일: 2026-10-11 22:25 ~ 10-12 00:3x KST (기능 추가 회차 **① 탐색·설계만** — 설계안은 사용자가 ②에서 고른다). Code 탭 `D:\saero` · Opus 5.5 · 울트라코드 켬(Fable 5.1 은 다른 세션). 기준 main `8f1ac30`(지시문 기준 `f3df7d8` → 22:24:40 KST 운영 기록 커밋 `audit/last-audit.md` +10줄 — 사실 기준 5파일 커밋 해시 그대로, 사용자에게 먼저 보고). 이 절은 clone `D:\saero\feat-20261011-reports` 브랜치 `feat-20261011-reports` 로컬 커밋(push 안 함).
 추가할 기능: 매일 받는 다차원 보고서 4개 밖에서 광고주센터가 주는 정보를 찾아, 쓸 만한 것(지금 4개로 답 못 하는 질문 · 사장님 판단 — 예산·키워드·소재·플레이스 손보기에 쓰임)을 정기 수집해 리포트에 넣는 설계안.
