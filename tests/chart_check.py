@@ -196,6 +196,34 @@ def top_ok(t, w, maxpx, R):
     return ok, det
 
 
+# 판 G(2026-10-12) — 04 계정 변경 기록 · 05 성별·연령대 카드: 하나씩 · 제 구역 안 · 카드 자체 가로 넘침 0(넓은 표는 안쪽 .wide-table 이 스크롤) · 문서 가로 넘침 0
+EXTRAJS = """() => {
+  const sec = (n) => { const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT); let c;
+    while ((c = tw.nextNode())) { if (c.nodeValue.trim().startsWith('Section ' + n + ':')) { let e = c.nextSibling; while (e && e.nodeType !== 1) e = e.nextSibling; return e; } } return null; };
+  const out = {};
+  for (const [k, n] of [['history', 4], ['gender-age', 5]]) {
+    const cards = [...document.querySelectorAll('[data-extra="' + k + '"]')], s = sec(n), c = cards[0];
+    out[k] = {count: cards.length, inSec: !!(c && s && s.contains(c)), over: c ? c.scrollWidth - c.clientWidth : null,
+              head: c ? (c.querySelector('.sub-head') || {}).textContent : null, tables: c ? c.querySelectorAll('table').length : 0};
+  }
+  out.docSW = document.documentElement.scrollWidth;
+  return out;
+}"""
+
+
+def extra_ok(x, w, R):
+    """판 G 카드 둘 — 각 하나 · 제 구역 안 · 카드 넘침 0 · 문서 넘침 0 · 머리 글 = compute(변경 기록 기간 · 확인 못 함)."""
+    if not R.get("변경기록") and not R.get("성별연령"):
+        return x["history"]["count"] == 0 and x["gender-age"]["count"] == 0, "판 G 아님(compute 에 추가 키 없음) — 카드 0 이어야"
+    H = R.get("변경기록") or {}
+    want_h = (f"({H['기간']} 기록" if H.get("상태") == "ok" else "(확인 못 함)")
+    ok = (all(x[k]["count"] == 1 and x[k]["inSec"] and x[k]["over"] is not None and x[k]["over"] <= 0 for k in ("history", "gender-age"))
+          and x["docSW"] <= w and want_h in (x["history"]["head"] or ""))
+    det = " · ".join(f"{k} {x[k]['count']}개 구역 안 {x[k]['inSec']} 넘침 {x[k]['over']} 표 {x[k]['tables']}" for k in ("history", "gender-age")) + \
+        f" · 문서 폭 {x['docSW']}(≤ {w}) · 변경 기록 머리 {x['history']['head']!r}(기대 {want_h!r} 포함)"
+    return ok, det
+
+
 def shot_top(pg, out, tag):
     """상단(마스트헤드 ~ .kpi-row 아래 12px) 캡처 — 전후 비교 페이지 재료(옛 판은 카드 넷까지, 새 판은 잔액 카드까지)."""
     if not out:
@@ -291,7 +319,7 @@ def shot(pg, page_info, out, tag):
     pg.evaluate("window.scrollTo(0, 0)")
     pg.wait_for_timeout(300)
     try:
-        for s in ("1", "6"):
+        for s in ("1", "4", "5", "6"):   # 4·5 = 판 G(2026-10-12) 추가 카드·표 전후 비교 재료
             r = page_info["secs"].get(s)
             if r:
                 pg.screenshot(path=os.path.join(out, f"{tag}_sec{s}.png"),
@@ -325,7 +353,12 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
     (lo, po), (ln, pn) = meta(base_path), meta(new_path)
     rows = "".join(f"<tr><td>{w}</td><td>{k}</td>" + "".join(f"<td class='n'>{v if v is not None else '—'}</td>" for v in hts[w].get(k, (None, None, None))) + "</tr>"
                    for w in widths for k in ("옛 판", "새 판(처음)", "새 판(펼침)") if k in hts.get(w, {}))
-    secs = "<h2>상단 카드(KPI · 광고비 잔액 — 판 F)</h2>"
+    secs = ""
+    for s, name in (("4", "04 캠페인 상세 지표 — 아래 계정 변경 기록(판 G)"), ("5", "05 매체·기기별 분포 — 아래 성별·연령대(판 G)")):
+        secs += f"<h2>{name}</h2>"
+        for w in widths:
+            secs += f"<h3>{w}px 폭</h3><div class='pair'>" + img(f"base_{w}_sec{s}.png", f"옛 판 {lo} · {w}px") + img(f"{w}_sec{s}.png", f"새 판 {ln} · {w}px") + "</div>"
+    secs += "<h2>상단 카드(KPI · 광고비 잔액 — 판 F)</h2>"
     for w in widths:
         secs += f"<h3>{w}px 폭</h3><div class='pair'>" + img(f"base_{w}_top.png", f"옛 판 {lo} · {w}px") + img(f"{w}_top.png", f"새 판 {ln} · {w}px") + "</div>"
     for s, name in (("1", "01 일별 추이"), ("6", "06 파워링크 키워드 노출순위 추이")):
@@ -346,7 +379,7 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
             ".pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} .pair.w3{grid-template-columns:repeat(3,minmax(0,420px))}"
             "figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px} figcaption{font-size:12px;font-weight:700;color:var(--mint-dark);margin-bottom:6px}"
             "img{width:100%;height:auto;display:block} @media (max-width:700px){.pair,.pair.w3{grid-template-columns:1fr}}"
-            "</style></head><body><div class='wrap'><h1>전후 비교 — 상단 카드 · 01, 06번</h1>"
+            "</style></head><body><div class='wrap'><h1>전후 비교 — 04·05번(판 G 추가 카드·표) · 상단 카드 · 01, 06번</h1>"
             f"<p class='meta'>옛 판 <b>{H.escape(base_path)}</b> (레이아웃 meta {lo} · 집계 기간 {H.escape(po)})<br>새 판 <b>{H.escape(new_path)}</b> (레이아웃 meta {ln} · 집계 기간 {H.escape(pn)})<br>"
             "캡처: tests/chart_check.py(Chart.js CDN 2건만 허용 · networkidle + 1.8초). 새 판 모바일은 처음(접힘)과 01·06 버튼을 누른 뒤(펼침) 두 가지.</p>"
             "<h2>높이(px)</h2><div class='tw'><table><thead><tr><th>폭</th><th>판</th><th class='n'>섹션 1</th><th class='n'>섹션 6</th><th class='n'>문서 전체</th></tr></thead>"
@@ -596,6 +629,8 @@ def main():
                 hts.setdefault(w, {})["새 판(처음)"] = sec_h(m["page"])
                 ok_t, det_t = top_ok(pg.evaluate(TOPJS), w, maxpx, R)                # 판 F 상단 잔액 카드(로드 상태 — 버튼 누르기 전)
                 run.check(f"{w} 상단 잔액 카드 한 줄 전체(판 F)", ok_t, det_t)
+                ok_x, det_x = extra_ok(pg.evaluate(EXTRAJS), w, R)                    # 판 G 04·05 추가 카드·표
+                run.check(f"{w} 04·05 추가 카드·표 제 구역 안·넘침 0(판 G)", ok_x, det_x)
                 shot_top(pg, out, f"{w}")
                 m_start = None
                 if not mobile:  # PC 모양 대조는 기준과 같은 스크롤 자리(맨 왼쪽)에서 — S 는 로드 상태(m)로 따로 본다

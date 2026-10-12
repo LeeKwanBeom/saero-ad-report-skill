@@ -10,11 +10,13 @@
 """
 import datetime as dt
 import functools
+import glob
 import hashlib
 import http.server
 import io
 import json
 import os
+import re
 import shutil
 import socketserver
 import sqlite3
@@ -64,9 +66,12 @@ def real_period():
 
 
 def rf_for(list_url, download_dir, profile_dir, **over):
+    """실제 config 의 report_fetch + 시험 덮어쓰기. 추가 수집(extras — 2026-10-12)은 기본으로 뺀다(실제 config 의 history.url 은 광고주센터 —
+    시험은 네트워크 0) — 추가 수집 시험은 extras=<가짜 화면을 가리키는 블록> 을 넘긴다(ExtrasBrowserTests)."""
     with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg["report_fetch"] = {**cfg["report_fetch"], "list_url": list_url, "download_dir": download_dir, "profile_dir": profile_dir,
+    base = {k: v for k, v in cfg["report_fetch"].items() if k != "extras"}
+    cfg["report_fetch"] = {**base, "list_url": list_url, "download_dir": download_dir, "profile_dir": profile_dir,
                            "browser_channel": None, "timeout_sec": {"page": 8, "download": 20, "login": 20}, "settle_sec": 0.2, **over}
     return F.fetch_config(cfg)
 
@@ -594,6 +599,338 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual([f for f in os.listdir(os.path.join(dl, "partial", "2026-09-28")) if f.endswith(".csv")], [])
         code, out = self.run_quiet(F.cmd_login, rf, headless=True)  # 사용자가 로그인하지 않으면 --login도 시간 안에 실패
         self.assertEqual(code, 1, out)
+
+
+# ---------------------------------------------------------------- 추가 수집(보고서 더 받기 A + B, 2026-10-12)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xlsxfix  # noqa: E402
+
+
+def extras_block(srv_url_history, **over):
+    """실제 config 의 extras 를 바탕으로 history.url 만 가짜 화면으로(같은 출처) — 그 밖 값(이름·종류·columns·actor_rules)은 실제 그대로."""
+    with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
+        ex = json.load(f)["report_fetch"]["extras"]
+    ex = json.loads(json.dumps(ex))
+    ex["history"]["url"] = srv_url_history
+    for k, v in over.items():
+        ex[k] = v
+    return ex
+
+
+class ExtrasConfigTests(unittest.TestCase):
+    """완료 기준 7 · 8 · 16 — 설정 오류는 추가만 끔(SystemExit 0) · 클릭·goto 자리 · dry-run 쓰기 0."""
+
+    def cfg_with(self, mutate):
+        with open(os.path.join(ROOT, "config", "report-config.json"), encoding="utf-8") as f:
+            cfg = json.load(f)
+        mutate(cfg["report_fetch"]["extras"], cfg)
+        return cfg
+
+    def test_real_config_extras_valid(self):
+        rf = F.fetch_config(download_dir="/tmp/x", profile_dir="/tmp/y")
+        self.assertIsNotNone(rf["extras"])
+        self.assertEqual(rf["extras_warn"], [])
+        self.assertEqual({s["kind"] for s in rf["extras"]["reports"].values()}, {"성별", "연령대"})
+        self.assertEqual(rf["extras"]["history"]["url"], "https://ads.naver.com/manage/ad-accounts/2580077/sa/tool/history")
+        self.assertEqual(list(rf["report_names"]), ["시간대별 보고서", "상세지역 보고서", "검색어 보고서", "필라테스 보고서"])   # 4개 그대로
+
+    def test_bad_extras_turn_off_only_extras(self):
+        cases = {
+            "이름이 4개와 겹침": lambda ex, c: ex["reports"].update({"검색어 보고서": dict(ex["reports"]["성별 보고서"], kind="성별2")}),
+            "종류가 4개와 겹침": lambda ex, c: ex["reports"]["성별 보고서"].update(kind="키워드"),
+            "종류 접두(키워드요일)": lambda ex, c: ex["reports"]["성별 보고서"].update(kind="키워드요일"),
+            "종류끼리 접두": lambda ex, c: ex["reports"]["연령대 보고서"].update(kind="성별연령"),
+            "이름에 금지 낱말": lambda ex, c: ex["reports"].update({"성별 삭제 보고서": ex["reports"].pop("성별 보고서")}),
+            "columns 없음": lambda ex, c: ex["reports"]["성별 보고서"].pop("columns"),
+            "URL 없음": lambda ex, c: ex["history"].pop("url"),
+            "URL 쿼리": lambda ex, c: ex["history"].update(url=ex["history"]["url"] + "?startDate=2026-09-01"),
+            "URL 다른 출처": lambda ex, c: ex["history"].update(url="https://example.com/manage/history"),
+            "actor_rules 꼴": lambda ex, c: ex["history"].update(actor_rules="SYSTEM"),
+            "블록이 객체 아님": lambda ex, c: c["report_fetch"].update(extras=["x"]),
+        }
+        for label, mut in cases.items():
+            with self.subTest(label=label):
+                cfg = self.cfg_with(mut)
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    rf = F.fetch_config(cfg)          # SystemExit 0 — 4개 설정은 그대로 읽힌다
+                self.assertIsNone(rf["extras"])
+                self.assertEqual(len(rf["extras_warn"]), 1)
+                self.assertTrue(rf["extras_warn"][0].startswith("[주의] extras 설정:"), rf["extras_warn"])
+                self.assertIn("[주의] extras 설정:", buf.getvalue())
+                self.assertEqual(len(rf["report_names"]), 4)
+        cfg = self.cfg_with(lambda ex, c: c["report_fetch"].pop("extras"))   # 블록 없음 = 지금과 같음(경고 0)
+        rf = F.fetch_config(cfg)
+        self.assertEqual((rf["extras"], rf["extras_warn"]), (None, []))
+
+    def test_s0_profile_snippet_survives_bad_extras(self):
+        """S0 블록(code-tab.md 2절)의 `fetch_config()` 줄 — extras 가 틀려도 SystemExit 하지 않는다(rc 0, [주의] 줄)."""
+        tmp = tempfile.mkdtemp()
+        try:
+            shutil.copytree(os.path.join(ROOT, "scripts"), os.path.join(tmp, "scripts"), ignore=shutil.ignore_patterns("__pycache__"))
+            os.makedirs(os.path.join(tmp, "config"))
+            cfg = self.cfg_with(lambda ex, c: ex["reports"]["성별 보고서"].update(kind="키워드"))
+            with open(os.path.join(tmp, "config", "report-config.json"), "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False)
+            r = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0,'scripts'); import fetch_reports as R; "
+                                "sys.exit(3 if R.profile_in_use(R.fetch_config()['profile_dir']) else 0)"],
+                               capture_output=True, text=True, encoding="utf-8", cwd=tmp, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("[주의] extras 설정:", r.stdout)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_clicks_and_goto_only_config(self):
+        with open(os.path.join(ROOT, "scripts", "fetch_reports.py"), encoding="utf-8") as f:
+            src = f.read()
+        self.assertEqual(src.count(".click("), 1)                                    # 클릭 호출 1곳(변경 이력 화면도 click_allowed)
+        gotos = re.findall(r"page\.goto\(([^)]*)\)", src.split('"""', 2)[2])        # 머리말 밖
+        self.assertTrue(gotos)
+        for arg in gotos:
+            self.assertIn(arg, ('rf["list_url"]', 'h["url"]', "config history.url"), arg)
+        self.assertNotIn("Shot(", src[src.index("def fetch_history"):src.index("def run_extras")])   # B 단계 스크린샷 0(B-5)
+
+    def test_dry_run_extras_rows_and_no_writes(self):
+        """완료 기준 16 — 할 일 표에 추가 줄(이름·종류·오늘 받나·저장 위치·보관 끝·원장 마지막 날·기록 구간 끝) · 브라우저 0 · 폴더 0 · 보관·원장 md5 전후 같음."""
+        tmp = tempfile.mkdtemp()
+        try:
+            arch, led = os.path.join(tmp, "arch"), os.path.join(tmp, "hist", "ledger.csv")
+            os.makedirs(os.path.join(arch, "2026-09"))
+            with open(os.path.join(arch, "2026-09", "성별.csv"), "w", encoding="utf-8-sig", newline="") as f:
+                f.write('"성별 보고서(2026.09.01.~2026.09.27.),2580077"\nx\n')
+            import extras as X
+            X.merge_history([("2026.09.20. 15:30", "광고그룹 변경", "사람", "플레이스#1", "새로필라테스", "x\n변경 전\n하루예산: 1원\n변경 후\n하루예산: 2원")],
+                            D(2026, 8, 30), D(2026, 9, 28), led, "시험", log=lambda *_: None)
+            before = {p: md5f(p) for p in (led, X.covered_path(led), os.path.join(arch, "2026-09", "성별.csv"))}
+            listing = sorted(os.listdir(tmp))
+            fake = os.path.join(tmp, "fakepw", "playwright")
+            os.makedirs(fake)
+            with open(os.path.join(fake, "__init__.py"), "w") as f:
+                f.write("raise ImportError('dry-run must not import playwright')\n")
+            env = {**os.environ, "PYTHONPATH": os.path.join(tmp, "fakepw"), "PYTHONIOENCODING": "utf-8", "SAERO_EXTRA_ARCHIVE": arch, "SAERO_LEDGER": led}
+            r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "fetch_reports.py"), "--dry-run", "--today", "2026-09-28",
+                                "--download-dir", os.path.join(tmp, "dl"), "--profile-dir", os.path.join(tmp, "prof")],
+                               capture_output=True, text=True, encoding="utf-8", env=env, cwd=tmp)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(r.stdout.count("보고서,2580077.csv"), 4)                 # 4개 줄 그대로(추가 줄은 그 글자를 안 씀)
+            self.assertIn("| A1 | 성별 보고서 | 성별 | 예(매일", r.stdout)
+            self.assertIn("보관 끝 2026.09.27.", r.stdout)
+            self.assertIn("| A2 | 연령대 보고서 | 연령대 |", r.stdout)
+            self.assertIn("보관본 없음", r.stdout)
+            self.assertIn("| B | 변경 이력(", r.stdout)
+            self.assertIn("원장 1줄 · 마지막 날 2026.09.20. · 기록 구간 끝 2026.09.27.", r.stdout)
+            self.assertIn(os.path.join(tmp, "dl", "partial", "2026-09-28") + "-extra", r.stdout)
+            self.assertEqual(sorted(os.listdir(tmp)), sorted(listing + ["fakepw"]))   # dl·prof 안 생김
+            self.assertEqual({p: md5f(p) for p in before}, before)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class CtxCloseRaises:
+    """launch() 가 돌려준 진짜 context 를 감싸 close() 가 (진짜로 닫은 뒤) 예외를 내게 한다 — A-3 시험."""
+    def __init__(self, ctx):
+        self._ctx = ctx
+
+    def __getattr__(self, k):
+        return getattr(self._ctx, k)
+
+    def close(self):
+        self._ctx.close()
+        raise RuntimeError("닫기 시험 예외")
+
+
+@unittest.skipUnless(browser_available(), "playwright/크로미움 없음 — 브라우저 시험 skip")
+class ExtrasBrowserTests(unittest.TestCase):
+    """완료 기준 1·2·3·4·8·11·24·25·26·29·31 — 가짜 화면(목록 extra=1 · 변경 이력 history-fixture.html · 가짜 엑셀)으로 4개 + 추가 수집."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        cls.fix = os.path.join(cls.tmp, "fix")
+        shutil.copytree(FIX, cls.fix)
+        xlsxfix.write_xlsx(os.path.join(cls.fix, "history-sample.xlsx"), xlsxfix.SAMPLE)
+        bad = list(xlsxfix.HEADER)
+        bad[2] = "변경한 사람"                                                       # 머리줄 하나 다름(셀 원문이 메시지에 실리면 안 됨)
+        xlsxfix.write_xlsx(os.path.join(cls.fix, "history-badhead.xlsx"), xlsxfix.SAMPLE, header=bad)
+        handler = functools.partial(QuietHandler, directory=cls.fix)
+        cls.httpd = socketserver.TCPServer(("127.0.0.1", 0), handler)
+        cls.port = cls.httpd.server_address[1]
+        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def url(self, page, query):
+        return f"http://127.0.0.1:{self.port}/{page}?{query}"
+
+    def rf(self, tag, list_q="", hist_q="", **over):
+        dl, prof = os.path.join(self.tmp, "dl" + tag), os.path.join(self.tmp, "prof")
+        q = "auto=1&today=2026-09-28&extra=1" + ("&" + list_q if list_q else "") + ("&" + hist_q if hist_q else "")   # 변경 이력 화면 설정도 목록 주소에(그 화면은 쿼리 없는 주소)
+        ex = extras_block(f"http://127.0.0.1:{self.port}/history-fixture.html")
+        to = {"page": 6, "download": 6, "login": 20, "click": 3}
+        return rf_for(self.url("report-ui-fixture.html", q), dl, prof, extras=ex, timeout_sec=to, **over), dl
+
+    def run_fetch(self, rf):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            if not os.path.isdir(os.path.join(self.tmp, "prof", "Default")):
+                F.cmd_login(rf, headless=True)
+            code = F.cmd_fetch(rf, D(2026, 9, 28), headless=True)
+        return code, buf.getvalue()
+
+    def four_ok(self, dl, code, out):
+        """기존 시험(test_1)의 4개 성공 단언 그대로 — 추가 수집이 무엇을 하든 같아야."""
+        self.assertEqual(code, 0, out)
+        day = os.path.join(dl, "2026-09-28")
+        files = sorted(f for f in os.listdir(day) if f.endswith(".csv"))
+        self.assertEqual(files, sorted(["시간대별 보고서,2580077.csv", "상세지역 보고서,2580077.csv", "검색어 보고서,2580077.csv", "필라테스 보고서,2580077.csv"]))
+        self.assertFalse(os.path.exists(os.path.join(dl, "partial", "2026-09-28")))   # A-2 — 4개 partial 이 되살아나지 않음(test_fetch_reports.py:442 기대값)
+        summ = load_json(os.path.join(day, "summary.json"))
+        self.assertEqual((summ["result"], summ["exit_code"]), ("ok", 0))
+        self.assertEqual([r["status"] for r in summ["reports"]], ["ok"] * 4)
+        self.assertNotIn("extras", summ)                                                # 4개 summary 꼴 그대로
+        first_pass = out.index("[PASS] 4개 다운로드·검사 통과")
+        self.assertIn("다음: Code 탭 1단계", out[first_pass:out.index("\n", out.index("다음: Code 탭 1단계", first_pass))])
+        self.assertLess(first_pass, out.find("[추가]") if "[추가]" in out else len(out))   # 공통 안전망 — 4개 이동·summary·PASS 줄이 추가 수집보다 먼저(기준 3)
+        return day
+
+    def tail_lines_ok(self, out):
+        """A-4 — 첫 `다음:` 줄 뒤 ~ 끝 `[PASS] 4개 … · 추가:` 줄 앞은 전부 `[추가]` 머리(SystemExit 의 `[FAIL]` 을 옮기지 않음) · 끝 줄 다시."""
+        lines = out.splitlines()
+        i = next(k for k, l in enumerate(lines) if l.startswith("다음: Code 탭 1단계"))
+        j = next(k for k, l in enumerate(lines) if l.startswith("[PASS] 4개 다운로드·검사 통과") and " · 추가: " in l)
+        mid = [l for l in lines[i + 1:j] if l.strip()]
+        self.assertTrue(mid)
+        for l in mid:
+            self.assertTrue(l.startswith("[추가]"), l)
+        self.assertNotIn("[FAIL]", "\n".join(lines[i + 1:]))
+        self.assertTrue(lines[j + 1].startswith("다음: Code 탭 1단계") and "extras.py store" in lines[j + 1], lines[j + 1])
+        return lines[j]
+
+    def no_id(self, root):
+        """기준 11 — 아이디(가짜 tester01)·`:naver` 가 받은 폴더 어디에도 없음(정리본·summary_extra·로그) · 엑셀 원본 0."""
+        for dp, _, fns in os.walk(root):
+            for fn in fns:
+                self.assertFalse(fn.endswith(".xlsx"), os.path.join(dp, fn))
+                if fn.endswith((".csv", ".json", ".txt")):
+                    with open(os.path.join(dp, fn), "rb") as f:
+                        b = f.read()
+                    self.assertNotIn(xlsxfix.FAKE.encode(), b, fn)
+                    self.assertNotIn(b":naver", b, fn)
+
+    def test_x1_success_then_store_combine(self):
+        rf, dl = self.rf("1")
+        code, out = self.run_fetch(rf)
+        day = self.four_ok(dl, code, out)
+        final = self.tail_lines_ok(out)
+        self.assertIn("· 추가: 성별 받음 · 연령대 받음 · 변경이력 받음", final)
+        xdir = os.path.join(day, "extra")
+        self.assertEqual(sorted(os.listdir(xdir)), sorted(["성별 보고서,2580077.csv", "연령대 보고서,2580077.csv", "변경이력.csv", "summary_extra.json"]))
+        self.assertFalse(os.path.exists(os.path.join(dl, "partial", "2026-09-28-extra")))   # 다 통과하면 추가 임시 폴더도 지움
+        self.assertEqual(sorted(glob.glob(os.path.join(day, "*.csv"))), sorted(os.path.join(day, f) for f in os.listdir(day) if f.endswith(".csv")))
+        self.assertEqual(len(glob.glob(os.path.join(day, "*.csv"))), 4)                # 기준 4 — ingest.sh "<성공 폴더>"/*.csv 는 4개뿐(추가는 하위 폴더)
+        sx = load_json(os.path.join(xdir, "summary_extra.json"))
+        self.assertEqual([r["status"] for r in sx["reports"]], ["ok", "ok"])
+        self.assertEqual(sx["history"]["status"], "ok")
+        self.assertEqual(sx["history"]["rows"], len(xlsxfix.SAMPLE))
+        self.assertEqual(sx["history"]["actors"], {"사람": 4, "스킬": 3, "시스템": 1})
+        self.assertIsNone(sx["blocked"])
+        self.assertEqual(sx["reports"][0]["check"]["period"], ["2026.09.01.", "2026.09.27."])
+        self.no_id(dl)
+        import extras as X
+        first, cols, rows = X.read_table(os.path.join(xdir, "변경이력.csv"))
+        self.assertEqual(first, '"변경이력(2026.08.30.~2026.09.28.),2580077"')
+        self.assertEqual(cols, X.LEDGER_COLS)
+        sysrow = [r for r in rows if r[2] == "시스템"][0]
+        self.assertEqual((sysrow[3], sysrow[4]), ("", ""))                              # B-8 — 셀 빠진 SYSTEM 줄의 내용이 캠페인 칸으로 밀리지 않음
+        self.assertTrue(sysrow[5].startswith("새로필라테스\n설정 값"))
+        self.assertIn([r for r in rows if r[4] == " 새로필라테스 "][0][5].split("\n")[1], ("변경 전",))   # 앞뒤 공백 칸 그대로
+        # 1x — 보관·원장(스크래치 경로) · 같은 폴더 두 번 = 원장 +0 · 저장소 작업 트리 변경 0(기준 6)
+        arch, led = os.path.join(self.tmp, "x1arch"), os.path.join(self.tmp, "x1hist", "ledger.csv")
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8", "SAERO_EXTRA_ARCHIVE": arch, "SAERO_LEDGER": led}
+        git0 = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout
+        for n in (1, 2):
+            r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "extras.py"), "store", xdir], capture_output=True, text=True, encoding="utf-8", env=env)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertIn("환경 변수 SAERO_EXTRA_ARCHIVE 로 덮어씀", r.stdout)
+            self.assertIn(f"[원장] +{len(xlsxfix.SAMPLE) if n == 1 else 0}줄", r.stdout)
+        self.assertTrue(os.path.exists(os.path.join(arch, "2026-09", "성별.csv")))
+        self.assertEqual(sorted(os.listdir(os.path.join(arch, "2026-09"))), ["성별.csv", "연령대.csv"])   # 같은 바이트 재보관은 .bak 0
+        out_dir = os.path.join(self.tmp, "x1work", "extra")
+        r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "extras.py"), "combine", "--out", out_dir], capture_output=True, text=True, encoding="utf-8", env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(sorted(os.listdir(out_dir)), sorted(["성별.csv", "연령대.csv", "변경이력.csv", "변경이력_기록구간.csv"]))
+        self.assertEqual(X.read_head(os.path.join(out_dir, "성별.csv"))[0], '"성별 합본(2026.09.01.~2026.09.27.),2580077"')
+        self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout, git0)
+        self.no_id(os.path.join(self.tmp, "x1hist"))
+
+    def test_x2_failures_isolated(self):
+        """기준 2 — 링크 없음 · 2행 컬럼 다름 · 다운로드 안 됨 이 한 실행에: 4개 그대로 · exit 0 · 검사 못 넘은 파일은 partial/<날짜>-extra/ 에만."""
+        rf, dl = self.rf("2", "xnolink=성별 보고서&xbad=연령대 보고서", "hnodl=1")
+        code, out = self.run_fetch(rf)
+        day = self.four_ok(dl, code, out)
+        final = self.tail_lines_ok(out)
+        self.assertIn("성별 실패(목록에 보고서 링크 '성별 보고서' 없음)", final)
+        self.assertIn("연령대 실패(", final)
+        self.assertIn("변경이력 실패(다운로드가 시작되지 않음", final)
+        sx = load_json(os.path.join(day, "extra", "summary_extra.json"))
+        self.assertEqual([r["status"] for r in sx["reports"]], ["fail", "fail"])
+        self.assertIn("컬럼 원문 '다름:", sx["reports"][1]["error"])                   # 2행 = config 원문 정확 일치(kind_by_columns 안 씀)
+        self.assertIn("[추가] [연령대] FAIL 2행 컬럼", out)
+        self.assertEqual(sorted(os.listdir(os.path.join(day, "extra"))), sorted(["summary_extra.json", "debug"]))   # 통과 0 → 파일 0(실패 컷만)
+        self.assertEqual(sorted(f for f in os.listdir(os.path.join(dl, "partial", "2026-09-28-extra")) if f.endswith(".csv")), ["연령대 보고서,2580077.csv"])
+
+    def test_x3_forbidden_blocks_extras_only(self):
+        """기준 2·8 — 추가 화면의 금지 문구 요소 → 클릭 0 · SystemExit 는 추가만 멈춤(나머지 건너뜀) · exit 0 · `[FAIL]` 줄 0."""
+        rf, dl = self.rf("3", "xforbid=성별 보고서")
+        code, out = self.run_fetch(rf)
+        day = self.four_ok(dl, code, out)
+        final = self.tail_lines_ok(out)
+        self.assertIn("차단(금지 요소 클릭 시도 차단", final)
+        sx = load_json(os.path.join(day, "extra", "summary_extra.json"))
+        self.assertIn("금지 요소 클릭 시도 차단", sx["blocked"])
+        self.assertEqual([r["status"] for r in sx["reports"]], ["skip", "skip"])   # 차단 뒤엔 클릭 0 — 연령대·변경 이력 건너뜀
+        self.assertEqual(sx["history"]["status"], "skip")
+
+    def test_x4_history_bad_header_old_period_dup(self):
+        """기준 29·B-9 — 엑셀 머리줄 다름(메시지에 셀 원문 0) · 화면 기간 끝 ≠ 오늘 · `다운로드` 후보 2개 — 셋 다 B 만 실패."""
+        for tag, hq, frag in (("4a", "hxlsx=history-badhead.xlsx", "엑셀 머리줄이 config history.columns 와 다름"),
+                              ("4b", "hold=1", "끝이 오늘 2026.09.28. 이 아님"),
+                              ("4c", "hdup=1", "후보 2개")):
+            with self.subTest(tag=tag):
+                rf, dl = self.rf(tag, "", hq)
+                code, out = self.run_fetch(rf)
+                day = self.four_ok(dl, code, out)
+                final = self.tail_lines_ok(out)
+                self.assertIn("성별 받음 · 연령대 받음 · 변경이력 실패(", final)
+                sx = load_json(os.path.join(day, "extra", "summary_extra.json"))
+                self.assertIn(frag, sx["history"]["error"])
+                with open(os.path.join(day, "extra", "summary_extra.json"), encoding="utf-8") as f:
+                    self.assertNotIn("변경한 사람", f.read())                       # 머리줄 셀 원문이 요약에 실리지 않음
+                self.no_id(dl)
+
+    def test_x5_browser_dies_and_close_raises(self):
+        """기준 2·25(A-3) — 변경 이력 단계에서 페이지가 닫히고 예외 → 추가만 멈춤 · ctx.close() 예외는 `[주의]` 만 · exit 0 · 4개 그대로."""
+        rf, dl = self.rf("5")
+        real_hist, real_launch = F.fetch_history, F.launch
+
+        def dying(page, *a, **k):
+            page.close()
+            raise RuntimeError("브라우저가 꺼짐(시험)")
+        F.fetch_history = dying
+        F.launch = lambda p, rf_, headless=False: (lambda r: (CtxCloseRaises(r[0]), r[1]))(real_launch(p, rf_, headless))
+        try:
+            code, out = self.run_fetch(rf)
+        finally:
+            F.fetch_history, F.launch = real_hist, real_launch
+        day = self.four_ok(dl, code, out)
+        self.assertIn("변경이력 실패(RuntimeError: 브라우저가 꺼짐(시험))", out)
+        self.assertIn("[주의] 브라우저 닫기 예외(RuntimeError: 닫기 시험 예외) — 4개 결과·종료 코드는 그대로", out)
+        sx = load_json(os.path.join(day, "extra", "summary_extra.json"))
+        self.assertEqual([r["status"] for r in sx["reports"]], ["ok", "ok"])
 
 
 if __name__ == "__main__":

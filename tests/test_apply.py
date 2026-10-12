@@ -25,7 +25,7 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
-- 리허설 산출(work/RF/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-F 있음 — 배포본 판 E 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
+- 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-G 있음 — 배포본 판 F 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
 import hashlib
@@ -261,8 +261,8 @@ class ApplyLayoutD(unittest.TestCase):
 
     def test_chain_old_to_d(self):
         o, R = self.out, self.R
-        self.assertEqual(self.lay["layout_id"], "r2026-10-F")                     # config 는 판 F — 판 D 몫은 사슬 끝(F) 결과에 그대로 남는다
-        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-F"])
+        self.assertEqual(self.lay["layout_id"], "r2026-10-G")                     # config 는 판 G — 판 D 몫은 사슬 끝(G) 결과에 그대로 남는다
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-G"])
         self.assertEqual(o.count("/* saero:mobile-branch 01 */"), 1)
         self.assertEqual(o.count("/* saero:mobile-branch 06 */"), 1)
         self.assertEqual(len(A.BRANCH.findall(o)), self.lay["markers"]["mobile_branch"])
@@ -302,12 +302,12 @@ class ApplyLayoutD(unittest.TestCase):
     def test_b_and_c_to_d(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.B), ["r2026-10-B"])
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.C), ["r2026-10-C"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-F — --layout 을 붙여 r2026-10-B → r2026-10-F"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-G — --layout 을 붙여 r2026-10-B → r2026-10-G"):
             A.apply(self.B, self.R, self.cfg)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-F — --layout 을 붙여 r2026-10-C → r2026-10-F"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-G — --layout 을 붙여 r2026-10-C → r2026-10-G"):
             A.apply(self.C, self.R, self.cfg)
-        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E → F = 옛 → B → … → F 사슬과 같은 바이트
-        self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E → F 도 같은 바이트
+        self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E → F → G = 옛 → B → … → G 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E → F → G 도 같은 바이트
         self.assertEqual(A.chain("r2026-10-C", "r2026-10-D"), [A.convert_c_to_d])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-D"), [A.convert_b_to_c, A.convert_c_to_d])
         self.assertEqual(A.chain("r2026-10-D", "r2026-10-D"), [])
@@ -390,7 +390,7 @@ class ApplyLayoutD(unittest.TestCase):
 
 
 class ApplyLayoutE(unittest.TestCase):
-    """판 r2026-10-E(01 모바일 터치 날짜 — 판 D 위, config 는 판 F) — D → E · 사슬과 같은 바이트 · 바뀌는 곳 = meta·터치 축 한 줄 · 손 수정 D FAIL."""
+    """판 r2026-10-E(01 모바일 터치 날짜 — 판 D 위, config 는 판 G) — D → E · 사슬과 같은 바이트 · 바뀌는 곳 = meta·터치 축 한 줄 · 손 수정 D FAIL."""
     @classmethod
     def setUpClass(cls):
         cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
@@ -403,10 +403,10 @@ class ApplyLayoutE(unittest.TestCase):
 
     def test_d_to_e(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.D), ["r2026-10-D"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-F — --layout 을 붙여 r2026-10-D → r2026-10-F"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-G — --layout 을 붙여 r2026-10-D → r2026-10-G"):
             A.apply(self.D, self.R, self.cfg)
         self.assertEqual(A.apply(self.D, self.R, self.cfg_e, layout=True), self.E)   # D → E = 옛 → B → C → D → E 사슬과 같은 바이트
-        self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E → F 도 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E → F → G 도 사슬과 같은 바이트
         self.assertEqual(A.chain("r2026-10-D", "r2026-10-E"), [A.convert_d_to_e])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-E"), [A.convert_b_to_c, A.convert_c_to_d, A.convert_d_to_e])
         self.assertEqual(A.chain("r2026-10-E", "r2026-10-E"), [])
@@ -448,8 +448,8 @@ class ApplyLayoutE(unittest.TestCase):
 
 
 class ApplyLayoutF(unittest.TestCase):
-    """판 r2026-10-F(광고비 잔액 카드 — 판 E 위) — E → F = 사슬 바이트 · 바뀌는 곳 = meta·CSS·카드 하나(카드 넷·섹션 그대로) · 값·보조 줄 매 회차 ·
-    "잔액" 없음·꼴 다름 FAIL · 손 수정 E/F FAIL."""
+    """판 r2026-10-F(광고비 잔액 카드 — 판 E 위, config 는 판 G) — E → F = 사슬 바이트 · 바뀌는 곳 = meta·CSS·카드 하나(카드 넷·섹션 그대로) · 값·보조 줄 매 회차 ·
+    "잔액" 없음·꼴 다름 FAIL · 손 수정 E/F FAIL. (판 G 부터 F 는 사슬 중간 — out 은 사슬 끝 G, F 는 cfg_f 로 만든 판)"""
     @classmethod
     def setUpClass(cls):
         cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
@@ -457,24 +457,28 @@ class ApplyLayoutF(unittest.TestCase):
         cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
         cls.cfg_e = dict(cls.cfg, report_layout=dict(cls.lay, layout_id="r2026-10-E"))
         cls.E = A.apply(cls.H, cls.R, cls.cfg_e, layout=True)                      # meta r2026-10-E 판(배포본 5e33f38·765cf77 꼴 — 값 채움)
+        cls.cfg_f = dict(cls.cfg, report_layout=dict(cls.lay, layout_id="r2026-10-F"))
+        cls.F = A.apply(cls.H, cls.R, cls.cfg_f, layout=True)                      # meta r2026-10-F 판(사슬 끝이 F 인 값 채운 판 — 배포본 판 F 꼴)
 
     def card(self, o):
         i = o.rindex("\n", 0, o.index('<div class="kpi kpi-wide"')) + 1           # 줄 머리(들여쓰기 포함)부터
         return o[i:o.index("\n    </div>\n", i) + len("\n    </div>\n")]
 
     def test_e_to_f(self):
-        self.assertEqual(self.lay["layout_id"], "r2026-10-F")
+        self.assertEqual(self.lay["layout_id"], "r2026-10-G")
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.E), ["r2026-10-E"])
         self.assertNotIn("data-balance", self.E)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-F — --layout 을 붙여 r2026-10-E → r2026-10-F"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-G — --layout 을 붙여 r2026-10-E → r2026-10-G"):
             A.apply(self.E, self.R, self.cfg)
-        self.assertEqual(A.apply(self.E, self.R, self.cfg, layout=True), self.out)   # E → F = 옛 → B → C → D → E → F 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.E, self.R, self.cfg_f, layout=True), self.F)   # E → F = 옛 → B → C → D → E → F 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.E, self.R, self.cfg, layout=True), self.out)   # E → F → G 도 사슬과 같은 바이트
         self.assertEqual(A.chain("r2026-10-E", "r2026-10-F"), [A.convert_e_to_f])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-F"), [A.convert_b_to_c, A.convert_c_to_d, A.convert_d_to_e, A.convert_e_to_f])
         self.assertIsNone(A.chain("r2026-10-F", "r2026-10-E"))                       # 거꾸로는 없다
         self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)              # 값만(멱등)
         self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)
-        o = self.out
+        self.assertEqual(A.apply(self.F, self.R, self.cfg_f), self.F)                # 판 F 값만(멱등 — 사슬 중간 판도)
+        o = self.F
         self.assertEqual(o.count('data-balance="value"'), 1)
         self.assertEqual(o.count('data-balance="sub"'), 1)
         self.assertEqual(o.count(".kpi-wide{grid-column:1 / -1;}"), 1)
@@ -574,7 +578,7 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
-        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F, details 5 · 분기 2)", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G, details 5 · 분기 2)", out)
         self.assertIn("· 잔액 카드 123,456원 · 1/8(목) 09:05 기준 · 약 28일분", out)                  # 판 F — 운영 세션이 출력에서 카드 글을 본다
 
     def test_cli_twice_same_bytes_and_flag_required(self):
@@ -656,17 +660,19 @@ class ComputeCompetitorGuard(unittest.TestCase):
             shutil.rmtree(td, ignore_errors=True)
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "RF", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "RF", "compute.json")),
-                     "리허설 산출 work/RF 없음(구현·검증 회차 리허설 뒤에만)")
+@unittest.skipUnless(os.path.exists(os.path.join(ROOT, "work", "RX", "same", "index.html")) and os.path.exists(os.path.join(ROOT, "work", "RX", "same", "compute.json")),
+                     "리허설 산출 work/RX/same 없음(구현·검증 회차 리허설 뒤에만)")
 class ApplyRehearsal(unittest.TestCase):
-    def test_rf_output_idempotent(self):
-        H = read(os.path.join(ROOT, "work", "RF", "index.html"))
-        R = jread(os.path.join(ROOT, "work", "RF", "compute.json"))
+    def test_rx_output_idempotent(self):
+        H = read(os.path.join(ROOT, "work", "RX", "same", "index.html"))
+        R = jread(os.path.join(ROOT, "work", "RX", "same", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
-        self.assertIn('<meta name="report-layout" content="r2026-10-F">', H)               # 리허설 RF = 판 F(meta 로 판 선택 — --layout 없이)
+        self.assertIn('<meta name="report-layout" content="r2026-10-G">', H)               # 리허설 RX = 판 G(meta 로 판 선택 — --layout 없이)
         self.assertEqual(H.count(A.TOUCH_D_TO_E[1]), 1)
         self.assertEqual(H.count('data-balance="value"'), 1)
+        self.assertEqual((H.count(A.HI_OPEN), H.count(A.GA_OPEN)), (1, 1))
         self.assertIn("잔액", R)
+        self.assertEqual((R["변경기록"]["상태"], R["성별연령"]["상태"]), ("ok", "ok"))
         self.assertEqual(A.apply(H, R, load_config()), H)
 
 

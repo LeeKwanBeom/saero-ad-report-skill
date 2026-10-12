@@ -10,7 +10,7 @@ description: saero 광고 리포트 전 단계 실행(/saero-run, 광고 리포�
 1. 작업 폴더로: `cd /d/saero/saero-ad-report-skill`(main 하나). Desktop 사본·검증 clone·기능 브랜치 clone은 쓰지 않는다.
 2. `references/code-tab.md`를 처음부터 읽고, `SKILL.md`와 `audit/last-audit.md` 맨 위 절을 읽는다.
 3. code-tab.md 2절 **S0 사전 점검 블록**을 그대로 한 번 돌린다. `[FAIL]` 줄이 있으면 거기서 멈추고 보고한다.
-4. S0 PASS면 code-tab.md 3절 순서대로: ① 수집(백그라운드) → 1 ingest → 4 fetch(→ `deploy.py public --file work/prev.html` 공개 대조 — `[주의]`면 그 `--seen`을 7 의 live 에) → compute(계산만) → 2-1
+4. S0 PASS면 code-tab.md 3절 순서대로: ① 수집(백그라운드 — 4개 뒤 같은 실행이 추가 수집, 끝 줄 `· 추가:` 실패는 멈춤 아님) → 1 ingest → 1x `extras.py store "<성공 폴더>/extra"` → `extras.py combine --out work/extra`(`[주의]`는 멈춤 아님) → 4 fetch(→ `deploy.py public --file work/prev.html` 공개 대조 — `[주의]`면 그 `--seen`을 7 의 live 에) → compute(계산만) → 2-1
    → 3 → 5-0 propose → **승인 묶음 한 번** → (config가 바뀌면 5-0b) → 등록·확인·registry 기록 → 5 교체 → 6 precheck → 7 배포(`--base work/prev.html` · verify는 `--ref <push가 찍은 커밋>` → 그 일치 줄의 `다음(읽기): deploy.py live …`를 **run_in_background**) → 8 기록(머리·줄 = live 의 `기록 머리:`·`기록 줄:` 그대로 — "배포 완료"는 live exit 0 일 때만 · guard 가 `work/live_ok` 와 대조).
    세션이 끊겼다 다시 시작하면 "했었냐"는 대상 현재 상태(ingest의 origin/main 확인·`exclusions.py verify --key-file … --approved <이번 회차 propose(.md5) 뒤에 생긴 가장 최근 work/approved_*.txt>` — 없으면 이번 회차 push는 POST 전·`deploy.py verify --ref <push 커밋>` → 그 일치 줄이 찍은 live(`--commit` 은 deploy.py 가 고른다 — HEAD 메시지가 재배포 접두이고 부모 = push 커밋이면 HEAD, 아니면 push 커밋))로 판정한다.
 

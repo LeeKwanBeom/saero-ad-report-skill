@@ -2,7 +2,7 @@
 """합본 4종 + config → 12개 섹션 값 JSON (5단계의 유일한 계산 출처 — 즉석 계산 금지).
 
 사용법:
-    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [--balance <work/balance.json>] [-o out.json]
+    "$PY" scripts/compute.py <합본폴더> [--competitors-html <직전 배포본 index.html>] [--balance <work/balance.json>] [--extra <work/extra>] [-o out.json]
 
 - 키는 report-structure.md 절 번호("KPI","01"~"10") + "masthead","og","minwidth","nlabels". 자리마다 값이 있어
   다음 회차의 자동 교체(E2)가 그대로 쓸 수 있게 한다. 11·12번은 계산 대상이 아니다(사람이 쓴다).
@@ -18,11 +18,16 @@
   다른 값이면 [FAIL]) · --place <체크리스트> 면 "플레이스전후"(place_effect — 12번 플레이스 행 목록·효과 판정·채팅 질문 신호·이월 줄). 장부·체크리스트가 없거나 꼴이
   다르면 `[주의]` 를 찍고 판정 '확인 못 함'(장부) / 12번 플레이스 행 0(체크리스트 없음) — exit 0. 5단계·precheck 는 늘 붙인다(precheck 는 config 경로, 시험은
   환경 변수 SAERO_LEADS·SAERO_PLACE). 'M/D까지' 는 합본 마지막 날(masthead 끝).
+- (2026-10-12 판 G 보고서 더 받기 A + B) --extra <work/extra>(extras.py combine 의 추가 합본·원장 사본) 면 "성별연령"(05 아래 카드 — 종류마다 기간 = 합본 머리 ·
+  노출·비중·클릭·클릭률(노출 min_imps 미만 '적음')·비용 · 알 수 없음 % · 캠페인 단위라 제외 그룹 포함)·"변경기록"(04 아래 표 — 기간 = 집계 기간 ∩ 기록 구간 마지막 연속 구간 ·
+  보일 주체 줄 최신 위 max_rows · 내용 한 구(등록 n개 · 삭제 n개 · 변경(전 n → 후 m개) · 칸 전 → 후 · 그 밖 유형만) · 스킬 등록 n회(고유 분)·삭제 k건 ·
+  show_system 이면 SYSTEM 하루예산 중단 회수). 폴더·파일이 없거나 extras 설정이 꺼져 있으면 상태 '없음' + [주의](exit 0 — '확인 못 함'). 5단계·precheck 는 늘 붙인다.
 """
 import argparse
 import datetime as dt
 import json
 import math
+import os
 import re
 import sys
 
@@ -80,7 +85,7 @@ def deployed_competitors(html):
     return re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td>[^<]*</td>\s*<td><span class="tag', seg)
 
 
-def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=None):
+def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=None, extra=None):
     kw, sr, rg, hr = (read_csv(f"{D}/{k}.csv") for k in ("키워드", "검색어", "상세지역", "시간대별"))
     EXC, TARGET, CTRH = cfg["excluded_groups"], cfg["target_districts"], cfg["ctr_high_threshold"]
     out = {}
@@ -242,6 +247,8 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
                  "B분해": {k: int(v) for k, v in inc[iss & ~isn].groupby("매체이름")["노출수"].sum().items()}}
     if bal is not None:
         out["잔액"] = balance_card(bal, kw, inc)
+    if extra is not None:   # 판 G(2026-10-12 보고서 더 받기 A + B) — 05 아래 성별·연령대 카드 · 04 아래 계정 변경 기록 표
+        out["성별연령"], out["변경기록"] = extra_cards(extra, cfg, days)
     end = dt.date(*(int(x) for x in days[-1].rstrip(".").split(".")))
     if leads is not None:
         out["성과장부"] = leads_card(leads, end, cfg)
@@ -250,6 +257,157 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
         out["플레이스전후"] = place_effect(inc, first, end, place, cfg, prev_period_end(prev_html), section(prev_html or "", 12),
                                        out["성과장부"]["판정"] if "성과장부" in out else cfg["leads"]["verdict_words"]["unknown"])
     return out
+
+
+# ---- 판 G(2026-10-12 — 보고서 더 받기 A + B): 추가 합본(work/extra — scripts/extras.py combine) → 05 아래 카드 · 04 아래 표
+def _ga_order(label, unknown):
+    """성별·연령대 줄 순서 — 알 수 없음은 맨 끝, 숫자가 든 값(연령 구간)은 첫 숫자 순, 그 밖은 글자 순(남성 < 여성)."""
+    m = re.search(r"\d+", label)
+    return (label == unknown, int(m.group(0)) if m else 10**6, label)
+
+
+def ga_table(path, name, spec, ga):
+    """추가 합본 <종류>.csv 하나 → 성별 또는 연령대 표 값. 기간 = 합본 머리(실제 기간 — masthead 와 다를 수 있다) · 비중 = 노출 ÷ 합(소수 1자리) ·
+    클릭률 = 노출 min_imps 미만이면 None + 적음 · 알 수 없음% = 알 수 없음 노출 ÷ 합 · show_unknown false 면 그 줄은 표에서 뺀다(머리 % 는 그대로).
+    캠페인 단위 보고서라 excluded_groups 를 못 뺀다(카드 머리 '캠페인 전체(제외 그룹 포함)' — A-6)."""
+    import extras as X
+    if not os.path.exists(path):
+        return {"상태": "없음", "사유": "추가 합본 없음(첫 회·수집 실패)"}
+    _, s, e, _ = X.read_head(path)
+    df = read_csv(path)
+    dim, unk, mi = spec["dim"], ga["unknown"], int(ga["min_imps"])
+    for c in ("노출수", "클릭수", "총비용"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    g = df.groupby(df[dim].astype(str))[["노출수", "클릭수", "총비용"]].sum()
+    tot_i, tot_c, tot_k = int(g["노출수"].sum()), int(g["클릭수"].sum()), int(g["총비용"].sum())
+    rows = []
+    for val in sorted(g.index, key=lambda v: _ga_order(v, unk)):
+        n, c, k = int(g.loc[val, "노출수"]), int(g.loc[val, "클릭수"]), int(g.loc[val, "총비용"])
+        if val == unk and not ga["show_unknown"]:
+            continue
+        few = n < mi or n == 0
+        rows.append({"구분": val, "노출": n, "비중": round(n / tot_i * 100, 1) if tot_i else 0.0, "클릭": c,
+                     "CTR": None if few else pct(c, n), "적음": few, "비용": k})
+    by_type = {}
+    if "캠페인" in df.columns:
+        pl = df["캠페인"].astype(str).str.startswith("플레이스")
+        for t, m in (("플레이스", pl), ("파워링크", ~pl)):
+            gt = df[m].groupby(df[m][dim].astype(str))[["노출수", "클릭수"]].sum()
+            by_type[t] = {v: {"노출": int(gt.loc[v, "노출수"]), "클릭": int(gt.loc[v, "클릭수"])} for v in gt.index}
+    u = int(g.loc[unk, "노출수"]) if unk in g.index else 0
+    return {"상태": "ok", "이름": name, "기간": f"{md(s.strftime('%Y.%m.%d.'))}~{md(e.strftime('%Y.%m.%d.'))}",
+            "시작": s.strftime("%Y.%m.%d."), "끝": e.strftime("%Y.%m.%d."), "rows": rows,
+            "합": {"노출": tot_i, "클릭": tot_c, "비용": tot_k}, "알수없음%": round(u / tot_i * 100, 1) if tot_i else None, "유형별": by_type}
+
+
+def _items(lines):
+    """변경 내용 세부 줄('확장 검색: a, b, c' · '제외키워드: ') → 항목 수(', ' 로 가름 · 빈칸 0)."""
+    n = 0
+    for ln in lines:
+        v = ln.partition(":")[2].strip() if ":" in ln else ln.strip()
+        n += len([x for x in v.split(", ") if x.strip()])
+    return n
+
+
+def change_phrase(kind, content):
+    """변경 내용 → 표의 '내용' 한 구(목록 원문 0 — 개수만). 둘째 줄로 가른다(막음 B-2):
+    `등록된 내용` = 등록 n개 · `삭제된 내용` = 삭제 n개 · `변경 전`…`변경 후` = 타겟팅 변경이면 변경(전 n → 후 m개), 그 밖은 '칸 전 → 후'(값에 ', ' 목록이면 개수) ·
+    그 밖(설정 값 등) = '' (유형만)."""
+    L = content.split("\n")
+    lab = L[1].strip() if len(L) > 1 else ""
+    names = lambda seg: "·".join(dict.fromkeys(ln.partition(":")[0].strip() for ln in seg if ":" in ln and ln.partition(":")[0].strip()))
+    if lab in ("등록된 내용", "삭제된 내용"):
+        k = names(L[2:])
+        return f"{'등록' if lab == '등록된 내용' else '삭제'} {_items(L[2:])}개" + (f"({k})" if k else "")
+    if lab == "변경 전" and "변경 후" in L[2:]:
+        i = L.index("변경 후", 2)
+        before, after = L[2:i], L[i + 1:]
+        if kind == "타겟팅 변경":
+            k = names(before)
+            return (f"{k} " if k else "") + f"변경(전 {_items(before)} → 후 {_items(after)}개)"
+        fb = dict((ln.partition(":")[0].strip(), ln.partition(":")[2].strip()) for ln in before if ":" in ln)
+        fa = dict((ln.partition(":")[0].strip(), ln.partition(":")[2].strip()) for ln in after if ":" in ln)
+        parts = []
+        for k in fb:
+            if k not in fa:
+                continue
+            if ", " in fb[k] or ", " in fa[k]:
+                parts.append(f"{k} {_items([fb[k]])} → {_items([fa[k]])}개")
+            else:
+                parts.append(f"{k} {fb[k]} → {fa[k]}")
+        return " · ".join(parts)
+    return ""
+
+
+def history_table(D, h, days):
+    """원장 사본(work/extra/변경이력.csv) + 기록 구간 사본 → 04 아래 '계정 변경 기록' 표 값.
+    표 기간 = masthead ∩ 기록 구간의 **마지막 연속 구간**(막음 B-1 — 기록 구간 = 성공한 다운로드마다 [화면 시작, 받은 날 − 1]) · 그 안의 show 주체 줄
+    최신 위 max_rows 개 · 스킬 줄은 '제외 검색어 등록 n회(실행 수 = 고유 분) · 삭제 k건' · show_system 이면 SYSTEM 하루예산 중단 회수(기본 false — 09-21 결정)."""
+    import extras as X
+    led, cov = os.path.join(D, X.HISTORY_FILE), os.path.join(D, X.COVERED_FILE)
+    if not os.path.exists(led) or not os.path.exists(cov):
+        return {"상태": "없음", "사유": "원장 없음(첫 회·수집 실패)"}
+    rows, spans = X.read_ledger(led), X.read_covered(cov)
+    if not spans:
+        return {"상태": "없음", "사유": "기록 구간 없음"}
+    runs = []
+    for s, e in sorted(spans):
+        if runs and s <= runs[-1][1] + dt.timedelta(days=1):
+            runs[-1][1] = max(runs[-1][1], e)
+        else:
+            runs.append([s, e])
+    cs, ce = runs[-1]
+    m0 = dt.date(*(int(x) for x in days[0].rstrip(".").split(".")))
+    m1 = dt.date(*(int(x) for x in days[-1].rstrip(".").split(".")))
+    ps, pe = max(m0, cs), min(m1, ce)
+    if ps > pe:
+        return {"상태": "없음", "사유": f"기록 구간 {cs.month}/{cs.day}~{ce.month}/{ce.day} 이 집계 기간과 겹치지 않음"}
+    d = lambda r: dt.date(int(r[0][0:4]), int(r[0][5:7]), int(r[0][8:10]))
+    inp = [r for r in rows if ps <= d(r) <= pe]
+    shown = sorted([r for r in inp if r[2] in h["show"]], key=lambda r: r[0], reverse=True)
+    out_rows = [{"일시": f"{int(r[0][5:7])}/{int(r[0][8:10])} {r[0][12:17]}", "유형": r[1], "주체": r[2], "대상": r[4] or r[3] or "—",
+                 "내용": change_phrase(r[1], r[5])} for r in shown[:int(h["max_rows"])]]
+    sk = [r for r in inp if r[2] == "스킬" and r[1] == "타겟팅 변경"]
+    lab = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
+    out = {"상태": "ok", "기간": f"{ps.month}/{ps.day}~{pe.month}/{pe.day}", "시작": ps.strftime("%Y.%m.%d."), "끝": pe.strftime("%Y.%m.%d."),
+           "집계기간같음": (ps, pe) == (m0, m1), "rows": out_rows, "보일주체": list(h["show"]), "건수": len(shown), "표시": len(out_rows),
+           "스킬": {"등록회": len({r[0] for r in sk if lab(r) == "등록된 내용"}), "삭제건": sum(1 for r in sk if lab(r) == "삭제된 내용")}}
+    if h.get("show_system"):
+        out["시스템"] = {"하루예산중단": sum(1 for r in inp if r[2] == "시스템" and "하루예산 중단" in r[1])}
+    return out
+
+
+def extra_cards(D, cfg, days):
+    """--extra <폴더> → ("성별연령", "변경기록"). 폴더·합본이 없거나 extras 설정이 꺼져 있으면 각 {"상태": "없음", "사유": …} + [주의](exit 0 — 카드·표 '확인 못 함')."""
+    import extras as X
+    ex, warns = X.extras_config(cfg["report_fetch"])
+    for w in warns:
+        print(w, file=sys.stderr)
+    if ex is None:
+        off = {"상태": "없음", "사유": "extras 설정 꺼짐"}
+        return dict(off), dict(off)
+    ga = {"상태": "ok", "min_imps": ex["gender_age"]["min_imps"] if ex["gender_age"] else None, "표": []}
+    for name, spec in ex["reports"].items():
+        try:
+            t = ga_table(os.path.join(D, f"{spec['kind']}.csv"), name, spec, ex["gender_age"])
+        except (X.ExtrasError, KeyError, ValueError, OSError) as e:
+            t = {"상태": "없음", "사유": f"추가 합본을 못 읽음({type(e).__name__})"}
+        t["종류"] = spec["kind"]
+        if t["상태"] != "ok":
+            print(f"[주의] {spec['kind']} 카드 확인 못 함 — {t['사유']} ({D})", file=sys.stderr)
+        ga["표"].append(t)
+    if not any(t["상태"] == "ok" for t in ga["표"]):
+        ga = {"상태": "없음", "사유": "추가 합본 없음(첫 회·수집 실패·입력 없음)", "표": ga["표"]}
+    if ex["history"]:
+        try:
+            hist = history_table(D, ex["history"], days)
+        except (X.ExtrasError, ValueError, OSError, IndexError) as e:
+            hist = {"상태": "없음", "사유": f"원장 사본을 못 읽음({type(e).__name__})"}
+    else:
+        hist = {"상태": "없음", "사유": "history 설정 없음"}
+    if hist["상태"] != "ok":
+        print(f"[주의] 계정 변경 기록 확인 못 함 — {hist['사유']} ({D})", file=sys.stderr)
+    return ga, hist
 
 
 class LeadsPublishError(ValueError):
@@ -422,6 +580,7 @@ def main():
     ap.add_argument("--balance", help="balance.py 의 잔액 기록(work/balance.json) — 판 F 광고비 잔액 카드 값(\"잔액\")을 낸다. 5단계·precheck 는 늘 붙인다")
     ap.add_argument("--leads", help="주간 성과 장부(저장소 밖 — precheck 는 config leads.path·환경 변수 SAERO_LEADS) → \"성과장부\"(판정 낱말만)")
     ap.add_argument("--place", help="플레이스 체크리스트(precheck 는 config place_checklist.path·SAERO_PLACE) → \"플레이스전후\"")
+    ap.add_argument("--extra", help="추가 합본 폴더(work/extra — extras.py combine) → \"성별연령\"(05 아래 카드)·\"변경기록\"(04 아래 표). 판 G — 5단계·precheck 는 늘 붙인다(없거나 비면 [주의] · '확인 못 함')")
     ap.add_argument("-o", "--out")
     a = ap.parse_args()
     cfg = load_config()
@@ -439,7 +598,7 @@ def main():
             print(f"[FAIL] 잔액 기록을 못 읽음({type(e).__name__}): {a.balance} — 5단계 첫 명령 balance.py 를 이번 회차에 돌렸는지")
             sys.exit(1)
     try:
-        out = compute(a.combined, cfg, comp_prev, bal, a.leads, a.place, prev_html)
+        out = compute(a.combined, cfg, comp_prev, bal, a.leads, a.place, prev_html, a.extra)
     except BalanceError as e:
         print(f"[FAIL] 잔액 기록: {e} ({a.balance})")
         sys.exit(1)
@@ -454,6 +613,10 @@ def main():
               f"  경쟁사 {len(out['07']['경쟁사표'])}행(신규 변형 후보 {out['07']['신규변형후보']})"
               + ("" if "잔액" not in out else f"  잔액 {out['잔액']}")
               + ("" if "성과장부" not in out else f"  장부 판정 {out['성과장부']['판정']}")
+              + ("" if "성별연령" not in out else f"  성별·연령대 {out['성별연령']['상태']}"
+                 + "".join(f"({t['종류']} {t.get('기간', t['상태'])})" for t in out['성별연령'].get('표', [])))
+              + ("" if "변경기록" not in out else f"  변경 기록 {out['변경기록']['상태']}"
+                 + (f"({out['변경기록']['기간']} · {out['변경기록']['표시']}/{out['변경기록']['건수']}줄)" if out['변경기록']['상태'] == "ok" else ""))
               + ("" if "플레이스전후" not in out else
                  f"  플레이스 12번 {[(x['id'], x['값']) for x in out['플레이스전후']['12번']]} 채팅 질문 {len(out['플레이스전후']['채팅질문'])}"))
     else:

@@ -1,28 +1,32 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
-판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09).
+판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-F):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-G):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
     분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)) → r2026-10-E(`convert_d_to_e` — meta ·
     01 모바일 모양의 interaction 한 줄에 axis:'y' — 가로 막대에서 터치한 줄(날짜)의 팝업이 뜨게) → r2026-10-F(`convert_e_to_f` — meta ·
-    `.kpi-wide` CSS · KPI 카드 넷 아래 한 줄 전체 광고비 잔액 카드 하나(.kpi-row 다섯째 자식 — 카드 넷 그대로)). meta 가 사슬 위의 옛 판이면
+    `.kpi-wide` CSS · KPI 카드 넷 아래 한 줄 전체 광고비 잔액 카드 하나(.kpi-row 다섯째 자식 — 카드 넷 그대로)) → r2026-10-G(`convert_f_to_g` — meta ·
+    04 구역 끝(본 표·note 뒤) 계정 변경 기록 블록 · 05 구역 끝(차트 카드 아래) 성별·연령대 블록 — 표지 `<!-- saero:extra history|gender-age -->` 짝 · 새 CSS 0). meta 가 사슬 위의 옛 판이면
     `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-D ≠ config …`.
-  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f`) 뒤 값을 바꾼다.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
-    `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안)는 사슬 끝에 한 번 — 값만 경로도 같다.
+    `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안)는
+    사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
   02 도넛 제목 총액 · 01 표 5행·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
   분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D) ·
-  판 F 광고비 잔액 카드의 값·보조 줄(compute.json "잔액" — 없으면 `[FAIL] apply: … "잔액" 없음`, 실패 기록이면 "확인 못 함" · "M/D(요일) HH:MM 조회 실패").
+  판 F 광고비 잔액 카드의 값·보조 줄(compute.json "잔액" — 없으면 `[FAIL] apply: … "잔액" 없음`, 실패 기록이면 "확인 못 함" · "M/D(요일) HH:MM 조회 실패") ·
+  판 G 블록 둘을 표지 사이 통째로(compute.json "변경기록"·"성별연령" — 없거나 상태 ≠ ok 면 '확인 못 함' · FAIL 아님: 옛 값이 남는 길 0, precheck 의 validate·compare 가
+  work/extra 와 대조해 '있는데 확인 못 함'·'없는데 값'을 잡는다). 원장·합본 글자는 HTML 이스케이프(`<ID>` 가림 표시 포함).
   01·06 모바일 펼치기 버튼 문구("이전 N일(M/D~M/D) 펼치기")는 HTML 에 없다 — 도우미가 화면에서 data.labels 로 만든다(apply 기계 자리 0).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다. summary·details 는 apply 몫.
@@ -35,6 +39,7 @@ import argparse
 import json
 import re
 import sys
+from html import escape as html_escape
 
 from reportlib import load_config
 
@@ -565,7 +570,7 @@ TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        
 # compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
 # data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
 LAYOUT_F = "r2026-10-F"
-CARD_LAYOUTS = (LAYOUT_F,)   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판)
+CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G 도 잔액 카드 그대로)
 BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
      값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
   .kpi-wide{grid-column:1 / -1;}
@@ -709,9 +714,134 @@ def balance_values(h, R):
     return once(BAL_SUB, lambda m: m.group(1) + sub + m.group(2), h)
 
 
+# ── 판 G(r2026-10-G, 2026-10-12 — 보고서 더 받기 A + B): 05 아래 성별·연령대 카드 · 04 아래 계정 변경 기록 표(본 표·note 뒤) ──
+# 새 구역 0(13번 없음 — reportlib 12번 자르기·validate 구역 1~12 그대로) · 새 CSS 0(.card·.sub-head·.wide-table·.note·.name-cell·.num 그대로 — 간격만 인라인) ·
+# 블록은 표지 주석 사이 통째로 매 회차 apply 가 compute.json "성별연령"·"변경기록" 으로 다시 쓴다(없거나 상태 없음이면 '확인 못 함' — 옛 값이 남는 길 0).
+# 앵커: 구역 n 의 마지막 `\n  </div>\n`(구역 div 닫힘) 앞 — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐이어야(정확히 하나). 04 의 표는 블록이 본 표 뒤에 오므로
+# apply 의 04 tbody 앵커(구역 첫 tbody)·compare _s04(구역 첫 <table>)·validate parse_04_rows(숫자 칸 7개 행)와 겹치지 않는다.
+LAYOUT_G = "r2026-10-G"
+EXTRA_LAYOUTS = (LAYOUT_G,)  # 추가 카드·표가 있는 판
+GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
+HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
+MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
+
+
+def esc(s):
+    """원장·합본에서 온 글자(캠페인·그룹·유형·값) — 태그 꺾쇠·& 를 글자로(`<ID>` 가림 표시 포함 — validate 태그 짝)."""
+    return html_escape(str(s), quote=False)
+
+
+def ga_block(R):
+    """05 아래 성별·연령대 카드(표지 줄 포함 · 끝 줄바꿈). R 에 "성별연령" 이 없거나 상태 ≠ ok 면 '확인 못 함'."""
+    g = (R or {}).get("성별연령") or {"상태": "없음", "사유": "compute.json 에 \"성별연령\" 없음(5단계 compute 에 --extra work/extra)"}
+    L = [f"    {GA_OPEN}", '    <div class="card" data-extra="gender-age" style="margin-top:16px;">',
+         f'      <div class="sub-head" style="margin-top:0;">성별 · 연령대 <span {MUTED}>(캠페인 전체(제외 그룹 포함) · 네이버 추정)</span></div>']
+    if g.get("상태") != "ok":
+        L.append(f'      <div class="note">확인 못 함 — {esc(g.get("사유", "추가 합본 없음"))}</div>')
+    else:
+        for t in g["표"]:
+            if t.get("상태") != "ok":
+                L.append(f'      <div class="sub-head">{esc(t.get("종류", ""))} <span {MUTED}>(확인 못 함 — {esc(t.get("사유", ""))})</span></div>')
+                continue
+            unk = "" if t.get("알수없음%") is None else f" · 알 수 없음 {t['알수없음%']:.1f}%"
+            L.append(f'      <div class="sub-head">{esc(t["종류"])} <span {MUTED}>({esc(t["기간"])}{unk})</span></div>')
+            L += ['      <div style="overflow-x:auto;" class="wide-table">', "      <table>", "        <thead>", "          <tr>",
+                  "            <th>구분</th>", '            <th class="num">노출수</th>', '            <th class="num">비중</th>',
+                  '            <th class="num">클릭수</th>', '            <th class="num">클릭률</th>', '            <th class="num">총비용</th>',
+                  "          </tr>", "        </thead>", "        <tbody>"]
+            for r in t["rows"]:
+                L += ["          <tr>", f'            <td class="name-cell">{esc(r["구분"])}</td>', f'            <td class="num">{c(r["노출"])}</td>',
+                      f'            <td class="num">{r["비중"]:.1f}%</td>', f'            <td class="num">{c(r["클릭"])}</td>',
+                      f'            <td class="num">{"적음" if r["적음"] else format(r["CTR"], ".2f") + "%"}</td>',
+                      f'            <td class="num">{c(r["비용"])}원</td>', "          </tr>"]
+            L += ["        </tbody>", "      </table>", "      </div>"]
+        mi = g.get("min_imps")
+        L.append(f'      <div class="note" style="margin-top:8px;">※ 노출 {c(mi)}회 미만 줄은 클릭률 대신 \'적음\' · 네이버가 로그인 이용자 정보로 추정한 값'
+                 "(알 수 없음 = 추정 못 한 노출) · 캠페인 단위라 04 표와 합이 다를 수 있음</div>")
+    L += ["    </div>", f"    {GA_CLOSE}"]
+    return "\n".join(L) + "\n"
+
+
+def hi_block(R):
+    """04 아래 계정 변경 기록 표(표지 줄 포함 · 끝 줄바꿈). R 에 "변경기록" 이 없거나 상태 ≠ ok 면 '확인 못 함'. 목록 원문·아이디 0(개수·주체 낱말만)."""
+    h = (R or {}).get("변경기록") or {"상태": "없음", "사유": "compute.json 에 \"변경기록\" 없음(5단계 compute 에 --extra work/extra)"}
+    who = "·".join(h.get("보일주체") or ["사람"])
+    L = [f"    {HI_OPEN}", '    <div class="card" data-extra="history" style="margin-top:14px;">']
+    if h.get("상태") != "ok":
+        L += [f'      <div class="sub-head" style="margin-top:0;">계정 변경 기록({esc(who)}) <span {MUTED}>(확인 못 함)</span></div>',
+              f'      <div class="note">확인 못 함 — {esc(h.get("사유", "원장 없음"))}</div>']
+    else:
+        more = f" · 최근 {h['표시']}건 / {h['건수']}건" if h["건수"] > h["표시"] else ""
+        L.append(f'      <div class="sub-head" style="margin-top:0;">계정 변경 기록({esc(who)}) <span {MUTED}>({esc(h["기간"])} 기록{more})</span></div>')
+        if h["rows"]:
+            L += ['      <div style="overflow-x:auto;" class="wide-table">', "      <table>", "        <thead>", "          <tr>",
+                  "            <th>일시</th>", "            <th>유형</th>", "            <th>대상</th>", "            <th>내용</th>",
+                  "          </tr>", "        </thead>", "        <tbody>"]
+            for r in h["rows"]:
+                L += ["          <tr>", f"            <td>{esc(r['일시'])}</td>", f"            <td>{esc(r['유형'])}</td>",
+                      f'            <td class="name-cell">{esc(r["대상"])}</td>', f"            <td>{esc(r['내용']) or '—'}</td>", "          </tr>"]
+            L += ["        </tbody>", "      </table>", "      </div>"]
+        else:
+            L.append(f'      <div class="note">이 기간 {esc(who)} 변경 기록 없음</div>')
+        sk = h["스킬"]
+        tail = f" · SYSTEM 하루예산 중단 {h['시스템']['하루예산중단']}회" if "시스템" in h else ""
+        L.append(f'      <div class="note" style="margin-top:8px;">스킬 제외 검색어 등록 {sk["등록회"]}회(실행 수) · 삭제 {sk["삭제건"]}건 — 등록 내역은 07번{tail} · '
+                 "광고주센터 변경 이력 관리 기준(목록 원문 없이 개수만)</div>")
+    L += ["    </div>", f"    {HI_CLOSE}"]
+    return "\n".join(L) + "\n"
+
+
+def insert_at_section_end(h, n, block):
+    """구역 n 의 div 닫힘(`\\n  </div>\\n` — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐) 바로 앞에 block. 못 찾으면 FAIL."""
+    a, b = bounds(h, n)
+    j = h.rfind("\n  </div>\n", a, b)
+    if j == -1 or h[j:b].strip() != "</div>":
+        raise ApplyError(f"{n:02d} 구역 끝(구역 div 닫힘 뒤 바로 다음 구역) 앵커가 없음 — 손으로 바꾼 판으로 보임")
+    return h[:j + 1] + block + h[j + 1:]
+
+
+def check_extra_blocks(h, lay, why):
+    """판 G 표지 — 04 변경 기록·05 성별·연령대 블록 각 하나(여는·닫는 표지 짝) · 합 = config markers.extra_blocks · 04 블록은 04 구역 안 본 표 뒤 · 05 블록은 05 구역 안."""
+    want = int(lay["markers"].get("extra_blocks", 2))
+    n = {k: h.count(k) for k in (GA_OPEN, GA_CLOSE, HI_OPEN, HI_CLOSE)}
+    if any(v != 1 for v in n.values()) or 2 != want:
+        raise ApplyError(f"{why} 추가 블록 표지 {n} ≠ 각 1(config extra_blocks {want}) — 손으로 바꾼 판으로 보임")
+    a4, b4 = bounds(h, 4)
+    a5, b5 = bounds(h, 5)
+    hi, hc, gi, gc = h.find(HI_OPEN), h.find(HI_CLOSE), h.find(GA_OPEN), h.find(GA_CLOSE)
+    if not (a4 < h.find("</table>", a4) < hi < hc < b4):
+        raise ApplyError(f"{why} 변경 기록 블록이 04 구역 안 본 표 뒤가 아님 — 손으로 옮긴 판으로 보임")
+    if not (a5 < gi < gc < b5):
+        raise ApplyError(f"{why} 성별·연령대 블록이 05 구역 안이 아님 — 손으로 옮긴 판으로 보임")
+
+
+def convert_f_to_g(h, lay):
+    """레이아웃 판 r2026-10-F → r2026-10-G(보고서 더 받기 A + B). 바뀌는 곳 = meta · 04 구역 끝(본 표·note 뒤) 블록 하나 · 05 구역 끝 블록 하나 —
+    앵커 셋 다 정확히 하나. 카드 넷·잔액 카드·다른 구역·서술 표지·스크립트·CSS 는 건드리지 않는다. 블록 안은 뒤의 apply 가 compute.json 으로 쓴다(템플릿 = '확인 못 함')."""
+    if "saero:extra" in h or "data-extra=" in h:
+        raise ApplyError("판 F 인데 추가 블록 표지(saero:extra · data-extra)가 이미 있음 — 손으로 넣은 판으로 보임, 변환하지 않음")
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_F}">', f'<meta name="report-layout" content="{LAYOUT_G}">', h)        # ①
+    h = insert_at_section_end(h, 4, hi_block(None))                                                                                 # ② 04 본 표·note 뒤
+    h = insert_at_section_end(h, 5, ga_block(None))                                                                                 # ③ 05 차트 카드 아래
+    check_extra_blocks(h, lay, "변환 뒤")                                                                                           # ④
+    return h
+
+
+def extra_values(h, R):
+    """판 G 블록 두 개를 매 회차 compute.json 으로 통째로 다시 쓴다(변환을 건너뛴 회차에도). 표지 사이 = 블록 하나."""
+    for op, cl, blk in ((HI_OPEN, HI_CLOSE, hi_block(R)), (GA_OPEN, GA_CLOSE, ga_block(R))):
+        i = find1(h, op)
+        i = h.rindex("\n", 0, i) + 1
+        j = find1(h, cl, i) + len(cl) + 1   # 닫는 표지 줄 끝 줄바꿈까지
+        if h[j - 1] != "\n":
+            raise ApplyError(f"추가 블록 닫는 표지 {cl} 뒤 줄바꿈 없음 — 손으로 바꾼 판으로 보임")
+        h = h[:i] + blk + h[j:]
+    return h
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
 STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
-         (LAYOUT_E, LAYOUT_F, convert_e_to_f))
+         (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g))
 
 
 def chain(frm, to):
@@ -740,9 +870,9 @@ def tr(cells, style=""):
 
 def apply(h, R, cfg, layout=False):
     """layout = --layout(옛 판·사슬 위 옛 판이면 config 판까지 변환). meta = config layout_id 면 변환 없이 값만(멱등).
-    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e → convert_e_to_f · meta r2026-10-B → C → D → E → F ·
-    meta r2026-10-C·D·E → … → F · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지)는 사슬 끝에 한 번(값만 경로 포함).
-    판 F 는 compute.json "잔액" 이 없으면 FAIL(balance_values)."""
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e → convert_e_to_f → convert_f_to_g · meta r2026-10-B → C → D → E → F → G ·
+    meta r2026-10-C·D·E·F → … → G · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지 · 판 G 추가 블록 표지)는 사슬 끝에 한 번(값만 경로 포함).
+    판 F·G 는 compute.json "잔액" 이 없으면 FAIL(balance_values) · 판 G 블록은 "변경기록"·"성별연령" 이 없으면 '확인 못 함'(extra_values — FAIL 아님)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
@@ -773,9 +903,13 @@ def apply(h, R, cfg, layout=False):
     check_branches(h, lay, f"레이아웃 판 {lid} 인데")
     if lid in CARD_LAYOUTS:
         check_balance(h, lay, f"레이아웃 판 {lid} 인데")
+    if lid in EXTRA_LAYOUTS:
+        check_extra_blocks(h, lay, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     if lid in CARD_LAYOUTS:
         h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
+    if lid in EXTRA_LAYOUTS:
+        h = extra_values(h, R)                            # 판 G 04·05 추가 블록(매 회차 — compute.json "성별연령"·"변경기록", 없으면 '확인 못 함')
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)

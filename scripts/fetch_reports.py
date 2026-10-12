@@ -30,6 +30,14 @@
     실행이 안 되면 번들 크로미움).
   - 브라우저를 띄우기 전에 프로필 다운로드 기록 중 파일이 없는 행만 지운다(`clean_download_history` — 2회째 실행 크래시, 수정 회차 2).
   - 검사(첫 줄·컬럼·행·노출합)가 전부 통과하기 전에는 store 하지 않는다(부분 실패도 store 금지).
+
+추가 수집(보고서 더 받기 A + B, 2026-10-12 — config `report_fetch.extras`, 없으면 지금과 같음):
+  - 순서: 4개 받기 → **브라우저를 닫기 전에** 4개 검사·이동·summary·`[PASS] 4개`·`다음:` 줄 → 4개 PASS 일 때만 같은 브라우저로 A(`성별 보고서`·`연령대 보고서` —
+    목록 이름 링크, fetch_one 그대로) → B(변경 이력 관리 — config `history.url` 로 이동 · `다운로드` 하나만 클릭 · 엑셀을 표준 라이브러리로 읽어 변경자 아이디는
+    주체 낱말로 바꾸고 버린 정리본만 남김) → ctx.close()(try/finally — 모든 길). **종료 코드는 4개로만**(추가 실패·차단·예외는 `[추가]` 줄과 summary_extra.json).
+  - 추가 파일: 임시 `partial/<날짜>-extra/`(4개 partial 과 따로) → 검사 통과분만 `<성공 폴더>/extra/`(ingest.sh `"<성공 폴더>"/*.csv` glob 밖) + summary_extra.json.
+    검사 = 목록 이름 + 2행 원문 정확 일치(kind_by_columns 안 씀). 보관·원장은 scripts/extras.py(1x — 저장소 밖).
+  - 설정 오류(이름·종류가 4개와 겹침·접두·금지 낱말·columns·URL)는 `[주의] extras 설정: …` 로 추가만 끈다(SystemExit 0).
 """
 import argparse
 import csv
@@ -57,6 +65,8 @@ except ImportError as _e:  # 사용자 PC에는 pandas가 없을 수 있다(repo
                 return json.load(f)
         except FileNotFoundError:
             raise SystemExit(f"설정 파일이 없습니다: {cfg}\n스킬 저장소를 통째로 받았는지 확인하세요.")
+
+import extras as X  # noqa: E402 — 추가 수집(보고서 더 받기 A + B, 2026-10-12) 설정 검사·변경 이력 엑셀 읽기(표준 라이브러리만)
 
 for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글 — stderr(SystemExit 문구)도 utf-8
     try:
@@ -94,6 +104,10 @@ def fetch_config(cfg=None, download_dir=None, profile_dir=None):
     for name, kind in rf["report_names"].items():
         if kind not in rf["columns"]:
             raise SystemExit(f"config report_names[{name!r}]={kind!r} 의 컬럼 원문이 columns에 없습니다")
+    # 추가 수집(2026-10-12): 설정 오류는 추가만 끈다 — SystemExit 0(S0 의 fetch_config() 포함), 4개는 그대로. 블록이 없으면 None(지금과 같음)
+    rf["extras"], rf["extras_warn"] = X.extras_config(rf)
+    for w in rf["extras_warn"]:
+        print(w)
     return rf
 
 
@@ -149,7 +163,53 @@ def cmd_dry_run(rf, today):
     for i, it in enumerate(plan["items"], 1):
         print(f"| {i} | {it['name']} | {it['kind']} | {plan['start']}~{plan['end']} | {os.path.join(it['save_dir'], it['expected_file'])} |")
     print(f"허용 동작: {', '.join(rf['allowed_actions'].keys())} / 금지 문구 {len(rf['forbidden_actions'])}개 / 자격 증명 입력 0")
+    extras_dry_run(rf, plan)
     return 0
+
+
+def _last_day(path_fn):
+    """dry-run 표의 '마지막 날' 칸 — 읽기만, 못 읽으면 사유."""
+    try:
+        return path_fn()
+    except Exception as e:  # noqa: BLE001
+        return f"읽기 실패({type(e).__name__})"
+
+
+def extras_dry_run(rf, plan):
+    """추가 수집 할 일 표(브라우저 0 · 폴더 0 · 보관·원장 쓰기 0 — 저장소 밖 보관·원장은 읽기만)."""
+    ex = rf.get("extras")
+    if not ex:
+        return
+    xdir = os.path.join(plan["day_dir"], ex["subdir"])
+    arch = X.archive_dir(ex)
+    print(f"추가 수집(4개 PASS 뒤 같은 실행 · 실패해도 4개·종료 코드 그대로 · 임시 {plan['stage_dir']}-extra · 보관 {arch}):")
+    print("| # | 추가 | 종류 | 오늘 받나 | 저장 위치 | 보관·원장 |")
+    print("|---|---|---|---|---|---|")
+
+    def arch_end(kind):
+        ends = []
+        if os.path.isdir(arch):
+            for m in sorted(os.listdir(arch)):
+                p = os.path.join(arch, m, f"{kind}.csv")
+                if os.path.isfile(p):
+                    ends.append(X.read_head(p)[2])
+        return f"보관 끝 {fmt(max(ends))}" if ends else "보관본 없음"
+    for i, (name, spec) in enumerate(ex["reports"].items(), 1):
+        print(f"| A{i} | {name} | {spec['kind']} | 예(매일 · `{plan['preset']}` {plan['start']}~{plan['end']}) | {xdir}{os.sep} | "
+              f"{_last_day(lambda k=spec['kind']: arch_end(k))} |")
+    h = ex["history"]
+    if h:
+        led = X.ledger_path(ex)
+
+        def led_state():
+            rows = X.read_ledger(led)
+            if rows is None:
+                return "원장 없음(첫 회 — 시드는 첫 적용 본보기)"
+            spans = X.read_covered(X.covered_path(led))
+            last = max((r[0][:11] for r in rows), default="없음")
+            return f"원장 {len(rows)}줄 · 마지막 날 {last} · 기록 구간 끝 {fmt(max(e for _, e in spans)) if spans else '없음'}"
+        print(f"| B | 변경 이력({h['url']}) | {h['kind']} | 예(매일 · 화면 기본 30일 · 끝 = 오늘 {plan['today']}) | {xdir}{os.sep}{X.HISTORY_FILE} | "
+              f"{_last_day(led_state)} ({led}) |")
 
 
 # ---------------------------------------------------------------- 파일 검사(브라우저 무관)
@@ -253,6 +313,49 @@ def cross_check(results):
     ok = len(set(vals.values())) == 1
     return {"ok": ok, "values": vals,
             "msg": ("노출합 일치 " if ok else "노출합 불일치(기간이 다르게 받아졌을 수 있음) ") + " · ".join(f"{k} {v:,}" for k, v in vals.items())}
+
+
+def check_extra(path, name, spec, rf, exp_start, exp_end, kw_imps=None):
+    """추가 보고서(A) 파일 검사 — 첫 줄(HEAD_RE · 이름 = 목록 이름 · 기간 = 기대 · 계정) / **2행 = config extras columns 원문 정확 일치**
+    (kind_of·kind_by_columns 안 씀 — 종류는 목록 이름으로 정해진다) / 행 ≥ 1 / dated 면 일별 ⊂ 헤더. 노출 합 ≠ 키워드(제외 전) 합은 WARN 만(A-6 첫 실측 기록)."""
+    out = {"file": path, "name": name, "kind": spec["kind"], "checks": [], "ok": True, "warn": []}
+
+    def add(cname, ok, msg):
+        out["checks"].append({"name": cname, "ok": bool(ok), "msg": msg})
+        if not ok:
+            out["ok"] = False
+
+    try:
+        head, colline, rows, crlf = read_report(path)
+    except (OSError, UnicodeDecodeError) as e:
+        add("읽기", False, f"파일을 utf-8로 읽을 수 없음: {type(e).__name__}")
+        return out
+    m = HEAD_RE.search(head)
+    if not m:
+        add("첫 줄 형식", False, "기간 헤더를 읽을 수 없음(HEAD_RE)")
+        return out
+    g = [int(x) for x in m.groups()[:6]]
+    s, e, acct = dt.date(*g[:3]), dt.date(*g[3:]), m.group(7)
+    out["period"] = [fmt(s), fmt(e)]
+    add("첫 줄 이름", head.lstrip('"').startswith(name + "("), f"헤더 이름 ↔ 보고서 {name}")
+    add("기간 = 기대", (s, e) == (exp_start, exp_end), f"헤더 {fmt(s)}~{fmt(e)} ↔ 기대 {fmt(exp_start)}~{fmt(exp_end)}")
+    add("계정", acct == rf["account_no"], f"헤더 계정 {acct} ↔ config {rf['account_no']}")
+    want = spec["columns"]
+    add("2행 컬럼", colline == want, f"컬럼 원문 {'일치' if colline == want else '다름: ' + colline!r}")   # 다르면 원문을 그대로 — config 확정용(칸 이름 = 화면 문구, 아이디 아님)
+    add("행 수", len(rows) > 0, f"데이터 {len(rows)}행")
+    out["rows"] = len(rows)
+    cols = colline.split(",")
+    tot, by_date = sums_of(cols, rows)
+    out["sums"] = tot
+    if spec.get("dated") and rows and "일별" in cols:
+        dates = sorted(by_date)
+        out["dates"] = [dates[0], dates[-1], len(dates)]
+        add("일별 ⊂ 헤더", dates[0] >= fmt(s) and dates[-1] <= fmt(e), f"일별 {dates[0]}~{dates[-1]}({len(dates)}일) ↔ 헤더 {fmt(s)}~{fmt(e)}")
+    if kw_imps is not None:
+        out["imps_vs_keyword"] = {"이 보고서": tot["노출수"], "키워드(제외 전)": kw_imps}
+        if tot["노출수"] != kw_imps:
+            out["warn"].append(f"노출 합 {tot['노출수']:,} ≠ 키워드(제외 전) {kw_imps:,} — WARN 만(첫 실측 기록 · 막지 않음)")
+    return out
 
 
 def load_prev(prev_dir):
@@ -808,7 +911,9 @@ def cmd_login(rf, headless=False):
 
 
 def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
-    """기본 실행: 4개 다운로드 → 검사 → 성공이면 day_dir로 이동, 아니면 partial/에만."""
+    """기본 실행: ① 4개 다운로드 → ② (브라우저를 닫기 전에) 4개 검사·교차 검사·성공 폴더 이동·summary·`[PASS] 4개`·`다음:` 줄 →
+    ③ 4개 PASS 이고 config extras 가 있으면 같은 브라우저로 추가 수집(어떤 실패·차단·예외도 추가만 멈춘다) → ④ 모든 길에서 ctx.close()(try/finally — 그 예외는 [주의]만).
+    **종료 코드 = 4개만으로**(0 / 2 / 1 그대로 — 추가 수집 결과와 무관). 4개 실패면 받은 파일은 partial/<날짜>/ 에만(지금과 같음)."""
     sync_playwright, _ = _playwright()
     plan = make_plan(rf, today)
     stage, day_dir = plan["stage_dir"], plan["day_dir"]
@@ -833,37 +938,55 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
     cleanup = clean_download_history(rf["profile_dir"], log)
     with sync_playwright() as p:
         ctx, browser = launch(p, rf, headless)
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        shot = Shot(page, os.path.join(stage, "debug"), debug)
-        page.goto(rf["list_url"])
-        T = rf["timeout_sec"]
-        if not wait_until(lambda: at_list(page, rf), T["page"], step=1):
-            shot.take("not_logged_in", force=True)
-            ctx.close()
-            print(f"[FAIL] 목록 URL에 도달하지 못함(현재 {current_url(page)[:100]}) — 로그인 세션이 끝난 것 같습니다. "
-                  f"`--login` 을 다시 실행하세요(Code 탭: \"$PY\" scripts/fetch_reports.py --login — 백그라운드, 사용자가 창에서 로그인)")
-            return 1
-        shot.take("list")
-        for item in plan["items"]:
-            try:
-                rec = fetch_one(page, item, plan, rf, stage, shot, log)
-            except SystemExit:
-                raise
-            except Exception as ex:  # 한 보고서의 예외는 그 보고서 실패로만
-                rec = {"name": item["name"], "kind": item["kind"], "status": "fail",
-                       "error": click_reason(ex), "error_detail": str(ex)[:800], "file": None}
-                shot.take(f"{item['kind']}_exception", force=True)
+        try:   # A-3: ②~④ — 어느 길(로그인 실패·4개 실패·추가 수집 예외·SystemExit)에서도 ctx.close()(persistent context — 프로필 저장, cmd_login 과 같은 이유)
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+            shot = Shot(page, os.path.join(stage, "debug"), debug)
+            page.goto(rf["list_url"])
+            T = rf["timeout_sec"]
+            if not wait_until(lambda: at_list(page, rf), T["page"], step=1):
+                shot.take("not_logged_in", force=True)
+                print(f"[FAIL] 목록 URL에 도달하지 못함(현재 {current_url(page)[:100]}) — 로그인 세션이 끝난 것 같습니다. "
+                      f"`--login` 을 다시 실행하세요(Code 탭: \"$PY\" scripts/fetch_reports.py --login — 백그라운드, 사용자가 창에서 로그인)")
+                return 1
+            shot.take("list")
+            for item in plan["items"]:
                 try:
-                    page.goto(rf["list_url"])
-                except Exception:
-                    pass
-            records.append(rec)
-            log(f"  → {item['kind']}: {rec['status']}" + (f" ({rec.get('error')})" if rec.get("error") else ""))
-            if rec["status"] != "downloaded":  # 실패한 보고서 뒤에도 목록으로 돌아가 다음 보고서를 시도한다
-                back_to_list(page, rf, log)
-        ctx.close()
+                    rec = fetch_one(page, item, plan, rf, stage, shot, log)
+                except SystemExit:
+                    raise
+                except Exception as ex:  # 한 보고서의 예외는 그 보고서 실패로만
+                    rec = {"name": item["name"], "kind": item["kind"], "status": "fail",
+                           "error": click_reason(ex), "error_detail": str(ex)[:800], "file": None}
+                    shot.take(f"{item['kind']}_exception", force=True)
+                    try:
+                        page.goto(rf["list_url"])
+                    except Exception:
+                        pass
+                records.append(rec)
+                log(f"  → {item['kind']}: {rec['status']}" + (f" ({rec.get('error')})" if rec.get("error") else ""))
+                if rec["status"] != "downloaded":  # 실패한 보고서 뒤에도 목록으로 돌아가 다음 보고서를 시도한다
+                    back_to_list(page, rf, log)
+            code, checks = finish_four(records, plan, rf, prev_dir, started, cleanup, browser, pw_version, log, log_lines)   # ② 공통 안전망 — 추가 수집보다 먼저
+            if code == 0 and rf.get("extras"):
+                note = run_extras(page, rf, plan, checks, debug)                                                            # ③ 실패·차단·예외는 여기 안에서 끝난다
+                print(f"[PASS] 4개 다운로드·검사 통과 → {day_dir} · 추가: {note}")
+                print(f"다음: Code 탭 1단계 — PY=<venv 파이썬> scripts/ingest.sh \"{day_dir.replace(os.sep, '/')}\"/*.csv → 1x \"$PY\" scripts/extras.py store "
+                      f"\"{os.path.join(day_dir, rf['extras']['subdir']).replace(os.sep, '/')}\" → \"$PY\" scripts/extras.py combine --out work/extra "
+                      "(references/code-tab.md 3절 — 1x 의 [주의]는 멈춤 아님). 검사 통과 전·부분 실패에는 store 하지 않는다.")
+            elif code == 0 and rf.get("extras_warn"):   # 설정 오류로 추가만 꺼짐 — 끝에 다시 한 줄(맨 위 [주의])
+                print(f"[PASS] 4개 다운로드·검사 통과 → {day_dir} · 추가: 꺼짐(extras 설정 오류 — 맨 위 [주의] 줄)")
+            return code
+        finally:
+            try:
+                ctx.close()   # ④
+            except Exception as ex:  # noqa: BLE001 — 닫기 예외는 4개 결과·종료 코드를 바꾸지 않는다
+                print(f"[주의] 브라우저 닫기 예외({type(ex).__name__}: {str(ex).splitlines()[0][:120] if str(ex) else ''}) — 4개 결과·종료 코드는 그대로")
 
-    # ---- 검사
+
+def finish_four(records, plan, rf, prev_dir, started, cleanup, browser, pw_version, log, log_lines):
+    """② 4개 검사 → 교차 검사 → --prev 비교 → summary.json · 성공 폴더 이동 · `[PASS] 4개`·`다음:` 줄(또는 partial · `[FAIL] 4개 중 …`). 브라우저와 무관.
+    반환 (종료 코드 0|2, 검사 결과 목록)."""
+    stage, day_dir = plan["stage_dir"], plan["day_dir"]
     for rec in records:
         if rec.get("file"):
             chk = check_file(rec["file"], rec["name"], rec["kind"], rf, plan["start_date"], plan["end_date"])
@@ -922,14 +1045,218 @@ def cmd_fetch(rf, today, prev_dir=None, debug=False, headless=False):
         _table(records)
         print(f"다음: Code 탭 1단계 — PY=<venv 파이썬> scripts/ingest.sh \"{day_dir.replace(os.sep, '/')}\"/*.csv (references/code-tab.md 3절). "
               "검사 통과 전·부분 실패에는 store 하지 않는다.")
-        return 0
+        return 0, checks
     summary["folder"] = stage
     with open(os.path.join(stage, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=1, default=str)
     print(f"[FAIL] 4개 중 성공 {n_ok} · 실패 {len(records) - n_ok}" + ("" if cross["ok"] or n_ok < 3 else " · 노출합 불일치")
           + f" → 받은 파일은 {stage} 에만 있음(정상 폴더 {day_dir} 에는 이번 실행 파일 없음). store 금지")
     _table(records)
-    return 2
+    return 2, checks
+
+
+# ---------------------------------------------------------------- 추가 수집(보고서 더 받기 A + B, 2026-10-12 — 4개 PASS 뒤 같은 브라우저)
+def _no_fail(msg):
+    """SystemExit 원문의 `[FAIL]` 머리를 옮기지 않는다(A-4 — 추가 줄은 전부 `[추가]` 머리). 첫 ' — ' 앞 핵심만."""
+    return re.sub(r"^\s*\[FAIL\]\s*", "", str(msg or "")).split(" — ")[0][:200]
+
+
+def visible_named(page, label):
+    """`label` 문구(앞뒤 기호만 허용 — name_ok)의 **보이는** 요소 전부(역할 button·link 먼저, 없으면 글자). 클릭 0 — 후보 수 세기(B-9)."""
+    for cands in ([page.get_by_role(r, name=label) for r in ("button", "link")], [page.get_by_text(label)]):
+        found = []
+        for c in cands:
+            try:
+                n = c.count()
+            except Exception:
+                continue
+            for i in range(min(n, 40)):
+                el = c.nth(i)
+                try:
+                    if el.is_visible() and name_ok(el.inner_text(), label):
+                        found.append(el)
+                except Exception:
+                    continue
+        if found:
+            return found
+    return []
+
+
+def fetch_history(page, rf, ex, today, stage, log):
+    """B — 변경 이력 관리 화면: `page.goto(config history.url)`(그 밖 이동 0) → 기간 읽기(끝 = 오늘) → **`다운로드` 하나만 클릭**(click_allowed 'download' —
+    `검색하기`·`열 맞춤 설정`·필터는 누르지 않는다 · 후보가 2개 이상이면 실패) → 엑셀 저장 → 표준 라이브러리로 읽어 머리줄 = config columns 확인 →
+    **변경자 원문은 주체 낱말로 바꾸고 버린 정리본** `<stage>/변경이력.csv` → 아이디가 든 엑셀은 지운다. 스크린샷·접근성 트리 0(B-5 — 원인은 문구로만)."""
+    h, T = ex["history"], rf["timeout_sec"]
+    label = rf["allowed_actions"]["download"]
+    rec = {"name": "변경 이력", "kind": h["kind"], "status": "fail", "file": None}
+    page.goto(h["url"])
+    if not wait_until(lambda: len(visible_named(page, label)) >= 1, T["page"]):
+        rec["error"] = f"변경 이력 화면에 `{label}` 이 보이지 않음(로그인·주소·화면 확인)"
+        return rec
+    wait_until(lambda: read_period(page)[0] is not None, T["page"])
+    s, e, how = read_period(page)
+    if s is None:
+        rec["error"] = f"화면 기간을 읽지 못함({how})"
+        return rec
+    rec["period"] = [fmt(s), fmt(e)]
+    log(f"[{h['kind']}] 화면 기간 {fmt(s)}~{fmt(e)} ({how})")
+    if e != today or s > e:
+        rec["error"] = f"화면 기간 {fmt(s)}~{fmt(e)} — 끝이 오늘 {fmt(today)} 이 아님(주소에 기간이 붙었거나 화면이 바뀜)"
+        return rec
+    cands = visible_named(page, label)
+    if len(cands) != 1:
+        rec["error"] = f"`{label}` 후보 {len(cands)}개 — 1개여야(클릭하지 않음)"
+        return rec
+    try:
+        with page.expect_download(timeout=T["download"] * 1000) as dl_info:
+            click_allowed("download", cands[0], rf, lambda m: log(f"[{h['kind']}] {m}"))
+        download = dl_info.value
+    except SystemExit:
+        raise
+    except Exception as ex2:
+        rec["error"] = f"다운로드가 시작되지 않음({click_reason(ex2)})"
+        return rec
+    xlsx = os.path.join(stage, "history-download.xlsx")
+    try:
+        download.save_as(xlsx)
+        rows, warns = X.normalize_history(X.read_xlsx_rows(xlsx), h["columns"], h["actor_rules"])
+    except Exception as ex2:  # noqa: BLE001 — 꼴 다름·읽기 실패 = B 만 실패(메시지에 셀 원문 0)
+        rec["error"] = f"엑셀 확인 실패: {_no_fail(ex2) if isinstance(ex2, X.ExtrasError) else type(ex2).__name__}"
+        return rec
+    finally:
+        if os.path.exists(xlsx):
+            os.remove(xlsx)   # 아이디(변경자)가 든 원본 엑셀은 남기지 않는다 — 정리본만
+    rec["warn"] = warns
+    dest = os.path.join(stage, X.HISTORY_FILE)
+    with open(dest, "wb") as f:
+        f.write(X.history_csv_bytes(rows, s, e, rf["account_no"]))
+    who = {}
+    for r in rows:
+        who[r[2]] = who.get(r[2], 0) + 1
+    rec.update(status="downloaded", file=dest, rows=len(rows), actors=who, suggested_ext=os.path.splitext(download.suggested_filename or "")[1])
+    log(f"[{h['kind']}] 받음 {len(rows)}줄 · 주체 " + " · ".join(f"{k} {v}" for k, v in sorted(who.items())))
+    return rec
+
+
+def run_extras(page, rf, plan, four_checks, debug):
+    """③ 추가 수집 — A 보고서(목록 이름 링크 · fetch_one 그대로) → B 변경 이력. 임시 = partial/<날짜>-extra/(A-2 — 4개 partial 을 되살리지 않음),
+    검사 통과 파일만 <성공 폴더>/<subdir>/ 로 옮기고(X-4) 끝에 summary_extra.json. 금지 문구 차단(SystemExit)·예외·브라우저 꺼짐은 **추가만 멈춘다**
+    (클릭을 더 하지 않음). 출력 줄은 전부 `[추가]` 머리(A-4). 반환 = 끝 줄 `· 추가: …` 글."""
+    ex = rf["extras"]
+    stage = plan["stage_dir"] + "-extra"
+    xdir = os.path.join(plan["day_dir"], ex["subdir"])
+    lines = []
+
+    def xlog(s):
+        s = "[추가] " + s.strip()
+        lines.append(s)
+        print(s)
+
+    kw = next((c for c in four_checks if c.get("kind") == "키워드"), None)
+    kw_imps = (kw.get("sums") or {}).get("노출수") if kw else None
+    summ = {"date": plan["today"], "started": dt.datetime.now(KST).isoformat(timespec="seconds"),
+            "expected": {"preset": plan["preset"], "start": plan["start"], "end": plan["end"]}, "account_no": rf["account_no"],
+            "reports": [], "history": None, "blocked": None, "keyword_imps_all": kw_imps}
+    notes = []
+    try:
+        if os.path.isdir(stage):
+            shutil.rmtree(stage)
+        os.makedirs(stage)
+        if os.path.isdir(xdir):  # 같은 날 다시 돈 실행의 옛 추가 결과 — 이번 실행 것만 남긴다(summary_extra 와 파일이 어긋나지 않게)
+            shutil.rmtree(xdir)
+        os.makedirs(xdir)
+        shot = Shot(page, os.path.join(stage, "debug"), debug)   # A 만(B 는 Shot 0)
+        xlog(f"추가 수집 시작 — 보고서 {len(ex['reports'])} + 변경 이력 {1 if ex['history'] else 0} · 임시 {stage} · 저장 {xdir}")
+        for name, spec in ex["reports"].items():
+            if page.is_closed():
+                raise RuntimeError("브라우저 페이지가 닫힘")
+            names = expected_filenames(name, rf["account_no"])
+            item = {"name": name, "kind": spec["kind"], "expected_file": names[0], "expected_files": names, "save_dir": xdir}
+            try:
+                rec = fetch_one(page, item, plan, rf, stage, shot, xlog)
+            except SystemExit:
+                raise
+            except Exception as e2:  # 한 보고서의 예외는 그 보고서 실패로만
+                rec = {"name": name, "kind": spec["kind"], "status": "fail", "error": click_reason(e2), "file": None}
+                try:
+                    page.goto(rf["list_url"])
+                except Exception:
+                    pass
+            if rec["status"] == "downloaded":
+                chk = check_extra(rec["file"], name, spec, rf, plan["start_date"], plan["end_date"], kw_imps)
+                rec["check"] = _slim(chk)
+                for c in chk["checks"]:
+                    xlog(f"[{spec['kind']}] {'PASS' if c['ok'] else 'FAIL'} {c['name']}: {c['msg']}"[:240])
+                for w in chk["warn"]:
+                    xlog(f"[{spec['kind']}] WARN {w}")
+                if chk["ok"]:
+                    os.replace(rec["file"], os.path.join(xdir, os.path.basename(rec["file"])))   # 검사 뒤에만 옮긴다(X-4)
+                    rec.update(status="ok", file=os.path.basename(rec["file"]), sums=chk.get("sums"))
+                else:
+                    rec.update(status="fail", error="; ".join(c["msg"] for c in chk["checks"] if not c["ok"])[:300], file=None)
+            else:
+                rec["file"] = None
+                rec["status"] = "fail"
+            rec.pop("save_dir", None)
+            summ["reports"].append({k: v for k, v in rec.items() if k not in ("error_detail",)})
+            xlog(f"→ {spec['kind']}: {'받음' if rec['status'] == 'ok' else '실패(' + (rec.get('error') or '?')[:80] + ')'}")
+            notes.append(f"{spec['kind']} {'받음' if rec['status'] == 'ok' else '실패(' + (rec.get('error') or '?')[:60] + ')'}")
+            if rec["status"] != "ok" and not on_list(page, rf):
+                back_to_list(page, rf, xlog)
+        if ex["history"]:
+            if page.is_closed():
+                raise RuntimeError("브라우저 페이지가 닫힘")
+            try:
+                hrec = fetch_history(page, rf, ex, plan_today(plan), stage, xlog)
+            except SystemExit:
+                raise
+            except Exception as e2:
+                hrec = {"name": "변경 이력", "kind": ex["history"]["kind"], "status": "fail", "error": click_reason(e2), "file": None}
+            if hrec["status"] == "downloaded":
+                os.replace(hrec["file"], os.path.join(xdir, X.HISTORY_FILE))
+                hrec.update(status="ok", file=X.HISTORY_FILE)
+                for w in hrec.get("warn") or []:
+                    xlog(f"[{ex['history']['kind']}] {w}")
+            summ["history"] = hrec
+            k = ex["history"]["kind"]
+            xlog(f"→ {k}: {'받음' if hrec['status'] == 'ok' else '실패(' + (hrec.get('error') or '?')[:80] + ')'}")
+            notes.append(f"{k} {'받음' if hrec['status'] == 'ok' else '실패(' + (hrec.get('error') or '?')[:60] + ')'}")
+    except SystemExit as e2:   # 금지 문구·허용 밖 동작 차단 — 추가만 멈춘다(클릭을 더 하지 않음)
+        summ["blocked"] = _no_fail(e2)
+        xlog(f"차단 — 추가 수집만 멈춤(4개·종료 코드 그대로): {summ['blocked']}")
+        notes.append(f"차단({summ['blocked'][:60]}) — 나머지 건너뜀")
+    except Exception as e2:  # noqa: BLE001 — 브라우저 꺼짐·폴더 오류 등
+        summ["blocked"] = f"{type(e2).__name__}: {str(e2).splitlines()[0][:160] if str(e2) else ''}"
+        xlog(f"예외 — 추가 수집만 멈춤(4개·종료 코드 그대로): {summ['blocked']}")
+        notes.append(f"예외({type(e2).__name__}) — 나머지 건너뜀")
+    finally:
+        done = {r["name"] for r in summ["reports"]}
+        for name, spec in ex["reports"].items():
+            if name not in done:
+                summ["reports"].append({"name": name, "kind": spec["kind"], "status": "skip", "file": None, "error": "앞 단계에서 멈춤"})
+        if ex["history"] and summ["history"] is None:
+            summ["history"] = {"name": "변경 이력", "kind": ex["history"]["kind"], "status": "skip", "file": None, "error": "앞 단계에서 멈춤"}
+        summ["finished"] = dt.datetime.now(KST).isoformat(timespec="seconds")
+        summ["log"] = lines
+        try:
+            os.makedirs(xdir, exist_ok=True)
+            with open(os.path.join(xdir, X.SUMMARY), "w", encoding="utf-8") as f:
+                json.dump(summ, f, ensure_ascii=False, indent=1, default=str)
+            dbg = os.path.join(stage, "debug")
+            if os.path.isdir(dbg):  # A 디버그 컷(`--debug`·실패 컷)은 추가 폴더로 — 4개 debug/ 와 섞지 않음 · B 컷 0
+                shutil.move(dbg, os.path.join(xdir, "debug"))
+            left = [f for f in os.listdir(stage)] if os.path.isdir(stage) else []
+            if not left:
+                shutil.rmtree(stage, ignore_errors=True)
+            else:
+                print(f"[추가] 검사 못 넘은 파일은 {stage} 에만(성공 폴더·보관 0): {', '.join(sorted(left))[:200]}")
+        except Exception as e3:  # noqa: BLE001
+            print(f"[추가] summary_extra 를 쓰지 못함({type(e3).__name__}) — 1x store 는 이번 추가 결과를 건너뛴다(4개 무관)")
+    return " · ".join(notes) if notes else "없음"
+
+
+def plan_today(plan):
+    return dt.date.fromisoformat(plan["today"])
 
 
 def _slim(chk):

@@ -9,6 +9,8 @@
 #   없거나 꼴이 다르거나 지난 회차 기록이면 validate "광고비 잔액 카드" FAIL(그 뒤 compute 도 [FAIL]) — 이 스크립트가 따로 검사하지는 않는다.
 #   (2026-10-10 매출 작업 A·C) compute 에 --leads <장부> --place <체크리스트> 를 늘 넘긴다 — 경로는 leads.py path · place.py path(환경 변수 SAERO_LEADS·SAERO_PLACE >
 #   config leads.path · place_checklist.path). 5단계와 같은 입력이라야 compare "12 장부 기준 판정"·"12 플레이스 행"이 낡은 판정을 잡는다(막음 A-F3). 없으면 compute [주의] — 판정 '확인 못 함'.
+#   (2026-10-12 판 G 보고서 더 받기 A + B) 작업본 옆 extra/(5단계 1x `extras.py combine --out work/extra` 의 추가 합본·원장 사본)을 validate·compute 에 --extra 로 늘 넘긴다 —
+#   5단계 compute 와 같은 입력. 폴더·파일이 없으면(첫 회·수집 실패) compute [주의] · 카드·표 '확인 못 함' 이 맞음(validate 카드 유무 기준 = 그 파일 유무 — A-5).
 #   전부 통과하면 작업본 옆에 도장 precheck_ok.md5를 쓴다 — 1줄 `<작업본 md5>  <이름>` · 2줄 `<직전 배포본 md5>  <이름>` · 3줄 `mode full|pending`.
 #   deploy.py 실제 push는 작업본 md5 = --file, 직전 배포본 md5 = --base일 때만 PUT(수정 회차 3 W11·4 X2 — pending이면 [주의]만).
 #   인자 수가 맞으면 무엇보다 먼저 옛 도장을 지우고(파일 없음 FAIL에도 — 이번 실행이 끝까지 통과해야 다시 생긴다), 작업본 md5를 시작·끝 두 번 재 같을 때만 쓴다(도중에 바뀌면 [FAIL]).
@@ -18,7 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; PENDING=(); ARGS=()
 PY="${PY:-python3}"; export PYTHONUTF8=1
 for a in "$@"; do if [ "$a" = "--pending" ]; then PENDING=(--pending); else ARGS+=("$a"); fi; done
 if [ "${#ARGS[@]}" -ne 3 ]; then echo "사용법: PY=<venv 파이썬> scripts/precheck.sh <작업중 index.html> <합본폴더> <직전 배포본 index.html> [--pending]"; exit 2; fi
-HTML="${ARGS[0]}"; C="${ARGS[1]}"; PREV="${ARGS[2]}"; J="$(dirname "$HTML")/compute.json"; STAMP="$(dirname "$HTML")/precheck_ok.md5"; BAL="$(dirname "$HTML")/balance.json"
+HTML="${ARGS[0]}"; C="${ARGS[1]}"; PREV="${ARGS[2]}"; J="$(dirname "$HTML")/compute.json"; STAMP="$(dirname "$HTML")/precheck_ok.md5"; BAL="$(dirname "$HTML")/balance.json"; EXTRA="$(dirname "$HTML")/extra"
 rm -f "$STAMP"
 for f in "$HTML" "$PREV"; do [ -f "$f" ] || { echo "[FAIL] 파일 없음: $f — 작업본(work/index.html)·직전 배포본(work/prev.html) 경로 확인"; exit 2; }; done
 "$PY" -c 'import sys' 2>/dev/null || { echo "[FAIL] 파이썬을 실행할 수 없음: PY=$PY — Code 탭은 PY=<venv 파이썬>(references/code-tab.md 1절)"; exit 1; }
@@ -31,9 +33,9 @@ run() {  # 통과면 끝 3줄(종전과 같음), 실패면 전체 출력 뒤 같
   out="$("$@")" || rc=$?
   if [ "$rc" -eq 0 ]; then printf '%s\n' "$out" | tail -n 3; else printf '%s\n' "$out"; exit "$rc"; fi
 }
-echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML" "$C/키워드.csv" "$C/검색어.csv" "$C/시간대별.csv" "$C/상세지역.csv" --balance "$BAL" ${PENDING[@]+"${PENDING[@]}"}
+echo "== validate ${PENDING[*]:-}"; run "$PY" "$ROOT/scripts/validate.py" "$HTML" "$C/키워드.csv" "$C/검색어.csv" "$C/시간대별.csv" "$C/상세지역.csv" --balance "$BAL" --extra "$EXTRA" ${PENDING[@]+"${PENDING[@]}"}
 LEADS="$("$PY" "$ROOT/scripts/leads.py" path)" && PLACE="$("$PY" "$ROOT/scripts/place.py" path)" || { echo "[FAIL] 장부·체크리스트 경로를 못 정함(leads.py path · place.py path)"; exit 1; }
-echo "== compute(직전 배포본 $PREV 경쟁사표 기준 · 장부 $LEADS · 체크리스트 $PLACE) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" --balance "$BAL" --leads "$LEADS" --place "$PLACE" -o "$J"
+echo "== compute(직전 배포본 $PREV 경쟁사표 기준 · 장부 $LEADS · 체크리스트 $PLACE · 추가 $EXTRA) → compare"; "$PY" "$ROOT/scripts/compute.py" "$C" --competitors-html "$PREV" --balance "$BAL" --leads "$LEADS" --place "$PLACE" --extra "$EXTRA" -o "$J"
 run "$PY" "$ROOT/scripts/compare.py" "$HTML" "$J"
 echo "== overflow"; "$PY" "$ROOT/tests/overflow_check.py" "$HTML"
 echo "== narrative(서술 미교체)"; run "$PY" "$ROOT/scripts/narrative_check.py" "$HTML" "$PREV"
