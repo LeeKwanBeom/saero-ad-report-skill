@@ -1,3 +1,32 @@
+## 검증·병합 기록(2026-10-12 — 보고서 더 받기 A(성별·연령대) + B(변경 이력)(레이아웃 판 r2026-10-G): 검증 1(막음 0) → main 병합)
+
+**병합**: `feat-20261011-reports`(`d97eb7a` — 8f1ac30 위 7커밋: 탐색 기록 `205577b`·`5e27a30`·`f56f647`·`6fca8ff`·`00f4e8c` · `85a57e0` 코드·시험·문서 · `d97eb7a` 구현 기록)를 main(`8f1ac30` — 분기 뒤 main 변경 0, 2026-10-12 09:32 KST `ls-remote` 로 main = 8f1ac30 · 브랜치 = d97eb7a 확인 → 갱신 회차 돌지 않음)에 `git merge --no-ff` → 병합 커밋 **`381a594`**(부모 8f1ac30 · d97eb7a, 트리 `706e4c98`). 경우 A — 충돌 0 · 8f1ac30 대비 24파일 +3,283/−138.
+
+**병합 트리 ≠ 브랜치 트리(`e3613da8`) — 병합 세션이 `audit/last-audit.md` 만 손봄(`git diff --name-only HEAD origin/feat-20261011-reports` = 그 파일 하나, 코드·config·data·registry·local/ 는 브랜치 그대로)**:
+1. **줄바꿈** — 구현 커밋 `85a57e0` 이 `audit/last-audit.md` 를 CRLF(전 줄)로 올렸다(main 은 LF · 다른 23파일은 CRLF 0). 그대로 병합하면 staged diff 가 파일 전체(+3,116/−2,948)로 잡혀 `leads.py guard --staged` 가 옛 기록의 '회차 머리 배포 완료' 4곳(머리 14곳) · 장부 라벨+숫자 7곳을 새 줄로 보고 FAIL. 병합 커밋에서 LF 로 되돌림(브랜치 blob 의 CRLF→LF 변환본 = 스테이지 blob 로 내용 같음 확인 · 이 뒤 diff 는 새 168줄뿐). 원인 [추론] — 구현 세션이 이 파일을 Write/Edit 로 다시 쓴 산출(관례: Write 산출은 Python 으로 LF 정규화).
+2. **가드 오탐 2곳** — 탐색 기준선 표본 줄(109행)의 광고주센터 변경 이력 줄 수 표기 2곳(사람이 손으로 등록한 제외 키워드 줄 수 · 스킬 API 등록 줄 수 — '등록' 바로 뒤에 숫자+`줄`)은 장부(leads) 숫자가 아니다. guard 가 '등록' 라벨 뒤 숫자에서 `개`·`행` 만 예외로 둬서 걸림 → 숫자 뒤 표기를 `개(줄)` 로만 고침(의미 같음, guard 우회 아님). 뒤 guard **PASS**(staged 24파일 · 추가 줄 3,283 · 커밋 메시지 포함).
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_보고서더받기_회차1_2026-10-12.md`, 별도 세션 — `D:\saero-verify` 2026-10-12 09:08~09:30 KST, 조정자 Sonnet 5.5 · 울트라코드 켬 · 워크플로 1 = 검토자 4(jsonl `claude-sonnet-5-5` — 렌즈 fetch / extras / 계산·리포트 / 문서) · 반박 0 · Haiku 0 · Opus 0 · 하위 토큰 약 131만(상한 150만 안) · 도구 278, clone `D:\saero-verify\feat-20261011-reports-1`, 대상 d97eb7a): 완료 기준 1~20 · 23~31 전부 참(21·22 범위 밖) · 막음 **0** · test_extras **17 OK** · test_fetch_reports **25 OK**(130초) · test_apply **30 OK**(skip 1 = 리허설 RX 몫 — R9 사본 직접 실행으로 대신) · test_deploy **45 OK**(86초). 사본 재실행(R9 → 검증 clone `work/RV/`): `extras store` 2번 +0줄 · 합본 4파일 = 리허설 `repo/work/extra` 바이트 같음 · compute.json · index.html(`6f4afc4c`) = 리허설 `same/` 바이트 같음 · precheck validate **28/28** · compare **108/0** · 넘침 0 · 도장 6f4afc4c/53dce9d8 = 리허설 도장. 카드 숫자 CSV 독립 재계산 일치(성별 563/1,710/612 · 연령대 11행). 리허설 대조: 4개 18초 + 추가 9초 · 네이버 쓰기 0 · 배포 저장소 main `07f4a96` 그대로(PUT 0) · 운영 폴더 `18151ca8`(280파일) · 작업 clone `8cf84048`(326파일) · `~/saero-fetch` `64c74e4d`(908파일) 검증 전후 같음 · 실제 `extra-archive`·`history` 없음. 검증이 못 본 것: 줄바꿈(완료 기준 밖) — 병합 때 guard 가 잡음.
+
+**병합 main 확인**(경우 A — 구현 세션이 커밋 전 한 번(01:55~02:00 KST, 12묶음 rc 0, 위 구현 기록 "전체 시험") + 검증 세션이 바뀐 줄에 닿는 시험 4종 재실행 → 작업 알고리즘 4절 "전체 시험은 병합 전 한 번" 이 채워짐. 이번엔 `last-audit.md` 를 읽는 시험이 있어 병합 트리에서 그 시험만 더 돌림) [실측 09:38 KST]:
+- 병합 트리에서: test_leads **23 OK(35초)** · test_deploy **45 OK(87초)** · test_extras **17 OK** · test_apply **30 OK(skip 1 = 리허설 RX 몫)** · `py_compile` 31/31 OK · `bash -n` 2/2 OK.
+- `cat data/*/*.csv audit/exclusions.csv | md5sum` 병합 전 = 뒤 **`9410dd14`** · registry(`audit/exclusions.csv`) 1,263행 그대로 · `git diff --stat 8f1ac30 HEAD -- data/ audit/exclusions.csv` 빈 출력 · config/report-config.json **`51937738` → `a011635d`**(279 → 332행 — `report_layout.layout_id` G · `markers.extra_blocks` · `extras` 블록, 그 밖 변화 0).
+- **`local/saero-run/SKILL.md` 1파일 +1/−1**(4줄 — ① 수집에 추가 수집 한 줄 · 1x `extras.py store`·`combine`) → 설치본 교체 필요(아래 "병합 뒤" ②).
+- audit/last-audit.md(이 절 전) 3,116행 · 877,493바이트 · CR 0.
+배포 PUT·POST·PATCH 0 · 네이버 0 · fetch_reports·deploy 실행 0 · 운영 작업 폴더 `D:\saero` 쓰기 0.
+
+**이월**(한 줄씩 — 검증 1 의 이월 19줄 요지(보고 6절 원문). 구현 기록 이월은 그대로 아래):
+- (검증 이월 1~5 fetch) Ctrl+C 는 추가 중이면 트레이스백·비0 종료(4개 폴더·첫 `[PASS] 4개` 는 남음) · `check_extra` 가 기형 CSV(데이터 행이 전부 일별 칸보다 짧음)면 나머지 A·B 전체를 `예외(IndexError)` 로 건너뜀 · config `extras.subdir` 가 `debug`·`summary.json`·`x.csv` 꼴을 허용 · `fetch_history` 가 `goto` 뒤 도착 URL 을 안 봄(엑셀 머리줄 검사가 거름) · 브라우저 죽음 시 보고서당 최대 ~100초 · 빈 `partial/<날짜>-extra` 잔여 · 예외·차단 때도 끝 `다음:` 에 1x(store 무동작).
+- (검증 이월 6~11 extras) `inside_repo` 가 `\\?\`·UNC·정션·8.3 경로를 '밖'으로 통과(덮어쓰기 경로를 그렇게 줄 때만) · `store_report` 가 시작이 더 늦은 새 파일을 받아 보관본을 줄임(정상은 fetch 가 막음) · `변경이력.csv` 칸 수 검사 없음(손상 줄이 원장에 붙으면 매일 읽기 실패) · 꼴 다른 `summary_extra.json` 이면 store 트레이스백 rc 1 · extras 설정 꺼진 날 `seed` rc 0 (구현 기록 62행 "seed 설정 없음 exit 1" 은 history 설정 없음만 참) · `combine --out` 이 보관 월 폴더를 가리키면 `<종류>.csv` 를 지움 · merge 로그 `기록 구간 +` 가 안 적었을 때도 찍힘 · `<ID>` 가림 한계 · test_extras 에 키워드 컬럼 가짜 추가 CSV 시험 없음(임시 재현으로 확인).
+- (검증 이월 12~16 계산) validate SYSTEM·하루예산 중단 0 검사가 04 블록 안만 · 주체·유형 낱말이 compute·validate 코드에 박힘(`actor_rules` 를 바꾸는 날 둘이 같이 틀림) · B 엑셀 0줄도 성공으로 받아 기록 구간을 늘림 · 05 블록 손 이동 rc 0 · 소수 비용 compute/validate 불일치(요란) · `splitlines()` U+2028 · mutation_test 주석 뒤엉킴 · 낡은 help(`apply.py:1085` · `chart_check.py:554`).
+- (검증 이월 17~19 문서) code-tab.md:36·report-fetch.md 4-1 의 "덮어쓰기 표시" 는 `combine` 이 원장 경로를 안 찍어 store·seed 에만 참 · 마크다운 렌더 3곳(report-fetch.md:101~103 · report-structure.md:667~669 · checklist.md:229 '판 G' 이름 겹침) · 문서가 config 값(min_imps 100 · max_rows 10)을 같이 적음.
+- (병합 이월 1) 구현 세션이 `audit/last-audit.md` 를 CRLF 로 올림 — 다음 구현 지시문에 "last-audit.md 는 LF: Write/Edit 뒤 Python 으로 `\r\n` → `\n`" 한 줄.
+- (병합 이월 2) `leads.py guard` 의 '등록 N' 라벨 예외가 `개`·`행` 뿐이라 변경 이력 줄 수 '등록 N줄' 을 장부 숫자로 오탐 — 예외에 `줄` 추가 후보(지금은 표기 `N개(줄)` 로 피함).
+
+**병합 뒤**: ① 운영 폴더 `git pull --ff-only`(다음 `/saero-run` 첫머리 — 운영 폴더 HEAD 는 아직 8f1ac30) · ② 설치본 `D:\saero\.claude\skills\saero-run\SKILL.md` 를 `local/saero-run/SKILL.md` 로 교체(사용자) · ③ 사장님께 물을 사실 셋(ADVoost Max · 확장 소재 계획 · 성별·연령 타게팅·가중치)을 첫 실사용 전에 사용자가 전함 · ④ **첫 실사용 = 판 G 첫 적용 `/saero-run`(Opus 5.5 · high · 울트라코드 끔) — 첫 말 "보고서 더 받기 A + B 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"**(첫 말 없이 데이터 회차가 먼저 돌면 7단계 게이트 멈춤이 보류 회차가 됨) — 순서는 위 구현 기록 "첫 적용 본보기"(원장 시드 `--dry-run` 먼저 → fetch → ingest → 1x → compute `--extra` → apply `--layout` → precheck → chart_check 전후 비교 → 사용자 "배포" 뒤에만 `--layout-change`).
+
+---
+
 # 기능 추가 구현 기준선(보고서 더 받기 A + B, 2026-10-12) · 브랜치 `feat-20261011-reports`
 점검일: 2026-10-12 00:44 ~ 02:1x KST (기능 추가 회차 **③ 구현** — 배포 0 · 첫 적용은 병합 뒤 운영 `/saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · 울트라코드 켬. 지시문 `D:\saero\saero-ad-report_보고서더받기_구현지시_회차1_2026-10-12.md`(저장소 밖).
 기준: 아래 탐색 기준선 절 + 전문 `D:\saero\saero-ad-report_보고서더받기_탐색_2026-10-11.md` 3.0~3.2 · 시작 `git fetch` — origin/main `8f1ac30`(앞서지 않음 — 병합 0). **코드 커밋 `85a57e0`** + 이 기록.
