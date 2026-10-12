@@ -1,11 +1,11 @@
 ---
-name: saero-run
-description: saero 광고 리포트 전 단계 실행(/saero-run, 광고 리포트 업데이트, 주간리포트 갱신, 보고서 받기, 제외 검색어 등록). 이 PC Code 탭(D:\saero)에서 수집 → 보관·합본 → 리포트 갱신 → 제외 검색어 승인·등록·확인 → 배포 → 기록을 한 세션으로 잇는다. 설치본 saero-ad-report(부트스트랩) 대신 이 스킬을 쓴다.
+name: q-saero-run
+description: saero 광고 리포트 전 단계 실행(/q-saero-run, 광고 리포트 업데이트, 주간리포트 갱신, 보고서 받기, 제외 검색어 등록). 이 PC Code 탭(D:\saero)에서 수집 → 보관·합본 → 리포트 갱신 → 제외 검색어 승인·등록·확인 → 배포 → 기록을 한 세션으로 잇는다. 설치본 saero-ad-report(부트스트랩) 대신 이 스킬을 쓴다.
 ---
 # saero 전 단계 실행 — 진입(정본은 저장소)
 
 이 파일은 얇은 안내다. 절차·규칙·명령의 정본은 작업 폴더 저장소의 `references/code-tab.md`와 `SKILL.md`다 — 다르면 저장소를 따른다.
-(이 파일의 정본 사본은 저장소 `local/saero-run/SKILL.md`. 고칠 때는 저장소를 고치고, 이 자리에 두는 것은 사용자가 한다.)
+(이 파일의 정본 사본은 저장소 `local/q-saero-run/SKILL.md`. 고칠 때는 저장소를 고치고, 이 자리에 두는 것은 사용자가 한다.)
 
 1. 작업 폴더로: `cd /d/saero/saero-ad-report-skill`(main 하나). Desktop 사본·검증 clone·기능 브랜치 clone은 쓰지 않는다.
 2. `references/code-tab.md`를 처음부터 읽고, `SKILL.md`와 `audit/last-audit.md` 맨 위 절을 읽는다.

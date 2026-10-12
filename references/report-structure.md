@@ -132,7 +132,7 @@ B `show` ["사람"] · `show_system` false(09-21 결정) · `max_rows` 10 ④ �
 - 바꾸는 코드: `scripts/apply.py --layout` — meta r2026-10-F 판 → `convert_f_to_g`(meta · 04·05 구역 끝 앵커(정확히 하나) 앞에 '확인 못 함' 블록 — 판 F 인데 `saero:extra`·`data-extra=` 가 이미 있으면 FAIL),
   옛 판·B·C·D·E 는 사슬로 F 를 거쳐 G. `--layout` 없이 판 F 면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-F ≠ config r2026-10-G — --layout 을 붙여 r2026-10-F → r2026-10-G`.
   deploy `--layout-change` 게이트는 코드 변경 없이 그대로 걸린다(직전 배포본 meta r2026-10-F ≠ 작업본 r2026-10-G).
-- 첫 적용 보류: 운영 `/saero-run` 첫 말 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함" → 도장 뒤 작업본 + chart_check compare.html(04·05 옛/새) → 사용자 "배포" 답 뒤에만 `--layout-change`(code-tab.md 4절).
+- 첫 적용 보류: 운영 `/q-saero-run` 첫 말 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함" → 도장 뒤 작업본 + chart_check compare.html(04·05 옛/새) → 사용자 "배포" 답 뒤에만 `--layout-change`(code-tab.md 4절).
 - 이 판도 설계 회차·사용자 결정 없이 바꾸지 않는다. 카드 머리·note 글을 바꾸려면 코드 전에 사용자에게 묻는다.
 
 ## 목차

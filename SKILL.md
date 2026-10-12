@@ -10,7 +10,7 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 
 ## 먼저 — 실행 환경(채팅 가드)
 
-**`/home/claude`나 `/mnt/user-data`가 있는 환경(채팅 — 웹·Cowork 컨테이너)이면 아무것도 하지 말고 "PC 데스크톱 앱 Code 탭(`D:\saero` 폴더)에서 `/saero-run`으로 실행해 주세요"라고 안내하고 멈춘다.**
+**`/home/claude`나 `/mnt/user-data`가 있는 환경(채팅 — 웹·Cowork 컨테이너)이면 아무것도 하지 말고 "PC 데스크톱 앱 Code 탭(`D:\saero` 폴더)에서 `/q-saero-run`으로 실행해 주세요"라고 안내하고 멈춘다.**
 이 스킬은 PC Code 탭 세션 하나에서 수집부터 배포·제외 검색어 등록·기록까지 돈다(사용자 결정 2026-09-28 — 채팅은 네이버 API가 403이라 수집·등록을 못 한다).
 이 PC에서 치는 방법(작업 폴더·`$PY`·사전 점검 S0·순서·멈춤·금지)은 **`references/code-tab.md`가 정본**이다. 아래 명령의 `$PY`는 저장소 밖 venv 파이썬
 (`python3` 금지 — 이 PC에선 Store 스텁), 상대 경로는 작업 폴더(저장소 루트) 기준이다.
@@ -655,7 +655,7 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
 
 ## 참고 문서·스크립트
 
-- `references/code-tab.md` — **Code 탭 실행 규약(정본)**: 진입(`D:\saero`·`/saero-run`)·환경(`$PY` venv·`PYTHONUTF8`·`TZ=KST-9`·git 신원·자격 증명)·
+- `references/code-tab.md` — **Code 탭 실행 규약(정본)**: 진입(`D:\saero`·`/q-saero-run`)·환경(`$PY` venv·`PYTHONUTF8`·`TZ=KST-9`·git 신원·자격 증명)·
   S0 사전 점검 블록·전 단계 순서·멈춤 표·exit 코드 판정·승인 목록 참조 선택 모드·금지·수동 폴백·리허설. 회차를 시작할 때 먼저 읽는다.
   진입 스킬·로컬 CLAUDE.md·질문 다듬기 스킬(`local/prompt-polish/`)의 정본 사본은 저장소 `local/`(설치는 사용자).
 - `references/report-structure.md` — 12개 섹션별 상세 구현 규칙 + 각 절 "정의(compute.py)". 5단계에서 읽는다.
