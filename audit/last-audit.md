@@ -5,6 +5,7 @@
 **시험**: test_extras 18 OK · test_apply 30 OK(skip 1) · test_validate_07 · test_narrative_check · test_leads OK · `py_compile` scripts·tests 전부 OK.
 **적용**: 다음 `/saero-run` 5단계 `apply.py` 가 04 블록을 통째로 다시 쓰므로 그 회차부터 저절로(레이아웃 판 G 그대로 — 배포 게이트·보류 없음). 오늘 배포본(9acf097)은 옛 표 그대로.
 **효율**: 벽시계 약 25분(13:0x~13:3x, 사용자 답 대기 포함) · 도구 호출 약 40회 · 즉석 코드 약 30행(리허설 표 보기·문서 바이트 고침) · 하위 에이전트 0. 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+**병합**: 사용자 "병합"(13:3x KST — 별도 검증 세션 없이, 위 리허설·음성 대조(묶음 푼 화면 validate FAIL)로 갈음 — 10/8 작은 수정 흐름). 시작 때 origin/main = `87f30ce`(분기 뒤 main 변경 0) · 운영 작업 폴더 HEAD `87f30ce`(작업 트리 깨끗 · `work/` 마지막 변경 13:05 → 갱신 회차 돌지 않음). `git merge --no-ff` → **`f726e9c`**(부모 87f30ce · f24a995, 충돌 0 · 트리 = 브랜치 트리) → main push → 운영 작업 폴더 `git pull --ff-only`. 브랜치 `fix-20261012-history-group` 는 clone 에 두고 지우지 않는다(원격 push 안 함).
 
 ---
 
