@@ -456,6 +456,8 @@ class ComputeG(unittest.TestCase):
         # validate 가 compute 와 따로 다시 묶은 값과 같다 — apply 로 그린 블록을 check_extras 가 PASS
         R = {"변경기록": hi}
         blk = A.hi_block(R)
+        tr0 = re.findall(r"<tr>(.*?)</tr>", blk, re.S)[1]                                    # 첫 데이터 줄 — 유형·대상·내용 칸만 줄바꿈(사용자 결정 "줄바꿈"), 일시는 한 줄
+        self.assertEqual([A.HI_WRAP in td for td in re.findall(r"<td[^>]*>", tr0)], [False, True, True, True])
         html = f'<div>{blk}<!-- saero:extra gender-age --><div class="note">확인 못 함 — t</div><!-- /saero:extra gender-age --></div>'
         kw = os.path.join(self.tmp, "kw.csv")
         with open(kw, "w", encoding="utf-8") as f:
