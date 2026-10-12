@@ -71,7 +71,7 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  27. (2026-10-12 판 G 보고서 더 받기 A + B) "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra" — `--extra <work/extra>`(precheck 는 작업본 옆 extra/)의
      파일 유무가 카드 유무 기준(A-5): `<종류>.csv`(성별·연령대 합본)·`변경이력.csv`+`변경이력_기록구간.csv`(원장 사본)가 있으면 카드·표의 기간 표기·줄 값이 compute.py 와
      따로 다시 센 값과 같아야(성별·연령대 = 합본 머리 기간 · 노출·비중·클릭·클릭률(min_imps 미만 '적음')·비용 · 알 수 없음 % / 변경 기록 = 키워드 CSV 집계 기간 ∩ 기록 구간
-     마지막 연속 구간 · 보일 주체 줄 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
+     마지막 연속 구간 · 보일 주체 줄(같은 분은 한 줄 — 2026-10-12) 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
      배포본 전체 아이디 꼴 `:naver` 0. "레이아웃 판" 검사(23)에 판 G 표지(블록 여닫이 각 1 · 04 안 본 표 뒤 · 05 안) 대조가 붙는다.
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>] [--extra <work/extra>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
@@ -615,7 +615,7 @@ def _v_phrase(kind, body):
 def check_extras(html, extra_dir, kw):
     """27. (판 G, 2026-10-12) 추가 카드·표 = work/extra(독립 재계산). 카드 유무 기준 = `<extra>/<종류>.csv`·`<extra>/변경이력.csv`(+기록 구간) 파일 유무(A-5 —
     precheck 가 늘 넘겨도 첫 회·실패면 '확인 못 함'이 맞음). 있으면 표 기간·줄 값이 다시 센 값과 같아야, 없으면 그 자리가 '확인 못 함' 이어야.
-    B 표 기간 = 키워드 CSV 집계 기간 ∩ 기록 구간 마지막 연속 구간(막음 B-1) · 보일 주체 줄 최신 위 max_rows · 스킬 등록 n회(고유 분)·삭제 k건 ·
+    B 표 기간 = 키워드 CSV 집계 기간 ∩ 기록 구간 마지막 연속 구간(막음 B-1) · 보일 주체 줄(같은 분은 한 줄 — 2026-10-12) 최신 위 max_rows · 스킬 등록 n회(고유 분)·삭제 k건 ·
     show_system false 면 SYSTEM·하루예산 중단 0(09-21 결정) · 배포본 전체에 아이디 꼴(`:naver`) 0."""
     import extras as X
     name = "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra"
@@ -691,7 +691,12 @@ def check_extras(html, extra_dir, kw):
             inside = [r for r in lrows if r and lo <= dt.date(int(r[0][:4]), int(r[0][5:7]), int(r[0][8:10])) <= hi]
             show = [r for r in inside if r[2] in h["show"]]
             show = sorted(show, key=lambda r: r[0], reverse=True)
-            want = [(f"{int(r[0][5:7])}/{int(r[0][8:10])} {r[0][12:17]}", r[1], r[4] or r[3] or "—", _v_phrase(r[1], r[5]) or "—") for r in show[:int(h["max_rows"])]]
+            # 같은 분(일시 원문)은 한 줄(2026-10-12 사용자 결정) — 칸마다 겹치지 않는 값을 원장 순서대로 ' · ' 로(compute 와 따로 다시 묶는다)
+            grp_keys = list(dict.fromkeys(r[0] for r in show))
+            uniq = lambda xs: " · ".join(dict.fromkeys(x for x in xs if x))
+            show = [[r for r in show if r[0] == k] for k in grp_keys]
+            want = [(f"{int(g[0][0][5:7])}/{int(g[0][0][8:10])} {g[0][0][12:17]}", uniq(r[1] for r in g), uniq(r[4] or r[3] or "—" for r in g),
+                     uniq(_v_phrase(r[1], r[5]) for r in g) or "—") for g in show[:int(h["max_rows"])]]
             label = f"{lo.month}/{lo.day}~{hi.month}/{hi.day} 기록" + (f" · 최근 {len(want)}건 / {len(show)}건" if len(show) > len(want) else "")
             mh = re.search(r"계정 변경 기록\([^)]*\) <span[^>]*>\((.*?)\)</span>", hi_b)
             if not mh or _plain(mh.group(1)) != label:
