@@ -20,7 +20,7 @@
   환경 변수 SAERO_LEADS·SAERO_PLACE). 'M/D까지' 는 합본 마지막 날(masthead 끝).
 - (2026-10-12 판 G 보고서 더 받기 A + B) --extra <work/extra>(extras.py combine 의 추가 합본·원장 사본) 면 "성별연령"(05 아래 카드 — 종류마다 기간 = 합본 머리 ·
   노출·비중·클릭·클릭률(노출 min_imps 미만 '적음')·비용 · 알 수 없음 % · 캠페인 단위라 제외 그룹 포함)·"변경기록"(04 아래 표 — 기간 = 집계 기간 ∩ 기록 구간 마지막 연속 구간 ·
-  보일 주체 줄 최신 위 max_rows · 내용 한 구(등록 n개 · 삭제 n개 · 변경(전 n → 후 m개) · 칸 전 → 후 · 그 밖 유형만) · 스킬 등록 n회(고유 분)·삭제 k건 ·
+  보일 주체 줄 — 같은 분은 한 줄(2026-10-12) — 최신 위 max_rows · 내용 한 구(등록 n개 · 삭제 n개 · 변경(전 n → 후 m개) · 칸 전 → 후 · 그 밖 유형만) · 스킬 등록 n회(고유 분)·삭제 k건 ·
   show_system 이면 SYSTEM 하루예산 중단 회수). 폴더·파일이 없거나 extras 설정이 꺼져 있으면 상태 '없음' + [주의](exit 0 — '확인 못 함'). 5단계·precheck 는 늘 붙인다.
 """
 import argparse
@@ -341,8 +341,8 @@ def change_phrase(kind, content):
 
 def history_table(D, h, days):
     """원장 사본(work/extra/변경이력.csv) + 기록 구간 사본 → 04 아래 '계정 변경 기록' 표 값.
-    표 기간 = masthead ∩ 기록 구간의 **마지막 연속 구간**(막음 B-1 — 기록 구간 = 성공한 다운로드마다 [화면 시작, 받은 날 − 1]) · 그 안의 show 주체 줄
-    최신 위 max_rows 개 · 스킬 줄은 '제외 검색어 등록 n회(실행 수 = 고유 분) · 삭제 k건' · show_system 이면 SYSTEM 하루예산 중단 회수(기본 false — 09-21 결정)."""
+    표 기간 = masthead ∩ 기록 구간의 **마지막 연속 구간**(막음 B-1 — 기록 구간 = 성공한 다운로드마다 [화면 시작, 받은 날 − 1]) · 그 안의 show 주체 줄을
+    같은 분(일시 원문)끼리 한 줄로 묶어(2026-10-12 — 유형·대상·내용은 겹치지 않는 값을 ' · ' 로) 최신 위 max_rows 개 · '건수' = 묶은 줄 수 · 스킬 줄은 '제외 검색어 등록 n회(실행 수 = 고유 분) · 삭제 k건' · show_system 이면 SYSTEM 하루예산 중단 회수(기본 false — 09-21 결정)."""
     import extras as X
     led, cov = os.path.join(D, X.HISTORY_FILE), os.path.join(D, X.COVERED_FILE)
     if not os.path.exists(led) or not os.path.exists(cov):
@@ -364,9 +364,17 @@ def history_table(D, h, days):
         return {"상태": "없음", "사유": f"기록 구간 {cs.month}/{cs.day}~{ce.month}/{ce.day} 이 집계 기간과 겹치지 않음"}
     d = lambda r: dt.date(int(r[0][0:4]), int(r[0][5:7]), int(r[0][8:10]))
     inp = [r for r in rows if ps <= d(r) <= pe]
-    shown = sorted([r for r in inp if r[2] in h["show"]], key=lambda r: r[0], reverse=True)
-    out_rows = [{"일시": f"{int(r[0][5:7])}/{int(r[0][8:10])} {r[0][12:17]}", "유형": r[1], "주체": r[2], "대상": r[4] or r[3] or "—",
-                 "내용": change_phrase(r[1], r[5])} for r in shown[:int(h["max_rows"])]]
+    # 같은 분(일시 원문)은 한 줄로 묶는다(사용자 결정 2026-10-12 "같은 시각 줄은 하나로 묶어줘") — 유형·대상·내용은 겹치지 않는 값을 원장 순서대로 ' · ' 로 잇는다
+    srt = sorted([r for r in inp if r[2] in h["show"]], key=lambda r: r[0], reverse=True)
+    shown = []
+    for r in srt:
+        if shown and shown[-1][0][0] == r[0]:
+            shown[-1].append(r)
+        else:
+            shown.append([r])
+    j = lambda xs: " · ".join(dict.fromkeys(x for x in xs if x))
+    out_rows = [{"일시": f"{int(g[0][0][5:7])}/{int(g[0][0][8:10])} {g[0][0][12:17]}", "유형": j(r[1] for r in g), "주체": j(r[2] for r in g),
+                 "대상": j(r[4] or r[3] or "—" for r in g), "내용": j(change_phrase(r[1], r[5]) for r in g)} for g in shown[:int(h["max_rows"])]]
     sk = [r for r in inp if r[2] == "스킬" and r[1] == "타겟팅 변경"]
     lab = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
     out = {"상태": "ok", "기간": f"{ps.month}/{ps.day}~{pe.month}/{pe.day}", "시작": ps.strftime("%Y.%m.%d."), "끝": pe.strftime("%Y.%m.%d."),

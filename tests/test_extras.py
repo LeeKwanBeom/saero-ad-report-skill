@@ -419,10 +419,10 @@ class ComputeG(unittest.TestCase):
         _, hi, _ = self.cards(d)
         self.assertEqual(hi["스킬"], {"등록회": 17, "삭제건": 3})
         self.assertNotIn("시스템", hi)
-        self.assertEqual(hi["건수"], 4)
+        self.assertEqual(hi["건수"], 3)                                                       # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12)
         self.assertEqual([(r["일시"], r["유형"], r["대상"], r["내용"]) for r in hi["rows"]],
-                         [("9/21 07:57", "타겟팅 변경", "노원산전필라테스", "등록 1개(확장 검색)"), ("9/17 15:30", "광고그룹 On/Off", "새로필라테스", "On/Off ON → OFF"),
-                          ("9/17 15:30", "광고그룹 변경", "새로필라테스", "하루예산 10,000원 → 20,000원"),
+                         [("9/21 07:57", "타겟팅 변경", "노원산전필라테스", "등록 1개(확장 검색)"),
+                          ("9/17 15:30", "광고그룹 On/Off · 광고그룹 변경", "새로필라테스", "On/Off ON → OFF · 하루예산 10,000원 → 20,000원"),
                           ("9/17 08:22", "타겟팅 변경", "새로필라테스", "제외키워드 변경(전 0 → 후 70개)")])
         self.assertFalse(any(r["주체"] != "사람" for r in hi["rows"]))
         cfg = json.loads(json.dumps(CFG))
@@ -433,6 +433,47 @@ class ComputeG(unittest.TestCase):
         _, hi3, _ = self.cards(write_extra(os.path.join(self.tmp, "m"), rows=many, ga=False))
         self.assertEqual((hi3["건수"], hi3["표시"], len(hi3["rows"])), (25, 10, 10))           # max_rows
         self.assertEqual(hi3["rows"], sorted(hi3["rows"], key=lambda r: (int(r["일시"].split("/")[1].split()[0]), r["일시"][-5:]), reverse=True))
+
+    def test_same_minute_one_row(self):
+        """2026-10-12 사용자 결정 "같은 시각 줄은 하나로 묶어줘" — 같은 분(일시 원문) 사람 줄 = 한 줄: 대상·유형·내용은 겹치지 않는 값을 원장 순서대로 ' · ' ·
+        분이 다르면 따로(9/26 13:19 · 13:18) · '건수'·max_rows 는 묶은 줄 수 · validate 가 따로 다시 묶은 값과 같다(compute → apply → validate 왕복)."""
+        reg = lambda when, g, n: (when, "타겟팅 변경", "사람", "새로필라테스 파워링크", g, f"{g}\n등록된 내용\n확장 검색: " + ", ".join(f"k{i}" for i in range(n)))
+        rows = [reg("2026.09.26. 13:20", g, 6) for g in ("상계동필라테스", "노원역필라테스", "노원산전필라테스")]
+        rows += [reg("2026.09.26. 13:19", "상계동필라테스", 7)] + [reg("2026.09.26. 13:18", g, 7) for g in ("노원역필라테스", "노원산전필라테스")]
+        rows += [reg("2026.09.25. 13:13", "상계동필라테스", 11), reg("2026.09.25. 13:13", "노원역필라테스", 10)]      # 같은 분 · 내용 다름
+        d = write_extra(os.path.join(self.tmp, "s"), rows=rows, ga=False)
+        _, hi, _ = self.cards(d)
+        self.assertEqual((hi["건수"], hi["표시"]), (4, 4))
+        self.assertEqual([(r["일시"], r["유형"], r["대상"], r["내용"]) for r in hi["rows"]],
+                         [("9/26 13:20", "타겟팅 변경", "상계동필라테스 · 노원역필라테스 · 노원산전필라테스", "등록 6개(확장 검색)"),
+                          ("9/26 13:19", "타겟팅 변경", "상계동필라테스", "등록 7개(확장 검색)"),
+                          ("9/26 13:18", "타겟팅 변경", "노원역필라테스 · 노원산전필라테스", "등록 7개(확장 검색)"),
+                          ("9/25 13:13", "타겟팅 변경", "상계동필라테스 · 노원역필라테스", "등록 11개(확장 검색) · 등록 10개(확장 검색)")])
+        many = [reg(f"2026.09.{12 + i // 3:02d}. 10:{i // 3:02d}", f"g{i % 3}", 1) for i in range(36)]   # 12분 × 3그룹
+        _, hi2, _ = self.cards(write_extra(os.path.join(self.tmp, "s2"), rows=many, ga=False))
+        self.assertEqual((hi2["건수"], hi2["표시"]), (12, 10))
+        self.assertTrue(all(r["대상"] == "g0 · g1 · g2" for r in hi2["rows"]))
+        # validate 가 compute 와 따로 다시 묶은 값과 같다 — apply 로 그린 블록을 check_extras 가 PASS
+        R = {"변경기록": hi}
+        blk = A.hi_block(R)
+        tr0 = re.findall(r"<tr>(.*?)</tr>", blk, re.S)[1]                                    # 첫 데이터 줄 — 유형·대상·내용 칸만 줄바꿈(사용자 결정 "줄바꿈"), 일시는 한 줄
+        self.assertEqual([A.HI_WRAP in td for td in re.findall(r"<td[^>]*>", tr0)], [False, True, True, True])
+        html = f'<div>{blk}<!-- saero:extra gender-age --><div class="note">확인 못 함 — t</div><!-- /saero:extra gender-age --></div>'
+        kw = os.path.join(self.tmp, "kw.csv")
+        with open(kw, "w", encoding="utf-8") as f:
+            f.write("키워드 보고서(2026.08.26.~2026.10.10.),2580077\n일별,노출수\n" + "".join(f"{x},1\n" for x in days(D(2026, 8, 26), D(2026, 10, 10))))
+        import validate as V
+        del V.results[:]
+        with redirect_stdout(io.StringIO()):
+            V.check_extras(html, d, V.read_csv(kw))
+        res = [r for r in V.results if "추가 카드·표" in r[0]]
+        self.assertTrue(res and res[-1][1], res)
+        bad = html.replace("상계동필라테스 · 노원역필라테스 · 노원산전필라테스", "상계동필라테스", 1)          # 묶음을 푼 화면 → FAIL
+        del V.results[:]
+        with redirect_stdout(io.StringIO()):
+            V.check_extras(bad, d, V.read_csv(kw))
+        res = [r for r in V.results if "추가 카드·표" in r[0]]
+        self.assertTrue(res and not res[-1][1] and "변경 기록 표" in res[-1][2], res)
 
     def test_no_input_is_unknown_exit0(self):
         """기준 10 — 추가 데이터 없음(첫 회 · 실패 · --extra 없음) → 상태 없음 · [주의] · compute exit 0."""
@@ -563,7 +604,7 @@ class ApplyValidateCompareG(unittest.TestCase):
         """기준 27(A-5)·9·11·13 — 카드 유무 기준 = work/extra 파일 유무(첫 회·실패면 '확인 못 함' 이 PASS) · 값·기간 다르면 FAIL · 아이디 꼴·SYSTEM FAIL."""
         name, ok, det = self.vcheck(self.G1, self.extra)
         self.assertTrue(ok, det)
-        self.assertIn("변경 기록 9/12~10/10 4/4줄 · 스킬 17회·삭제 3", det)
+        self.assertIn("변경 기록 9/12~10/10 3/3줄 · 스킬 17회·삭제 3", det)      # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12)
         self.assertTrue(self.vcheck(self.G0, os.path.join(self.tmp, "없음"))[1])         # 첫 회 — 파일 없음 + '확인 못 함'
         self.assertTrue(self.vcheck(self.G0, None)[1])                                   # --extra 없음
         self.assertFalse(self.vcheck(self.G0, self.extra)[1])                            # 파일이 있는데 '확인 못 함'

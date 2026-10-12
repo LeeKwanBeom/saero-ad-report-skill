@@ -724,6 +724,9 @@ EXTRA_LAYOUTS = (LAYOUT_G,)  # 추가 카드·표가 있는 판
 GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
 HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
 MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
+# 04 계정 변경 기록 표의 유형·대상·내용 칸만 줄바꿈(2026-10-12 사용자 결정) — .wide-table 의 nowrap(상속)을 칸에서 풀고, 본문 overflow-wrap:anywhere 로
+# 낱말 가운데서 끊기지 않게 낱말 단위(keep-all · normal). 일시 칸은 nowrap 그대로. 새 CSS 규칙 0(인라인 — css-and-layout.md 판 G 줄)
+HI_WRAP = 'style="white-space:normal;word-break:keep-all;overflow-wrap:normal;"'
 
 
 def esc(s):
@@ -777,9 +780,9 @@ def hi_block(R):
             L += ['      <div style="overflow-x:auto;" class="wide-table">', "      <table>", "        <thead>", "          <tr>",
                   "            <th>일시</th>", "            <th>유형</th>", "            <th>대상</th>", "            <th>내용</th>",
                   "          </tr>", "        </thead>", "        <tbody>"]
-            for r in h["rows"]:
-                L += ["          <tr>", f"            <td>{esc(r['일시'])}</td>", f"            <td>{esc(r['유형'])}</td>",
-                      f'            <td class="name-cell">{esc(r["대상"])}</td>', f"            <td>{esc(r['내용']) or '—'}</td>", "          </tr>"]
+            for r in h["rows"]:   # 유형·대상·내용 칸만 줄바꿈(2026-10-12 사용자 결정 "줄바꿈" — 같은 분 묶음으로 길어진 칸을 PC 에서 밀지 않게 · 낱말 단위) · 일시는 한 줄
+                L += ["          <tr>", f"            <td>{esc(r['일시'])}</td>", f"            <td {HI_WRAP}>{esc(r['유형'])}</td>",
+                      f'            <td class="name-cell" {HI_WRAP}>{esc(r["대상"])}</td>', f"            <td {HI_WRAP}>{esc(r['내용']) or '—'}</td>", "          </tr>"]
             L += ["        </tbody>", "      </table>", "      </div>"]
         else:
             L.append(f'      <div class="note">이 기간 {esc(who)} 변경 기록 없음</div>')

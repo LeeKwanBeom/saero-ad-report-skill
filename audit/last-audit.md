@@ -1,3 +1,13 @@
+## 수정 기록(2026-10-12 — 04 계정 변경 기록: 같은 분 줄 한 줄로 묶기 + 칸 줄바꿈, 레이아웃 판 G 그대로) · 브랜치 `fix-20261012-history-group`
+**사용자 요청**: 판 G 첫 적용 배포(아래 갱신 회차) 뒤 04 표 캡처를 보고 "같은 시각 줄은 하나로 묶어줘"(구현 기록 이월 1 — 10칸이 9/24~9/26 손 등록 제외 키워드 줄로 차서 9/17 하루예산 줄이 밀림) → 묶은 판 1280 에서 표가 넓어져 좌우 밀기가 생긴다는 보고에 "줄바꿈" → "병합". 세션 Code 탭 `D:\saero`, Opus 5.5, 에이전트 0. clone `D:\saero\fix-20261012-history-group`(`git clone -c core.autocrlf=false`, 시작 origin/main `87f30ce`). 운영 작업 폴더 쓰기 0(리허설 재료 `work/combined`·`work/extra`·`balance.json`·`prev.html`·`index.html` 을 clone `work/` 로 복사만). 네이버 0 · 배포 PUT 0.
+**변경**(커밋 `ee6e05a` 묶기 · `f5e7aa8` 줄바꿈): `scripts/compute.py` `history_table` — 보일 주체 줄을 같은 일시(분 — 원장 원문)끼리 한 줄, 유형·대상·내용은 겹치지 않는 값을 원장 순서대로 ` · ` 로 · 분이 다르면 같은 작업이어도 따로 · `건수`·`max_rows` = 묶은 줄 수 · `scripts/validate.py` `check_extras` — 같은 규칙을 따로 다시 묶어 대조(계산 공유 0 · 검사 수 28 그대로) · `scripts/apply.py` `hi_block` — 유형·대상·내용 칸에 인라인 `HI_WRAP`(`white-space:normal;word-break:keep-all;overflow-wrap:normal;` — `.wide-table table` nowrap 상속을 칸에서 풀고 본문 `overflow-wrap:anywhere` 로 낱말 가운데서 안 끊기게) · 일시 칸 한 줄 · 새 CSS 규칙 0 · compare·config 변경 0 · `tests/test_extras.py` 같은 분 묶기 시험 1(묶음 · 분 다르면 따로 · 내용 다름 이어 쓰기 · max_rows 12 → 10 · apply → validate 왕복 PASS · 묶음 푼 화면 FAIL · 칸 줄바꿈 = 유형·대상·내용만) + 기존 기대값 4 → 3줄(9/17 15:30 두 줄) · 문서 report-structure 04 정의 · css-and-layout 판 G 예외 줄.
+**리허설**(clone `work/` — 오늘 배포본 `9acf097` 본문 d53e0204 사본 + 같은 입력, 새 코드로 compute → apply): 변경 기록 사람 줄 **28 → 14줄**(10칸 = 9/26 13:20 ~ 9/17 15:30 — 9/21·9/20 등록 줄과 9/17 15:30 On/Off·하루예산 줄이 새로 보임) · precheck validate 28/28 · compare OK 108 / DIFF 0 · overflow 넘침 0 · narrative 통과 · chart_check `--base` 배포본 **PASS 33 / FAIL 0**(04·05 추가 카드 제 구역 안·넘침 0 — 1280·390) · mutation_test 전부 살아 있음 · test_compare_sections 전부 맞음 · `tests/section_compare.py … --sections 4`(`work/cmp_history2/compare.html` — 사용자에게 보임): 줄바꿈 판 1280 좌우 밀기 없음(4번 구역 캡처 높이 906 → 981) · 390 이 표도 밀기 없음(4번 구역 969 → 1,218).
+**시험**: test_extras 18 OK · test_apply 30 OK(skip 1) · test_validate_07 · test_narrative_check · test_leads OK · `py_compile` scripts·tests 전부 OK.
+**적용**: 다음 `/saero-run` 5단계 `apply.py` 가 04 블록을 통째로 다시 쓰므로 그 회차부터 저절로(레이아웃 판 G 그대로 — 배포 게이트·보류 없음). 오늘 배포본(9acf097)은 옛 표 그대로.
+**효율**: 벽시계 약 25분(13:0x~13:3x, 사용자 답 대기 포함) · 도구 호출 약 40회 · 즉석 코드 약 30행(리허설 표 보기·문서 바이트 고침) · 하위 에이전트 0. 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+
+---
+
 ## 갱신 회차 (2026-10-12 12:50~13:06 KST — Code 탭 `/saero-run`, main 작업 폴더, **보고서 더 받기 A + B 첫 적용(판 G) · 보류로 시작**) · **배포 완료 `9acf097`**
 합본 `일별` 2026.08.26 — 10.11 (47일) · 저장소 반영 커밋 `9acf097`(직전 `07f4a96`, 파일 sha c988a80 → 091abc4) · 집계 기간 `2026.08.26 — 10.11 (47일)`
 저장소 반영(커밋) 9acf097 13:04 · 공개 사이트 반영 13:05(커밋 뒤 69초 · Pages #160)
