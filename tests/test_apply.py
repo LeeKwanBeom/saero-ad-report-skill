@@ -23,6 +23,8 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   04·06·07 정식표/목록/경쟁사표·08·10 이 compute 값과 같음. 동률은 직전 순서(클릭 1건 목록) · 신규 변형 행 = config competitor_defaults.
 - summary 기계 자리(막음 M2): 03 "이전 N일(M/D~M/D)"·07 "(N개 · 펼치기)"·경쟁사 "표 N행"·08 "(N개 지역·클릭 M건)" — 옛 값으로 바꿔 둔 판도 다시 쓰고,
   일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
+- 05 mediaChart(ApplyMediaLabels, 2026-10-14): 라벨·색 = compute 05.top5 순서(fixture HTML 순서와 다름 · 4·5위 바뀜 · 새 매체 '-' 없는 이름·'ZUM - PC' ·
+  직전 블록의 같은 매체 줄 나눔 유지 · 멱등·되돌리면 바이트 그대로) — validate check_media_top5 와 같은 읽기로 대조 · 따옴표 이름·낯선 유형·빈 조각·색 배열 없음 → ApplyError.
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
 - 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-G 있음 — 배포본 판 F 사본을 apply --layout 으로 바꾼 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
@@ -192,6 +194,82 @@ class ApplyFixture(unittest.TestCase):
         self.assertIn(f'<summary class="fold-more">표 {len(R["07"]["경쟁사표"])}행 · 펼치기</summary>', s7)
         self.assertEqual([[c.replace(",", "").replace("원", "") for c in cells(t)[2:5]] for t in rows(s10)],
                          [[str(v) for v in R["10"][k]] for k in "ABCD"])
+
+
+def media_block(h):
+    """05 mediaChart (라벨 글, 값, 색) — validate check_media_top5 와 같은 읽기(라벨 줄을 띄어쓰기로 이음)."""
+    i = h.index("getElementById('mediaChart')")
+    blk = h[i:h.index("new Chart", i + 10)]
+    lab = re.search(r"labels:\s*\[(.*?)\],\n", blk, re.S).group(1)
+    labels = [re.sub(r"[\[\]']", "", x).replace(",", " ").strip() for x in re.findall(r"\[[^\]]*\]", lab)]
+    values = [int(x) for x in re.search(r"label:\s*'노출수'[^\n]*\n\s*data:\s*\[([^\]]*)\]", blk).group(1).split(",")]
+    colors = re.search(r"backgroundColor:\s*\[([^\]]*)\]", blk).group(1).replace(" ", "").split(",")
+    return labels, values, colors
+
+
+def media_want(top5):
+    """validate 의 기대값 꼴 — 이름의 ' - '·'-' 를 띄어쓰기로, 색 = 플레이스 mint · 그 밖 ink."""
+    return ([t["매체"].replace(" - ", " ").replace("-", " ") for t in top5], [t["노출"] for t in top5],
+            ["mint" if t["유형"] == "플레이스" else "ink" for t in top5])
+
+
+class ApplyMediaLabels(unittest.TestCase):
+    """05 mediaChart 라벨·색 = compute 05.top5 순서(2026-10-14 — 값만 바꾸던 때 4·5위가 바뀐 날 라벨·색이 옛 순서로 남아 validate FAIL)."""
+    @classmethod
+    def setUpClass(cls):
+        cls.H, cls.R, cls.cfg = read(FIX), jread(FIXJ), load_config()
+        cls.out = A.apply(cls.H, cls.R, cls.cfg, layout=True)
+
+    def with_top5(self, top5):
+        R2 = json.loads(json.dumps(self.R))
+        R2["05"]["top5"] = top5
+        return R2
+
+    def test_fixture_follows_compute_order(self):
+        # fixture HTML 라벨 순서(매체 모바일·매체 PC·검색 모바일 …)는 compute 순서(매체 모바일·검색 모바일·매체 PC …)와 다르다 — 고친 뒤엔 compute 순서
+        self.assertNotEqual(media_block(self.H)[0], media_want(self.R["05"]["top5"])[0])
+        self.assertEqual(media_block(self.out), media_want(self.R["05"]["top5"]))
+        self.assertIn("labels: [['가짜매체','모바일'],['가짜검색','모바일'],['가짜매체','PC'],['가짜검색','PC'],['가짜기타','모바일']],", self.out)
+        self.assertIn("backgroundColor: [mint, ink, mint, ink, ink]", self.out)
+
+    def test_rank_swap_like_1014(self):
+        top = json.loads(json.dumps(self.R["05"]["top5"]))
+        top[3], top[4] = top[4], top[3]                                          # 4·5위가 자리를 바꾼 날(10/14 — 통합검색 PC 836 · MLB파크 828 꼴)
+        top[3]["노출"], top[4]["노출"] = 130, 90
+        R2 = self.with_top5(top)
+        o2 = A.apply(self.out, R2, self.cfg)
+        self.assertEqual(media_block(o2), media_want(top))
+        self.assertEqual(A.apply(o2, R2, self.cfg), o2)                           # 멱등
+        self.assertEqual(A.apply(o2, self.R, self.cfg), self.out)                 # 되돌리면 바이트 그대로
+
+    def test_new_media_and_kept_split(self):
+        top = json.loads(json.dumps(self.R["05"]["top5"]))
+        top[3] = {"매체": "네이버 블로그", "노출": 120, "유형": "혼합"}               # '-' 없는 이름 → 한 줄
+        top[4] = {"매체": "ZUM - PC", "노출": 80, "유형": "파워링크"}
+        o2 = A.apply(self.out, self.with_top5(top), self.cfg)
+        self.assertEqual(media_block(o2), media_want(top))
+        self.assertIn("['네이버 블로그'],['ZUM','PC']]", o2)
+        # 직전 블록에 같은 매체가 다른 줄 나눔으로 있으면 그 나눔 그대로(사람이 나눈 두 줄)
+        o3 = o2.replace("['네이버 블로그']", "['네이버','블로그']", 1)
+        o4 = A.apply(o3, self.with_top5(top), self.cfg)
+        self.assertIn("['네이버','블로그'],['ZUM','PC']]", o4)
+        self.assertEqual(media_block(o4), media_want(top))
+
+    def test_fails_loudly(self):
+        bad_name = json.loads(json.dumps(self.R["05"]["top5"]))
+        bad_name[0]["매체"] = "가짜'매체 - 모바일"
+        bad_kind = json.loads(json.dumps(self.R["05"]["top5"]))
+        bad_kind[1]["유형"] = "모름"
+        bad_split = json.loads(json.dumps(self.R["05"]["top5"]))
+        bad_split[2]["매체"] = "가짜매체 - "
+        for top, msg in ((bad_name, "따옴표"), (bad_kind, "유형"), (bad_split, "빈 조각")):
+            with self.assertRaisesRegex(A.ApplyError, msg):
+                A.apply(self.out, self.with_top5(top), self.cfg)
+        i = self.out.index("getElementById('mediaChart')")
+        j = self.out.index("new Chart", i + 10)
+        no_col = self.out[:i] + re.sub(r"backgroundColor:\s*\[[^\]]*\]", "borderRadius:6", self.out[i:j], count=1) + self.out[j:]
+        with self.assertRaisesRegex(A.ApplyError, "backgroundColor 0개"):
+            A.apply(no_col, self.R, self.cfg)
 
 
 class ApplyLayoutSelect(unittest.TestCase):
