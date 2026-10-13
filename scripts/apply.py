@@ -19,6 +19,7 @@
     `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안)는
     사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
+  05 mediaChart 라벨·색 = compute `05.top5` 순서(`media_labels` — 2026-10-14, 그 전엔 값 배열만 바꿔 순위가 바뀐 날 라벨·색이 옛 순서로 남았다) ·
   02 도넛 제목 총액 · 01 표 5행·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
@@ -617,6 +618,43 @@ def chart_block(h, cid, tpl):
     return h[:i] + tpl + h[j:]
 
 
+MEDIA_LAB = re.compile(r"(labels:\s*\[)((?:\s*\[[^\[\]]*\]\s*,?)*)(\s*\])")
+MEDIA_COL = re.compile(r"(backgroundColor:\s*\[)([^\]]*)(\])")
+MEDIA_COLOR = {"플레이스": "mint", "파워링크": "ink", "혼합": "ink"}   # validate check_media_top5 와 같은 규칙 — 캠페인이 전부 플레이스면 mint, 아니면 ink
+
+
+def media_labels(h, top5):
+    """05 mediaChart 의 labels·backgroundColor = compute `05.top5` 순서(2026-10-14 — 값 배열만 바꾸던 때 4·5위가 뒤바뀌자 라벨·색이 옛 순서로 남아
+    validate check_media_top5 FAIL). 라벨 = 매체이름을 '-'(앞뒤 공백 포함)로 나눈 줄 배열(`['네이버 플레이스','모바일']`) — 직전 블록에 같은 매체
+    (줄을 띄어쓰기로 이은 글이 같은 것)가 있으면 그 줄 나눔 그대로. 색 = 유형(플레이스 mint · 파워링크·혼합 ink).
+    블록 안 labels·backgroundColor 가 정확히 하나가 아니거나, 이름에 따옴표·역슬래시·줄바꿈·빈 조각이 있거나, 유형이 낯설면 FAIL."""
+    i = find1(h, "getElementById('mediaChart')")
+    j = h.find("new Chart", i + 10)
+    j = len(h) if j == -1 else j
+    blk = h[i:j]
+    nl, nc = len(MEDIA_LAB.findall(blk)), len(MEDIA_COL.findall(blk))
+    if nl != 1 or nc != 1:
+        raise ApplyError(f"차트 mediaChart labels {nl}개 · backgroundColor {nc}개 — 각각 하나여야 함")
+    old = [re.findall(r"'([^']*)'", x) for x in re.findall(r"\[[^\[\]]*\]", MEDIA_LAB.search(blk).group(2))]
+    keep = {" ".join(p): p for p in old}
+    labs, cols = [], []
+    for t in top5:
+        name, kind = t["매체"], t.get("유형")
+        if re.search(r"['\\\r\n]", name):
+            raise ApplyError(f"매체 이름 {name!r} 에 따옴표·역슬래시·줄바꿈 — 차트 라벨로 쓸 수 없음")
+        parts = re.split(r"\s*-\s*", name.strip())
+        if not all(parts):
+            raise ApplyError(f"매체 이름 {name!r} 을 줄로 나누면 빈 조각이 생김")
+        if kind not in MEDIA_COLOR:
+            raise ApplyError(f"매체 {name!r} 의 유형 {kind!r} — 플레이스·파워링크·혼합 밖")
+        labs.append(keep.get(" ".join(parts), parts))
+        cols.append(MEDIA_COLOR[kind])
+    lab_s = ",".join("[" + ",".join(f"'{x}'" for x in p) + "]" for p in labs)
+    blk = MEDIA_LAB.sub(lambda m: m.group(1) + lab_s + m.group(3), blk, count=1)
+    blk = MEDIA_COL.sub(lambda m: m.group(1) + ", ".join(cols) + m.group(3), blk, count=1)
+    return h[:i] + blk + h[j:]
+
+
 def check_branches(h, lay, why):
     n = {k: len([x for x in BRANCH.findall(h) if x == k]) for k in ("01", "06")}
     want = int(lay["markers"]["mobile_branch"])
@@ -954,7 +992,8 @@ def apply(h, R, cfg, layout=False):
     h = chart(h, "groupChart", "노출수", R["02"]["groupChart"]["노출"]); h = chart(h, "groupChart", "클릭수", R["02"]["groupChart"]["클릭"])
     h = chart(h, "costPie", None, R["02"]["costPie"])
     h = once(r"광고비 비중 \(총 [\d,]+원\)", f'광고비 비중 (총 {c(K["광고비"])}원)', h)
-    h = chart(h, "mediaChart", "노출수", [t["노출"] for t in R["05"]["top5"]]); h = chart(h, "deviceChart", None, R["05"]["device"])
+    h = chart(h, "mediaChart", "노출수", [t["노출"] for t in R["05"]["top5"]]); h = media_labels(h, R["05"]["top5"])
+    h = chart(h, "deviceChart", None, R["05"]["device"])
     h = chart(h, "rankChart", "평균노출순위", R["06"]["rankChart"], lambda x: f"{x:.2f}")
     h = chart(h, "hourlyChart", "노출수", R["09"]["노출"]); h = chart(h, "hourlyChart", "클릭수", R["09"]["클릭"])
     h = chart(h, "placementChart", "노출수", R["10"]["placement"]["노출"]); h = chart(h, "placementChart", "클릭수", R["10"]["placement"]["클릭"])
