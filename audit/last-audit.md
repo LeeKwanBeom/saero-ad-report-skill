@@ -1,3 +1,15 @@
+## 수정 기록(2026-10-14 — apply.py 05 mediaChart 라벨·색도 compute top5 순서로, 레이아웃 판 G 그대로) · 브랜치 `fix-20261014-media-labels`
+**계기**: 아래 갱신 회차 6단계 precheck 1회째 `[FAIL] 05번 mediaChart top5`(4·5위가 자리를 바꿈 — 통합검색 PC 836 · MLB파크 828) — `apply.py` 는 mediaChart **값 배열만** compute 로 바꾸고 labels·backgroundColor 는 직전 배포본 그대로였다(docstring "차트 배열·라벨(…05…)"과 어긋남 · fixture 도 HTML 라벨 순서 ≠ compute 순서였는데 라벨을 보는 시험이 없었다). 그 회차는 스크래치 `work/fix05_1014.py` 로 손 교정 → 세션이 작업 칩으로 올림 → 사용자 "여기서 하기"(같은 세션) → "병합". 세션 Code 탭 `D:\saero`, Opus 5.5, 에이전트 0. clone 스크래치 `fix-media`(`git clone -c core.autocrlf=false`, 시작 origin/main `ee675c9`). 운영 작업 폴더 쓰기 0(리허설 재료 `work/prev.html`·`c49`·`c48` compute·`balance.json`·`extra`·`combined`·`narr_lib.py`·`n1014.py` 를 clone `work/` 로 복사만). 네이버 0 · 배포 PUT 0.
+**변경**(커밋 `8011595`, 3파일 +120/−2): `scripts/apply.py` `media_labels` — 블록 안 labels·backgroundColor 각 정확히 하나 · 라벨 = 매체이름을 `-`(앞뒤 공백 포함)로 나눈 줄 배열(직전 블록에 같은 매체 — 줄을 띄어쓰기로 이은 글이 같은 것 — 가 있으면 그 줄 나눔 그대로) · 색 = 유형(플레이스 mint · 파워링크·혼합 ink — validate `check_media_top5` 와 같은 규칙) · 이름에 따옴표·역슬래시·줄바꿈·빈 조각 · 낯선 유형이면 `ApplyError`(작업본 그대로) · 값 교체 바로 뒤 매 회차 · docstring 바꾸는 자리 한 줄 · `tests/test_apply.py` `ApplyMediaLabels` 4건(fixture = compute 순서 · 4·5위 바뀜(멱등 · 되돌리면 바이트 그대로) · 새 매체 '-' 없는 이름·`ZUM - PC` · 직전 줄 나눔 유지 · 시끄러운 실패 4) — validate 와 같은 읽기로 대조 · `references/report-structure.md` 05 정의 한 줄.
+**음성 대조**: 옛 `apply.py`(HEAD `ee675c9`)로 새 시험 → 4건 전부 FAIL / 새 코드 OK. 같은 실데이터 입력에 옛 apply → validate `[FAIL] 05번 mediaChart top5`(아래 회차 1회째와 같은 줄).
+**리허설**(clone `work/` — 10/13 배포본 `af2c652` 본문 7581b692 사본 + 10/14 회차 compute(`c49`) → 새 `apply.py --layout` → `work/n1014.py`): 결과 md5 **2ae213b8 = 10/14 배포본(`76711d0`, 손 교정본)과 바이트 같음**(fix05 단계가 필요 없어짐) · precheck validate 28/28 · compare OK 108 / DIFF 0 · overflow 넘침 0 · narrative 통과.
+**시험**: test_apply 34 OK(skip 1 — clone 에 `work/RX` 없음) · test_extras OK · `py_compile` apply·test_apply OK.
+**병합**: 사용자 "병합"(07:44 KST — 별도 검증 세션 없이, 위 리허설·음성 대조로 갈음 — 10/8·10/12 작은 수정 흐름). 시작 때 origin/main = `ee675c9`(분기 뒤 main 변경 0) · 운영 작업 폴더 HEAD `ee675c9`(작업 트리 깨끗 · `work/` 마지막 변경 = 06:52 live_ok → 갱신 회차 돌지 않음). `git merge --no-ff` → **`be7a4c3`**(부모 ee675c9 · 8011595, 충돌 0 · 트리 = 브랜치 트리 · 병합 뒤 test_apply OK) → main push → 운영 작업 폴더 `git pull --ff-only`. 브랜치는 clone 에 두고 원격 push 안 함(첫 `git merge` 는 이 PC 신원 없음으로 쓰기 전에 멈춤 → `-c user.name/email` 붙여 다시).
+**적용**: 다음 `/q-saero-run` 5단계 `apply.py` 부터 저절로(레이아웃 판 G 그대로 — 배포 게이트·보류 없음). 10/14 배포본은 이미 라벨이 맞아 재배포 불필요. `work/fix05_1014.py` 는 쓰지 않는다(아래 회차 "다음 회차" 줄의 fix05 안내는 이 병합으로 끝).
+**효율**: 벽시계 약 25분(07:2x~07:46, 사용자 답 대기 포함) · 도구 호출 약 25회 · 즉석 코드 약 15행(음성 validate 용 옛 apply 불러오기) · 하위 에이전트 0. 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+
+---
+
 ## 갱신 회차 (2026-10-14 06:34~06:56 KST — Code 탭 `/q-saero-run`, main 작업 폴더) · **배포 완료 `76711d0`**
 합본 `일별` 2026.08.26 — 10.13 (49일) · 저장소 반영 커밋 `76711d0`(직전 `af2c652`, 파일 sha eba0f4e → bf4a03f) · 집계 기간 `2026.08.26 — 10.13 (49일)`
 저장소 반영(커밋) 76711d0 06:51 · 공개 사이트 반영 06:52(커밋 뒤 70초 · Pages #163)
