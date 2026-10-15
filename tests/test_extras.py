@@ -475,6 +475,48 @@ class ComputeG(unittest.TestCase):
         res = [r for r in V.results if "추가 카드·표" in r[0]]
         self.assertTrue(res and not res[-1][1] and "변경 기록 표" in res[-1][2], res)
 
+    def test_latest_day_fold(self):
+        """2026-10-15 사용자 결정 "최근 날짜 내용만 남기고 나머지는 일별 추이처럼 숨겨줘" — 맨 위 줄과 같은 날짜 줄만 펼친 표 · 나머지는 details.fold 하나
+        (summary "이전 N건(M/D~M/D) 펼치기" · 하루면 "(M/D)") · 이전 줄이 없으면 접기 0 · 줄 순서(최신 위) 그대로 · 접기 수(config markers.details)는 블록 밖만 ·
+        validate 가 따로 가른 값과 같다(접지 않은 옛 화면 FAIL)."""
+        reg = lambda when, g: (when, "타겟팅 변경", "사람", "새로필라테스 파워링크", g, f"{g}\n등록된 내용\n확장 검색: k1")
+        rows = [reg("2026.10.12. 12:47", "상계동필라테스"), reg("2026.10.12. 12:42", "노원역필라테스"),
+                reg("2026.09.26. 13:20", "상계동필라테스"), reg("2026.09.24. 12:45", "노원역필라테스"), reg("2026.09.21. 07:59", "상계동필라테스")]
+        d = write_extra(os.path.join(self.tmp, "f"), rows=rows, spans=((D(2026, 9, 12), D(2026, 10, 14)),), ga=False)
+        _, hi, _ = self.cards(d, b=D(2026, 10, 14))
+        blk = A.hi_block({"변경기록": hi})
+        vis, _, fold = blk.partition("<details")
+        when = lambda x: re.findall(r"<td>(\d+/\d+ \d\d:\d\d)</td>", x)
+        self.assertEqual(when(vis), ["10/12 12:47", "10/12 12:42"])
+        self.assertEqual(when(fold), ["9/26 13:20", "9/24 12:45", "9/21 07:59"])
+        self.assertEqual(re.findall(r'<summary class="fold-more">([^<]*)</summary>', blk), ["이전 3건(9/21~9/26) 펼치기"])
+        self.assertEqual((blk.count("<details"), blk.count("</details>"), blk.count("<table>"), blk.count("</table>")), (1, 1, 2, 2))
+        one = A.hi_block({"변경기록": dict(hi, rows=hi["rows"][:3])})                            # 이전 줄이 하루뿐 → "(M/D)"
+        self.assertIn('<summary class="fold-more">이전 1건(9/26) 펼치기</summary>', one)
+        same = A.hi_block({"변경기록": dict(hi, rows=hi["rows"][:2])})                           # 전부 같은 날 → 접기 0 · 표 하나
+        self.assertEqual((same.count("<details"), same.count("<table>")), (0, 1))
+        page = f'<details class="fold"><summary>x</summary></details>{blk}'
+        self.assertEqual(len(A.DETAILS.findall(A.strip_extra(page))), 1)                         # apply 접기 수 = 블록 밖만
+        html = f'<div>{blk}<!-- saero:extra gender-age --><div class="note">확인 못 함 — t</div><!-- /saero:extra gender-age --></div>'
+        kw = os.path.join(self.tmp, "kw.csv")
+        with open(kw, "w", encoding="utf-8") as f:
+            f.write("키워드 보고서(2026.08.26.~2026.10.14.),2580077\n일별,노출수\n" + "".join(f"{x},1\n" for x in days(D(2026, 8, 26), D(2026, 10, 14))))
+        import validate as V
+        for page, ok in ((html, True), (html.replace(A.hi_block({"변경기록": hi}), A.hi_block({"변경기록": hi}).replace("이전 3건", "이전 2건")), False)):
+            del V.results[:]
+            with redirect_stdout(io.StringIO()):
+                V.check_extras(page, d, V.read_csv(kw))
+            res = [r for r in V.results if "추가 카드·표" in r[0]]
+            self.assertTrue(res and res[-1][1] == ok, res)
+        flat = re.sub(r'\s*</tbody>\s*</table>\s*</div>\s*<details[^>]*>\s*<summary[^>]*>[^<]*</summary>\s*<div[^>]*>\s*<table>\s*<thead>.*?</thead>\s*<tbody>', "", blk, flags=re.S)
+        flat = flat.replace("      </details>\n", "")                                             # 접지 않은 옛 화면(표 하나에 다섯 줄)
+        self.assertEqual((flat.count("<details"), flat.count("<table>"), len(when(flat))), (0, 1, 5))
+        del V.results[:]
+        with redirect_stdout(io.StringIO()):
+            V.check_extras(html.replace(blk, flat), d, V.read_csv(kw))
+        res = [r for r in V.results if "추가 카드·표" in r[0]]
+        self.assertTrue(res and not res[-1][1] and "변경 기록 접기" in res[-1][2], res)
+
     def test_no_input_is_unknown_exit0(self):
         """기준 10 — 추가 데이터 없음(첫 회 · 실패 · --extra 없음) → 상태 없음 · [주의] · compute exit 0."""
         ga, hi, err = self.cards(os.path.join(self.tmp, "없는폴더"))
@@ -604,7 +646,7 @@ class ApplyValidateCompareG(unittest.TestCase):
         """기준 27(A-5)·9·11·13 — 카드 유무 기준 = work/extra 파일 유무(첫 회·실패면 '확인 못 함' 이 PASS) · 값·기간 다르면 FAIL · 아이디 꼴·SYSTEM FAIL."""
         name, ok, det = self.vcheck(self.G1, self.extra)
         self.assertTrue(ok, det)
-        self.assertIn("변경 기록 9/12~10/10 3/3줄 · 스킬 17회·삭제 3", det)      # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12)
+        self.assertIn("변경 기록 9/12~10/10 3/3줄(펼침 1) · 스킬 17회·삭제 3", det)      # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12) · 펼침 = 9/21 하루(2026-10-15)
         self.assertTrue(self.vcheck(self.G0, os.path.join(self.tmp, "없음"))[1])         # 첫 회 — 파일 없음 + '확인 못 함'
         self.assertTrue(self.vcheck(self.G0, None)[1])                                   # --extra 없음
         self.assertFalse(self.vcheck(self.G0, self.extra)[1])                            # 파일이 있는데 '확인 못 함'

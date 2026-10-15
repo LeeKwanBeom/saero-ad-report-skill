@@ -43,7 +43,8 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      하나라도 0건이면 FAIL(글을 줄인 뒤 옛 각주 형식으로 돌아가거나 자리가 빠지는 것을 막는다 — 기능 추가 회차 1).
      검사는 이름으로 부른다(번호는 출력 순서일 뿐 — 이 목록 번호와 다를 수 있다).
  23. (2026-10-06 추가) "레이아웃 판" — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`,
-     `<details` 수 = config `report_layout.markers.details`, details 마다 바로 안에 summary(짝 — summary 수 = details 수).
+     `<details` 수 = config `report_layout.markers.details`, details 마다 바로 안에 summary(짝 — summary 수 = details 수) — 판 G 추가 블록(표지 사이) 안 접기는
+     빼고 센다(04 변경 기록 접기는 이전 줄이 있을 때만 생긴다 — 2026-10-15, 그 접기는 27 이 본다).
      meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것을 막는다 — 기능 추가 회차 2, 사용자 결정 2026-10-06).
      (판 C, 2026-10-06 01 차트 회차 1) 같은 검사 안에서: 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 각 정확히 1(합 = `markers.mobile_branch`) ·
      `matchMedia(` 는 `matchMedia('(max-width: ' + M.maxPx + 'px)')` 꼴 정확히 1건 · 분기 도우미 M 줄(`var M = {maxPx: …};`) 정확히 1건이고
@@ -71,7 +72,8 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  27. (2026-10-12 판 G 보고서 더 받기 A + B) "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra" — `--extra <work/extra>`(precheck 는 작업본 옆 extra/)의
      파일 유무가 카드 유무 기준(A-5): `<종류>.csv`(성별·연령대 합본)·`변경이력.csv`+`변경이력_기록구간.csv`(원장 사본)가 있으면 카드·표의 기간 표기·줄 값이 compute.py 와
      따로 다시 센 값과 같아야(성별·연령대 = 합본 머리 기간 · 노출·비중·클릭·클릭률(min_imps 미만 '적음')·비용 · 알 수 없음 % / 변경 기록 = 키워드 CSV 집계 기간 ∩ 기록 구간
-     마지막 연속 구간 · 보일 주체 줄(같은 분은 한 줄 — 2026-10-12) 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
+     마지막 연속 구간 · 보일 주체 줄(같은 분은 한 줄 — 2026-10-12) 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건 · 펼친 표 = 맨 위 줄과 같은
+     날짜 줄 전부, 나머지는 접기 하나 안 · summary "이전 N건(M/D~M/D) 펼치기"(이전 줄이 없으면 접기 0 — 2026-10-15)), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
      배포본 전체 아이디 꼴 `:naver` 0. "레이아웃 판" 검사(23)에 판 G 표지(블록 여닫이 각 1 · 04 안 본 표 뒤 · 05 안) 대조가 붙는다.
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>] [--extra <work/extra>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
@@ -410,9 +412,10 @@ def check_layout(html):
     판 E 01 모바일 터치 축). 0건이면 FAIL."""
     name = "레이아웃 판(meta report-layout = config · 접기 details 수·짝)"
     metas = re.findall(r'<meta name="report-layout" content="([^"]*)">', html)
-    n_det = len(re.findall(r"<details(?:\s[^>]*)?>", html))
-    n_sum = len(re.findall(r"<summary(?:\s[^>]*)?>", html))
-    n_pair = len(re.findall(r"<details(?:\s[^>]*)?>\s*<summary(?:\s[^>]*)?>", html))
+    out = re.sub(r"<!-- saero:extra (\S+) -->.*?<!-- /saero:extra \1 -->", "", html, flags=re.S)   # 판 G 추가 블록 안 접기는 빼고(2026-10-15 — 27 이 본다)
+    n_det = len(re.findall(r"<details(?:\s[^>]*)?>", out))
+    n_sum = len(re.findall(r"<summary(?:\s[^>]*)?>", out))
+    n_pair = len(re.findall(r"<details(?:\s[^>]*)?>\s*<summary(?:\s[^>]*)?>", out))
     want = int(LAYOUT["markers"]["details"])
     bad = []
     if not metas: bad.append('<meta name="report-layout"> 0건 — 옛 모양이거나 표지를 잃음(apply.py --layout)')
@@ -705,6 +708,16 @@ def check_extras(html, extra_dir, kw):
             got = [g for g in got if g]
             if got != want:
                 bad.append(f"변경 기록 표 {len(got)}줄 ≠ 원장 {len(want)}줄" + (f" — 첫 다름 화면 {next((a for a, b in zip(got, want) if a != b), None)} · 원장 {next((b for a, b in zip(got, want) if a != b), None)}" if got and want else ""))
+            # 맨 위 줄과 같은 날짜 줄만 펼친 표, 나머지는 접기 하나 안(2026-10-15 사용자 결정) — 펼친 줄 수·summary 글·접기 수
+            day = lambda t: t[0].split(" ")[0]
+            k = next((i for i, t in enumerate(want) if day(t) != day(want[0])), len(want))
+            vis = hi_b.split("<details", 1)[0]
+            n_vis = len([1 for tr in re.findall(r"<tr>(.*?)</tr>", vis, re.S) if "<td" in tr])
+            sums = re.findall(r'<details class="fold"[^>]*>\s*<summary class="fold-more">([^<]*)</summary>', hi_b)
+            a, b = (day(want[-1]), day(want[k])) if k < len(want) else (None, None)
+            want_sum = [f"이전 {len(want) - k}건({a if a == b else f'{a}~{b}'}) 펼치기"] if k < len(want) else []
+            if n_vis != k or sums != want_sum or hi_b.count("<details") != len(want_sum) or hi_b.count("</details>") != len(want_sum):
+                bad.append(f"변경 기록 접기 — 펼친 줄 {n_vis} · summary {sums} · details {hi_b.count('<details')} ≠ 기대 펼친 줄 {k}(맨 위 날짜) · {want_sum}")
             sk = [r for r in inside if r[2] == "스킬" and r[1] == "타겟팅 변경"]
             sec_line = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
             n_run = len({r[0] for r in sk if sec_line(r) == "등록된 내용"})
@@ -713,7 +726,7 @@ def check_extras(html, extra_dir, kw):
                 bad.append(f"스킬 줄 ≠ 원장(등록 {n_run}회 · 삭제 {n_del}건)")
             if not h.get("show_system") and ("하루예산 중단" in hi_b or "SYSTEM" in hi_b or "시스템" in hi_b):
                 bad.append("show_system false 인데 표에 SYSTEM·하루예산 중단")
-            info.append(f"변경 기록 {lo.month}/{lo.day}~{hi.month}/{hi.day} {len(want)}/{len(show)}줄 · 스킬 {n_run}회·삭제 {n_del}")
+            info.append(f"변경 기록 {lo.month}/{lo.day}~{hi.month}/{hi.day} {len(want)}/{len(show)}줄(펼침 {k}) · 스킬 {n_run}회·삭제 {n_del}")
     else:
         if "확인 못 함" not in hi_b:
             bad.append("원장 사본(work/extra/변경이력.csv·기록 구간)이 없는데 표에 '확인 못 함'이 없음 — 옛 값이 남았거나 입력이 다름")
