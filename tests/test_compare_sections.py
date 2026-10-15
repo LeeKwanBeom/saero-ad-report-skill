@@ -8,6 +8,7 @@
   - 01 해석 문단(.note-mint) 삭제 · 07 ②③ 각주 블록 삭제 · 10 최근 7일·평균 문장 삭제
   (2026-10-06 회차 2 — 레이아웃 판) 같은 방식으로 "그 구역 항목만 DIFF" 를 본다(파싱 실패가 아니라 값 DIFF):
   - 03 두 표의 날짜 행을 오름차순으로 되돌림(옛 배치 복귀) → "03 일별 표 전체 행" DIFF
+  - (2026-10-15) 01 표 5행을 오름차순으로 되돌림(옛 배치 복귀) → "01 표 5일" DIFF
   - 07 summary 클릭 1건 개수 N → N+1(summary 만 옛 값) → "07 summary 클릭1건 개수" DIFF
 종료 코드: 0 = 전부 맞음, 1 = 아니면.
 """
@@ -54,9 +55,9 @@ def cut(html, n, pat):
     return html[:s] + seg + html[e:] if k == 1 else None
 
 
-def ascending03(html):
-    """03 구역의 날짜 행(합계 제외)을 DOM 전체 오름차순으로 다시 늘어놓은 판(두 표 칸 수는 그대로 — 옛 apply 의 오름차순 복귀 흉내)."""
-    s, e = section(html, 3)
+def reverse_rows(html, n):
+    """n 구역의 날짜 행(합계 제외)을 DOM 전체 거꾸로 다시 늘어놓은 판(표 칸 수는 그대로 — 옛 apply 의 오름차순 복귀 흉내, 03 · 01)."""
+    s, e = section(html, n)
     seg = html[s:e]
     trs = [m for m in re.finditer(r"<tr[^>]*>.*?</tr>", seg, re.S) if "<td" in m.group(0) and ">합계<" not in m.group(0)]
     if len(trs) < 2:
@@ -107,9 +108,10 @@ def main():
         cases = [("01", "01 해석 문단(.note-mint) 삭제", cut(H, 1, r'<div class="note-mint"[^>]*>.*?</div>')),
                  ("07", "07 ②③ 각주 블록 삭제", cut(H, 7, r'<div class="note"[^>]*>(?:(?!</div>).)*?클릭 0인 검색어 전체는.*?</div>')),
                  ("10", "10 최근 7일·평균 문장 삭제", cut(H, 10, r"최근 7일 노출은 .*?일 평균 [\d.]+건\)\.?")),
-                 ("03", "03 날짜 행 오름차순 복귀(옛 배치)", ascending03(H)),
+                 ("03", "03 날짜 행 오름차순 복귀(옛 배치)", reverse_rows(H, 3)),
+                 ("01", "01 표 5행 오름차순 복귀(옛 배치)", reverse_rows(H, 1)),
                  ("07", "07 summary 클릭 1건 개수 +1(summary 만 옛 값)", bump_click1_summary(H))]
-        want_diff = {"03 날짜 행 오름차순 복귀(옛 배치)": "03 일별 표 전체 행", "07 summary 클릭 1건 개수 +1(summary 만 옛 값)": "07 summary 클릭1건 개수"}
+        want_diff = {"03 날짜 행 오름차순 복귀(옛 배치)": "03 일별 표 전체 행", "01 표 5행 오름차순 복귀(옛 배치)": "01 표 5일", "07 summary 클릭 1건 개수 +1(summary 만 옛 값)": "07 summary 클릭1건 개수"}
         for sec, label, text in cases:
             if text is None:
                 print(f"  [MISS] {label} — 지울 자리를 못 찾음(마크업이 바뀌었으면 이 시험을 고칠 것)")

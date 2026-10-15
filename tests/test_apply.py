@@ -19,7 +19,7 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   판 C 꼴 M 줄(recent 없음)이 남은 D 판 → FAIL · C → D 변환이 섹션 HTML·서술 표지·min-width·배열·안내 스크립트를 건드리지 않음(바뀌는 곳 = meta·버튼 CSS·비용 간격 2·도우미) ·
   HTML 에 버튼 태그·"이전 N일" 문구 0(03 summary 하나뿐) · B → C 중간 단계 범위도 그대로.
 - 멱등: 같은 compute.json 으로 두 번 돌리면 바이트 같음(--layout 있음·없음, 서술 표지를 넣은 fixture 도 — 표지 안쪽 바이트 불변·details 밖).
-- 앵커·행 수: masthead·og·KPI·차트·01 표 5행·순위 5칸(오름차순 그대로)·03 = 합계 맨 위 + 최근 7일 최신 위 + 접힌 표 나머지 최신 위 ·
+- 앵커·행 수: masthead·og·KPI·차트·01 표 5행(최신 위 — 2026-10-15)·순위 5칸(오름차순 그대로)·03 = 합계 맨 위 + 최근 7일 최신 위 + 접힌 표 나머지 최신 위 ·
   04·06·07 정식표/목록/경쟁사표·08·10 이 compute 값과 같음. 동률은 직전 순서(클릭 1건 목록) · 신규 변형 행 = config competitor_defaults.
 - summary 기계 자리(막음 M2): 03 "이전 N일(M/D~M/D)"·07 "(N개 · 펼치기)"·경쟁사 "표 N행"·08 "(N개 지역·클릭 M건)" — 옛 값으로 바꿔 둔 판도 다시 쓰고,
   일수 ≤ recent_days 면 접힌 표 0행 + "이전 0일 펼치기"(details 5 그대로).
@@ -156,7 +156,7 @@ class ApplyFixture(unittest.TestCase):
         self.assertIn("labels: [" + ",".join(f"'{x}'" for x in R["01"]["labels"]) + "]", o)
         self.assertIn("data: [" + ", ".join(map(str, R["01"]["노출"])) + "]", o)
         s1, s3, s4, s6, s7, s8, s10 = (section(o, n) for n in (1, 3, 4, 6, 7, 8, 10))
-        self.assertEqual([cells(t)[0] for t in rows(s1)], [r["날짜"] for r in R["01"]["표5"]])
+        self.assertEqual([cells(t)[0] for t in rows(s1)], [r["날짜"] for r in R["01"]["표5"]][::-1])
         self.assertEqual(re.findall(r'margin-bottom:2px;">([^<]+)</div>', s1), [g["날짜"] for g in R["01"]["플레이스순위5"]])
         self.assertEqual(len(re.findall(r'font-weight:800;color:var\(--mint-dark\);">[\d.]+위', s1)), 1)   # 민트 칸 하나
         r3 = [cells(t) for t in rows(s3) if "<td" in t]
@@ -171,7 +171,9 @@ class ApplyFixture(unittest.TestCase):
         self.assertEqual(top[0][1:], ["27,000원", "27", "1,000원", "4,000원", "4", "1,000원", "31,000원"])
         self.assertLess(s3.index("</tbody>"), s3.index("<details"))                                     # 위 표는 접기 밖
         self.assertIn('<summary class="fold-more">이전 3일(12/29~12/31) 펼치기</summary>', s3)
-        self.assertEqual([cells(t)[0] for t in rows(s1)], [r["날짜"] for r in R["01"]["표5"]])           # 01 은 오름차순 그대로(결정 4 (가))
+        self.assertEqual(cells(rows(s1)[0])[0], R["01"]["표5"][-1]["날짜"])                               # 01 표 = 최신 위(2026-10-15 — 결정 4 (가) 의 표 부분만 바꿈)
+        self.assertEqual([cells(t)[6] for t in rows(s1)], [f"{r['CPC']:,}원" for r in R["01"]["표5"]][::-1])  # 값도 같은 행에
+        self.assertEqual(len(re.findall(r'<td class="num ctr-high">', s1)), sum(r["hl"] for r in R["01"]["표5"]))
         self.assertEqual([cells(t)[1].split("(")[0].strip() for t in rows(s4)], [r["그룹"] for r in R["04"]["rows"]])
         self.assertIn("(1/2 신규)", s4)                                                                  # 이름 칸 메모는 직전 행 그대로
         self.assertIn("(1/2 등록, 6일차)", s6)
