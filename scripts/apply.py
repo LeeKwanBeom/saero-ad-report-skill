@@ -15,7 +15,7 @@
     `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-D ≠ config …`.
   · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
-  · config 대조(details 수 = `markers.details` · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
+  · config 대조(details 수 = `markers.details` — 판 G 추가 블록 안 접기는 빼고 셈(`strip_extra`, 2026-10-15) · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
     `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안)는
     사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
@@ -27,7 +27,8 @@
   분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D) ·
   판 F 광고비 잔액 카드의 값·보조 줄(compute.json "잔액" — 없으면 `[FAIL] apply: … "잔액" 없음`, 실패 기록이면 "확인 못 함" · "M/D(요일) HH:MM 조회 실패") ·
   판 G 블록 둘을 표지 사이 통째로(compute.json "변경기록"·"성별연령" — 없거나 상태 ≠ ok 면 '확인 못 함' · FAIL 아님: 옛 값이 남는 길 0, precheck 의 validate·compare 가
-  work/extra 와 대조해 '있는데 확인 못 함'·'없는데 값'을 잡는다). 원장·합본 글자는 HTML 이스케이프(`<ID>` 가림 표시 포함).
+  work/extra 와 대조해 '있는데 확인 못 함'·'없는데 값'을 잡는다). 04 변경 기록은 맨 위 줄과 같은 날짜 줄만 펼친 표, 나머지는 접기(details.fold ·
+  summary "이전 N건(M/D~M/D) 펼치기" — 이전 줄이 없으면 접기 없음, 2026-10-15). 원장·합본 글자는 HTML 이스케이프(`<ID>` 가림 표시 포함).
   01·06 모바일 펼치기 버튼 문구("이전 N일(M/D~M/D) 펼치기")는 HTML 에 없다 — 도우미가 화면에서 data.labels 로 만든다(apply 기계 자리 0).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다. summary·details 는 apply 몫.
@@ -41,6 +42,7 @@ import json
 import re
 import sys
 from html import escape as html_escape
+from itertools import takewhile
 
 from reportlib import load_config
 
@@ -803,6 +805,27 @@ def ga_block(R):
     return "\n".join(L) + "\n"
 
 
+def hi_day(r):
+    """변경 기록 줄의 날짜(일시 'M/D HH:MM' 의 앞 칸)."""
+    return r["일시"].split(" ")[0]
+
+
+def hi_table(rows, ind):
+    """변경 기록 표 하나(wrapper div ~ 닫힘) 줄 목록 — ind = wrapper 들여쓰기."""
+    L = [f'{ind}<div style="overflow-x:auto;" class="wide-table">', f"{ind}<table>", f"{ind}  <thead>", f"{ind}    <tr>",
+         f"{ind}      <th>일시</th>", f"{ind}      <th>유형</th>", f"{ind}      <th>대상</th>", f"{ind}      <th>내용</th>",
+         f"{ind}    </tr>", f"{ind}  </thead>", f"{ind}  <tbody>"]
+    for r in rows:   # 유형·대상·내용 칸만 줄바꿈(2026-10-12 사용자 결정 "줄바꿈" — 같은 분 묶음으로 길어진 칸을 PC 에서 밀지 않게 · 낱말 단위) · 일시는 한 줄
+        L += [f"{ind}    <tr>", f"{ind}      <td>{esc(r['일시'])}</td>", f"{ind}      <td {HI_WRAP}>{esc(r['유형'])}</td>",
+              f'{ind}      <td class="name-cell" {HI_WRAP}>{esc(r["대상"])}</td>', f"{ind}      <td {HI_WRAP}>{esc(r['내용']) or '—'}</td>", f"{ind}    </tr>"]
+    return L + [f"{ind}  </tbody>", f"{ind}</table>", f"{ind}</div>"]
+
+
+def strip_extra(h):
+    """판 G 추가 블록(표지 사이)을 뺀 글 — 접기 details 수(config markers.details)는 블록 밖만 센다(04 변경 기록 접기는 이전 줄이 있을 때만 생긴다 — 2026-10-15)."""
+    return re.sub(r"<!-- saero:extra (\S+) -->.*?<!-- /saero:extra \1 -->", "", h, flags=re.S)
+
+
 def hi_block(R):
     """04 아래 계정 변경 기록 표(표지 줄 포함 · 끝 줄바꿈). R 에 "변경기록" 이 없거나 상태 ≠ ok 면 '확인 못 함'. 목록 원문·아이디 0(개수·주체 낱말만)."""
     h = (R or {}).get("변경기록") or {"상태": "없음", "사유": "compute.json 에 \"변경기록\" 없음(5단계 compute 에 --extra work/extra)"}
@@ -815,13 +838,15 @@ def hi_block(R):
         more = f" · 최근 {h['표시']}건 / {h['건수']}건" if h["건수"] > h["표시"] else ""
         L.append(f'      <div class="sub-head" style="margin-top:0;">계정 변경 기록({esc(who)}) <span {MUTED}>({esc(h["기간"])} 기록{more})</span></div>')
         if h["rows"]:
-            L += ['      <div style="overflow-x:auto;" class="wide-table">', "      <table>", "        <thead>", "          <tr>",
-                  "            <th>일시</th>", "            <th>유형</th>", "            <th>대상</th>", "            <th>내용</th>",
-                  "          </tr>", "        </thead>", "        <tbody>"]
-            for r in h["rows"]:   # 유형·대상·내용 칸만 줄바꿈(2026-10-12 사용자 결정 "줄바꿈" — 같은 분 묶음으로 길어진 칸을 PC 에서 밀지 않게 · 낱말 단위) · 일시는 한 줄
-                L += ["          <tr>", f"            <td>{esc(r['일시'])}</td>", f"            <td {HI_WRAP}>{esc(r['유형'])}</td>",
-                      f'            <td class="name-cell" {HI_WRAP}>{esc(r["대상"])}</td>', f"            <td {HI_WRAP}>{esc(r['내용']) or '—'}</td>", "          </tr>"]
-            L += ["        </tbody>", "      </table>", "      </div>"]
+            # 맨 위 줄과 같은 날짜 줄만 펼쳐 두고 나머지는 03 과 같은 접기(details.fold · "이전 N건(M/D~M/D) 펼치기")에 — 2026-10-15 사용자 결정. 줄 순서(최신 위)는 그대로
+            top = list(takewhile(lambda r: hi_day(r) == hi_day(h["rows"][0]), h["rows"]))
+            older = h["rows"][len(top):]
+            L += hi_table(top, "      ")
+            if older:
+                a, b = hi_day(older[-1]), hi_day(older[0])
+                L += ['      <details class="fold" style="margin-top:10px;">',
+                      f'        <summary class="fold-more">이전 {len(older)}건({a if a == b else f"{a}~{b}"}) 펼치기</summary>']
+                L += hi_table(older, "        ") + ["      </details>"]
         else:
             L.append(f'      <div class="note">이 기간 {esc(who)} 변경 기록 없음</div>')
         sk = h["스킬"]
@@ -939,8 +964,8 @@ def apply(h, R, cfg, layout=False):
         h = f(h, lay)
     if LAYOUT_META.findall(h) != [lid]:
         raise ApplyError(f"변환 뒤 레이아웃 판 meta {LAYOUT_META.findall(h)} ≠ config {lid!r}")
-    if len(DETAILS.findall(h)) != int(lay["markers"]["details"]):
-        raise ApplyError(f"레이아웃 판 {lid} 인데 details {len(DETAILS.findall(h))}개 ≠ config {lay['markers']['details']} — 접기를 손으로 바꾼 판으로 보임")
+    if len(DETAILS.findall(strip_extra(h))) != int(lay["markers"]["details"]):   # 판 G 추가 블록 안 접기는 빼고 센다(strip_extra)
+        raise ApplyError(f"레이아웃 판 {lid} 인데 details {len(DETAILS.findall(strip_extra(h)))}개 ≠ config {lay['markers']['details']} — 접기를 손으로 바꾼 판으로 보임")
     check_branches(h, lay, f"레이아웃 판 {lid} 인데")
     if lid in CARD_LAYOUTS:
         check_balance(h, lay, f"레이아웃 판 {lid} 인데")
@@ -1150,7 +1175,7 @@ def main():
                 out.append(b)
         return " → ".join(out)
     if not old:
-        conv = f" · 레이아웃 판 변환(meta 없음 → {steps(LAYOUT_B['layout_id'])}, details {len(DETAILS.findall(new))} · 분기 {nbr})"
+        conv = f" · 레이아웃 판 변환(meta 없음 → {steps(LAYOUT_B['layout_id'])}, details {len(DETAILS.findall(strip_extra(new)))} · 분기 {nbr})"
     elif old.group(1) != lid:
         conv = f" · 레이아웃 판 변환({steps(old.group(1))}, 분기 {nbr})"
     else:
