@@ -1,3 +1,16 @@
+## 수정 기록(2026-10-15 — 01 ① 일별 지표 표: 최신 날짜 위, 순위 5칸은 오름차순 그대로, 레이아웃 판 G 그대로) · 브랜치 `fix-20261015-daily-desc`
+**사용자 요청**: 오늘 배포본 01 ① 표·01 차트·03 표 캡처(휴대폰)를 보고 "일별 지표에 보면은 최신날짜가 제일 하단에 보여 — 다른 섹터들은 전부다 최신 날짜가 제일 위부터 시작하는 내림차순이야, 일별 지표도 동일하게 순서 변경해줘" → 전후 비교를 보고 "병합". 세션 Code 탭 `D:\saero`, Opus 5.5, 에이전트 0. clone `D:\saero\fix-20261015-daily-desc`(`git clone -c core.autocrlf=false`, 시작 origin/main `6ae7e71` · `w/crlf` 1). 운영 작업 폴더 쓰기 0(리허설 재료 `work/index.html`(배포본 edcf47ff)·`compute.json`·`balance.json`·`combined`·`extra` 를 clone `work/R/` 로 복사만). 네이버 0 · 배포 PUT 0.
+**결정 바꿈**: 10-06 고를 항목 4 (가)("03 만 최신 위 — 01 표 5행·순위 5칸은 오름차순")에서 **01 표 부분만** 최신 위로(사용자 원문 위). 순위 5칸(가로 칸 + 아래 각주 "닷새 A → B → …" 같은 방향)은 오름차순 그대로 — 뒤집을지는 채팅에 한 줄로 물어 둠(미답).
+**변경**(커밋 `c9fbb26`, 7파일 +23/−18): `scripts/apply.py` 01 표 = compute `01.표5`(오름차순 그대로)를 `[::-1]` 로 씀(03 과 같은 방식) · `scripts/compare.py` `_s01` 표 5일·`.ctr-high` 를 DOM `[::-1]` 로 읽음 · compute·validate(01 `.ctr-high` 는 순서 무관)·config 변경 0 · `tests/test_apply.py` 기대값 최신 위(첫 행 = 마지막 날 · CPC 칸 · ctr-high 수) · `tests/test_compare_sections.py` `ascending03` → `reverse_rows(html, n)` + 경우 "01 표 5행 오름차순 복귀 → `01 표 5일` DIFF" · 문서 report-structure(레이아웃 판 절 한 줄 · 인사이트 박스 ①) · checklist 207 · SKILL 631 한 줄씩.
+**음성 대조**(오늘 입력): 새 compare × 옛 화면(배포본 edcf47ff) → `01 표 5일`·`01 표 .ctr-high` DIFF 2 / 옛 compare(main `6ae7e71`) × 새 화면 → 같은 DIFF 2 / test_compare_sections 새 경우 OK(DIFF 2개 전부 01 구역 · 다른 구역 기준 OK 94개 다시 OK).
+**리허설**(clone `work/R/` — 오늘 배포본 `f757731` 작업본 사본 + 같은 compute → 새 `apply.py --layout`): `123,924 → 123,924자 · r2026-10-G(변환 건너뜀)` · 바뀐 곳 = 01 표 5행 순서뿐(diff 315~357행 — 10/14(수) 위 · 10/10(토) 아래) · precheck validate 28/28 · compare OK 108 / DIFF 0 · overflow 넘침 0 · narrative `[주의] 같은 기간 — 대조 생략` · mutation_test 전부 살아 있음 · `tests/section_compare.py … --sections 1`(`work/cmp01/compare.html` — 사용자에게 보임, 1280 864×841 · 390 358×1076 전후 같은 크기).
+**시험**: test_apply 34 OK(skip 1) · test_extras · test_validate_07 · test_narrative_check · test_leads · test_place OK · `py_compile` scripts·tests 전부 OK.
+**병합**: 사용자 "병합"(09:2x KST — 별도 검증 세션 없이, 위 리허설·음성 대조로 갈음 — 10/8·10/12·10/14·10/15 오전 작은 수정 흐름). 시작 때 origin/main = `6ae7e71`(분기 뒤 main 변경 0) · 운영 작업 폴더 HEAD `6ae7e71`(작업 트리 깨끗 · `work/` 마지막 변경 = 09:15 live_ok → 갱신 회차 돌지 않음). `git merge --no-ff` → **`0addffd`**(부모 6ae7e71 · c9fbb26, 충돌 0 · 트리 = 브랜치 트리 · 병합 뒤 test_apply OK) → main push → 운영 작업 폴더 `git pull --ff-only`(apply·compare md5 = clone). 브랜치는 clone 에 두고 원격 push 안 함.
+**적용**: 다음 `/q-saero-run` 5단계 `apply.py` 가 01 표를 통째로 다시 쓰므로 그 회차부터 저절로(레이아웃 판 G 그대로 — 배포 게이트·보류 없음). 오늘 배포본(`f757731`)은 옛 순서 그대로(재배포는 사용자가 "오늘 것도 다시 배포"라고 할 때만 — 채팅에 안내함).
+**효율**: 벽시계 약 15분(09:1x~09:3x, 사용자 답 대기 포함) · 도구 호출 약 30회 · 즉석 코드 약 50행(시험·문서 바꿈 스크립트) · 하위 에이전트 0. 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다.
+
+---
+
 ## 갱신 회차 (2026-10-15 09:13~09:16 KST — Code 탭 `/q-saero-run` 같은 세션, main 작업 폴더, **2-1 같음 "다시 계산" — 04 변경 기록 접기(6a10da6) 오늘 반영**) · **배포 완료 `f757731`**
 합본 `일별` 2026.08.26 — 10.14 (50일) · 저장소 반영 커밋 `f757731`(직전 `b8c6577`, 파일 sha 061b66f → a10f43b) · 집계 기간 `2026.08.26 — 10.14 (50일)`
 저장소 반영(커밋) f757731 09:14 · 공개 사이트 반영 09:15(커밋 뒤 69초 · Pages #165)
