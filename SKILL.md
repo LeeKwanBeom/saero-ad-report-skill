@@ -628,7 +628,7 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   없으면 그 자리가 '확인 못 함'이어야 한다(첫 회·수집 실패에 FAIL 0). show_system false 면 표에 SYSTEM·하루예산 중단 0 · 배포본 전체에 아이디 꼴 `:naver` 0 · 블록 표지 0건이면 FAIL.
   이것으로 validate 검사는 **28개**(판 G 첫 적용 전 배포본은 "레이아웃 판"·이 검사가 FAIL 인 것이 기대값)
 
-그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(108항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03 은 최신 위,
+그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(108항목 — 10번 나열은 2026-10-06부터 "최근 7일 + 9/6 이후 평균" 형식, 03·01 표는 최신 위,
 접기 summary 4항목, 2026-10-10 "12 장부·플레이스" 2항목, 2026-10-12 "04·05 추가(판 G)" 7항목, 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
 compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
 precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07 · 판 E 2026-10-08 · 판 F 2026-10-09 · 판 G 2026-10-12): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로

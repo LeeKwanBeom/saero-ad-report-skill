@@ -68,14 +68,14 @@ def _kpi():  # masthead·KPI
     cmp("KPI sub 일평균노출", float(grp(r"([\d.]+)회", sub[0]).group(1)), R["KPI"]["일평균노출"]); cmp("KPI sub 일평균클릭", float(grp(r"([\d.]+)회", sub[1]).group(1)), R["KPI"]["일평균클릭"])
     cmp("KPI sub 클릭당", num(grp(r"([\d,]+)원", sub[3]).group(1)), R["KPI"]["클릭당"])
 
-def _s01():  # 01
+def _s01():  # 01 — 표 5행은 최신 위(2026-10-15) → DOM [::-1] = compute 표5 오름차순 · 순위 5칸은 오름차순 그대로
     s1 = sec(1)
     cmp("01 dailyChart 노출", chart_data("dailyChart", "노출수"), R["01"]["노출"]); cmp("01 dailyChart 총비용", chart_data("dailyChart", "총비용\\(원\\)"), R["01"]["총비용"])
     lbl = re.findall(r"labels:\s*\[((?:'\d+/\d+\(.\)',?)+)\]", html)
     cmp("01/06 labels", [l.split(",")[0].strip("'") for l in lbl] + [len(l.split(",")) for l in lbl], [R["01"]["labels"][0]] * 2 + [R["nlabels"]] * 2)
     cmp("01 min-width", int(grp(r"min-width:\s*(\d+)px", s1).group(1)), R["minwidth"])
-    t1 = [{"날짜": r[0], "노출": num(r[1]), "검색": num(r[2]), "콘텐츠": num(r[3]), "클릭": num(r[4]), "CTR": float(r[5].rstrip("%")), "CPC": num(r[6])} for r in rows(s1) if len(r) == 7]
-    hl1 = re.findall(r'<td class="num( ctr-high)?">([\d.]+)%</td>', s1)
+    t1 = [{"날짜": r[0], "노출": num(r[1]), "검색": num(r[2]), "콘텐츠": num(r[3]), "클릭": num(r[4]), "CTR": float(r[5].rstrip("%")), "CPC": num(r[6])} for r in rows(s1) if len(r) == 7][::-1]
+    hl1 = re.findall(r'<td class="num( ctr-high)?">([\d.]+)%</td>', s1)[::-1]
     cmp("01 표 5일", t1, [{k: v for k, v in r.items() if k != "hl"} for r in R["01"]["표5"]]); cmp("01 표 .ctr-high", [bool(h) for h, _ in hl1], [r["hl"] for r in R["01"]["표5"]])
     grid = re.findall(r'margin-bottom:2px;">([^<]+)</div>\s*<div style="font-size:15px;font-weight:800;(color:var\(--mint-dark\);)?">([\d.]+)위', s1)
     cmp("01 플레이스 순위 5칸", [{"날짜": d, "순위": float(v)} for d, _, v in grid], R["01"]["플레이스순위5"]); cmp("01 순위 민트 칸", [d for d, c, _ in grid if c], [R["01"]["순위민트"]])
