@@ -18,6 +18,31 @@ propose 창 2026-10-16~2026-10-16 · 등록 미룸(사용자): 아니오
 
 ---
 
+## 검증·병합 기록(2026-10-17 — 07 정식표 접기(레이아웃 판 r2026-10-H): 검증 1(막음 0) → main 병합)
+
+**병합**: `feat-20261017-07fold`(`ed0f390` — 92c3d02 위 2커밋: `7fc1ab8` 코드·시험·문서 · `ed0f390` 구현 기록)를 main(`92c3d02` — 분기 뒤 main 변경 0, 2026-10-17 11:54 KST `ls-remote` 로 main = 92c3d02 · 브랜치 = ed0f390 확인)에 `git merge --no-ff` → 병합 커밋 **`b7fb11e`**(부모 92c3d02 · ed0f390, 트리 `2d264133` = ed0f390 트리 — `git diff --stat ed0f390 HEAD` 빈 출력 · 92c3d02 대비 14 파일 +551/−90). 경우 A — 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합 · 구현 커밋의 last-audit 는 LF 그대로라 지난 판 G 병합 때의 줄바꿈 함정 없음: `git diff --cached --numstat` 이 77/0). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0). clone `D:\saero-verify\merge-20261017-07fold`(`git clone -c core.autocrlf=false`). 사용자 병합 지시(2026-10-17 11:54 KST 무렵, 채팅 원문 "병합" — 검증 세션에 이어서; 병합 직전 사용자에게 "갱신 회차가 돌고 있지 않다면" 을 전제로 물었고 사용자가 "병합" 으로 답함). 브랜치 `feat-20261017-07fold` 는 지우지 않고 둔다. 코드·문서·config·data 재수정 없음(이 절 추가만). **이 절의 자리**: main 맨 위가 10/17 갱신 회차 절이라, 판 D·F 병합 때처럼 이 브랜치 "기능 추가 구현 기준선" 절 바로 위에 둔다(main 쪽 갱신 회차 절은 맨 위 그대로). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에). 에이전트 0(병합은 조정자가 직접).
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_07표접기_회차1_2026-10-17.md`, 별도 세션 — `D:\saero-verify` 2026-10-17 11:31~11:5x KST, 조정자 **Sonnet 5.5**(지시문 "첫 검증" 줄의 Fable 한도 대체 줄 — 하위도 같은 모델 상속) · 울트라코드 켬 · clone `D:\saero-verify\feat-20261017-07fold-1`) = **막음 0 → 가도 된다**. 워크플로 검토자 3(코드·변조 / 다음 회차·하류 소비자 / 문서=코드 — jsonl 모델 `claude-sonnet-5-5`) · Haiku 0 · Opus 0 · 반박 0 · 하위 토큰 약 77만(상한 150만 안). 조정자 직접: 시험 3종(test_apply 41 OK·skip 1 · test_extras 19 OK · test_deploy 45 OK) + 덤 2(test_validate_07 6 · test_narrative_check 7) · test_compare_sections 기준 OK 110·변조 8경우 전부 맞음 · 리허설 재료 `work/RX/src` 로 사본 재실행(apply `--layout` 없이 FAIL → `--layout` 변환 → 재실행 변경 없음 · 결과 `09d2f28b` = 작업 세션 결과와 바이트 같음 · 시안 `proto_c1.html` diff = meta 한 줄 · precheck validate 28/28 · compare 110/0 · overflow 넘침 0 · narrative `[주의] 같은 기간` · 도장) · 시안 변조 `mut_c1_sum.html` compare OK 109 / DIFF 1 · 기록 md5 표 13파일 전부 일치 · 실물 대조(판 G 배포본 대비 07 정식표 27행 같은 순서 · 07 밖 바이트 동일) · playwright 재측정(07 높이 390 1,242 · 1280 976 · 넘침 0 · beforeprint 때 details 4 전부 열림). 검토자 3 이 변조 47종·행 수 0~60·K 1~28 · 다음 회차(직전 배포본 = 판 H) compute 바이트 같음(5c0e85b2) · precheck 전체 통과 모사 · 하류 소비자 전수 · 문서 6곳 대조를 돌렸으나 막음 후보 재현 0.
+
+**병합 main 확인**(경우 A — 병합 트리 = 브랜치 트리 해시 같음 · 구현 세션이 커밋 전 전체 시험 한 번(11:18~11:24 KST, 12묶음 rc 0) + 검증 세션이 바뀐 줄에 닿는 시험 재실행 · 병합 clone 에서 전체 시험은 다시 돌리지 않음):
+- 병합 트리 `2d264133` = ed0f390 트리 · `git diff --stat ed0f390 HEAD` 빈 출력 · `py_compile` 31/31 OK · `bash -n` 2/2 OK(ingest.sh · precheck.sh) · guard(`leads.py guard --staged --message-file`) PASS — staged 14파일 · 추가 줄 551 · 장부 숫자 0.
+- `cat data/*/*.csv audit/exclusions.csv | md5sum` 병합 전 = 뒤 **`e5a1c213`**(`git diff --stat 92c3d02 HEAD -- data/ audit/exclusions.csv local/` 빈 출력) · registry(`audit/exclusions.csv`) **`07fb16d1`**(1,497행 그대로) · config/report-config.json **`3b72a9ac`**(332 → 333행 · `report_layout.layout_id r2026-10-H` · `top_rows_07 10` · `markers.details 6`).
+- **`local/` 변경 0** — 설치본(`D:\saero\.claude\skills\saero-run\SKILL.md` 등) 교체 필요 없음.
+- audit/last-audit.md(이 절 전) **3,480행 · 996,906바이트** · CR 0.
+배포 PUT 0 · 네이버 0 · fetch_reports·deploy 실행 0 · 운영 작업 폴더 `D:\saero\saero-ad-report-skill` 쓰기 0(검증 중 `rev-parse` 1회) · 작업 clone 쓰기 0.
+
+**이월**(한 줄씩 — 검증 1 의 이월 12건 그대로. 구현 기록 이월은 그대로 아래):
+- (검증 이월 1~6 — 손 수정 전용, 정상 흐름에서 생기지 않음 · 다음 apply 가 되돌리거나 요란하게 멈춤) 접힌 표 `<thead>` 글자는 compare·validate·apply 가 다시 보지 않는다(위 표 thead 도 같음) · 매칭 태그 색 클래스(`tag-mint`↔`tag-ink`)만 바꾸면 compare·validate 통과(`ROW7` 이 글자만 읽음 — 판 H 이전부터) · `<tr hidden>`·`display:none` 으로 행을 가려도 compare·validate 가 셈 · 검색어가 문자 그대로 "클릭 1건 검색어" 면 apply 성공·compare 만 DIFF 로 멈춤(실제로 나올 확률 사실상 0) · summary 총비용 천 단위 콤마 유무는 compare 가 구분하지 않음(숫자는 대조) · 접힌 details 에 `open` 을 붙이면 apply FAIL 문구가 "옮긴 판" 으로 나옴(메시지만 부정확).
+- (검증 이월 7) validate 는 접힌 행의 검색어별 값을 CSV 와 직접 대조하지 않는다(합계·ctr-high 만 — 구현 이월 6 과 같음, compare 몫).
+- (검증 이월 8~12 — 문서 문구, 숫자·명령 영향 0) report-structure.md:15 "(아래 표 여섯째 줄)" 은 표의 둘째 줄(접기로는 여섯 번째) · report-structure.md:162 "판 G 는 행당 +33px" 은 390폭 값(1280 은 약 41px) · `[apply]` 출력 끝 "위 10행" 은 `min(K, n)` 행(n < 10 이면 달라짐) · checklist.md:290 레이아웃 판 행 파일 칸에 compare.py·test_compare_sections.py 없음 · checklist.md:219 판 D 기록의 "details 5 그대로"(날짜 있는 과거 기록).
+
+**병합 뒤(다음 단계)**:
+1. 운영 폴더 `git pull --ff-only`(다음 `/q-saero-run` 첫머리 — 운영 폴더 HEAD 는 아직 92c3d02).
+2. 설치본 교체 없음(`local/` 변경 0).
+3. **판 H 첫 적용 `/q-saero-run`**(Opus 5.5 · high · 울트라코드 끔) — 첫 말 "**판 H(07 정식표 접기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**". 위 "첫 적용 본보기" 그대로: apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-G → r2026-10-H, 분기 2)` · 끝 `· 07 정식표 위 10행 · 나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기` → precheck(validate 28 · compare 110) → 07 전후 비교 `section_compare.py … --sections 7` → 사용자 "배포" 답 뒤에만 `--layout-change`. 이 첫 적용이 끝나기 전에 데이터 회차가 먼저 돌면 7단계 게이트 멈춤이 보류 회차가 된다.
+
+---
+
 # 기능 추가 구현 기준선(07 정식표 접기 — 판 H, 2026-10-17) · 브랜치 `feat-20261017-07fold`
 점검일: 2026-10-17 10:55 ~ 11:3x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_07표접기_작업지시_2026-10-17.md`(질문 세션이 씀).
 기준: 시작 `git fetch` — origin/main `92c3d02`(지시문 사실과 같음 · 운영 폴더 HEAD 도 `92c3d02` · 작업 트리 깨끗). clone `D:\saero\feat-20261017-07fold`(`git clone -c core.autocrlf=false`). **코드 커밋 `7fc1ab8`** + 이 기록.
