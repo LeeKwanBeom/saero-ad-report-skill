@@ -18,6 +18,83 @@ propose 창 2026-10-16~2026-10-16 · 등록 미룸(사용자): 아니오
 
 ---
 
+# 기능 추가 구현 기준선(07 정식표 접기 — 판 H, 2026-10-17) · 브랜치 `feat-20261017-07fold`
+점검일: 2026-10-17 10:55 ~ 11:3x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_07표접기_작업지시_2026-10-17.md`(질문 세션이 씀).
+기준: 시작 `git fetch` — origin/main `92c3d02`(지시문 사실과 같음 · 운영 폴더 HEAD 도 `92c3d02` · 작업 트리 깨끗). clone `D:\saero\feat-20261017-07fold`(`git clone -c core.autocrlf=false`). **코드 커밋 `7fc1ab8`** + 이 기록.
+지킨 제약: 네이버 호출 0 · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = work/ 재료 복사 · 리허설 전후 md5 · `rev-parse` 1) · data/·registry 변경 0 · fetch_reports·ingest·archive·exclusions·balance 실행 0 · deploy 는 fetch(GET)·`push --dry-run` 만 · 브라우저 = playwright 새 임시 프로필(file:// 측정 · chart_check·section_compare 만 cdnjs 2).
+방법: 조정자가 설계·코드·시험·문서·리허설 · 검토 에이전트 1(코드·막음 렌즈 — "다음 단계로 가도 된다" · 막음 0, 반박 0) · 하위 토큰 약 18만.
+
+## 사용자 결정(2026-10-17 — 지시문 원문, 다시 묻지 않음 · 원문 "추천안대로 진행하자")
+1. 안 1(상위 K행 + 나머지 접기). 안 2(숨김 없이 촘촘하게 — 1,357px)·안 3(계열 요약 + 표 통째 접기 — 1,064px)는 고르지 않음.
+2. K = **10**, config 값으로 둔다(5 는 오른쪽 카드 태그가 가리키는 창동역·마들역 행이 접혀 안 됨).
+3. 11위 아래가 접히는 것을 받아들임 — 10/17 기준 확장 매칭 12행 전부와 우리 이름 검색어 3개(새로필라테스 8건 · 노원역새로필라테스 4건 · 노원새로필라테스 2건)가 접힌 쪽.
+4. PC·모바일 같은 HTML(모바일만 다른 모양 아님 · 새 JS 0). 모바일 CPC·총비용 가로 밀기는 그대로 둔다.
+질문 세션 기본값(사용자에게 알림 — 바꾸라는 답 없음): 5. 판 이름 `r2026-10-H`(report-structure.md 판 G 문단 "(사장님이 확장 소재를 붙인 뒤 판 H)" → "그다음 판") · 6. summary `나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기`(a = b 면 `클릭 a건`) · 정식표가 K행 이하면 `나머지 0행 펼치기` + 빈 tbody(details 수 고정 — 03 "이전 0일" 선례) · 7. 첫 적용은 보류로 시작 + 07 옛/새 전후 비교(1280·390).
+이 회차에 받은 답: 없음(지시문 안에서 끝남 — 채팅 질문 0).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `7fc1ab8`, 13파일 +474/−90) [실측]
+- `scripts/apply.py` 1191 → 1303 · 0e2358f5 → 2ceca600 · `scripts/compare.py` 276 → 291 · bf4b0ba0 → 6085aa60 · `scripts/validate.py` 895 → 897 · 9b14f4fe → 3e16e19d(머리말 2줄 — 코드 0)
+- `config/report-config.json` 332 → 333 · a011635d → 3b72a9ac(`layout_id` r2026-10-H · `top_rows_07` 10 · `markers.details` 6 · `_comment` 판 H)
+- `tests/test_apply.py` 760 → 928 · 5a4982fe → 7e9dd4f4 · `tests/test_compare_sections.py` 144 → 177 · 930a8f54 → f270bc28 · `tests/test_extras.py` 676 → 676 · 7bd43b91 → f261dd85 · `tests/fixtures/layout_old.html` 478 → 489 · 89470872 → 3bc6e477(07 정식표 thead — 배포본과 같은 꼴)
+- `SKILL.md` 692 → 695 · 958a4de1 → 36f62ad4 · `references/report-structure.md` 744 → 773 · a940673b → c9d1e6f9 · `references/css-and-layout.md` 293 → 299 · e4949488 → 1a48bc3b · `references/code-tab.md` 313 → 315 · 6e734d71 → 723a3ff2 · `audit/checklist.md` 561 → 563 · 3d07b3be → d5b71f9e · `audit/last-audit.md`(이 절)
+- 흐름: 5단계 apply `--layout` — meta r2026-10-G 판 → `convert_g_to_h`(meta · 07 정식표 wrapper 닫힘 바로 뒤 빈 접힌 표 — 같은 thead) → 사슬 끝 `check_fold07` → 07 위 표(구역 첫 tbody) = compute `07.정식표[:K]` · 접힌 표(`나머지` summary 뒤 첫 tbody · `클릭 1건 검색어` 앞) = `[K:]` · summary = `sum07([K:])` → 6 precheck(validate 28 · compare **110**) → 7 deploy `--layout-change`(첫 적용 — 사용자 "배포" 답 뒤만).
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. config 키 이름 `report_layout.top_rows_07`(10) — 1 이상 정수가 아니면(0·음수·문자열·실수·참거짓·없음) apply FAIL(쓰기 전). 판 H 일 때만 읽는다(`FOLD07_LAYOUTS`).
+2. 접힌 표 자리 = 07 정식표 wrapper(`</table>` 다음 줄 `</div>`) 바로 뒤 — 범례·클릭 1건 목록·각주 ①②③ 앞. 꼴 = 03 접기와 같은 `<details class="fold" style="margin-top:10px;">` + `<summary class="fold-more">` + 정식표 thead 복사(2칸 더 들임) · 표지 속성(data-*) 없음 — 시안 `proto_c1.html` 과 같은 바이트(apply 결과 diff = meta 한 줄).
+3. 앵커 = summary 글 머리 `나머지 `(문서 1 · 07 안 1 — `check_fold07`) · 접힌 tbody 쓰기는 `tbody(h, '<summary class="fold-more">나머지 ', …, start=07, stop=클릭 1건 검색어)` · summary 는 `once_in(07, SUM07)`. 경쟁사 꼴(`표 N행 · 펼치기`)·07 앵커 문구·`클릭의 N% 차지`·`line-height:1.9;` 를 쓰지 않는다(접힌 행은 클릭 2건 이상이라 `클릭 1건` 글자도 0).
+4. summary 숫자 꼴: 행 수는 콤마 없는 정수 · 클릭 범위·합·비용은 `c()`(천 단위 콤마 — 지금 값은 콤마 없음) · 범위 = 접힌 행 클릭 최소~최대(같으면 한 값).
+5. 판 H 변환 `convert_g_to_h` 의 FAIL 조건 = 판 G 인데 `나머지` summary 가 이미 있음 · 정식표가 07 첫 `<table>`(구역 첫 tbody 를 품음)·`클릭 1건 검색어` 앞이 아님 · `</table>` 다음 줄이 wrapper 닫힘이 아님 · `<thead>` 없음. 값만 경로도 사슬 끝 `check_fold07`(접기 지움·둘·08 로 옮김·목록 안으로 옮김·summary 글 바꿈 → FAIL).
+6. compare 새 2항목(07 구역 끝 — 파싱이 깨져도 앞 항목은 먼저 대조): "07 정식표 위 표 행수 = min(K, n)"(07 첫 tbody 의 07 행 꼴 수) · "07 summary 정식표 나머지(행·클릭 범위·합·비용) = compute 정식표[K:]"(`클릭 1건 검색어` 앞에서 찾음). K 는 compare 가 config 를 읽는다. 108 → **110**.
+7. 지시문 완료 기준의 "mutation_test" 몫 = compare 변조 시험 `tests/test_compare_sections.py` 에 2경우(summary 클릭 합 +1 → 새 summary 항목만 DIFF · 접힌 첫 행을 위 표로 옮김(이어 읽은 순서·값 그대로) → "위 표 행수" 항목만 DIFF). `tests/mutation_test.py` 는 validate·archive 몫이라 코드 그대로(리허설에서 28 검사 전부 살아 있음 확인).
+8. validate 는 코드 0 — details 수를 config(6)로 셀 뿐(PASS 문구가 `details 6 · summary 짝 6`). 위 표 행 수·summary 숫자는 compare 몫(compute 정식표 정의가 대조 기준) — 07 행 누락·중복은 validate 2·4(07 구역 전체 행)도 본다.
+9. `FOLD_CSS`(옛 판 → B 변환이 넣는 CSS 주석의 접기 목록)는 그대로 — 배포본 CSS 바이트 0 변경("새 CSS 0") · 문서(css-and-layout 접기 안내)에만 07 정식표를 적었다.
+10. `[apply]` 출력 끝에 `· 07 정식표 위 10행 · 나머지 N행(…) 펼치기`(판 H — 운영 세션이 출력에서 본다).
+11. 시험: 사슬 중간 판(B~G) config 사본은 `at(cfg, lid)`(details 5) — config 가 판 H(details 6)라 옛 판 기대값을 만들 때만 · fixture `layout_old.html` 07 정식표에 thead(배포본과 같은 꼴 — 변환이 머리를 복사) · `ApplyLayoutH` 7(사슬·범위·나눔·summary·행 수 오감·K 바꿈·묵은 값·손 수정) · 판 G 리터럴 기대값은 판 H 로(판 F → G 회차 관행).
+12. 리허설은 "같은 기간" 사본(판 G R9 꼴) — 오늘 운영 작업본(10/17 03:05 · = 배포본 85bed483)을 판 G 원본으로 apply `--layout` → precheck 의 직전 배포본 = 받은 배포본(live) → 도장 2행 = `--base` 라 dry-run 이 도장을 그대로 확인. 새 기간 서술 몫은 이 작업과 무관(서술 표지·n<날짜>.py 그대로).
+
+## 리허설 결과 [실측 — 11:13~11:21 KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · `work/RX/`]
+- **재료**: 운영 `work/` 에서 복사 `src/`(index.html 85bed483 = 10/17 03:05 작업본(판 G) · compute.json 5c0e85b2 · prev.html 06438374 · balance.json · combined CSV 4 · extra 4) · `deploy.py fetch`(GET — `live.html` 85bed483 = src/index.html · sha 6d9e226).
+- **R1 apply**: `--layout` 없이 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-G ≠ config r2026-10-H — --layout 을 붙여 r2026-10-G → r2026-10-H` rc 1(파일 그대로 85bed483) → `--layout` `레이아웃 판 변환(r2026-10-G → r2026-10-H, 분기 2) · 잔액 카드 122,828원 · … · 07 정식표 위 10행 · 나머지 17행(클릭 2~8건 · 합 60건 · 49,464원) 펼치기` rc 0 → 두 번째 `(변경 없음)` · 결과 09d2f28b · **시안 `proto_c1.html` 과 diff = meta 한 줄뿐**.
+- **R2 precheck**(`work/RX/same/index.html` · `src/combined` · 직전 배포본 `live.html`): **validate 28/28**(레이아웃 판 `r2026-10-H · details 6 · summary 짝 6 · …` · 07번 클릭수 445 + 48 + 7 = 500 · ctr-high 27행) · compute(`[주의] 장부 확인 못 함(장부 없음)` — 운영과 같음 · 경쟁사 49행 · 신규 변형 후보 []) · **compare OK 110 / DIFF 0** · overflow 360·390·430 넘침 0(details 7 = 6 + 04 변경 기록 접기, 연 상태) · narrative `[주의] 같은 기간` · 도장 09d2f28b · 85bed483 · full.
+- **R3 deploy** `push --dry-run --file same/index.html --base live.html`: `precheck 도장 … 확인` · **`[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · 직전 배포본(--base) r2026-10-G → 작업본(--file) r2026-10-H`** · base md5 확인 · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0.
+- **R4 07 높이**(playwright · file:// 만 · Chart.js 미로드 — 시안과 같은 조건): 390폭 07 **1,779 → 1,242px**(문서 11,696 → 11,159) · 1280폭 **1,680 → 976px**(문서 9,334 → 8,630) · 정식표만 펼침 390 1,869 · 1280 1,712 · 닫힘 때 보이는 정식표 행 10/27 · **beforeprint 때 27/27**(details 7 전부 열림) → afterprint 10/27 · `page.pdf`(1280) 글자에 정식표 이름 27/27 · 가로 넘침 0 — 시안 측정과 같은 값.
+- **R5 전후 비교** `tests/section_compare.py same/index.html live.html --out cmp07 --sections 7 --widths 1280,390` → `[PASS] … 밖 요청 막음 0건` — **`work/RX/cmp07/compare.html`**(07 옛/새 1280 864×1680 → 864×976 · 390 358×1779 → 358×1242) + 펼친 07 `cmp07/new_390_sec7_open.png`·`new_1280_sec7_open.png`(390 안쪽 표 가로 밀기 안내 붙음 · 문서 넘침 0).
+- **R6** `tests/chart_check.py same/index.html same/compute.json --base live.html --out chart` → **PASS 33 / FAIL 0 · 외부 허용 2 · 차단 0**(01·06·상단 카드·04·05 회귀 0) · `mutation_test`(R2 산출) **검사 28개 중 변조로 FAIL 확인 28 · config 실험 5 · archive 7종 · 원본 md5 동일 — 전부 살아 있음** · `test_compare_sections`(R2 산출) 기준 OK 110 · 변조 8경우 전부 그 구역 그 항목만 DIFF(새 2경우 포함) · 시안 변조 사본 `mut_c1_sum.html` → compare **OK 109 / DIFF 1**(`07 summary 정식표 나머지…` — 시안 때는 108/0 으로 통과하던 것).
+- **네트워크**: GitHub GET(배포본 받기 1 · dry-run sha·권한) + cdnjs 2(chart_check·section_compare) 뿐 · 네이버 0 · 쓰기 0.
+- **전후 대조**(`work/RX/snap_before.txt` 11:13 = `snap_after.txt` 11:25 — diff 0): 운영 작업 폴더(.git 밖 전 파일) 17b25069 · 운영 HEAD 92c3d02 · clone data+registry b826c22b · 운영 work 재료(index·compute·prev·balance·combined·extra) 301f8d35.
+
+## 전체 시험(커밋 전 한 번 — 11:18:47~11:24:32 KST, 스크래치 `fulltest.sh` → `work/RX/fulltest.log`)
+py_compile 31 OK · bash -n 2 OK · **test_apply 41**(+ `ApplyLayoutH` 7 · 리허설 RX 판 H 포함) · test_balance 13 · test_deploy 45 · test_exclusions 49 · test_extras 19 · test_fetch_reports 25 · test_ingest 10 · test_leads 23 · test_narrative_check 7 · test_place 9 · test_validate_07 6 — 전부 rc 0 · data+registry+config md5 전 = 후 a01359c0(시험 도중 바뀐 git status 는 조정자의 문서 고침·`git add` 몫). + 리허설 R6: chart_check 33/0 · mutation_test 전부 살아 있음 · test_compare_sections 전부 맞음.
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 검토자 1: 코드·막음 렌즈 · "다음 단계로 가도 된다" · 막음 0)
+- 완료 기준 표 줄 1~5 참(검토자 — 행 수를 27→5→27→10→11→9→2→42→10→27 로 오가게 해 매번 이어 읽은 행 = compute · 위 K · 나머지 접힘 · summary = sum07 · 07 details 4 고정 · 옛 행·옛 summary 0 · 멱등 · compare 110/0 · 원 compute 로 되돌리면 바이트 같음 · G→H 변환이 바꾼 바이트 = meta 한 글자 + 628자 블록뿐 · 경쟁사 summary·클릭 1건·0 목록·08 문서 전체 once·경쟁사 tbody 와 안 겹침 · validate parse_main_rows·competitor_rows·compute deployed_competitors 이중 셈·누락 0) · 줄 6·8 참(리허설 R2~R6) · 줄 7(문서 = 코드) 조정자 대조 — 문서 6곳.
+- 같은 회차에 고친 것: css-and-layout 실측 줄 자리표시를 리허설 값으로 · "닫힌 높이 행 수 무관"의 출처(시안 27·60·100행 사본)를 문서에 · checklist [의도된 동작] 30 에 검토 이월 1(카드 태그가 가리키는 검색어가 밀려 접힌 쪽).
+
+## 이월(한 줄씩 — 막음 아님, 첫 적용 뒤 또는 정기점검)
+- 07 오른쪽 카드 태그(서술)가 가리키는 검색어가 순위가 밀려 11위 밖이면 접힌 표 안 — 지금은 3~8위 · 숫자 문제 아님(서술 회차가 볼 일 · [의도된 동작] 30).
+- compare `SUM07` 은 `클릭 a~a건` 꼴도 통과(숫자는 대조됨 — 꼴만 다른 경우 · apply 는 그 꼴을 쓰지 않고 test_apply 가 글자 그대로 봄).
+- 07 머리말·출처 서술(`07-src`·`07-desc`)에 "클릭 1건 검색어" 글자가 들어가면 apply·compare 가 FAIL·DIFF 로 멈춤 — 원래부터의 요란한 멈춤(판 H 로 바뀐 것 아님).
+- `tests/chart_check.py` 머리말 일부가 아직 판 F 로 적힘(글만 — 07 접기는 chart_check 범위 밖 · 첫 `summary.fold-more` = 03 그대로).
+- 펼친 접힌 표의 열 너비가 위 표와 따로 잡힘(390 에서 자기 가로 밀기 안내) — 03 접힌 표와 같은 성질 · 한 표처럼 보이게 하려면 table-layout 고정 등 새 CSS 가 필요해 이번 범위 밖(사용자 결정 4 "새 JS 0"·완료 기준 "새 CSS 0").
+- validate 는 위 표 행 수·summary 숫자를 CSV 로 따로 보지 않는다(compare 몫 — 임의 결정 8).
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1 전 행·순서·앵커(compare 07 정식표 행수·값 + "위 표 행수" · validate 2·4 · test_apply `ApplyLayoutH.test_split_and_summary`) · 2 summary 숫자 = compute 정식표[K:] · 틀리면 DIFF(compare 새 항목 · test_compare_sections 변조 2 · 시안 `mut_c1_sum.html` 109/1) · 3 n ≤ K → `나머지 0행 펼치기` + 빈 tbody · details 고정(test_short_rows_and_shift · fixture 2행) · 4 판 H 규약(meta · config 6·K · 사슬 G→H·옛 → … → H · 값만 멱등 · deploy 게이트 — 리허설 R3) · 5 회귀 0(G→H 범위 시험 — CSS·스크립트 바이트 같음 · 리허설 diff = meta 한 줄 · chart_check 33/0) · 6 높이·넘침·인쇄(리허설 R4 — 재측정은 막음 후보가 있을 때만) · 7 문서 = 코드(report-structure 레이아웃 판 절 표 여섯째 줄·판 H 문단·07 (1) · css-and-layout 접기 안내·실측 · SKILL 레이아웃 판 줄·compare 110 · code-tab 첫 적용 판 H · checklist 갱신 이력·16·[의도된 동작] 30·레이아웃 판 행) · 8 리허설(이 절 — 재료 `work/RX/src` 로 사본 재실행).
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 35분(10:55~11:3x KST — 검토·chart_check·전체 시험 대기 포함) · 하위 에이전트 1(코드·막음 검토 — 약 18만 토큰) · 조정자 즉석 코드(저장소 밖) — 패치 스크립트 8 · 측정 2(`measure07.py`·`shot07open.py`) · 스냅숏·전체 시험 약 330행.
+쓴 곳: 브랜치 커밋 `7fc1ab8`(코드·문서·시험) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_07표접기_검증지시_회차1_2026-10-17.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/q-saero-run` — 판 H 첫 적용 · 보류로 시작)
+1. 첫 말: "**판 H(07 정식표 접기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. 평소대로 ①~5 — apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-G → r2026-10-H, 분기 2)` 와 끝 `· 07 정식표 위 10행 · 나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기` 확인(`--layout` 없이 돌리면 `meta r2026-10-G ≠ config r2026-10-H` FAIL — 작업본 그대로).
+3. 6 precheck(validate 28 — 레이아웃 판 `r2026-10-H · details 6 · summary 짝 6` · compare **110** · overflow · narrative) → 도장.
+4. 07 전후 비교: `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 7` → `work/cmp_<날짜>/compare.html`(07 옛/새 1280·390)과 작업본을 사용자에게 보인다(글·모양을 바꾸는 첫 적용 — 옛/새 나란히).
+5. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜 … r2026-10-G → r2026-10-H` 만).
+
+---
+
 ## 갱신 회차 (2026-10-16 03:45~03:56 KST — Code 탭 `/q-saero-run`, main 작업 폴더) · **배포 완료 `d46d8b4`**
 합본 `일별` 2026.08.26 — 10.15 (51일) · 저장소 반영 커밋 `d46d8b4`(직전 `f96a775`, 파일 sha 3d0896f → be8201f) · 집계 기간 `2026.08.26 — 10.15 (51일)`
 저장소 반영(커밋) d46d8b4 03:53 · 공개 사이트 반영 03:54(커밋 뒤 64초 · Pages #167)
