@@ -582,9 +582,9 @@ class ApplyValidateCompareG(unittest.TestCase):
     def test_chain_scope_and_hand_edits(self):
         """기준 15 — F → G = 사슬 바이트 · 바뀌는 곳 = meta·블록 둘(04 본 표·note 뒤 · 05 안) · 손 수정 F/G FAIL."""
         lay = CFG["report_layout"]
-        cfg_f = dict(CFG, report_layout=dict(lay, layout_id="r2026-10-F"))
+        cfg_f = dict(CFG, report_layout=dict(lay, layout_id="r2026-10-F", markers=dict(lay["markers"], details=5)))   # 판 F = 접기 5개(판 H 가 07 접기를 더함)
         F_ = A.apply(self.H, self.R, cfg_f, layout=True)
-        self.assertEqual(A.apply(F_, self.R, CFG, layout=True), self.G0)
+        self.assertEqual(A.apply(F_, self.R, CFG, layout=True), self.G0)                  # F → G → H(config 판 H — G0 는 사슬 끝 H)
         self.assertEqual(A.chain("r2026-10-F", "r2026-10-G"), [A.convert_f_to_g])
         g = A.convert_f_to_g(F_, lay)
         self.assertEqual(strip_blocks(g).replace('content="r2026-10-G"', 'content="r2026-10-F"', 1), F_)
