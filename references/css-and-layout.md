@@ -35,6 +35,10 @@
   실측(10/12 데이터 14줄 중 10줄): 1280 좌우 밀기 없음 · 390 이 표도 밀기 없음(4번 구역 캡처 높이 969 → 1,218px).
   (2026-10-15) 맨 위 날짜 줄만 펼치고 나머지는 기존 `.fold`·`.fold-more` 접기 하나 — 새 CSS 0 · 인쇄 때 펼침·가로 안내 다시 맞춤은 기존 접기 스크립트(모든 details) 그대로 ·
   실측(10/14 데이터 10줄 중 펼침 3): 4번 구역 캡처 높이 1280 996 → 678px · 390 1,278 → 959px · overflow 360·390·430 접기 연 상태 넘침 0
+- (판 H, 2026-10-17) 07 정식표 위 10행(config `report_layout.top_rows_07`) + 바로 아래 접힌 표(나머지 행): **새 CSS·JS 0** — 03 접기와 같은 `.fold`·`.fold-more` + 인라인 `margin-top:10px`,
+  안쪽 표는 정식표와 같은 `.wide-table` wrapper·thead(모바일 CPC·총비용 가로 밀기 그대로 — PC·모바일 같은 HTML). 인쇄 때 펼침·펼칠 때 가로 안내 다시 맞춤은 기존 접기 스크립트(모든 details) 그대로 ·
+  실측(10/17 데이터 27행 = 위 10 + 접힘 17 · Chart.js 미로드 · 구현 리허설): 7번 구역 캡처 높이 390 1,779 → 1,242px(펼침 1,869) · 1280 1,680 → 976px(펼침 1,712) · 닫힌 높이는 행 수와 무관(시안 27·60·100행 사본 실측) ·
+  overflow 360·390·430 접기 연 상태 넘침 0 · 인쇄 훅(beforeprint) 때 27행 전부 · 펼친 안쪽 표는 열 너비가 위 표와 따로 잡히고 390 에서 자기 가로 밀기 안내가 붙는다(03 접힌 표와 같은 성질)
 - 11번 핵심요약: 잉크→진한틸 그라데이션 배경, 민트색 불릿
 - 푸터 상단에 얇은 그라데이션 라인(밝은민트→민트→진한틸)
 - 모든 `.card`와 KPI 타일에 은은한 그림자
@@ -61,7 +65,7 @@
 .fold         접기 <details> (레이아웃 판 r2026-10-B — 아래 "접기 안내"). summary 에 cursor:pointer
 .kpi-wide     KPI 줄 한 줄 전체 카드(판 F 광고비 잔액 — grid-column:1 / -1, 데스크톱 4칸·모바일 2칸 모두). 값·보조 줄은 data-balance 표지 안(apply 기계 자리)
 .chart-fold   01·06 모바일 펼치기 버튼(판 D — 분기 도우미가 모바일에서만 만든다, HTML 에 없음). .fold-more 와 같이 달아 03 summary 글꼴 · 버튼 기본 모양만 지움
-.fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기") — 12px 굵게 진한민트, 펼치면 아래 8px
+.fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기" · 07 정식표 "나머지 N행(…) 펼치기"(판 H)) — 12px 굵게 진한민트, 펼치면 아래 8px
 ```
 
 ### .wide-table 안의 표
@@ -91,7 +95,7 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
 카드 안 결론 문단(구분선 포함)   margin-top 10px + padding-top 8px
 숫자 카드 그리드                gap 6px, 라벨-값 간격 2px, 값 폰트 15px
 표 행 padding (모바일 640px 이하) 6px
-접기(.fold) 머리                 03 접기 위 10px(표와 사이) · .fold-more 펼쳤을 때 아래 8px ·
+접기(.fold) 머리                 03·07 정식표(판 H) 접기 위 10px(표와 사이) · .fold-more 펼쳤을 때 아래 8px ·
                                 07 목록·08 머리는 옛 머리글 여백 그대로(margin-bottom 8px / sub-head 0 0 6px)
 ```
 
@@ -131,7 +135,8 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
 
 ## 접기 안내 (레이아웃 판 r2026-10-B, 2026-10-06)
 
-긴 목록·표를 `<details class="fold">` 로 접는다(report-structure.md 맨 위 "레이아웃 판" — 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖, 5개).
+긴 목록·표를 `<details class="fold">` 로 접는다(report-structure.md 맨 위 "레이아웃 판" — 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖, 5개 ·
+판 H(2026-10-17)부터 07 정식표 나머지 행(위 10행 아래) 하나를 더해 6개 — 판 G 04 변경 기록 접기는 판 G 블록 안이라 이 수에 안 든다).
 기본 닫힘. 만드는 것은 `scripts/apply.py --layout`(옛 판을 이 판으로 바꿀 때 CSS·스크립트까지 한 번에 넣는다) — 손으로 넣지 않는다.
 
 1. **CSS**: `.fold > summary{cursor:pointer;}` · `.fold-more{font-size:12px;font-weight:700;color:var(--mint-dark);}` · `.fold[open] > .fold-more{margin-bottom:8px;}`
@@ -144,8 +149,9 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
 4. **기준점 보존**: 앵커 문구(`클릭 1건 검색어`·`노출은 있으나 클릭 0건인`·`TOP 10 외`)는 summary 안 리터럴 그대로, `line-height:1.9;` 는 목록 div 세 곳에만
    (summary·details·`.fold` 에 쓰지 않는다 — validate·compare·apply 가 "앵커 뒤 첫 `line-height:1.9;">`"를 목록으로 읽는다). 경쟁사표 머리글 div 리터럴
    "경쟁사 브랜드명 검색어" 는 접기 밖 그대로. CSS·JS 주석에 `<details`·`<summary` 를 꺾쇠로 쓰지 않는다(validate 태그 짝이 센다).
-5. **검사**: validate "레이아웃 판"(meta = config · details 5 · 짝) · overflow_check 는 details 를 전부 열고 3폭을 잰다 · 높이(닫힘·열림)는 회차 기록의 관찰값.
-6. **01·06 모바일 펼치기 버튼(판 D, 2026-10-07)** — details 가 아니다(접기 수 5 그대로). 모바일(≤ config `report_layout.mobile.max_px`)에서 차트 스크립트 끝 분기 도우미가
+   (판 H) 07 정식표 summary `나머지 N행(…) 펼치기` 에는 위 앵커 문구·`line-height:1.9;`·경쟁사 꼴(`표 N행 · 펼치기`)을 쓰지 않는다 — 위 표는 07 구역 첫 tbody(apply·compare 앵커) 그대로.
+5. **검사**: validate "레이아웃 판"(meta = config · details 6(판 G 까지 5) · 짝) · overflow_check 는 details 를 전부 열고 3폭을 잰다 · 높이(닫힘·열림)는 회차 기록의 관찰값.
+6. **01·06 모바일 펼치기 버튼(판 D, 2026-10-07)** — details 가 아니다(접기 수 그대로). 모바일(≤ config `report_layout.mobile.max_px`)에서 차트 스크립트 끝 분기 도우미가
    차트 카드 아래에 버튼(`class="fold-more chart-fold"`)을 만들고 처음에는 최근 `mobile.recent_days` 일만 그린다 — 문구 `이전 N일(M/D~M/D) 펼치기` 는 런타임에
    `data.labels` 로(HTML·apply 기계 자리 0). CSS 는 `.chart-fold{display:block;width:100%;margin:2px 0 0;padding:6px 0;border:0;background:none;font-family:inherit;…}`
    — 글꼴 크기·굵기·색은 `.fold-more`(03 summary 와 같음, 새 색 0) · 버튼 기본 모양(테두리·배경·시스템 글꼴)만 지운다 · 마커(▶)는 없다(summary 가 아니라서).

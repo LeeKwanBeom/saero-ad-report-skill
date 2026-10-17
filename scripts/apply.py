@@ -1,29 +1,32 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
-판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12).
+판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12 · 판 H 07 정식표 접기 2026-10-17).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-G):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-H):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
     분기 도우미를 판 D 도우미로(모바일 01·06 처음 최근 `mobile.recent_days` 일 + 펼치기 버튼, 인쇄 때 전 기간)) → r2026-10-E(`convert_d_to_e` — meta ·
     01 모바일 모양의 interaction 한 줄에 axis:'y' — 가로 막대에서 터치한 줄(날짜)의 팝업이 뜨게) → r2026-10-F(`convert_e_to_f` — meta ·
     `.kpi-wide` CSS · KPI 카드 넷 아래 한 줄 전체 광고비 잔액 카드 하나(.kpi-row 다섯째 자식 — 카드 넷 그대로)) → r2026-10-G(`convert_f_to_g` — meta ·
-    04 구역 끝(본 표·note 뒤) 계정 변경 기록 블록 · 05 구역 끝(차트 카드 아래) 성별·연령대 블록 — 표지 `<!-- saero:extra history|gender-age -->` 짝 · 새 CSS 0). meta 가 사슬 위의 옛 판이면
+    04 구역 끝(본 표·note 뒤) 계정 변경 기록 블록 · 05 구역 끝(차트 카드 아래) 성별·연령대 블록 — 표지 `<!-- saero:extra history|gender-age -->` 짝 · 새 CSS 0) → r2026-10-H(`convert_g_to_h` —
+    meta · 07 정식표 wrapper 바로 뒤(범례·클릭 1건 목록 앞) 접힌 표 하나(details.fold · 같은 머리 · 빈 tbody · summary "나머지 0행 펼치기") — details 5 → 6 · 새 CSS·JS 0). meta 가 사슬 위의 옛 판이면
     `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-D ≠ config …`.
-  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g`) 뒤 값을 바꾼다.
+  · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g` → `convert_g_to_h`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` — 판 G 추가 블록 안 접기는 빼고 셈(`strip_extra`, 2026-10-15) · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
-    `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안)는
-    사슬 끝에 한 번 — 값만 경로도 같다.
+    `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안 ·
+    판 H 07 "나머지 N행" summary 정확히 1 · 그 접기가 정식표 wrapper 바로 뒤 · 접힌 표가 "클릭 1건 검색어" 앞 · `top_rows_07` 1 이상 정수)는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09·10) ·
   05 mediaChart 라벨·색 = compute `05.top5` 순서(`media_labels` — 2026-10-14, 그 전엔 값 배열만 바꿔 순위가 바뀐 날 라벨·색이 옛 순서로 남았다) ·
   02 도넛 제목 총액 · 01 표 5행(최신 위 — 2026-10-15)·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
-  04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표 · 07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
+  04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표(판 H — 위 표 = compute 정식표 앞 `top_rows_07` 행 · 접힌 표 = 나머지, 순서 그대로) ·
+  07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행 ·
-  **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
+  **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 정식표 "나머지 N행(클릭 a~b건 · 합 M건 · X원)"(판 H — 나머지가 없으면 "나머지 0행") ·
+  07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
   분기 도우미의 M 줄(`var M = {maxPx: …, printMaxH: …, row: {…}, pad: {…}, recent: {…}};` = config `report_layout.mobile`, 판 D) ·
   판 F 광고비 잔액 카드의 값·보조 줄(compute.json "잔액" — 없으면 `[FAIL] apply: … "잔액" 없음`, 실패 기록이면 "확인 못 함" · "M/D(요일) HH:MM 조회 실패") ·
   판 G 블록 둘을 표지 사이 통째로(compute.json "변경기록"·"성별연령" — 없거나 상태 ≠ ok 면 '확인 못 함' · FAIL 아님: 옛 값이 남는 길 0, precheck 의 validate·compare 가
@@ -573,7 +576,7 @@ TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        
 # compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
 # data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
 LAYOUT_F = "r2026-10-F"
-CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G 도 잔액 카드 그대로)
+CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H 도 잔액 카드 그대로)
 BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
      값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
   .kpi-wide{grid-column:1 / -1;}
@@ -760,7 +763,7 @@ def balance_values(h, R):
 # 앵커: 구역 n 의 마지막 `\n  </div>\n`(구역 div 닫힘) 앞 — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐이어야(정확히 하나). 04 의 표는 블록이 본 표 뒤에 오므로
 # apply 의 04 tbody 앵커(구역 첫 tbody)·compare _s04(구역 첫 <table>)·validate parse_04_rows(숫자 칸 7개 행)와 겹치지 않는다.
 LAYOUT_G = "r2026-10-G"
-EXTRA_LAYOUTS = (LAYOUT_G,)  # 추가 카드·표가 있는 판
+EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H")  # 추가 카드·표가 있는 판(판 H 도 그대로)
 GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
 HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
 MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
@@ -905,9 +908,100 @@ def extra_values(h, R):
     return h
 
 
+# ── 판 H(r2026-10-H, 2026-10-17 — 07 정식표 접기, 사용자 결정 "추천안대로 진행하자" 안 1): 07 정식표 = 위 표(compute 정식표 앞 top_rows_07 행) + 바로 아래 접힌 표(나머지) ──
+# 03 일별 표와 같은 접기(details.fold · summary.fold-more · margin-top:10px — 새 CSS·JS 0: 펼칠 때 가로 안내 다시 맞춤·인쇄 때 전부 펼침은 기존 접기 스크립트(모든 details)).
+# 접힌 표는 정식표 wrapper 바로 뒤 — 범례·클릭 1건 목록·각주 ①②③·서술 표지는 접기 밖 그대로. apply 07 정식표 앵커(`<!-- Section 7` 뒤 첫 tbody = 위 표) ·
+# compare `_s07`("클릭 1건 검색어" 앞을 이어 읽음 — 위 표 + 접힌 표 = 정식표 전 행) · validate 2·4(07 구역 전체 행)와 그대로 맞는다.
+# summary 는 "나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기" — 경쟁사 summary 꼴("표 N행 · 펼치기")·07 앵커 문구(클릭 1건 검색어 · 노출은 있으나 클릭 0건인 ·
+# line-height:1.9;"> · 클릭의 N% 차지)를 쓰지 않는다(apply·compare 의 07 첫 일치·once_in 보호). 행이 top_rows_07 이하면 "나머지 0행 펼치기" + 빈 tbody(details 수 고정 — 03 "이전 0일" 선례).
+LAYOUT_H = "r2026-10-H"
+FOLD07_LAYOUTS = (LAYOUT_H,)  # 07 정식표 접기가 있는 판
+SUM07 = r"(<summary[^>]*>)나머지 \d+행(?:\([^)<]*\))? 펼치기(</summary>)"   # apply·시험이 다시 쓰는 summary(07 구역 안 정확히 하나)
+SUM07_HEAD = re.compile(r"<summary[^>]*>나머지 ")
+WRAP_END = re.compile(r"</table>\n([ \t]*)</div>\n")
+
+
+def top_rows_07(lay):
+    """config report_layout.top_rows_07 — 판 H 07 정식표 위 표 행 수(1 이상 정수, 아니면 FAIL)."""
+    k = lay.get("top_rows_07")
+    if isinstance(k, bool) or not isinstance(k, int) or k < 1:
+        raise ApplyError(f"config report_layout.top_rows_07 {k!r} — 1 이상 정수여야 함(판 H 07 정식표 위 표 행 수)")
+    return k
+
+
+def main07(h):
+    """07 정식표 자리 → (wrapper 닫는 div 줄 끝, wrapper 들여쓰기, thead 원문). 정식표 = 07 구역 첫 <table>(구역 첫 <tbody> 를 품는다) ·
+    `</table>` 바로 다음 줄이 wrapper 닫는 div · "클릭 1건 검색어" 앞. 어긋나면 FAIL(손으로 바꾼 판)."""
+    a, b = bounds(h, 7)
+    t0, tb = h.find("<table>", a, b), h.find("<tbody>", a, b)
+    t1 = h.find("</table>", max(t0, 0), b)
+    k1 = h.find("클릭 1건 검색어", a, b)
+    if not (-1 < t0 < tb < t1 < k1):
+        raise ApplyError("07 정식표(구역 첫 <table> — 구역 첫 <tbody> 를 품고 '클릭 1건 검색어' 앞)를 못 찾음 — 손으로 바꾼 판으로 보임")
+    m = WRAP_END.match(h, t1)
+    if not m:
+        raise ApplyError("07 정식표 </table> 바로 다음 줄이 wrapper 닫는 div 가 아님 — 손으로 바꾼 판으로 보임")
+    th = re.search(r"[ \t]*<thead>.*?</thead>", h[t0:t1], re.S)
+    if not th:
+        raise ApplyError("07 정식표 <thead> 없음 — 접힌 표 머리를 만들 수 없음")
+    return m.end(), m.group(1), th.group(0)
+
+
+def indent2(block):
+    return "\n".join("  " + ln for ln in block.split("\n"))
+
+
+def fold07_block(ind, thead):
+    """판 H 접힌 표 뼈대(빈 tbody · summary "나머지 0행 펼치기") — wrapper 들여쓰기 ind, 안쪽은 정식표와 같은 꼴을 2칸 더."""
+    return (f'{ind}<details class="fold" style="margin-top:10px;">\n'
+            f'{ind}  <summary class="fold-more">나머지 0행 펼치기</summary>\n'
+            f'{ind}  <div style="overflow-x:auto;" class="wide-table">\n'
+            f'{ind}  <table>\n{indent2(thead)}\n'
+            f'{ind}    <tbody>\n{ind}    </tbody>\n'
+            f'{ind}  </table>\n{ind}  </div>\n{ind}</details>\n')
+
+
+def check_fold07(h, why):
+    """판 H 표지 — "나머지 N행" summary 가 문서 전체에 정확히 하나(07 구역 안) · 그 접기가 정식표 wrapper 바로 뒤에서 시작 ·
+    접힌 표(그 뒤 첫 tbody)와 접기 끝이 "클릭 1건 검색어" 앞."""
+    a, b = bounds(h, 7)
+    n_all, n7 = len(SUM07_HEAD.findall(h)), len(SUM07_HEAD.findall(h, a, b))
+    if n_all != 1 or n7 != 1:
+        raise ApplyError(f'{why} 07 정식표 접기 summary("나머지 N행") 문서 {n_all}개 · 07 안 {n7}개 ≠ 1 — 손으로 바꾼 판으로 보임')
+    j, ind, _ = main07(h)
+    if not h.startswith(f'{ind}<details class="fold" style="margin-top:10px;">\n{ind}  <summary class="fold-more">나머지 ', j):
+        raise ApplyError(f"{why} 07 정식표 접기가 정식표 wrapper 바로 뒤가 아님 — 손으로 옮긴 판으로 보임")
+    tb = h.find("</tbody>", h.find("<tbody>", j))
+    de, k1 = h.find("</details>", j), h.find("클릭 1건 검색어", j)
+    if not (j < tb < de < k1):
+        raise ApplyError(f"{why} 07 접힌 표·접기 끝이 '클릭 1건 검색어' 앞이 아님 — 손으로 바꾼 판으로 보임")
+
+
+def sum07(rest):
+    """판 H summary 글 — 접힌 행(compute 정식표[K:])의 행 수 · 클릭 범위(같으면 한 값) · 클릭 합 · 총비용 합. 없으면 "나머지 0행 펼치기"."""
+    if not rest:
+        return "나머지 0행 펼치기"
+    cl = [r["클릭"] for r in rest]
+    lo, hi = min(cl), max(cl)
+    rng = c(lo) if lo == hi else f"{c(lo)}~{c(hi)}"
+    return f"나머지 {len(rest)}행(클릭 {rng}건 · 합 {c(sum(cl))}건 · {c(sum(r['총비용'] for r in rest))}원) 펼치기"
+
+
+def convert_g_to_h(h, lay):
+    """레이아웃 판 r2026-10-G → r2026-10-H(07 정식표 접기). 바뀌는 곳 = meta · 07 정식표 wrapper 바로 뒤 접힌 표 뼈대 하나(같은 thead · 빈 tbody) —
+    앵커 둘 다 정확히 하나. 위 표 행·다른 구역·서술 표지·범례·스크립트·CSS 는 건드리지 않는다. 행·summary 는 뒤의 apply 가 compute.json 으로 쓴다."""
+    if SUM07_HEAD.search(h):
+        raise ApplyError('판 G 인데 07 정식표 접기 summary("나머지 N행")가 이미 있음 — 손으로 넣은 판으로 보임, 변환하지 않음')
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_G}">', f'<meta name="report-layout" content="{LAYOUT_H}">', h)        # ①
+    j, ind, thead = main07(h)
+    h = h[:j] + fold07_block(ind, thead) + h[j:]                                                                                    # ② 정식표 wrapper 바로 뒤
+    check_fold07(h, "변환 뒤")                                                                                                      # ③
+    return h
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
 STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
-         (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g))
+         (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g), (LAYOUT_G, LAYOUT_H, convert_g_to_h))
 
 
 def chain(frm, to):
@@ -936,13 +1030,15 @@ def tr(cells, style=""):
 
 def apply(h, R, cfg, layout=False):
     """layout = --layout(옛 판·사슬 위 옛 판이면 config 판까지 변환). meta = config layout_id 면 변환 없이 값만(멱등).
-    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e → convert_e_to_f → convert_f_to_g · meta r2026-10-B → C → D → E → F → G ·
-    meta r2026-10-C·D·E·F → … → G · meta = config → 값만 · 사슬 밖 FAIL. config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지 · 판 G 추가 블록 표지)는 사슬 끝에 한 번(값만 경로 포함).
-    판 F·G 는 compute.json "잔액" 이 없으면 FAIL(balance_values) · 판 G 블록은 "변경기록"·"성별연령" 이 없으면 '확인 못 함'(extra_values — FAIL 아님)."""
+    판 사슬: meta 없음 → convert_layout(LAYOUT_B) → convert_b_to_c → convert_c_to_d → convert_d_to_e → convert_e_to_f → convert_f_to_g → convert_g_to_h ·
+    meta r2026-10-B → C → D → E → F → G → H · meta r2026-10-C·D·E·F·G → … → H · meta = config → 값만 · 사슬 밖 FAIL.
+    config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지 · 판 G 추가 블록 표지 · 판 H 07 정식표 접기 자리)는 사슬 끝에 한 번(값만 경로 포함).
+    판 F·G·H 는 compute.json "잔액" 이 없으면 FAIL(balance_values) · 판 G·H 블록은 "변경기록"·"성별연령" 이 없으면 '확인 못 함'(extra_values — FAIL 아님)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     if k < 1:
         raise ApplyError(f"config report_layout.recent_days {k} — 1 이상이어야 함")
+    k7 = top_rows_07(lay) if lid in FOLD07_LAYOUTS else None   # 판 H 07 정식표 위 표 행 수(쓰기 전에 FAIL)
     metas = LAYOUT_META.findall(h)
     if len(metas) > 1:
         raise ApplyError(f'<meta name="report-layout"> 가 {len(metas)}개')
@@ -971,6 +1067,8 @@ def apply(h, R, cfg, layout=False):
         check_balance(h, lay, f"레이아웃 판 {lid} 인데")
     if lid in EXTRA_LAYOUTS:
         check_extra_blocks(h, lay, f"레이아웃 판 {lid} 인데")
+    if lid in FOLD07_LAYOUTS:
+        check_fold07(h, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     if lid in CARD_LAYOUTS:
         h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
@@ -1079,12 +1177,22 @@ def apply(h, R, cfg, layout=False):
         h = once(rf'({re.escape(g)} <span style="color:var\(--mint-dark\);font-weight:700;">\({v["등록일"]} 등록, )\d+(일차\).*?font-weight:800;color:var\(--mint-dark\);">)[\d.]+위',
                  lambda m, v=v: f"{m.group(1)}{v['일차']}{m.group(2)}{v['순위']:.2f}위", h, re.S)
 
-    # 07 정식표 — <!-- Section 7 뒤 첫 tbody(정식표 앞에 다른 table 금지)
+    # 07 정식표 — <!-- Section 7 뒤 첫 tbody(정식표 앞에 다른 table 금지). 판 H: 그 tbody = 위 표(compute 정식표 앞 k7 행) ·
+    # 접힌 표 = 07 의 "나머지 N행" summary 뒤 첫 tbody("클릭 1건 검색어" 앞이어야) = 나머지 행(순서 그대로 — 이어 읽으면 정식표) · summary 숫자 = 나머지 행
     def tag(m):
         return f'<span class="tag tag-mint">{m}</span>' if m.startswith("일치") else f'<span class="tag tag-ink">{m}</span>'
-    rows = [tr([td(r["검색어"], "name-cell"), f'            <td>{tag(r["매칭"].replace("*동률", ""))}</td>', td(r["노출"]), td(r["클릭"]),
-                td(f"{r['CTR']:.2f}%", "num ctr-high" if r["hl"] else "num"), td(f"{c(r['CPC'])}원"), td(f"{c(r['총비용'])}원")]) for r in R["07"]["정식표"]]
-    h, _ = tbody(h, "<!-- Section 7", "\n".join(rows) + "\n          ")
+
+    def row7(r):
+        return tr([td(r["검색어"], "name-cell"), f'            <td>{tag(r["매칭"].replace("*동률", ""))}</td>', td(r["노출"]), td(r["클릭"]),
+                   td(f"{r['CTR']:.2f}%", "num ctr-high" if r["hl"] else "num"), td(f"{c(r['CPC'])}원"), td(f"{c(r['총비용'])}원")])
+    rows7 = R["07"]["정식표"]
+    top7, rest7 = (rows7[:k7], rows7[k7:]) if k7 else (rows7, None)
+    h, _ = tbody(h, "<!-- Section 7", "\n".join(row7(r) for r in top7) + "\n          ")
+    if rest7 is not None:
+        i7 = find1(h, "<!-- Section 7:")
+        h, _ = tbody(h, '<summary class="fold-more">나머지 ', "".join(indent2(row7(r)) + "\n" for r in rest7) + "            ",
+                     start=i7, stop=find1(h, "클릭 1건 검색어", i7))
+        h = once_in(h, 7, SUM07, lambda m: m.group(1) + sum07(rest7) + m.group(2))
 
     def keep_order(new, old_names, key):  # 정렬 키 동률은 직전 순서 유지, 새 이름은 뒤
         pos = {n: i for i, n in enumerate(old_names)}
@@ -1150,7 +1258,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -1158,8 +1266,9 @@ def main():
         h = f.read()
     with open(a.compute, encoding="utf-8") as f:
         R = json.load(f)
+    cfg = load_config()
     try:
-        new = apply(h, R, load_config(), layout=a.layout)
+        new = apply(h, R, cfg, layout=a.layout)
     except (ApplyError, KeyError, StopIteration) as e:
         print(f"[FAIL] apply: {type(e).__name__}: {e} — 작업본은 바꾸지 않음({a.html})")
         return 1
@@ -1183,7 +1292,10 @@ def main():
         conv = f" · 레이아웃 판 {lid}(변환 건너뜀)"
     mv, ms = re.search(BAL_VALUE, new), re.search(BAL_SUB, new)
     card = (f" · 잔액 카드 {re.sub(r'<[^>]+>', '', mv.group(0))} · {re.sub(r'<[^>]+>', '', ms.group(0))}" if mv and ms else "")   # 판 F — 운영 세션이 출력에서 카드 글을 본다
-    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + (" (변경 없음)" if new == h else ""))
+    m7 = re.search(SUM07, new)
+    fold7 = (f" · 07 정식표 위 {min(top_rows_07(cfg['report_layout']), len(R['07']['정식표']))}행 · "
+             f"{re.sub(r'<[^>]+>', '', m7.group(0))}" if lid in FOLD07_LAYOUTS and m7 else "")   # 판 H — 운영 세션이 출력에서 접힌 행·summary 를 본다
+    print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + fold7 + (" (변경 없음)" if new == h else ""))
     return 0
 
 

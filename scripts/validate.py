@@ -56,6 +56,8 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      다른 날짜 팝업 — FAIL). PASS 문구 끝에 `01 터치 y`.
      (판 F, 2026-10-09 광고비 잔액 카드) 카드 표지 `data-balance="value"`·`"sub"` 각 config `markers.balance_card`(1) · `.kpi-row` 안(카드 넷 뒤 · 01 섹션 앞) ·
      CSS `.kpi-wide{grid-column:1 / -1;}` 1건. PASS 문구 끝에 `잔액 카드 1`.
+     (판 H, 2026-10-17 07 정식표 접기) 코드 변경 없이 config `markers.details` 6 으로 센다(07 정식표 아래 접힌 표 하나 — PASS `r2026-10-H · details 6 · summary 짝 6 …`).
+     07 정식표 행은 2·4 가 07 구역 전체(위 표 + 접힌 표)를 읽는다 — 위 표 행 수·접힌 행 summary 숫자는 compare 몫("07 정식표 위 표 행수"·"07 summary 정식표 나머지").
  24. (2026-10-09 추가) "광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분" — `--balance <work/balance.json>`(balance.py 기록 — precheck 는 작업본 옆 파일)을
      직접 읽어(compute.py 와 계산 공유 0) 기록이 ok 면 카드 값 = ⌊bizmoney_raw⌋ 원(콤마 · 기록의 bizmoney 도 같은 값) · 보조 줄 = 읽은 시각 KST `M/D(요일) HH:MM 기준`
      + ` · 약 N일분`(N = ⌊원 × 창일수 ÷ 창합계⌋ — 창 = 키워드 CSV `일별` 달력 날짜로 마지막 날까지 7일(첫날 앞은 자름 · 행 없는 날 0원), 합계 = 제외 그룹 뺀 총비용,

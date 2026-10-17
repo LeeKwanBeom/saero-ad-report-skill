@@ -23,12 +23,16 @@
 - (2026-10-12 판 G 보고서 더 받기 A + B) `_s04` 는 04 구역 **첫 `<table>` 만** 읽는다(B-6 — 본 표·note 뒤에 계정 변경 기록 표가 붙는다). 판 G 블록(`<!-- saero:extra … -->`)이
   있으면 구역 "04·05 추가(판 G)": 04 변경 기록 머리(기간·최근 n건 / 전체) · 표 줄 · 스킬 줄(등록 n회·삭제 k건) = compute `변경기록` / 05 종류마다(성별·연령대) 머리(기간 ·
   알 수 없음 %) · 표 줄 = compute `성별연령` — compute 상태가 ok 가 아니면 그 자리 '확인 못 함' 1항목. **항목 수 N = 101 + 7**(둘 다 ok · 종류 2) — 확인 못 함이면 줄어든다.
+- (2026-10-17 판 H 07 정식표 접기) "07 정식표 행수·값"은 그대로 "클릭 1건 검색어" 앞을 이어 읽는다(위 표 + 접힌 표 = 정식표 전 행 · 순서 대조). 07 구역 끝에 2항목:
+  "07 정식표 위 표 행수 = min(K, n)"(07 구역 첫 tbody 의 행 수 · K = config `report_layout.top_rows_07`) · "07 summary 정식표 나머지(행·클릭 범위·합·비용) = compute 정식표[K:]"
+  ("클릭 1건 검색어" 앞의 `나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기` — 나머지가 없으면 `나머지 0행 펼치기`). 시안에서 summary 숫자를 틀리게 바꾼 사본이
+  108/0 으로 조용히 통과하던 길을 막는다. **항목 수 N = 108 + 2 = 110**.
 """
 import json
 import re
 import sys
 
-from reportlib import read_html, section as _section
+from reportlib import load_config, read_html, section as _section
 
 for _s in (sys.stdout, sys.stderr):  # Windows 콘솔·Code 탭 파이프(cp949)에서 한글·기호(—) — fetch_reports.py·exclusions.py와 같은 방식
     try:
@@ -129,9 +133,13 @@ def _s06():  # 06
     cmp("06 카드(그룹·등록일·일차·큰숫자)", {c[0]: {"순위": float(c[3]), "등록일": c[1], "일차": int(c[2])} for c in cards}, R["06"]["카드"])
     cmp("06 카드 큰 숫자 = 04 셀", {c[0]: float(c[3]) for c in cards}, {r["그룹"]: r["순위"] for r in S["got4"] if r["그룹"] in {c[0] for c in cards}})
 
-def _s07():  # 07
+ROW7 = r'<td class="name-cell">([^<]+)</td>\s*<td><span class="tag[^>]*>([^<]*)</span></td>\s*<td class="num">([\d,]+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num( ctr-high)?">([\d.]+)%</td>\s*<td class="num">([\d,]+)원</td>\s*<td class="num">([\d,]+)원</td>'
+SUM07 = r"<summary[^>]*>나머지 ([\d,]+)행(?:\(클릭 ([\d,]+)(?:~([\d,]+))?건 · 합 ([\d,]+)건 · ([\d,]+)원\))? 펼치기</summary>"
+
+
+def _s07():  # 07 — 판 H(2026-10-17): 정식표 = 위 표(07 첫 tbody) + 접힌 표("나머지 N행" summary 뒤) — "클릭 1건 검색어" 앞을 이어 읽으면 전 행
     s7 = sec(7); main_html = s7[:s7.find("클릭 1건 검색어")]
-    m7 = re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td><span class="tag[^>]*>([^<]*)</span></td>\s*<td class="num">([\d,]+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num( ctr-high)?">([\d.]+)%</td>\s*<td class="num">([\d,]+)원</td>\s*<td class="num">([\d,]+)원</td>', main_html)
+    m7 = re.findall(ROW7, main_html)
     got7 = [{"검색어": a, "매칭": b, "노출": num(c), "클릭": num(d), "CTR": float(f), "hl": bool(e), "CPC": num(g), "총비용": num(h)} for a, b, c, d, e, f, g, h in m7]
     want7 = [dict(r, 매칭=r["매칭"].replace("*동률", "")) for r in R["07"]["정식표"]]
     cmp("07 정식표 행수", len(got7), len(want7))
@@ -160,6 +168,13 @@ def _s07():  # 07
     cmp("07 summary 클릭1건 개수", int(grp(r"클릭 1건 검색어 <span[^>]*>\((\d+)개 · 펼치기\)", s7).group(1)), len(R["07"]["클릭1"]))
     cmp("07 summary 클릭0 개수", int(grp(r"노출은 있으나 클릭 0건인 검색어 <span[^>]*>\(노출 5회 이상 (\d+)개 · 펼치기\)", s7).group(1)), len(R["07"]["클릭0목록"]))
     cmp("07 summary 경쟁사표 행수", int(grp(r"<summary[^>]*>표 (\d+)행 · 펼치기</summary>", segc).group(1)), len(R["07"]["경쟁사표"]))
+    # 판 H 07 정식표 접기(2026-10-17) — 위 표 행 수 · 접힌 행 summary 숫자(apply 가 매 회차 쓴다 — 틀리면 DIFF, 시안의 summary 변조 사본은 108/0 이었다)
+    k7 = int(load_config()["report_layout"]["top_rows_07"]); rest = R["07"]["정식표"][k7:]
+    cmp("07 정식표 위 표 행수 = min(K, n)", len(re.findall(ROW7, s7[s7.find("<tbody>"):s7.find("</tbody>")])), min(k7, len(R["07"]["정식표"])))
+    m = grp(SUM07, main_html)
+    got = {"행": num(m.group(1))} if m.group(2) is None else {"행": num(m.group(1)), "클릭": [num(m.group(2)), num(m.group(3) or m.group(2))], "합": num(m.group(4)), "비용": num(m.group(5))}
+    want = {"행": 0} if not rest else {"행": len(rest), "클릭": [min(r["클릭"] for r in rest), max(r["클릭"] for r in rest)], "합": sum(r["클릭"] for r in rest), "비용": sum(r["총비용"] for r in rest)}
+    cmp("07 summary 정식표 나머지(행·클릭 범위·합·비용) = compute 정식표[K:]", got, want)
 
 def _s08():  # 08
     s8 = sec(8)
