@@ -18,6 +18,34 @@ propose 창 2026-10-22~2026-10-22 · 등록 미룸(사용자): 아니오
 
 ---
 
+## 검증·병합 기록(2026-10-23 — 콘텐츠 지면 빼기(레이아웃 판 r2026-10-I): 검증 1(막음 0) → main 병합)
+
+**병합**: `feat-20261023-content`(`6a6370e` — 5abcc45 위 2커밋: `9a0fb59` 코드·시험·문서 · `6a6370e` 구현 기록)를 main(`5abcc45` — 분기 뒤 main 변경 0, 2026-10-23 11:18 KST `ls-remote` 로 main = 5abcc45 · 브랜치 = 6a6370e 확인)에 `git merge --no-ff` → 병합 커밋 **`84983a0`**(부모 5abcc45 · 6a6370e, 트리 `ab472108` = 6a6370e 트리 — `git diff --stat 6a6370e HEAD` 빈 출력 · 5abcc45 대비 26 파일 +1,192/−398). 경우 A — 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합 · 구현 커밋의 last-audit 는 LF 그대로). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0). clone `D:\saero-verify\merge-20261023-content`(`git clone -c core.autocrlf=false`). 사용자 병합 지시(2026-10-23 11:1x KST — 다듬기 세션이 받은 "병합" 을 중계했으나 분류기가 병합 커밋을 한 번 막아, 사용자가 검증 세션 채팅에 직접 "병합" 으로 다시 답함 · 갱신 회차는 돌고 있지 않음 — 오늘 회차는 08:50 배포·기록 5abcc45 로 끝, 다음은 10/24 새벽). 브랜치 `feat-20261023-content` 는 지우지 않고 둔다. 코드·문서·config·data 재수정 없음(이 절 추가만). **이 절의 자리**: main 맨 위가 10/23 갱신 회차 절이라, 판 D·F·H 병합 때처럼 이 브랜치 "기능 추가 구현 기준선" 절 바로 위에 둔다(main 쪽 갱신 회차 절은 맨 위 그대로). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에). 에이전트 0(병합은 조정자가 직접).
+
+**검증 1**(`D:\saero-verify\saero-ad-report_검증_콘텐츠지면빼기_회차1_2026-10-23.md`, 별도 세션 — `D:\saero-verify` 2026-10-23 10:5x~11:1x KST, 조정자 **Sonnet 5.5**(지시문 "첫 검증" 줄의 Fable 한도 대체 줄 — 하위도 같은 모델 상속) · 울트라코드 켬 · clone `D:\saero-verify\feat-20261023-content-1`) = **막음 0 → 가도 된다**. 워크플로 에이전트 4(시험 실행 = Haiku 5.5 · 사본 재실행·apply 판 변환 읽기·compute/validate/compare 읽기 = `claude-sonnet-5-5`) · Opus 0 · 반박 0 · 하위 토큰 약 54만(상한 150만 안). 시험(전부 rc 0): py_compile 31 · `bash -n` 2 · test_apply 48(리허설 RX 몫 포함·skip 0) · test_place 10 · test_validate_07 9 · test_leads 23 · test_extras 19 · test_deploy 45(격리) · test_compare_sections 9경우 전부 맞음 · test_narrative_check 7 · test_balance 13. 사본 재실행(검증 clone 코드 · 작업 clone 재료): compute `[주의] 장부 확인 못 함` 한 줄 · apply `--layout` 없이 FAIL(`meta r2026-10-H ≠ config r2026-10-I` · 작업본 md5 불변) → `--layout` 변환(`131,245 → 127,055자 · 구역 11 · 캔버스 7(지면 구역 없음)`) → 재실행 변경 없음 · 옛 서술 그대로 validate FAIL 2·compare DIFF 2(기대) · 시안 `proto_i.html` diff = 서술 표지 줄뿐 · 서술 사본 `n1023i.py` → precheck validate 29/29 · compare 102/0 · overflow 넘침 0 · narrative `[주의] 같은 기간` · 도장 · **결과 `index.html` md5 `185d075b` = 작업 clone 과 같음** · compute.json `b8fefc69` 같음. 변조 재현: 01 ③ 괄호 숫자 6종·옛 세 구절 5종 compare DIFF · validate 28 옛 번호·지면 10번·옛 지면 글 FAIL / 검색어·`10번 핵심 요약` 오탐 0 · check_noplace 깬 18경우 FAIL · 변환 FAIL 조건 변조 17경우 전부 FAIL(작업본 불변) · 재발 경고 9/6 포함·9/5 제외·exit 0 · 직전 배포본 판 H·I compute 출력 완전 같음 · 판 H→I 구역 2~9 바이트 같음(06 한 곳 `(12번 2번)`→`(11번 2번)`)·새 CSS·JS·색 0 · compare 110 → 102 = 옛 구역 10 의 8항목뿐. 문서=코드 grep(조정자) 통과.
+
+**병합 main 확인**(경우 A — 병합 트리 = 브랜치 트리 해시 같음 · 작업 세션이 커밋 전 전체 시험 한 번 + 검증 세션이 바뀐 줄에 닿는 시험 재실행 · 병합 clone 에서 전체 시험은 다시 돌리지 않음):
+- 병합 트리 `ab472108` = 6a6370e 트리 · `git diff --stat 6a6370e HEAD` 빈 출력 · `py_compile` scripts/·tests/ 전부 OK · `bash -n` 2/2 OK(ingest.sh · precheck.sh) · guard(`leads.py guard --staged --message-file`) PASS — staged 26파일 · 추가 줄 1,192 · 장부 숫자 0.
+- `cat data/*/*.csv audit/exclusions.csv | md5sum` 병합 전 = 뒤 **`d4913d3f`**(`git diff --stat 5abcc45 HEAD -- data/ audit/exclusions.csv` 빈 출력) · registry(`audit/exclusions.csv`) **`ecd2458e`** 그대로 · config/report-config.json **`3b72a9ac` → `7d244a66`**(333 → 339행 · `report_layout.layout_id r2026-10-I` · `markers.sections 11` · `markers.canvases 7` · 새 `content_watch.since "2026-09-06"`).
+- **`local/` 변경 2파일**: `local/prompt-polish/SKILL.md` md5 **`051f8c00`**("01 ~ 11번 구역 — 판 I 부터 10 핵심 요약 · 11 다음 액션") · `local/q-saero-run/SKILL.md` md5 **`c7f0a5e3`**("5(07·10·11 문구만)") — `local/CLAUDE.md` `c2f88939` 는 변경 0. **설치본 갱신 대상 — 사용자**: `D:\saero\.claude\skills\prompt-polish\SKILL.md` 를 저장소 `local/prompt-polish/SKILL.md` 로 교체(설치본 `q-saero-run` 이 있으면 같이). 저장소 사본 prompt-polish 45행 "구역 절(01 ~ 12 …)" 은 옛 번호 한 곳(검증 이월 1).
+- audit/last-audit.md(이 절 전) **3,786행 · 1,103,831바이트** · CR 0.
+배포 PUT 0 · 네이버 0 · fetch_reports·deploy 실행 0 · 운영 작업 폴더 `D:\saero\saero-ad-report-skill` 쓰기 0 · 작업 clone 쓰기 0.
+
+**이월**(한 줄씩 — 검증 1 의 이월 그대로. 구현 기록 이월은 아래 기준선 절 그대로):
+- (검증 이월 1) 저장소 `local/prompt-polish/SKILL.md` 45행 "구역 절(01 ~ 12 …)" 옛 번호 한 곳 — 설치본 갱신 때 같이 고침.
+- (검증 이월 2·3 — 손 수정 전용) `convert_h_to_i` 는 10 구역 안의 표지 없는 사람 글(`<p>`·표지 없는 `<table>`·구역 끝 HTML 주석 줄)을 FAIL 없이 구역째 삭제한다 · placementChart 블록 앞 주석 줄에 `placement` 가 없으면 그 줄이 스크립트에 남음 · `bounds()/find1()` 첫 일치만 사용('Section 10:' 주석 중복 시 같이 삭제).
+- (검증 이월 4·5 — 판 H 와 같은 커버리지, 회귀 아님) validate 28 우회(`12 번` 공백 · `구역12번` · `제12번` · `&#49;2번` · 낱말 없는 `10번 표 참고`) · compare "01 ③ 옛 구절 0" 은 리터럴이라 의역 통과 · 10 핵심 요약 항목 삭제·CPC 격차 변조·11 다음 액션 서술 숫자 변조는 validate·compare 가 못 잡음.
+- (검증 이월 6·7) config `content_watch.since` 를 `2026-9-6` 처럼 0 없이 쓰면 경고가 영원히 0(형식 검사 없음) · 합본에 `검색/콘텐츠 매체` 열이 없으면 compute KeyError(요란 · 기존 srch 줄 몫).
+- (검증 이월 8) 이 PC 에 운영 리드 장부가 없어 사본 재실행은 11번 장부 판정 경로를 보지 못함 — 첫 적용 회차에서 눈으로.
+- (검증 이월 9·10) 지시문 글의 구역 주석 표기 `<!-- N.` ↔ 실제 `<!-- Section N:` · test_extras ResourceWarning(결과 무관).
+
+**병합 뒤(다음 단계)**:
+1. 운영 폴더 `git pull --ff-only`(다음 `/q-saero-run` 첫머리 운영 세션 몫 — 운영 폴더 HEAD 는 아직 5abcc45).
+2. 설치본 교체: `D:\saero\.claude\skills\prompt-polish\SKILL.md` ← 저장소 `local/prompt-polish/SKILL.md`(사용자 — 위 md5 `051f8c00`).
+3. **판 I 첫 적용 `/q-saero-run`**(Opus 5.5 · high · 울트라코드 끔) — 첫 말 "**판 I(콘텐츠 지면 빼기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**". 아래 기준선 절 "첫 적용 본보기" 그대로: apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-H → r2026-10-I, 분기 2)` · 끝 `· 구역 11 · 캔버스 7(지면 구역 없음)` · 서술 스크립트(narr_lib.py · n<날짜>.py)를 판 I 꼴로(바꿀 줄 목록 = 본보기 3) → precheck(validate 29 · compare 102) → 전후 비교 `section_compare.py … --sections 1,10,11` · chart_check(PASS 33) → 사용자 "배포" 답 뒤에만 `--layout-change`. 콘텐츠 재발 `[주의]` 줄이 나오면 끝 보고·채팅에 그대로(멈추지 않음).
+
+---
+
 # 기능 추가 구현 기준선(콘텐츠 지면 빼기 — 판 I, 2026-10-23) · 브랜치 `feat-20261023-content`
 점검일: 2026-10-23 09:15 ~ 10:3x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_콘텐츠지면빼기_작업지시_2026-10-23.md`(다듬기 세션이 씀).
 기준: 시작 `git fetch` — origin/main `5abcc45`(지시문 사실과 같음 · 운영 폴더 HEAD 도 `5abcc45` · 고칠 파일 마지막 커밋 전부 지시문과 같음 — 코드 자리 다시 볼 것 없음). clone `D:\saero\feat-20261023-content`(`git clone -c core.autocrlf=false`). **코드 커밋 `9a0fb59`** + 이 기록.
