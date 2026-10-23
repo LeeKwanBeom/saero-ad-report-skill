@@ -37,6 +37,150 @@ propose 창 2026-10-22~2026-10-22 · 등록 미룸(사용자): 아니오
 
 ---
 
+# 기능 추가 구현 기준선(불필요 항목 빼기 — 판 J, 2026-10-23) · 브랜치 `feat-20261023-trim`
+점검일: 2026-10-23 13:4x ~ 16:3x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` 하위 세션(부모 = 전수조사 세션) · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_불필요항목빼기_작업지시_2026-10-23.md`(부모 세션이 씀) · 근거 `D:\saero\saero-ad-report_불필요항목전수조사_2026-10-23.md`(부록 항목 ID).
+기준: 시작 `git fetch` — origin/main `441735c`(지시문 사실과 같음 · 고칠 파일 마지막 커밋 전부 지시문과 같음 — 코드 자리 다시 볼 것 없음). clone `D:\saero\feat-20261023-trim`(`git clone -c core.autocrlf=false`, 브랜치 `feat-20261023-trim`). **코드 커밋 `6866817`** + 이 기록.
+지킨 제약: 네이버 호출 0 · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = work/ 재료 복사 · 리허설 뒤 운영 쪽 `narr_lib.py` 6608367f · `n1023i.py` 4747ebf2 그대로) · data/·registry·place-checklist 변경 0(`git diff --quiet origin/main` 확인) · fetch_reports·ingest·archive·exclusions·balance 실행 0 · deploy 는 `push --dry-run` 만 · 브라우저 = playwright 새 임시 프로필(overflow file:// · chart_check·section_compare 만 cdnjs 2).
+방법: 조정자 혼자 설계·코드·시험·리허설·문서·자체 검토 — **하위 에이전트 0 · 하위 토큰 0**(예산 에이전트 5 · +150만 안).
+
+## 사용자 결정(2026-10-23 "추천대로" — 지시문 원문, 다시 묻지 않음. 근거 `D:\saero\saero-ad-report_불필요항목전수조사_2026-10-23.md` 1~4부 표 번호 · 괄호 ID = 부록)
+목표(사용자 원문 2026-10-23): "현재 광고 보고서에서 보여지고 있는 모든 내용에 대해서 불필요한 항목이 있는지 전수조사 해줄수 있어? 오늘 오전에 삭제한 콘텐츠 영역처럼" → 전수조사(166개 판정 · 후보 38개 정리) → 사용자 "추천대로"(권장 묶음 = 1·5·7·8·10·11·12·13 · 14·15·19~25 · 27~38).
+1. (05-e) 05 매체 차트 막대 = 검색 지면(`검색/콘텐츠 매체 == 검색`) 매체 상위 4개 → 오늘 "네이버 플레이스 모바일 7,868 · 네이버 통합검색 모바일 3,987 · 네이버 플레이스 PC 2,118 · 네이버 통합검색 PC 979". 콘텐츠 매체(MLB파크 828 등) 0. deviceChart 도넛 · 05 머리 줄 "모바일 79.6%"는 그대로(합 = KPI) — 막대와 기준이 다른 것은 checklist [의도된 동작] 새 줄로. validate 14(check_media_top5)는 정의만 바꾼다 — 지우지 않는다(checklist [되돌리면 안 되는 것]).
+5. (06-h · 06-i) 06 노원산전필라테스 카드(머리 · 큰 숫자 · 설명)를 뺀다. 상계동 카드는 그대로(4번은 고르지 않음). 카드 규칙 = 등록 뒤 10일치 미만 그룹(원문은 '등록' 바로 뒤 숫자 — guard 오탐이라 '뒤' 한 낱말만 넣음) + config 에 적은 승격 판정 그룹(지금 상계동) — 키 이름은 네가(지금 승격 그룹은 운영 `n<날짜>.py` META 에만 있어 compute 가 모른다).
+7. (04-q) 04 계정 변경 기록 카드 끝 줄 "스킬 제외 검색어 등록 N회(실행 수) · 삭제 N건 — …"을 뺀다. compute history_table "스킬" 키는 남겨도 된다.
+8. (05-g · 05-m · 05-k) 05 성별·연령대 카드: 머리 "성별 · 연령대 (캠페인 전체(제외 그룹 포함) · 네이버 추정)" → "성별 · 연령대 (네이버 추정)" · 연령대 표 "알 수 없음" 줄을 뺀다(성별 표 줄은 그대로) · 소제목 괄호 "알 수 없음 N%"는 표에 그 줄이 있는 성별에서는 빼고("성별 (10/1~10/22)"), 줄이 없는 연령대에는 남긴다("연령대 (10/1~10/22 · 알 수 없음 20.1%)"). ※ 각주 그대로.
+10. (07-k) 07 ③ → "③ 클릭 0인 검색어 전체는 1120개·노출 2,926회(경쟁사 포함 · 클릭이 없어 비용 0원)." — "(지난 회차 …)"와 "행 단위 확장·클릭 0 노출 … (N개 검색어)"를 뺀다. validate 22 가 보는 `클릭 0인 검색어 전체는 N개·노출 N회` 꼴 그대로.
+11. (08-k) 08 민트 줄 "11위 … 바로 아래" 문장을 뺀다.
+12. (08-g) 08 note 둘째 문장 "TOP 10 + 위 목록으로 M/D까지 전체 클릭 N건이 모두 표시됨."을 뺀다.
+13. (KPI-f) KPI 평균 클릭률 카드 보조 줄 "업종 평균 수준"을 뺀다(새 계산 값으로 바꾸지 않는다). compare KPI sub 순번(sub[3]) · test_apply sub 단정 같이 · 카드 높이·줄맞춤은 1280·390 비교로 확인.
+14. (10-a~k) 10 핵심 요약:
+   (a) 뺄 항목 — 플레이스 순위·하루 클릭 방향(01 ② 각주가 같은 결론) · 상향 유지 결론(01 ③) · 클릭 1건 목록·정식 표 개수(07) · 제외 검색어 상태(07 ② — 실패가 있거나 등록된 이름이 다시 노출된 날만 올린다) · (참고) 경쟁사(07 ①) · (참고) 클릭 0 검색어(07 ③).
+   (b) 남는 항목의 괄호에 다른 구역 숫자를 되풀이하지 않는다 — 굵은 결론 + 그 구역에 없는 말만 + "(N번)". 오늘 꼴: "지난 회차 관찰이 뒤집힘 — 나흘 연속 늘던 노출이 10/22 296회로 줄고, 클릭도 16 → 10건(하루치라 흐름이 꺾였는지는 아직 알 수 없음, 01번 참고)" · 파워링크 항목 괄호는 "(10/12~10/21 4·1·4·2·2·1·2·5·3·4건 → 0건 · 하루치라 까닭은 아직 알 수 없음, 03·04번 참고)". 굵은 결론 "지난 회차 관찰이 뒤집힘 — …"은 남는 자리(report-structure 768) — 그대로.
+   (c) "그대로"인 관찰(오늘 "파워링크 총비용 1위 그룹은 노원산전필라테스 그대로")은 독립 항목이 아니라 변화 없음 줄로.
+   (d) 변화 없음 줄은 숫자 없이 자리만: "변화 없음 — 모바일 비중·최다 클릭 시간대(20시)·심야 비중·자동매칭 우위·지역 비중·상계동 카드·파워링크 총비용 1위 그룹(04·05·06·08·09번)".
+   (e) 판정 줄은 검사 꼴만: "10/22까지 지난 회차 10번 N개 항목 판정: 유지 a · 뒤집힘 b · 근거 소멸 c" — 뒤집힌 항목 되풀이 · "이번 요약은 …"을 뺀다(validate 368~379 · compare 231 리터럴 그대로, 날짜는 뒤집힘 0 회차끼리 바이트 같음 막기).
+15. (11-a · 11-b · 11-b2 · 11-e · 11-f · 11-g · 11-h) 11 다음 액션:
+   (a) 머리 설명(12-desc 고정) "지난 회차 항목 이월 판정 + 다음 조치 · 비용 영향 큰 순" → "다음 조치 · 비용 영향 큰 순".
+   (b) 1번 행 끝 "— 등록 여부는 스킬이 등록 목록(registry)으로 판정(사장님께 다시 묻지 않음)"을 뺀다(상태 줄은 그대로 — 16번은 고르지 않음).
+   (c) 1번 note → "다음 회차 판정: 10/22·10/23 등록분이 다시 노출되는지" 꼴("'확장' 행 …"·"채팅으로 알림" 뺌).
+   (d) 표 아래 note: "· 정렬: …" 줄과 "· 경쟁사는 액션 항목으로 올리지 않음: …" 줄을 뺀다. "· 신규 없음: …" → "· 신규 없음"(끝난 결정 두 구 · 체크리스트 구를 뺌 — 감시 숫자는 01 ③). "· 이월 판정: …" → 철회 · 빠짐 · 플레이스 이월 줄이 있을 때만 그 내용, 모두 이어 가는 날은 "· 10/22까지 지난 항목 3개 모두 이어감". 플레이스 이월 줄이 쓰이는 자리(compute place_effect 가 직전 배포본 다음 액션 구역에서 읽음 — compute.py:276·532~535)는 지킨다.
+   2번(상계동) · 3번(장부) 행은 그대로(3·4번은 고르지 않음).
+19. (01-b · 01-o) 01: 머리 줄(01-desc) 끝 ", 누적 CTR A → B%"를 뺀다 → "10/22(목) 노출 296회·클릭 10건·CTR 3.38% — 나흘 연속 증가 뒤 감소" · ② 각주(01-rank) → "10/22까지 누적 가중평균은 3.22 → 3.23위(작을수록 상단)" — 닷새 나열과 "~어려워 보임" 문장을 뺀다(compare "01 누적 가중순위" 리터럴 그대로 · report-structure 301 · 766 "남는 자리" 목록 고침).
+20. (03-b) 03 머리 줄 → "최고치 9/22(화) 22,597원" — "그대로"와 "— 10/22(목)은 …"을 뺀다. 최고일이 바뀐 회차에 조용히 낡지 않게(compare "03 desc 최고일"이 잡거나 apply 가 쓴다) — 표지 종류(매회차 → 고정 또는 기계 자리)는 네가.
+21. (04-k · 04-s · 04-l · 04-m1 · 04-m2) 04 아래 글:
+   (a) ※(04-foot 고정) → "※ 평균순위 칸은 파워링크 그룹만 — 플레이스 순위는 01번 ②"(29번 포함 — OFF 그룹 설명은 집계 기준에만).
+   (b) 민트 줄 → "→ 10/22까지 격차 기준 = 파워링크 총비용 1위 "노원산전필라테스" CPC 541원 vs 플레이스 1,345원" — 격차 되풀이 · "총비용 1위 … 회차부터" · "예산의 N%(지난 회차 N%)"를 뺀다(compare "04 CPC 격차 desc"는 머리 줄의 첫 "→ N배"를 읽는다 — 민트 줄에 "배"를 쓰지 않는다).
+   (c) 회색 문단 → "두 광고는 성격이 달라 CPC만으로 우열을 가리기 어려움 — 플레이스는 매장명·지도 검색, 파워링크는 저렴하지만 클릭이 적음. 10/22까지 파워링크 비중은 8.2 → 8.1%. 예산은 현행 유지(사용자 결정)." — "(전체 568클릭 중 117건)"·"파워링크 10/22 광고비 0원·클릭 0건,"을 뺀다. "비중은 A → B%"(compare "04 파워링크 비중" 리터럴)·"예산은 현행 유지"(18번 안 고름)는 남긴다. 27번 첫 회차만 A 가 옛 계산 값이다.
+22. (06-e · 06-j) 06: 매칭표 민트 줄 → "→ 자동매칭이 노출·클릭 모두 앞섬(첫 리포트부터 같음) — 10/22 직접 31·자동 54회"(compare "06 마지막날 직접/자동" 리터럴 그대로 · "N회차 연속" 셈을 끝냄 — report-structure 767) · 상계동 카드 설명 앞머리 "53일차 · 평균순위 2.62 → 2.64위 · "를 뺀다(머리·큰 숫자에 있음 — 날짜 나열은 4번을 고르지 않아 그대로).
+23. (08-i · 08-j) 08 민트 줄: "(지난 회차 45%·47%)"를 뺀다 · "'국내 - 상세 위치 확인불가'는 노출 …·클릭 …·비용 …원 — 비용 비중이 A% → B%, CTR은 … → …%" → "'국내 - 상세 위치 확인불가' 비용 비중 8.8%" · "지역 설정 전국 유지 결론 그대로 — …"는 그대로(18번 안 고름).
+24. (09-a · 09-c · 09-d · 09-e) 09: 머리 줄 → "20시대 클릭 최다(46건)" — "N회차 연속"·"— 상시 문의 대응 전략과 부합"을 뺀다 · 콜아웃 첫 두 문장 → "→ 심야(22시~09시) 노출 3,710회(22%)·클릭 124건(22%)·비용 126,934원 — 낮 시간대와 비슷한 효율." · "최다 클릭 시간대는 20시 46회, "를 빼고 "2위는 13시 41건으로 15시와 같음." · 끝 긍정 문장("매장 운영시간 외에도 카카오톡·네이버톡톡으로 …")은 그대로 — 긍정 톤 자리 하나(report-structure 768).
+25. (집계-d) 집계 기준(12-basis 고정) "· 타겟 지역: …" 줄을 뺀다. 제외 규칙 줄은 그대로 — 21 (a)로 04 ※에서 빠지므로 "키워드 10개 등록" 사실은 여기 한 곳(SKILL.md 미등록 단정 금지 교훈).
+27. (02-b · 04-r) 예산 비중 한 값: compute `02.플레이스비중` = 04 표 플레이스 행 비중(compute.py:170 `sh[0]`), `04.파워링크비중` = 100 − 그 값(= 파워링크 4행 합) — compute.py:151·172 두 줄. 오늘 02 머리 줄 "예산의 91.9%" · 04 회색 "→ 8.1%". costPie 조각 % 라벨은 정수 반올림 그대로. checklist [의도된 동작] 1 "같은 값"과 맞는다.
+28. (04-o · 04-t) 04 변경 기록 "확장소재 추가" 줄 내용 = "확장 소재 N개 추가"(같은 분 묶음 안 건수의 합 — 오늘 12:47 2개 · 12:46 3개 · 12:42 1개). 유형 이름은 넣지 않는다("개수만" 규칙). compute change_phrase · history_table 묶기(j() 의 중복 제거가 건수를 접는다) + validate _v_phrase · uniq 같이.
+29. (04-s) 21 (a) 에 포함.
+30. (04-g · 04-h) 04 이름 괄호 "(8/31 신규)"·"(9/2 신규)"를 뺀다 — "(9/17 일예산 …)"·"(9/2 등록 · 9/17 OFF)"는 그대로. apply 가 직전 배포본 이름 칸을 이어 쓰므로(apply.py:1277~1287) 판 변환이 한 번 고친다. 앞으로 새 그룹의 "(M/D 신규)"를 언제 뺄지 규칙(apply 자동 또는 문서 — 06 카드의 10일치와 맞추길 권함)은 네가.
+31. (07-c) 07 안내(07-src 고정) → "네이버 검색어 보고서는 광고 유형을 구분하지 않습니다. 매칭이 "확장"인 행은 파워링크 자동매칭(CPC 대개 600원 이하), "일치" 행은 대부분 플레이스(CPC 1,000원 이상)입니다."
+32. (02-d) 02 groupChart 행 이름 "(4개 키워드 합산)" → "(4개 그룹 · 자동매칭 포함)".
+33. (집계-a · 집계-e) 집계 기준: "· 집계 기간: 개업일(2026.08.26)부터 누적 — 네이버가 …합산" → "· 집계 기간: 개업일(2026.08.26)부터 누적" · "· 클릭률 강조: 01·07번 표에서 클릭률 4% 이상인 행만 진한 민트색" → "· 클릭률 강조: 01·07번 표의 클릭률 4% 이상 칸은 진한 민트색(07번 노출 20회 미만 행은 '적음')".
+34. (07-s) 07 정식표(위 · 접힌 둘 다) 노출 칸 천 단위 쉼표("2,671").
+35. (07-t) 07 정식표(위 · 접힌 둘 다) 노출 20회 미만 행은 클릭률 칸 "적음" · 민트 강조 0. 기준값은 config(기본 20 — 05 의 100 과 따로). 07 범례 끝에 "· 노출 20회 미만은 '적음'" 한 구. validate 클릭률 강조 검사(4·5) · compare 07 행 같이.
+36. (05-l) 05 연령대 순서 — 첫 숫자가 같으면 "미만"이 앞 → "14세 미만 · 14세 ~ 18세 · 19세 ~ 24세 …"(compute `_ga_order` · validate 같은 규칙).
+37. (공통-a) 클릭 단위는 "건" 하나: KPI "568건"·"일 평균 9.8건" · 09 "46건"·"124건"·"41건". 노출은 "회" 그대로. compare KPI sub · 09 리터럴 같이.
+38. (00-b · 숨김-b) "주간" 빼기: masthead 제목 "네이버 검색광고 리포트" · og:description "M/D~M/D 누적 성과 요약"(compute.py:118). SKILL.md 트리거 낱말 "주간리포트"는 그대로.
+부모 세션이 정한 기본값(사용자에게 알림 — 바꾸라는 답 없으면 그대로):
+39. 판 이름 = `r2026-10-J`. 고정 HTML(masthead 제목 · KPI 보조 줄 · 02 막대 이름 · 04 이름 괄호 · 04-foot · 07-src · 12-desc · 12-basis · 표지 종류를 바꾸는 자리)은 apply `--layout` 판 변환으로만 고친다(손 편집 0 — 운영 서술은 고정 표지를 다시 쓰지 않는다). 확장 소재(보고서 더 받기 C)는 그다음 판(K) — report-structure.md 판 G 절 "(… 판 J …)" 문구를 맞춘다.
+40. 14·15 로 10·11 의 경쟁사 · 제외 검색어 사본이 빠지므로 2026-10-06 결정 3 의 "10 (참고)·11 note 에도 한 줄"과 SKILL.md (1-1) "세 곳 관행"이 바뀐다 → 경쟁사는 07 ① 한 곳, 제외 검색어는 07 ② + 11 1번 상태 줄(10 은 실패 · 재노출 때만). code-tab.md 81행 "07 각주 ②·10·11번" · exclusion-ui.md 9절 · report-structure 10·11 작성 기준을 같이 고친다. 07 ①·② 글은 그대로(17번 안 고름 — 07 ① 의 "M/D 경쟁사명 검색 N회" 구절도 그대로, 이월에 한 줄).
+41. 공개 저장소 manifest.json 설명의 "주간"은 deploy 가 index.html 만 올려 이번에 못 바꾼다 — 이월(기록에 한 줄).
+이 회차에 받은 답: 없음(지시문 안에서 끝남 — 채팅 질문 0).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `6866817`, 23파일 +1,348/−255) [실측]
+- `scripts/apply.py` 1427 → 1615 · 62a645a6 → 5f67ec2b · `scripts/compute.py` 658 → 701 · f9b26e0c → 494bbef7 · `scripts/compare.py` 294 → 314 · bc4482d5 → 3014bf53 · `scripts/validate.py` 962 → 1121 · a45f7303 → b6539a77 · `scripts/extras.py` 741 → 744 · 72920a68 → a21fd5ad
+- `config/report-config.json` 339 → 358 · 7d244a66 → d48e16ef(`layout_id` r2026-10-J · 새 `ctr_few_07.min_imps` 20 · `media_chart` {placement "검색", top_n 4} · `group_cards` {new_days 10, promotion_groups ["상계동필라테스"]} · `extras.gender_age.hide_unknown_kinds` ["연령대"] · `_comment` 판 J)
+- `tests/test_apply.py` 1116 → 1379 · f80f8837 → de83f4f3 · `tests/test_extras.py` 676 → 720 · f261dd85 → bfa93d29 · `tests/test_validate_07.py` 126 → 220 · a30e4300 → fce3438d · `tests/test_compare_sections.py` 199 → 227 · 240a82a2 → eff8263f · `tests/mutation_test.py` 518 → 564 · 44144605 → 84b860c1 · `tests/chart_check.py` 895 → 912 · 03bde24f → 332e5dd5 · `tests/section_compare.py` 198 → 251 · 584f9bc8 → 1113cf21 · `tests/fixtures/layout_old.html` 500 → 501 · b989c90d → e212af64(masthead 제목 줄 · groupChart 이름 — 배포본과 같은 꼴) · `tests/fixtures/layout_old.compute.json` 645 → 650 · a33b9ab6 → fcbb5165(`04.신규` · 07 `적음`)
+- `SKILL.md` 711 → 729 · f446c220 → c8c1123d · `references/report-structure.md` 830 → 903 · a56e9d78 → d21bdf6c · `references/code-tab.md` 320 → 324 · b00d57d1 → e8d57059 · `references/css-and-layout.md` 301 → 305 · 10066228 → 801fa820 · `references/exclusion-ui.md` 173 → 176 · c223ef14 → bb746aac · `audit/checklist.md` 566 → 574 · 9136437d → 0dfd47e9 · `local/prompt-polish/SKILL.md` 208 → 208 · 051f8c00 → 9dc2b916 · `local/q-saero-run/SKILL.md` 34 → 34 · c7f0a5e3 → b00f684c · `audit/last-audit.md`(이 절)
+- 흐름: 5단계 compute(비중 한 값 · 05 검색 지면 상위 4 · `06.카드` 새 규칙 · `04.신규` · 07 `적음` · 확장 소재 N개 · 연령대 순서·`알수없음줄` · og 누적) → apply `--layout` — meta r2026-10-I 판 → `convert_i_to_j`(고정 글만) → 사슬 끝 `check_trim` → 값(06 카드 빼기·04 신규 메모·07 쉼표·'적음'·판 G 블록 판 J 꼴) → 서술(운영 n<날짜>.py — 판 J 꼴) → 6 precheck(validate **31** · compare **99**) → 7 deploy `--layout-change`(첫 적용 — 사용자 "배포" 답 뒤만).
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. 판 J 변환 `convert_i_to_j(h, lay, cfg)` — 바뀌는 곳 = meta · masthead 제목 · KPI 평균 클릭률 sub 줄 · KPI 총 클릭수 값·sub 단위 `건` · groupChart 이름 · 고정 표지 04-foot·07-src·07-legend(끝 구)·12-desc·12-basis(집계 기간·타겟 지역·클릭률 강조 세 줄) · 서술 표지 03-desc·08-note·09-desc·09-call 종류 `매회차` → `고정`. 각 자리는 옛 글이면 새 글로 · 새 글이면 그대로 · 둘 다 아니면 FAIL(손 편집 — 변환 안 함) · 표지가 없으면(옛 fixture) 그 단계만 건너뜀. 4%·20 은 config(`ctr_high_threshold`·`ctr_few_07.min_imps`)에서 글로 만든다.
+2. 사슬 끝 대조 `check_trim`(뺀 고정 글 `TRIM_GONE` 0 · 클릭 '건' 하나 · 네 표지 고정 · 07-legend·12-basis 숫자 = config) — `TRIM_LAYOUTS = (r2026-10-J,)` · 판 J 는 `CARD_LAYOUTS`·`EXTRA_LAYOUTS`·`FOLD07_LAYOUTS`·`NOPLACE_LAYOUTS` 에도 · 값만 경로(이미 판 J)에서도 돈다.
+3. 결정 20 · G1 — 03-desc 는 **고정 표지**(compare "03 desc 최고일"이 최고일·최고액 둘 다 대조 — 최고일이 바뀐 회차에 옛 글이면 DIFF). 같은 이유로 08-note·09-desc·09-call 도 고정(compare 가 숫자를 전부 읽음). 숫자가 빠져 두 회차 같아질 수 있는 매회차 표지(01-rank · 04-mint · 04-note · 06-card · 08-mint · 10 변화 없음 줄 · 11-verdict · 12-note)는 앞에 `M/D까지`.
+4. 결정 5 카드 규칙 — config `group_cards` {`new_days` 10, `promotion_groups` ["상계동필라테스"]} · compute `card_groups(pw, days, nth, gc)`(노원역필라테스 밖 · 최근 7일 노출 > 0 · 일차 < new_days 또는 promotion_groups) · apply `drop_cards` — 카드 밖 그룹의 카드 블록을 서술 표지째 지움 · 있어야 할 카드가 없으면 `ApplyError: 06 카드가 없는 그룹 …`(사람이 넣는다) · validate 새 검사 29 가 키워드 CSV 로 따로 셈.
+5. 결정 30 신규 기한 — 06 카드와 같은 `group_cards.new_days`(일차 < 10). compute `04.신규`(그 그룹 이름 목록) · apply 가 **매 회차** 그 밖 그룹 이름 칸의 `(M/D 신규)` 를 지움(판 변환 한 번이 아니라 값 자리 — 앞으로 생길 그룹도 10일 뒤 자동으로 빠짐) · 새 그룹 행·메모는 사람이 넣는다.
+6. 결정 35 — config 새 키 `ctr_few_07.min_imps`(20) · 칸 = `<td class="num">적음</td>`(강조 class 0) · compute `07.정식표[].적음` · validate 4(07 클릭률)·compare 07 정식표 값이 같은 기준.
+7. 결정 1 — config `media_chart` {`placement` "검색", `top_n` 4} · compute `05.top5`(키 이름 그대로) · validate 14 정의만 바꿈(이름 "05번 mediaChart = CSV 검색 지면 매체 상위 4(…)").
+8. 결정 8 — config `extras.gender_age.hide_unknown_kinds` ["연령대"] · compute `알수없음줄`(종류별) · 판 G 블록 `ga_block(R, trim=True)` 머리 `(네이버 추정)` · sub-head % 는 그 줄이 없는 종류만 · 결정 7 — `hi_block(R, trim=True)` 스킬 줄 0(SYSTEM note 는 show_system 일 때 그대로).
+9. 결정 28 — `change_phrase` 가 확장소재 추가 + `등록된 내용` 원장 한 줄을 `확장 소재 1개 추가` 로 · `merge_ext` 가 같은 분 묶음 안 건수를 더함(`j()` 중복 제거 전에) · validate `_v_phrase`·`_merge_ext` 같은 규칙.
+10. 결정 13·37 — compare KPI sub 를 순번 대신 글로 찾음(`일 평균 ([\d.]+)건` · `클릭당 평균`) · KPI 클릭 단위 바꾸기는 변환(고정 글) + 값 경로 정규식이 `회`/`건` 둘 다 받음.
+11. compare 102 → **99**(리허설 이름 대조 실측): 새 "04 예산 비중 한 값(02 desc = 04 표 플레이스 행 · 04 회색 파워링크 = 100 − 그 값)" · "04 격차 기준(파워링크 총비용 1위 그룹·CPC · 플레이스 CPC)" · 뺀 "07 확장·클릭0 마지막날 개수"·"07 확장·클릭0 행단위 3일"·"08 11위"·"09 심야 클릭% (괄호)"·"09 최다"(09 desc 최다로) · 이름만 바뀜 "04 변경 기록 스킬 줄 0(…)"·"08 확인불가 비용 비중"·"09 2위(동률 시간 포함)" · 07 정식표 행은 `([\d.]+)%|(적음)` · 08 각주 분모("비중 계산도 N 기준")도 대조.
+12. validate 29 → **31**: 새 29 "06번 카드 그룹 = 카드 규칙 · 04 신규 메모 = 등록 뒤 10일 미만만"(이름의 '등록 뒤' = guard 오탐 피함) · 새 30 "판 J 뺀 글 0(01·03·04·06~11 — 옛 서술 꼴·다른 구역 숫자 되풀이)"(`TRIM_GONE` 구역별 꼴 · 10 변화 없음 줄 숫자 0 — `M/D까지`·`(N시)`·구역 번호·'N위 그룹' 은 뺌 · 10 `<b>…제외 검색어` 항목은 07 ② 에 실패·재노출·미확인이 있는 날만) · 19 판정 줄 앞 `M/D까지` = 집계 끝 · 23 "레이아웃 판" 에 판 J 고정 글.
+13. chart_check — `--base` 판 I · 작업본 판 J 면 "섹션 1·6 높이"는 같거나 줄어듦만 PASS("판 J 전환" 표기) · section_compare 새 `--extra top,basis`(머리·KPI · 집계 기준 — 구역 주석 밖) · 판 J 첫 적용 = `--sections 1,2,3,4,5,6,7,8,9,10,11 --extra top,basis`.
+14. `[apply]` 출력 끝 `· 06 카드 [그룹…](뺌 [그룹…]) · 04 신규 메모 N`(운영 세션이 출력에서 본다).
+15. 시험: test_apply `ApplyLayoutJ` 6(사슬·범위·값·판 G 블록·손 편집 FAIL·직전 판 I/J 같은 읽기) + `ComputeCardRule` 2(새 그룹 카드 · validate 같은 규칙) · test_extras 확장 소재·연령대 순서·스킬 줄 · test_validate_07 `TrimGoneJ` 4 · `VerdictDateJ` 1 · test_compare_sections 새 5경우 · mutation_test 변조 +8 · 0건 가드 +1 · config 실험 +2. G1 시험 = 저장소 밖 `work/g1_check.py`(가짜 조용한 두 회차 — 아래 리허설).
+16. 문서 — `등록은 나중에`·`미룬 등록만` 경로의 "07·10·11 문구" 를 "07·11(10 은 실패·재노출 때만)" 으로(SKILL.md·code-tab.md·local/q-saero-run — 그대로 두면 판 J validate 30 이 요란하게 FAIL 하는 문서 어긋남).
+
+## 리허설 결과 [실측 — 15:2x~16:2x KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · clone `work/`(git 무시)]
+- **재료**(운영 `work/` 에서 복사): `prev.html` = 배포본 2d28896(md5 81d41a6a — 같은 기간 첫 적용 흉내, `index.html` 시작도 같은 파일) · `combined/` CSV 4 · `extra/` 4 · `balance.json` · `compute_ops.json`(운영 판 I 회차 compute — 지난 회차 값) · `narr_lib.py`(6608367f → clone 사본 `narr_lib_i.py` 보관) · `n1023i.py`(4747ebf2).
+- **R1 5단계**: compute(`[주의] 장부 확인 못 함(장부 없음)` — 운영과 같음 · `02.플레이스비중` 91.9 · `04.파워링크비중` 8.1 · `06.카드` 상계동 하나 · `04.신규` 0) → apply `--layout` 없이 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-I ≠ config r2026-10-J — --layout 을 붙여 r2026-10-I → r2026-10-J`(작업본 그대로) → `--layout` `126,994 → 125,247자 · 레이아웃 판 변환(r2026-10-I → r2026-10-J, 분기 2) · … · 06 카드 ['상계동필라테스'](뺌 ['노원산전필라테스']) · 04 신규 메모 0` → 두 번째 변환 건너뜀·변경 없음(멱등).
+- **R1b 옛 서술 그대로**(apply 직후 판 I 서술): validate **FAIL 2**(`10번 항목 수·판정 줄` — 판정 줄 `M/D까지` 없음 · `판 J 뺀 글 0` — 옛 꼴 여러 구역) · compare DIFF = 서술 자리만 — 복사된 판 I 서술은 요란하게 멈춘다.
+- **R2 서술**: 사본 `narr_lib.py`·`n1023j.py` 를 판 J 꼴로(바꾼 줄 = 아래 첫 적용 본보기 3) → `n1023j(판 J 리허설) 완료 122558 표지 33 10번 3`.
+- **R3 precheck**(`scripts/precheck.sh work/index.html work/combined work/prev.html`): **validate 31/31** · compute → **compare OK 99 / DIFF 0** · overflow 360·390·430 넘침 0(details 7 연 상태) · narrative `[주의] 같은 기간 — 대조 생략(표지 33개 중 매회차 18개)` · 도장 dfd15dae · 81d41a6a · full(문서 패치 뒤 16:2x 다시 돌려 같은 도장).
+- **R4 deploy** `push --file work/index.html --base work/prev.html --dry-run`: 도장 확인 · **`[주의] 레이아웃 판이 바뀜 — … 직전 배포본(--base) r2026-10-I → 작업본(--file) r2026-10-J`** · base md5 확인 · 자격 증명·쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0.
+- **R5 chart_check** `--base work/prev.html --out work/chart_1023j`: 첫 실행 의도된 차이(01 823 → 805 · 06 606 → 481)로 FAIL → 판 J 전환 대조(임의 결정 13)로 고친 뒤 **PASS 33 / FAIL 0** · 캔버스 7 · pageerror 0 · 외부 허용 2.
+- **R6 전후 비교** `tests/section_compare.py work/index.html work/prev.html --out work/cmp_1023j --sections 1,2,3,4,5,6,7,8,9,10,11 --extra top,basis` → **`work/cmp_1023j/compare.html`** · 높이 1280: 머리·KPI 338 → 338 · 01 823 → 805 · 04 696 → 652 · 06 606 → 481 · 10 577 → 235 · 11 401 → 330 · 집계 기준 167 → 149 / 390: 머리·KPI 463 → 463 · 01 1,059 → 1,023 · 04 977 → 710 · 06 1,023 → 885 · 10 1,154 → 369 · 11 687 → 442 · 집계 기준 216 → 199 · 밖 요청 막음 0.
+- **R7 회귀 바이트(G5)** `work/r7_check.py`(prev.html 판 I ↔ index.html 판 J — 결정 자리만 되돌리는 정규화 뒤 나머지가 같아야): **OK 21 / FAIL 0** — head(CSS 포함) = meta·og 한 줄씩 · script = groupChart 이름 · mediaChart 막대 4개(MLB파크 빠짐)만 · 01~11 표 칸 글 그대로(04 `(M/D 신규)` · 07 쉼표·'적음' 정규화 뒤) · 07 강조 칸 빠진 9 = '적음' 행만 · 결정 밖 서술 표지 바이트 그대로 · 사라진 표지 = `06-card-노원산전필라테스` 하나 · 색 값 집합 같음 · CDN 2 · 캔버스·접기 수 같음 · KPI 값 그대로.
+- **R8 변조**: `mutation_test`(R3 산출) **검사 31개 중 변조로 FAIL 확인 31 · 변조 55 + 0건 가드 27 + archive 7 = [OK] 89 · config 실험 7 · 원본 md5 동일 — 전부 살아 있음** · `test_compare_sections`(R3 산출) 14경우 전부 그 구역 그 항목만 DIFF · test_apply 리허설 몫(`work/RX/same` = R3 산출) 멱등 OK.
+- **R9 직전 판 I·J(G3)**: compute `--competitors-html work/prev.html`(판 I) ↔ `work/index.html`(판 J) 출력 **전체 같음**(플레이스전후·경쟁사표·직전 기간 포함 — `work/g3_prev.json`·`g3_index.json`) · 단위 시험 `test_prev_readers_i_and_j_same`.
+- **G1** `work/g1_check.py`(가짜 조용한 두 회차 10/23·10/24 — 값은 전부 10/22 와 같음 · 뒤집힘 0 · 이월 줄 0 — 판 J 본보기 서술 → narrative_check): **G1 시험 PASS** — 판 J 가 바꾼 매회차 표지 12개 미교체 0 · 고정으로 바꾼 4개(03-desc · 08-note · 09-desc · 09-call)는 대조 밖 · 범위 밖 미교체 `01-mint` 하나(판 J 가 안 바꾼 표지 — 이월).
+- **네트워크**: GitHub GET(dry-run sha·본문·권한 — 읽기) + cdnjs 2(chart_check·section_compare) 뿐 · 네이버 0 · 쓰기 0.
+
+## 전체 시험(커밋 전 한 번 — 16:1x KST)
+py_compile scripts/·tests/ 전부 OK · bash -n 2 OK · **test_apply 56**(리허설 RX 판 J 포함) · test_balance 13 · test_deploy 45 · test_exclusions OK(registry md5 전/후 같음 ecd2458e) · test_extras OK · test_fetch_reports OK · test_ingest OK · test_leads 23 · test_narrative_check 7 · test_place 10 · test_validate_07 14 · test_compare_sections 전부 맞음 — 전부 rc 0 · data/·registry·place-checklist = origin/main. guard(`leads.py guard --staged --message-file`) PASS — staged 23파일 · 추가 줄 1,348 · 장부 숫자 0(첫 실행에 문서의 '등록 10일' 6곳이 오탐 FAIL → '등록 뒤 10일' 로 고치고 검사 이름도 같이 — 임의 결정 12).
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 조정자 1회 · "다음 단계로 가도 된다" · 막음 0)
+- 완료 기준 표 줄 1(결정 화면·값 — compare 새·고친 항목 · test_apply `ApplyLayoutJ` · R7) · 2(27 한 값 — compare "04 예산 비중 한 값" · R1) · 3(28 — validate `_v_phrase` · test_extras) · 4(1 — validate 14 · compare 05 · R7 script) · 5(5 — validate 29 · `check_cards_vs_04` · `ComputeCardRule`) · 6(G1 — g1_check) · 7(G3 — R9 · 단위 시험) · 8(판 J 규약 — test_apply · R1·R4) · 9(회귀 — validate · R3) · 10(G5 — R7 · precheck · section_compare) · 11(문서 — 아래) · 12(리허설 — 위) 모두 참.
+- 막음 후보로 본 것: 문서의 "등록은 나중에" 회차 "07·10·11번에 사실형 문구" — 판 J validate 30 이 그날 10 제외 검색어 항목을 FAIL(요란 · 조용하지 않음 — 막음 아님) → 문서를 "07·11" 로 고침(임의 결정 16). 그 밖 막음 0.
+
+## 문서 = 코드(조정자 grep 대조)
+- 고친 곳: report-structure.md 판 J 절(변환·값·서술·검사·코드·높이·첫 적용) · 판 G 절 "판 J → 판 K" · 목차 · KPI · 01 · 02 · 03 · 04(비중·신규 표기 기한·민트/회색 꼴·각주·변경 기록 note·확장 소재) · 05(검색 지면 상위 4·머리·알 수 없음 줄·미만 순서 · 도넛과 기준 다름) · 06(카드 규칙·카드 note·06-arrow) · 07(07-src·'적음'·쉼표·③·① 한 곳) · 08(note 고정·민트 꼴) · 09(desc/call 고정 꼴·건) · 10 작성 기준(14 a~e · (참고) 0 · 판정 줄) · 11 작성 기준(12-desc·12-1·note·이월 자리·집계 기준 네 항목) · 서술 공통 규칙(G1 · 클릭 '건' · 06·09 "N회차 연속" 끝) · "남는 자리" 목록("~로 보임" 뺌) · 서술 표지 표(01-rank·03-desc 고정·04-foot·04-mint·04-note·06-arrow·06-card·07-src·07-legend·07-notes·08-note 고정·08-mint·09-desc/09-call 고정·11-verdict·12-desc·12-1·12-note·12-basis + 판 J 표지 수 33 중 매회차 18) · SKILL.md(지금 판 J · 사슬 · apply 출력 · compare 99 · (1-1) 리포트 = 07 ① 한 곳 · 카드 규칙 · validate 31 · chart_check 판 J 전환 · "07·11 문구") · code-tab.md 81(07 ②·11번 1번 · 10 은 실패·재노출 때만)·96·101·121(판 J 첫 적용) · exclusion-ui.md 9절(10 규칙 · 11 1번 꼴) · checklist [의도된 동작] 1·6·16·29 + 새 32 · [되돌리면 안 되는 것] 레이아웃 판 행 · 갱신 이력 · css-and-layout 판 J 줄 · local/prompt-polish 65(세 곳 = config · last-audit · 07 ①) · local/q-saero-run 31 · chart_check 머리말.
+- grep 대조(`compare 102|102항목` · `validate 29` · `업종 평균` · `주간 성과 요약` · `캠페인 전체(제외 그룹 포함)` · `4개 키워드 합산` · `CPC 400원대` · `모두 표시됨` · `07·10·11` · `②·10·11` · `세 곳` · `(1-1)` · `상위 5` · `등록 [0-9]` — SKILL.md · references/*.md · audit/checklist.md · local/*/SKILL.md · scripts · tests): 남은 것 = 날짜·판이 박힌 역사 기록(판 I 102항목 · validate 29개 이력 · 판 G·H 절)과 판 변환·검사가 찾는 옛 글 상수(apply `TRIM_GONE`·validate `J_FIXED_GONE` · GA_HEAD_I)와 검사 이름(validate "07 각주·10·11번 잔존 문구 0건" — 범위 이름) · SKILL.md (1-1) 머리 "세 곳"(config·audit·리포트 — 그대로 맞음)뿐 — **현재 규칙으로 남은 옛 글 0**.
+- **`local/` 변경 2파일 — 병합 뒤 설치본 교체 대상**: `local/prompt-polish/SKILL.md` md5 **`9dc2b916`** · `local/q-saero-run/SKILL.md` md5 **`b00f684c`**(`local/CLAUDE.md` 변경 0).
+
+## 이월(한 줄씩 — 막음 아님, 전수조사 번호 · 첫 적용 뒤 또는 정기점검)
+- 고르지 않은 전수조사 항목(그대로 둠): 2(08·09 "※ … KPI와 6회 차이" 각주 둘) · 3(11번 3번 "매주 성과 장부" 행) · 4(11번 2번 상계동 승격 행 + 06 카드 날짜 나열) · 6(07 오른쪽 카드 확장·인접 검색어 칩 6개) · 9(07 "노출은 있으나 클릭 0건인 검색어" 목록) · 16(제외 검색어 문장 07 ② · 11 1번 — 10 은 판 J 에서 실패·재노출 때만) · 17(경쟁사 판정 07 ① — 10·11 사본은 판 J 에서 빠짐) · 18(끝난 결정 반복 — 01 ③ "상향 유지 결론" · 04 "예산은 현행 유지" · 08 "지역 설정 전국 유지") · 26("회차" 낱말).
+- 41: 공개 저장소 manifest.json 설명의 '주간' — deploy 가 index.html 만 올려 못 바꿈.
+- 07 ① 의 "M/D 경쟁사명 검색 N회" 구절 — compute 키 없는 숫자(17번 안 고름 · 그대로).
+- G1 범위 밖: `01-mint`(판 J 가 안 바꾼 매회차 표지)는 값이 두 회차 완전히 같으면 '서술 미교체' FAIL 가능(g1_check 가짜 재료에서만 — 판 J 이전부터 같은 위험, 요란).
+- 02 groupChart 이름 `(4개 그룹 · 자동매칭 포함)` 의 '4개' 는 고정 글 — 파워링크 그룹 수가 바뀌면 판 변환 회차가 고친다(validate 가 수를 안 봄).
+- `--pending`(답 대기 배포) 회차에 10 에 제외 검색어 대기 항목을 쓰면 validate 30 이 FAIL(요란) — 결정 14 (a) 대로 07 ②·11 에만.
+- 첫 적용 회차는 04-note `비중은 A → B%` 의 A 가 직전 배포본(옛 계산) 값(결정 21 (c) — 한 번뿐).
+- 새 날 첫 적용이면 narrative 가 `[주의] 직전 배포본에만 있는 표지 1개: 06-card-노원산전필라테스`(정보 — FAIL 아님).
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1 결정 1~38 화면 = 위 꼴 · 바꾼 자리 숫자 = compute(compare 99 · test_apply `ApplyLayoutJ` · R7) · 2 27 한 값(compare "04 예산 비중 한 값" · 02 desc 91.9 · 04 회색 8.1) · 3 28 건수 = 원장(validate `_v_phrase` · `test_extension_count_same_minute`) · 4 1 검색 지면 상위 4 · 콘텐츠 0 · 도넛 그대로(validate 14 · compare 05 · R7 script) · 5 06 카드 규칙(오늘 상계동 하나) · 큰 숫자 = 04 셀(validate 29 · `check_cards_vs_04` · `ComputeCardRule`) · 6 G1(`work/g1_check.py` — 재료 clone `work/`) · 7 G3 직전 판 I·J 같은 읽기(`test_prev_readers_i_and_j_same` · R9) · 8 판 J 규약(meta·config·사슬 I→J·옛 → … → J·멱등·`--layout` 없이 FAIL 문구·deploy 게이트 — test_apply · R1·R4) · 9 10·11 RESIDUAL·금칙어 0 · 구역 1~11 · 캔버스 7 · details 6(validate) · 10 G5 회귀 0 · 새 CSS·JS·색 0 · index.html 한 파일(R7 · precheck · section_compare) · 11 문서 = 코드(위 grep) · 12 리허설(이 절 — 재료 clone `work/` 로 사본 재실행).
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 2시간 50분(13:4x~16:3x KST — 시험·리허설·문서 포함) · 하위 에이전트 0 · 조정자 즉석 코드(저장소 밖) — 패치 스크립트(apply·compute·compare·validate·시험·문서) · 리허설 서술 사본(narr_lib·n1023j) · 회귀 바이트 `r7_check.py` · G1 `g1_check.py`.
+쓴 곳: 브랜치 커밋 `6866817`(코드·문서·시험) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_불필요항목빼기_검증지시_회차1_2026-10-23.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/q-saero-run` — 판 J 첫 적용 · 보류로 시작)
+1. 첫 말: "**판 J(불필요 항목 빼기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. 평소대로 ①~5 — apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-I → r2026-10-J, 분기 2)` 와 끝 `· 06 카드 ['상계동필라테스'](뺌 ['노원산전필라테스']) · 04 신규 메모 0` 확인(`--layout` 없이 돌리면 `meta r2026-10-I ≠ config r2026-10-J` FAIL — 작업본 그대로). `[FAIL] apply: … 06 카드가 없는 그룹 …` 이면 새 그룹·승격 그룹 카드를 사람이 넣는다.
+3. 서술 스크립트(n<날짜>.py · narr_lib.py — 저장소 밖)에서 바꿀 줄(리허설 clone `work/narr_lib.py`·`work/n1023j.py` 에서 실제로 바꾼 줄 — 그대로 옮겨 쓰면 된다 · 옛 판은 clone `work/narr_lib_i.py`):
+   - `narr_lib` 새 `FIXED_KEEP = ("04-foot", "07-src", "07-legend", "12-desc", "12-basis")` · `body(h, name)` · `keep_fixed(h, T)` — n<날짜>.py 끝 `rep_all` 전에 `N.keep_fixed(h, T)`(고정 글 표지는 판 변환이 쓴 글 그대로 — blocks() 의 04-foot·07-src·07-legend·12-desc·12-basis 쓰기 줄은 지움).
+   - `blocks()` 01-desc: 끝 `, 누적 CTR A → B%` 빼기 · 01-rank: `f"{md}까지 누적 가중평균은 {A:.2f} → {B:.2f}위(작을수록 상단)"`(닷새 나열·tail 문장 빼기) · 03-desc: `f"최고치 {최고일} {최고액}원"` 한 구.
+   - `blocks()` 04-mint: `f'→ {md}까지 격차 기준 = 파워링크 총비용 1위 "{그룹}" CPC {CPC}원 vs 플레이스 {CPC}원'`('배' 쓰지 않음) · 04-note: `f"두 광고는 성격이 달라 CPC만으로 우열을 가리기 어려움 — 플레이스는 매장명·지도 검색, 파워링크는 저렴하지만 클릭이 적음. {md}까지 파워링크 비중은 {prev} → {R['04']['파워링크비중']}%. 예산은 현행 유지(사용자 결정)."`.
+   - `blocks()` 06-arrow: `f"→ 자동매칭이 노출·클릭 모두 앞섬(첫 리포트부터 같음) — {md} 직접 {직접}·자동 {자동}회"`(assert 자동 > 직접 노출·클릭 둘 다) · META `runs` 삭제 · 06 카드: 승격 그룹 `f"{md}까지 하루 노출 30회 이상인 날 …(승격 조건 …) → 카드 …(11번 2번)."` · 새 그룹 `f"{md}까지 등록 {일차}일차(10일치가 쌓이면 카드에서 빠짐)."` + `(노출·클릭·비용은 04번 표 참고)` — 카드 그룹은 `R["06"]["카드"]` 만(노원산전필라테스 카드 줄 빼기).
+   - `blocks()` 07-notes ③: `f"③ 클릭 0인 검색어 전체는 {개수}개·노출 {노출}회(경쟁사 포함 · 클릭이 없어 비용 0원)."` · 08-note: '모두 표시됨' 문장 빼기(`…노출 N회 발생.<br>※ …`) · 08-mint: `f"→ {md}까지 노원구 단독으로 전체 노출의 {노출%}%·클릭의 {클릭%}% 차지 · \"국내 - 상세 위치 확인불가\" 비용 비중 {비용%}%. 지역 설정 전국 유지 결론 그대로 — …"`(11위 문장·지난 회차 괄호·확인불가 숫자 되풀이 빼기).
+   - `blocks()` 09-desc: `f"{시}시대 클릭 최다({클릭}건)"` · 09-call: `f"→ 심야(22시~09시) 노출 {노출}회({노출%}%)·클릭 {클릭}건({클릭%}%)·비용 {비용}원 — 낮 시간대와 비슷한 효율. 2위는 {시}시 {클릭}건"` + 동률 `으로 {시}시와 같음` + 끝 긍정 문장 그대로.
+   - `blocks()` 12-1: `<b>제외 검색어 정기 점검 — …</b>` 뒤 registry 구 빼기 · META `excl.next` = `"M/D·M/D 등록분이 다시 노출되는지"` · 12-note: `· {md}까지 지난 항목 {N}개 모두 이어감<br>\n        · 신규 없음`(철회·빠짐·플레이스 이월 줄이 있으면 `· <b>{md}까지 이월 판정</b>: <그 줄>` — META `carry_lines`·`prev_actions`).
+   - 10번: 새 `items_j(R, meta, flips, same)` — flips = [(굵은 결론, 그 구역에 없는 말 + '(N번)')] · META `excl_event`(07 ② 에 실패·재노출·미확인이 있는 날만 한 줄) · same = (움직이지 않은 자리 이름 목록, "04·05·06·08·09번") → `<b>{md}까지 변화 없음</b> — …` · 11-verdict: `f"{md}까지 지난 회차 10번 {N}개 항목 판정: 유지 a · 뒤집힘 b · 근거 소멸 c"`(첫 적용은 판 I 배포본 10번 본문 항목 수 — (참고) 빼고 · 오늘 8).
+   - 하나라도 빠지면: validate "판 J 뺀 글 0" FAIL(옛 꼴) · "10번 항목 수·판정 줄" FAIL(`M/D까지`) · narr_lib 이 고정 표지를 다시 쓰면 validate "레이아웃 판" FAIL — 요란하게 멈춘다(리허설 R1b 실측).
+4. 6 precheck(validate **31** — 레이아웃 판 · 06번 카드 그룹 · 판 J 뺀 글 0 PASS · compare **99** · overflow · narrative) → 도장.
+5. 전후 비교: `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 1,2,3,4,5,6,7,8,9,10,11 --extra top,basis` → `work/cmp_<날짜>/compare.html`(머리·KPI · 01~11 · 집계 기준 — 1280·390) + `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(PASS 33 · "섹션 1·6 높이" 는 "판 J 전환" 표기로 PASS)와 작업본을 사용자에게 보인다.
+6. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜 … r2026-10-I → r2026-10-J` 만).
+
+---
+
 ## 검증·병합 기록(2026-10-23 — 콘텐츠 지면 빼기(레이아웃 판 r2026-10-I): 검증 1(막음 0) → main 병합)
 
 **병합**: `feat-20261023-content`(`6a6370e` — 5abcc45 위 2커밋: `9a0fb59` 코드·시험·문서 · `6a6370e` 구현 기록)를 main(`5abcc45` — 분기 뒤 main 변경 0, 2026-10-23 11:18 KST `ls-remote` 로 main = 5abcc45 · 브랜치 = 6a6370e 확인)에 `git merge --no-ff` → 병합 커밋 **`84983a0`**(부모 5abcc45 · 6a6370e, 트리 `ab472108` = 6a6370e 트리 — `git diff --stat 6a6370e HEAD` 빈 출력 · 5abcc45 대비 26 파일 +1,192/−398). 경우 A — 충돌 0(audit/last-audit.md 포함 — main 이 움직이지 않아 자동 병합 · 구현 커밋의 last-audit 는 LF 그대로). 신원 `-c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com`(전역 설정 변경 0). clone `D:\saero-verify\merge-20261023-content`(`git clone -c core.autocrlf=false`). 사용자 병합 지시(2026-10-23 11:1x KST — 다듬기 세션이 받은 "병합" 을 중계했으나 분류기가 병합 커밋을 한 번 막아, 사용자가 검증 세션 채팅에 직접 "병합" 으로 다시 답함 · 갱신 회차는 돌고 있지 않음 — 오늘 회차는 08:50 배포·기록 5abcc45 로 끝, 다음은 10/24 새벽). 브랜치 `feat-20261023-content` 는 지우지 않고 둔다. 코드·문서·config·data 재수정 없음(이 절 추가만). **이 절의 자리**: main 맨 위가 10/23 갱신 회차 절이라, 판 D·F·H 병합 때처럼 이 브랜치 "기능 추가 구현 기준선" 절 바로 위에 둔다(main 쪽 갱신 회차 절은 맨 위 그대로). 이 절의 기록 커밋 해시는 자기 참조라 적지 않는다(재clone 대조는 채팅 보고에). 에이전트 0(병합은 조정자가 직접).
