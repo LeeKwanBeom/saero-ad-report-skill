@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""플레이스 화면·소재 손보기(설계안 C — 매출 작업, 2026-10-10) 시험 — scripts/place.py · compute.py place_effect · compare "12 플레이스 행".
+"""플레이스 화면·소재 손보기(설계안 C — 매출 작업, 2026-10-10) 시험 — scripts/place.py · compute.py place_effect · compare "11 플레이스 행"(판 I — 판 H 까지 12).
 
 임시 폴더 스크래치 체크리스트·합성 키워드 표만 쓴다(SAERO_PLACE 를 늘 임시 경로로 — 저장소 audit/place-checklist.csv 를 만들지 않는다). 네트워크 0.
 - 쓰기 규칙(11·25): 첫 set 은 P1~P9 전부 · id·상태 밖 · 바꾼 날 미래 · 다시 볼 날 오늘 이하 · 같은 상태 · 바꾼 날이 지금 기록보다 앞 → [FAIL] 쓰기 0 ·
   줄 추가만(앞 바이트 그대로) · dry-run 파일 쓰기 0 · 상태 넷(✓ ✗ 안 함 미룸) · in12_since(✗ 행 = todo 중 config 순서 위 items_in_12 개, 빠지면 다음 todo 가 그날로).
 - 효과 판정(26 · C-1·C-2 — 손으로 센 기대값과 대조 = 독립 계산): 플레이스 **검색 지면만**(콘텐츠 행·파워링크 행 뺌) · **달력 일수** 분모(행 빠진 날 0) ·
   둘 다 띠 위 좋아짐 / 둘 다 아래 나빠짐 / 하나만 밖 구별 안 됨 · 앞뒤 14일 안 다른 바꿈 = 겹침(한 번에 한 항목) · 자료 부족 = 비교 불가 · 덜 찬 창 = 측정 중(n/14일).
-- 12번 목록(13): ✗ 행 ≤ items_in_12 · 판정 뒤 final_show_days 일까지 남기고 빠지는 회차에 "빠짐" · 안 함·미룸은 12번·3주 셈 밖, 지난 배포본 뒤에 적힌 것만
+- 11번 목록(13 — 판 H 까지 12번 · compute 키 "12번" 그대로): ✗ 행 ≤ items_in_12 · 판정 뒤 final_show_days 일까지 남기고 빠지는 회차에 "빠짐" · 안 함·미룸은 12번·3주 셈 밖, 지난 배포본 뒤에 적힌 것만
   이월 줄에 한 번 · ✗ 가 chat_after_days 일 넘게 그대로면 채팅 질문 신호 · 미룸 다시 볼 날 지나면 채팅 질문 신호.
-- compare: 12번 플레이스 행(id·상태/판정) ≠ compute → DIFF.
+- compare: 11번 플레이스 행(id·상태/판정) ≠ compute → DIFF.
+- (2026-10-23 판 I) 직전 배포본 다음 액션 구역은 주석 이름(Action items)으로 — 판 H(12번)·판 I(11번) 어느 쪽이든 같은 이월 줄 · 없거나 둘이면 SectionError.
 실행: "$PY" tests/test_place.py
 """
 import contextlib
@@ -234,10 +235,10 @@ class Effect(unittest.TestCase):
         self.assertEqual([x["id"] for x in r["12번"]], ["P3", "P7"])
         self.assertEqual(r["빠짐"], ["P2 구별 안 됨"])
         self.assertEqual(r["이월줄"], [])                                                       # 다음 회차엔 다시 안 나옴
-        self.assertEqual(r["채팅질문"], ["P3 12번 9/1부터 40일 그대로", "P7 12번 9/20부터 21일 그대로"])   # 21일(3주) 이상 ✗ — 안 함·미룸은 셈 밖
+        self.assertEqual(r["채팅질문"], ["P3 11번 9/1부터 40일 그대로", "P7 11번 9/20부터 21일 그대로"])   # 21일(3주) 이상 ✗ — 안 함·미룸은 셈 밖
         # 순서에 밀려 12번에서 내려간 ✗ 도 이월 줄에 한 번
         r = self.eff(rows, lines + ["2026-10-12,P6,todo,,,2026-10-12", "2026-10-12,P7,todo,,,"], dt.date(2026, 10, 11), prev_end=dt.date(2026, 10, 10))
-        self.assertEqual(([x["id"] for x in r["12번"]], r["이월줄"]), (["P3", "P6"], ["P7 ✗(12번 자리 순서로 내림)"]))
+        self.assertEqual(([x["id"] for x in r["12번"]], r["이월줄"]), (["P3", "P6"], ["P7 ✗(11번 자리 순서로 내림)"]))
         # 같은 기간 다시 계산(2-1 같음 — 지난 배포본 끝 날 = 이번 끝 날 10/10): 이번 회차 날(10/11) 결정은 지난 배포본 12번에 그 줄이 없으면 싣고, 있으면 다시 안 씀
         r = self.eff(rows, lines, dt.date(2026, 10, 10), prev_end=dt.date(2026, 10, 10), prev12="<td>· 이월 판정: 없음</td>")
         self.assertEqual(r["이월줄"], ["P5 안 함(10/11 결정)", "P6 미룸(10/20 다시 봄)"])
@@ -245,7 +246,33 @@ class Effect(unittest.TestCase):
         self.assertEqual(r["이월줄"], [])
         r = self.eff(rows, lines, dt.date(2026, 10, 21), prev_end=dt.date(2026, 10, 20))
         self.assertIn("P6 미룸 다시 볼 날(10/20) 지남", r["채팅질문"])
-        self.assertIn("P7 12번 9/20부터 31일 그대로", r["채팅질문"])
+        self.assertIn("P7 11번 9/20부터 31일 그대로", r["채팅질문"])
+
+    def test_prev_action_section_layout_h_or_i(self):
+        """판 I(2026-10-23) — 직전 배포본 다음 액션 = 주석 이름 Action items 로 읽는다(판 H 12번 · 판 I 11번): 같은 기간 다시 계산의 이월 줄이 두 판에서 같다.
+        번호로 읽던 때(section(prev, 12))는 판 I 직전 배포본에서 빈 글 → 이미 실은 이월 줄을 다시 썼다. 이름이 없거나 둘이면 SectionError · 비면 ''."""
+        from reportlib import SectionError, action_section, section
+        rows = series(D0, 70, lambda d: 100, lambda d: 5)
+        lines = BASE9 + ["2026-09-20,P2,done,2026-09-20,,", "2026-09-20,P7,todo,,,2026-09-20",
+                         "2026-10-11,P5,no,2026-10-11,,", "2026-10-11,P6,later,2026-10-11,2026-10-20,"]
+        note = '<div class="note">· <b>이월 판정</b>: P5 안 함(10/11 결정) · P6 미룸(10/20 다시 봄)</div>'
+        page_h = ('<!-- Section 10: search vs content placement -->\n<div>지면</div>\n<!-- Section 11: Insight summary -->\n<ul><li>요약</li></ul>\n'
+                  f'<!-- Section 12: Action items -->\n<table><tbody><tr><td>1</td></tr></tbody></table>{note}\n<script>\n</script>')
+        page_i = ('<!-- Section 10: Insight summary -->\n<ul><li>요약</li></ul>\n'
+                  f'<!-- Section 11: Action items -->\n<table><tbody><tr><td>1</td></tr></tbody></table>{note}\n<script>\n</script>')
+        self.assertIn("P5 안 함(10/11 결정)", action_section(page_h))
+        self.assertIn("P5 안 함(10/11 결정)", action_section(page_i))
+        self.assertEqual(section(page_i, 12), "")                                                       # 옛 번호로 읽으면 빈 글(고친 까닭)
+        for prev in (page_h, page_i):
+            r = self.eff(rows, lines, dt.date(2026, 10, 10), prev_end=dt.date(2026, 10, 10), prev12=action_section(prev))
+            self.assertEqual(r["이월줄"], [])                                                          # 앞 배포가 이미 실음 — 두 판 다 다시 안 씀
+        r = self.eff(rows, lines, dt.date(2026, 10, 10), prev_end=dt.date(2026, 10, 10), prev12=section(page_i, 12))
+        self.assertEqual(r["이월줄"], ["P5 안 함(10/11 결정)", "P6 미룸(10/20 다시 봄)"])               # 번호로 읽던 길 = 다시 씀(막은 결함)
+        self.assertEqual(action_section(None), "")
+        self.assertEqual(action_section(""), "")
+        for bad in (page_i.replace("Action items", "Actions"), page_i + "\n<!-- Section 12: Action items -->"):
+            with self.assertRaises(SectionError):
+                action_section(bad)
 
     def test_missing_or_broken(self):
         inc = frame(series(D0, 20, lambda d: 100, lambda d: 5))
@@ -281,7 +308,7 @@ class Report(unittest.TestCase):
                 for bad in ["필요", "시점", "할 것", "검토", "주째", "확인 요청", "판단 요청", "기다림", "확인 중", "대기"]:
                     self.assertNotIn(bad, t)
             body = "\n".join(f"<tr><td><!-- n:12-{i}:매회차 -->{h}<!-- /n --></td></tr>" for i, h in enumerate([L.row_html(R)] + hs, 2))
-            html = f"<!-- Section 12: x -->\n<table><tbody>{body}</tbody></table>\n<script>\n</script>"
+            html = f"<!-- Section 11: Action items -->\n<table><tbody>{body}</tbody></table>\n<script>\n</script>"
             h, j = os.path.join(td, "i.html"), os.path.join(td, "c.json")
             with open(h, "w", encoding="utf-8") as f:
                 f.write(html)
@@ -292,10 +319,10 @@ class Report(unittest.TestCase):
                 with open(j, "w", encoding="utf-8") as f:
                     json.dump(R2, f, ensure_ascii=False)
                 r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "compare.py"), h, j], capture_output=True, text=True, encoding="utf-8")
-                line = [x for x in r.stdout.splitlines() if "12 플레이스 행" in x and x.startswith("  [")]
+                line = [x for x in r.stdout.splitlines() if "11 플레이스 행" in x and x.startswith("  [")]
                 self.assertEqual(len(line), 1, r.stdout[-400:])
                 self.assertEqual("[DIFF]" in line[0], diff, line[0])
-                self.assertIn("[OK]", [x for x in r.stdout.splitlines() if "12 장부 기준 판정" in x and x.startswith("  [")][0])
+                self.assertIn("[OK]", [x for x in r.stdout.splitlines() if "11 장부 기준 판정" in x and x.startswith("  [")][0])
         finally:
             shutil.rmtree(td, ignore_errors=True)
 

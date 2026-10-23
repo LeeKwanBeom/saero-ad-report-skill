@@ -22,7 +22,7 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
   9. 날짜축 차트 min-width = 날짜 수 × per_day_px (floor 적용)
      — 대상 섹션은 config chart_min_width.date_based_sections (현재 01·06번). 섹션마다 검사 1개.
  10. 날짜축 차트 x축 라벨 배열('M/D(요일)' 형태) 길이 = 날짜 수
- 11. 섹션 주석 <!-- Section N: --> 1~12 존재
+ 11. 섹션 주석 <!-- Section N: --> 1~N 존재 — N = config report_layout.markers.sections(판 I 2026-10-23 부터 11 · 판 H 까지 12) · 순서대로 하나씩 · 그 밖 번호 0
  12. 08·09번 각주의 "N회 차이" = 제외 전 전체 노출 − KPI 노출
  13. 상세지역 CSV 노출 합계 = 제외 전 전체 노출
  14. (2026-09-26 추가) 05번 mediaChart top5 = 키워드 CSV `매체이름` 노출 상위 5 — 라벨·값·순서·색(플레이스=mint/파워링크=ink)
@@ -31,9 +31,9 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      표 안 이름이 config에 있는지(역방향)는 검사하지 않는다(어순이 다른 표기 변형이 있음)
  17. (2026-09-26 추가) 07번 경쟁사표 각 행의 노출·클릭 = 검색어 CSV 합계
  18. (2026-09-26 추가) 검색어 CSV 클릭 합계 = KPI 클릭 (종전 `참고` 출력을 FAIL로)
- 19. (2026-09-26 추가) 11번 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "유지+뒤집힘+근거 소멸 = 직전 항목 수"
- 20. (2026-09-26 추가) 11·12번 본문(<script> 앞까지) 금칙어(필요·시점·할 것·검토·주째) 0건 — 조치 문장은 12번 몫
- 21. (2026-09-26 추가, 09-27 범위 확장) 07번 각주(`class="note"`)·11·12번 본문(<script> 앞까지)의 잔존 문구
+ 19. (2026-09-26 추가) 10번(핵심 요약 — 판 H 까지 11번) 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "지난 회차 10번 N개 항목 판정: 유지+뒤집힘+근거 소멸 = 직전 항목 수"
+ 20. (2026-09-26 추가) 10·11번 본문(<script> 앞까지) 금칙어(필요·시점·할 것·검토·주째) 0건 — 조치 문장은 11번(다음 액션) 몫
+ 21. (2026-09-26 추가, 09-27 범위 확장) 07번 각주(`class="note"`)·10·11번 본문(<script> 앞까지)의 잔존 문구
      (확인 요청·판단 요청·기다림·확인 중·대기) 0건. 잔존 문구 검사는 이 검사 하나뿐이다(compare.py에는 없음 — --pending 일원화).
      사용자 답을 기다리며 배포하는 회차(4c08ab3처럼 채팅 질문을 남긴 배포)는 `--pending`을 붙여 이 검사만 허용한다
      (건수는 그대로 출력). 답을 반영한 재배포에는 붙이지 않는다 — 기본은 엄격. 세 범위 중 하나라도 못 찾으면 0건 가드 FAIL.
@@ -58,18 +58,21 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      CSS `.kpi-wide{grid-column:1 / -1;}` 1건. PASS 문구 끝에 `잔액 카드 1`.
      (판 H, 2026-10-17 07 정식표 접기) 코드 변경 없이 config `markers.details` 6 으로 센다(07 정식표 아래 접힌 표 하나 — PASS `r2026-10-H · details 6 · summary 짝 6 …`).
      07 정식표 행은 2·4 가 07 구역 전체(위 표 + 접힌 표)를 읽는다 — 위 표 행 수·접힌 행 summary 숫자는 compare 몫("07 정식표 위 표 행수"·"07 summary 정식표 나머지").
+     (판 I, 2026-10-23 콘텐츠 지면 빼기) 같은 검사 안에서: 번호 배지 `<span class="section-num">NN</span>` = 01~markers.sections(11) 순서대로 · 다음 액션 주석
+     `<!-- Section N: Action items -->` 이 마지막 구역(11) · 지면 구역 흔적 0(placementChart · 서술 표지 10-* · 제목 "검색 지면 vs 콘텐츠 지면") · `<canvas id=` 수 =
+     markers.canvases(7) · 01 ① 칸 머리 5(날짜·노출·클릭·CTR·CPC). PASS 문구 끝에 `구역 11 · 캔버스 7 · ① 5칸`.
  24. (2026-10-09 추가) "광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분" — `--balance <work/balance.json>`(balance.py 기록 — precheck 는 작업본 옆 파일)을
      직접 읽어(compute.py 와 계산 공유 0) 기록이 ok 면 카드 값 = ⌊bizmoney_raw⌋ 원(콤마 · 기록의 bizmoney 도 같은 값) · 보조 줄 = 읽은 시각 KST `M/D(요일) HH:MM 기준`
      + ` · 약 N일분`(N = ⌊원 × 창일수 ÷ 창합계⌋ — 창 = 키워드 CSV `일별` 달력 날짜로 마지막 날까지 7일(첫날 앞은 자름 · 행 없는 날 0원), 합계 = 제외 그룹 뺀 총비용,
      합계 0 이면 며칠분 없음) / fail 이면 값 `확인 못 함` · 보조 줄 `M/D(요일) HH:MM 조회 실패`. 읽은 날(KST)이 집계 마지막 날 이하(지난 회차 기록)·기록 없음·
      꼴 다름·카드 값/보조 줄 0건 또는 둘 이상이면 FAIL.
 
- 25. (2026-10-10 매출 작업 A) "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)" — 01·11·12 본문(<script> 앞까지, 태그·표지 뺀 글)에 config `leads.public_labels`
+ 25. (2026-10-10 매출 작업 A) "01·10·11 서술에 장부 라벨+숫자 0(공개 범위 verdict)" — 01·10·11(판 H 까지 01·11·12) 본문(<script> 앞까지, 태그·표지 뺀 글)에 config `leads.public_labels`
      (문의·체험·상담·등록·매출·네이버 경유 …) 바로 뒤 숫자가 0건(scripts/leads.py label_hits — '등록 N개'·'등록 N · verified'·'N행'·날짜는 제외 검색어·기록 문구라 안 셈).
      config `leads.publish` 가 verdict 가 아니면 FAIL(건수 공개는 설계 회차 몫). 장부 파일은 읽지 않는다(공개 글만 본다).
- 26. (2026-10-10 매출 작업 A·C) "12번 장부·플레이스 행" — 12번 표에 `장부 기준 판정 = X` 행이 정확히 1(X = config `leads.verdict_words` 낱말 또는 `판정 전(N/min_weeks주)`) ·
+ 26. (2026-10-10 매출 작업 A·C) "11번 장부·플레이스 행"(판 H 까지 12번) — 11번 표에 `장부 기준 판정 = X` 행이 정확히 1(X = config `leads.verdict_words` 낱말 또는 `판정 전(N/min_weeks주)`) ·
      장부 행·플레이스 행(`플레이스 P<n> `)마다 `M/D까지` = 키워드 CSV 집계 마지막 날(같은 주 다음 날 회차도 바이트가 달라 narrative 가 서술 미교체를 잡는다) ·
-     플레이스 ✗ 행(`상태 = ✗`) ≤ config `place_checklist.items_in_12` · ✓ 아닌 행 ≤ config `place_checklist.max_open_rows_12`(12번 작성 기준 4). 12번 표 행 0 이면 FAIL.
+     플레이스 ✗ 행(`상태 = ✗`) ≤ config `place_checklist.items_in_12` · ✓ 아닌 행 ≤ config `place_checklist.max_open_rows_12`(11번 작성 기준 4 — 키 이름의 12 는 그대로). 11번 표 행 0 이면 FAIL.
 
  27. (2026-10-12 판 G 보고서 더 받기 A + B) "추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra" — `--extra <work/extra>`(precheck 는 작업본 옆 extra/)의
      파일 유무가 카드 유무 기준(A-5): `<종류>.csv`(성별·연령대 합본)·`변경이력.csv`+`변경이력_기록구간.csv`(원장 사본)가 있으면 카드·표의 기간 표기·줄 값이 compute.py 와
@@ -77,6 +80,12 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      마지막 연속 구간 · 보일 주체 줄(같은 분은 한 줄 — 2026-10-12) 최신 위 max_rows · 내용 한 구 · 스킬 등록 n회(고유 분)·삭제 k건 · 펼친 표 = 맨 위 줄과 같은
      날짜 줄 전부, 나머지는 접기 하나 안 · summary "이전 N건(M/D~M/D) 펼치기"(이전 줄이 없으면 접기 0 — 2026-10-15)), 없으면 그 자리가 '확인 못 함'. show_system false 면 SYSTEM·하루예산 중단 0 ·
      배포본 전체 아이디 꼴 `:naver` 0. "레이아웃 판" 검사(23)에 판 G 표지(블록 여닫이 각 1 · 04 안 본 표 뒤 · 05 안) 대조가 붙는다.
+
+ 28. (2026-10-23 판 I 콘텐츠 지면 빼기) "화면 글 구역 번호(판 I — 없는 12번·지면 10번·옛 지면 글 0)" — 서술 표지 안 글(태그 뺀)의 구역 번호 참조
+     (`NN번` — 앞이 숫자·글자가 아니고 뒤가 '째'·'출구'가 아닌 것 · `07·10번`·`01~07·10번` 묶음은 숫자마다)가 ① 1~markers.sections(11) 밖이면 FAIL(옛 다음 액션 12번 —
+     `12번 1번`·`지난 회차 12번`·`(12번 행 없음)`) · ② 10번이 지면 구역을 가리키면 FAIL(같은 묶음에 07 — 옛 `KPI·01~07·10번에서 제외` · 앞뒤 30자 안에 지면·매체 설정·
+     파트너 매체) · ③ 옛 지면 구역 글(`콘텐츠 지면 N일 연속 0` · `검색 지면 vs 콘텐츠 지면`)이 있으면 FAIL. 검색어 속 숫자(`노원역10번출구`)는 안 센다.
+     복사된 서술 스크립트(판 H 꼴)가 옛 번호를 다시 쓰는 길을 막는다. 서술 표지 0개면 FAIL(0건 가드).
 
 사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>] [--extra <work/extra>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
@@ -117,7 +126,7 @@ PER_DAY_PX = int(CFG["chart_min_width"]["per_day_px"])
 FLOOR_PX = int(CFG["chart_min_width"]["floor_px"])
 DATE_SECTIONS = [int(n) for n in CFG["chart_min_width"]["date_based_sections"]]
 COMPETITORS = list(CFG["competitors"])
-FORBIDDEN = ["필요", "시점", "할 것", "검토", "주째"]          # report-structure.md 11번 수동 검사
+FORBIDDEN = ["필요", "시점", "할 것", "검토", "주째"]          # report-structure.md 10번(판 H 까지 11번) 수동 검사
 RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기"]  # 채팅 후속 뒤 남기면 안 되는 문구
 
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
@@ -278,8 +287,12 @@ def check_date_labels(html, ndays):
 
 
 def check_section_comments(html):
-    missing = [n for n in range(1, 13) if f"<!-- Section {n}:" not in html]
-    check("섹션 주석 1~12 존재", not missing, "전부 있음" if not missing else f"누락 {missing}")
+    """11. 구역 주석 <!-- Section N: --> = 1~markers.sections 순서대로 하나씩(그 밖 번호 0 — 판 I 2026-10-23: 지면 구역이 빠져 11개, 판 H 까지 12개)."""
+    n = int(LAYOUT["markers"]["sections"])
+    found = [int(x) for x in re.findall(r"<!-- Section (\d+):", html)]
+    missing = [k for k in range(1, n + 1) if k not in found]
+    check(f"섹션 주석 1~{n} 존재(순서 · 그 밖 번호 0)", found == list(range(1, n + 1)),
+          "전부 있음" if found == list(range(1, n + 1)) else f"주석 {found} — 누락 {missing} · 밖 {[k for k in found if not 1 <= k <= n]}")
 
 
 def check_diff_footnotes(html, all_imp, kpi_imp, rg_imp):
@@ -347,13 +360,14 @@ def check_competitors(s7, sr):
 
 
 def check_11_12(html, pending=False):
-    """19~21. 11번 항목 수·판정 줄, 11·12번 본문 금칙어, 07 각주·11·12 잔존 문구(--pending이면 허용)."""
-    s11, s12 = section(html, 11), section(html, 12)
+    """19~21. 10번 항목 수·판정 줄, 10·11번 본문 금칙어, 07 각주·10·11 잔존 문구(--pending이면 허용).
+    판 I(2026-10-23 — 지면 구역이 빠져 핵심 요약 10 · 다음 액션 11, 판 H 까지 11·12). 함수 이름은 그대로(내부 이름)."""
+    s11, s12 = section(html, 10), section(html, 11)   # 변수 이름은 옛 번호 그대로 — s11 = 핵심 요약(10번) · s12 = 다음 액션(11번)
     notes7 = re.findall(r'<(?:p|div)[^>]*class="note"[^>]*>(.*?)</(?:p|div)>', section(html, 7), re.S)
     li = re.findall(r"<li>(.*?)</li>", s11, re.S)
-    m = re.search(r"지난 회차 11번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)
+    m = re.search(r"지난 회차 10번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)
     if not li or not m:
-        check("11번 항목 수·판정 줄", False, f"<li> {len(li)}개, 판정 줄 {'있음' if m else '없음'} — 마크업 변경 의심")
+        check("10번 항목 수·판정 줄", False, f"<li> {len(li)}개, 판정 줄 {'있음' if m else '없음'} — 마크업 변경 의심")
     else:
         n_main = len([x for x in li if "(참고)" not in x[:30]])
         n_ref = len([x for x in li if "(참고)" in x[:30]])
@@ -362,27 +376,27 @@ def check_11_12(html, pending=False):
         if n_main > 8: bad.append(f"본문 {n_main}개 > 8")
         if n_ref > 2: bad.append(f"(참고) {n_ref}개 > 2")
         if keep + flip + gone != prev: bad.append(f"판정 줄 {keep}+{flip}+{gone} ≠ {prev}")
-        check("11번 항목 수·판정 줄", not bad, f"본문 {n_main} + (참고) {n_ref}, 판정 {prev} = {keep}+{flip}+{gone}" + (f" — {'; '.join(bad)}" if bad else ""))
+        check("10번 항목 수·판정 줄", not bad, f"본문 {n_main} + (참고) {n_ref}, 판정 {prev} = {keep}+{flip}+{gone}" + (f" — {'; '.join(bad)}" if bad else ""))
     text = re.sub(r"<[^>]+>", "", s11 + s12)
     if not text.strip():
-        check("11·12번 금칙어 0건", False, "11·12번 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
-        check("07 각주·11·12번 잔존 문구 0건", False, "11·12번 본문 0자")
+        check("10·11번 금칙어 0건", False, "10·11번 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
+        check("07 각주·10·11번 잔존 문구 0건", False, "10·11번 본문 0자")
         return
     hits = {w: len(re.findall(w, text)) for w in FORBIDDEN}
     bad = [f"{w} {n}건" for w, n in hits.items() if n]
-    check("11·12번 금칙어 0건", not bad, f"{len(hits)}종 검사, {len(text):,}자" + (f" — {', '.join(bad)}" if bad else ""))
+    check("10·11번 금칙어 0건", not bad, f"{len(hits)}종 검사, {len(text):,}자" + (f" — {', '.join(bad)}" if bad else ""))
     text7 = re.sub(r"<[^>]+>", "", " ".join(notes7))
     if not notes7 or not s11.strip() or not s12.strip():
-        check("07 각주·11·12번 잔존 문구 0건", False, f"07 각주 {len(notes7)}개 / 11번 {len(s11)}자 / 12번 {len(s12)}자 — 범위를 못 찾음, 마크업 변경 의심")
+        check("07 각주·10·11번 잔존 문구 0건", False, f"07 각주 {len(notes7)}개 / 10번 {len(s11)}자 / 11번 {len(s12)}자 — 범위를 못 찾음, 마크업 변경 의심")
         return
     hits7 = {w: len(re.findall(w, text7)) for w in RESIDUAL}
     hits = {w: len(re.findall(w, text)) for w in RESIDUAL}
     bad = [f"{w} {n}건" for w, n in ((w, hits7[w] + hits[w]) for w in RESIDUAL) if n]
-    detail = f"{len(RESIDUAL)}종 검사 — 07 각주 {sum(hits7.values())}건 + 11·12번 {sum(hits.values())}건"
+    detail = f"{len(RESIDUAL)}종 검사 — 07 각주 {sum(hits7.values())}건 + 10·11번 {sum(hits.values())}건"
     if bad and pending:
-        check("07 각주·11·12번 잔존 문구 0건", True, f"--pending: 사용자 답 대기 배포라 허용 — {detail}: {', '.join(bad)} (답을 반영한 재배포에선 0건이어야 함)")
+        check("07 각주·10·11번 잔존 문구 0건", True, f"--pending: 사용자 답 대기 배포라 허용 — {detail}: {', '.join(bad)} (답을 반영한 재배포에선 0건이어야 함)")
     else:
-        check("07 각주·11·12번 잔존 문구 0건", not bad, detail + (f": {', '.join(bad)}" if bad else ""))
+        check("07 각주·10·11번 잔존 문구 0건", not bad, detail + (f": {', '.join(bad)}" if bad else ""))
 
 
 def check_07_footnotes(s7):
@@ -468,9 +482,24 @@ def check_layout(html):
                 bad.append("변경 기록 블록이 04 구역 안 본 표 뒤가 아님")
             if not (-1 < s5.find("<!-- saero:extra gender-age -->") < s5.find("<!-- /saero:extra gender-age -->")):
                 bad.append("성별·연령대 블록이 05 구역 안이 아님")
+    # 판 I(2026-10-23 — 콘텐츠 지면 빼기): 번호 배지 = 01~markers.sections 순서대로 · 마지막 구역 = 다음 액션(Action items) · 지면 구역 흔적 0
+    # (placementChart · 서술 표지 10-* · 제목 "검색 지면 vs 콘텐츠 지면") · 캔버스 = markers.canvases · 01 ① 칸 머리 5(날짜·노출·클릭·CTR·CPC) — 구역 주석은 11 이 본다
+    want_sec, want_cv = int(LAYOUT["markers"]["sections"]), int(LAYOUT["markers"]["canvases"])
+    badges = re.findall(r'<span class="section-num">(\d+)</span>', html)
+    if badges != [f"{k:02d}" for k in range(1, want_sec + 1)]: bad.append(f"번호 배지 {badges} ≠ 01~{want_sec:02d}")
+    act = re.findall(r"<!-- Section (\d+): Action items -->", html)
+    if act != [str(want_sec)]: bad.append(f"다음 액션(Action items) 주석 {act} ≠ 마지막 구역 {want_sec}")
+    n_pl, n_m10, n_t10 = html.count("placementChart"), html.count("<!-- n:10-"), html.count("검색 지면 vs 콘텐츠 지면")
+    if n_pl or n_m10 or n_t10: bad.append(f"지면 구역 흔적 placementChart {n_pl} · 표지 10-* {n_m10} · 제목 {n_t10} — apply.py --layout 으로 판 I")
+    cv = re.findall(r'<canvas id="([^"]+)"', html)
+    if len(cv) != want_cv: bad.append(f"캔버스 {len(cv)}개 ≠ config markers.canvases {want_cv}")
+    s1 = section(html, 1)
+    th1 = re.search(r"<thead>(.*?)</thead>", s1[s1.find("① 일별 지표"):], re.S) if "① 일별 지표" in s1 else None
+    n_th1 = len(re.findall(r"<th[\s>]", th1.group(1))) if th1 else 0
+    if n_th1 != 5 or "<th class=\"num\">콘텐츠</th>" in s1: bad.append(f"01 ① 칸 머리 {n_th1}개 ≠ 5(날짜·노출·클릭·CTR·CPC)")
     check(name, not bad, "; ".join(bad) if bad else
           f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y"
-          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else ""))
+          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else "") + f" · 구역 {want_sec} · 캔버스 {len(cv)} · ① 5칸")
 
 
 KST = dt.timezone(dt.timedelta(hours=9))
@@ -737,12 +766,12 @@ def check_extras(html, extra_dir, kw):
 
 
 def check_leads_public(html):
-    """25. 01·11·12 본문에 장부 라벨+숫자 0(publish = verdict) — 공개 배포본에 문의·등록·매출 숫자가 실리는 길(막음 A-F2)의 배포 전 관문."""
-    name = "01·11·12 서술에 장부 라벨+숫자 0(공개 범위 verdict)"
+    """25. 01·10·11 본문에 장부 라벨+숫자 0(publish = verdict) — 공개 배포본에 문의·등록·매출 숫자가 실리는 길(막음 A-F2)의 배포 전 관문(판 I — 판 H 까지 01·11·12)."""
+    name = "01·10·11 서술에 장부 라벨+숫자 0(공개 범위 verdict)"
     c = CFG.get("leads", {})
-    text = re.sub(r"<[^>]+>", "", section(html, 1) + section(html, 11) + section(html, 12))
+    text = re.sub(r"<[^>]+>", "", section(html, 1) + section(html, 10) + section(html, 11))
     if not text.strip():
-        check(name, False, "01·11·12 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
+        check(name, False, "01·10·11 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
         return
     if c.get("publish") != "verdict":
         check(name, False, f"config leads.publish {c.get('publish')!r} ≠ verdict — 건수 공개는 설계 회차 몫")
@@ -752,13 +781,14 @@ def check_leads_public(html):
 
 
 def check_12_growth(html, dmax):
-    """26. 12번 장부 행 1 · 판정 낱말 꼴 · 장부·플레이스 행의 M/D까지 = 집계 끝 · 플레이스 ✗ 행 ≤ items_in_12 · ✓ 아닌 행 ≤ max_open_rows_12."""
-    name = "12번 장부·플레이스 행(장부 판정 1 · M/D까지 = 집계 끝 · ✗ ≤ items_in_12 · 항목 ≤ 7)"
+    """26. 11번(판 I — 판 H 까지 12번) 장부 행 1 · 판정 낱말 꼴 · 장부·플레이스 행의 M/D까지 = 집계 끝 · 플레이스 ✗ 행 ≤ items_in_12 · ✓ 아닌 행 ≤ max_open_rows_12.
+    함수·config 키 이름의 12 는 그대로(내부 이름)."""
+    name = "11번 장부·플레이스 행(장부 판정 1 · M/D까지 = 집계 끝 · ✗ ≤ items_in_12 · 항목 ≤ 7)"
     lc, pc = CFG["leads"], CFG["place_checklist"]
-    trs = re.findall(r"<tr[^>]*>(.*?)</tr>", section(html, 12), re.S)
+    trs = re.findall(r"<tr[^>]*>(.*?)</tr>", section(html, 11), re.S)
     plain = [re.sub(r"<[^>]+>", "", t) for t in trs]
     if not trs:
-        check(name, False, "12번 표 행 0 — 섹션 주석 또는 마크업 변경 의심")
+        check(name, False, "11번 표 행 0 — 섹션 주석 또는 마크업 변경 의심")
         return
     end = f"{dmax.month}/{dmax.day}까지"
     bad = []
@@ -786,6 +816,40 @@ def check_12_growth(html, dmax):
         bad.append(f"✓ 아닌 행 {n_open}개 > {max_open}(config place_checklist.max_open_rows_12)")
     check(name, not bad, "; ".join(bad) if bad else
           f"표 {len(trs)}행(✓ 아닌 {n_open}) · 장부 판정 1 · 플레이스 {len(place)}행(✗ {n_x}) · {end}")
+
+
+NARR = re.compile(r"<!-- n:([^\s:]+):(?:매회차|고정) -->(.*?)<!-- /n -->", re.S)
+# 구역 번호 참조 — 'NN번'(앞이 숫자·글자 아님: 검색어 '노원역10번출구' 제외 · 뒤가 '째'·'출구' 아님) · 'NN·NN번'·'01~07·10번' 묶음은 숫자마다 본다
+SECREF = re.compile(r"(?<![0-9A-Za-z가-힣])((?:\d{1,2}[·~])*\d{1,2})번(?!\s*(?:째|출구))")
+PLACE_WORDS = ("지면", "매체 설정", "파트너 매체")   # 지면 구역(옛 10번)을 가리키는 10번의 앞뒤 낱말
+
+
+def check_section_refs(html):
+    """28. (2026-10-23 판 I 콘텐츠 지면 빼기) "화면 글 구역 번호" — 서술 표지 안 글(태그 뺀)의 구역 번호 참조가 판 I 번호인지.
+    ① 없는 구역(> markers.sections — 옛 '12번 1번'·'지난 회차 12번'·'(12번 행 없음)') 0 · ② 지면 구역을 가리키는 10번 0 — 같은 묶음에 07(옛 'KPI·01~07·10번에서 제외')
+    이거나 앞뒤 30자 안에 지면·매체 설정·파트너 매체 · ③ 옛 지면 구역 글 0 — '검색 지면 vs 콘텐츠 지면'·'콘텐츠 지면 N일 연속 0'. 복사된 서술 스크립트가 옛 번호를
+    다시 쓰는 길을 막는다(검색어 '노원역10번출구' 같은 낱말 속 숫자는 안 셈). 표지 0개면 FAIL(0건 가드)."""
+    name = "화면 글 구역 번호(판 I — 없는 12번·지면 10번·옛 지면 글 0)"
+    n = int(LAYOUT["markers"]["sections"])
+    blocks = NARR.findall(html)
+    if not blocks:
+        check(name, False, "서술 표지 0개 — 표지를 잃었거나 마크업 변경 의심")
+        return
+    bad, refs = [], 0
+    for nm, body in blocks:
+        t = re.sub(r"<[^>]+>", "", body)
+        for m in SECREF.finditer(t):
+            nums = [int(x) for x in re.split(r"[·~]", m.group(1))]
+            refs += len(nums)
+            ctx = t[max(0, m.start() - 30):m.end() + 30]
+            if any(k > n for k in nums):
+                bad.append(f"{nm}: '{m.group(0)}'(없는 구역 — 구역은 1~{n})")
+            elif 10 in nums and (7 in nums or any(w in ctx for w in PLACE_WORDS)):
+                bad.append(f"{nm}: '{m.group(0)}'(지면 구역을 가리키는 10번 — 10번은 핵심 요약)")
+        if re.search(r"콘텐츠 지면 \d+일 연속 0", t) or "검색 지면 vs 콘텐츠 지면" in t:
+            bad.append(f"{nm}: 옛 지면 구역 글(콘텐츠 지면 N일 연속 0 · 검색 지면 vs 콘텐츠 지면)")
+    check(name, not bad, "; ".join(bad[:6]) + (f" 외 {len(bad) - 6}건" if len(bad) > 6 else "") if bad else
+          f"표지 {len(blocks)}개 · 번호 참조 {refs}개 전부 1~{n}")
 
 
 def main():
@@ -879,8 +943,9 @@ def main():
     check_layout(html)  # 2026-10-06 — 레이아웃 판 회차 2
     check_balance_card(html, kw, bal_path)  # 2026-10-09 — 판 F 광고비 잔액 카드
     check_leads_public(html)  # 2026-10-10 — 매출 작업 A 공개 범위
-    check_12_growth(html, dmax)  # 2026-10-10 — 매출 작업 A·C 12번 행
+    check_12_growth(html, dmax)  # 2026-10-10 — 매출 작업 A·C 11번(판 H 까지 12번) 행
     check_extras(html, extra_dir, kw)  # 2026-10-12 — 판 G 추가 카드·표(보고서 더 받기 A + B)
+    check_section_refs(html)  # 2026-10-23 — 판 I 화면 글 구역 번호(옛 12번·지면 10번 0)
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

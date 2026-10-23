@@ -29,7 +29,7 @@ def read_csv(path):
 
 
 def exclude_groups(kw, cfg):
-    """키워드 보고서에서 config excluded_groups를 뺀 프레임(KPI·01~07·10번 기준)."""
+    """키워드 보고서에서 config excluded_groups를 뺀 프레임(KPI·01~07번 기준 — compute "10" 서술 재료도 같은 프레임)."""
     return kw[~kw["광고그룹"].isin(cfg["excluded_groups"])]
 
 
@@ -45,7 +45,7 @@ def parse_days(kw):
 
 
 def section(html, num, next_num=None):
-    """<!-- Section N: --> 부터 다음 섹션 주석(없으면 <script>)까지. 12번은 <script> 앞에서 끊는다."""
+    """<!-- Section N: --> 부터 다음 섹션 주석(없으면 <script>)까지. 마지막 구역(판 I 부터 11번 다음 액션 — 판 H 까지 12번)은 <script> 앞에서 끊는다."""
     start = html.find(f"<!-- Section {num}:")
     if start == -1:
         return ""
@@ -53,6 +53,24 @@ def section(html, num, next_num=None):
     if end == -1:
         end = html.find("<script>", start)
     return html[start:end if end != -1 else len(html)]
+
+
+class SectionError(ValueError):
+    """구역을 이름으로 찾지 못함(없음·둘 이상) — 조용히 빈 글로 읽지 않는다."""
+
+
+ACTION = re.compile(r"<!-- Section (\d+): Action items -->")
+
+
+def action_section(html):
+    """'다음 액션' 구역 — 번호 대신 주석 이름(Action items)으로 찾는다: 판 H 까지 12번 · 판 I(2026-10-23 콘텐츠 지면 빼기)부터 11번이라
+    직전 배포본이 어느 판이든 같은 구역을 읽는다(compute place_effect 의 같은 기간 이월 줄 대조). html 이 비면 "" · 이름이 정확히 하나가 아니면 SectionError."""
+    if not html:
+        return ""
+    found = ACTION.findall(html)
+    if len(found) != 1:
+        raise SectionError(f"다음 액션 구역 주석 '<!-- Section N: Action items -->' {len(found)}개 — 정확히 하나여야 함")
+    return section(html, int(found[0]))
 
 
 def read_html(path):

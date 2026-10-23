@@ -28,7 +28,7 @@ description: saero 광고 리포트 전 단계 실행(/q-saero-run, 광고 리�
   옛 낱말 '재배포' = 답을 반영한 push · 답 '재배포' = redeploy. live exit 1 `[멈춤]`이면 찍힌 `재배포 질문` 문구 그대로 한 번 묻고("멈춘 실행 #n — Actions 화면에서 'Cancel workflow' 가 보이면 먼저 눌러 보세요(사람). 그다음 '재배포' 라고 답하면 1번만 새 배포를 일으킵니다."),
   답 "재배포" → `redeploy`(dry-run) → 통과면 같은 명령 `--confirm` 1번 → 찍힌 live → exit 0 아니면 "GitHub 쪽 대기 — 기다림"으로 기록하고 멈춘다(두 번째 재배포 없음 · 배포 저장소 `git push` 금지). live exit 3(CDN)은 재배포를 묻지 않고 live 한 번 더.
 - 2-1 기간이 같으면 승인 묶음 ⓐ와 별개의 앞 질문 하나만 하고 답을 기다린다 — 답 "다시 계산" → 3 → 5-0a → ⓐ(해당만) → 5-0b(해당 시) → 5-0c → 5 → 6 → 7 → 8 /
-  "CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·11·12 문구만) →
+  "CSV 다시" → ① / "미룬 등록만"(직전 회차 기록이 "등록 미룸"일 때만) → 3 건너뜀 → 5-0a(`--since` = 미룬 회차 창 시작) → ⓐ → 5-0c → 5(07·10·11 문구만) →
   6(`--pending` 없이, 3번째 인자 = 이번 4단계 fetch) → 7 → 8.
 - 커밋은 `git -c user.name=LeeKwanBeom -c user.email=322668067+LeeKwanBeom@users.noreply.github.com commit …`, add는 경로 지정(`git add -A` 금지).
 - 사용자 설정(settings·env·권한 허용 목록)은 바꾸지 않는다. 끝나면 사용자의 "마감" → wrapup.

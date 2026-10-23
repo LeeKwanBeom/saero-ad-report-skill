@@ -4,15 +4,15 @@
 
 사용법("$PY" = 저장소 밖 venv 파이썬):
     "$PY" scripts/place.py path                                    # 쓰는 체크리스트 경로(--checklist > 환경 변수 SAERO_PLACE > config place_checklist.path)
-    "$PY" scripts/place.py status [--combined work/combined]       # 읽기만 — 첫 회 9항목 질문 · 12번 ✗ 항목 · (7) 물을 항목 · 채팅 질문 신호
+    "$PY" scripts/place.py status [--combined work/combined]       # 읽기만 — 첫 회 9항목 질문 · 11번 ✗ 항목 · (7) 물을 항목 · 채팅 질문 신호
     "$PY" scripts/place.py set P1=done P2=todo P5=no P6=later:2026-11-01 … [--dry-run]   # 상태(✓ ✗ 안 함 미룸) — 첫 set 은 P1~P9 전부
     "$PY" scripts/place.py done P3 --date 2026-10-12 [--dry-run]   # (7) 답 — 바꾼 날(ISO, 오늘 이하) · 효과 판정 시작
-    "$PY" scripts/place.py row --compute work/compute.json         # 12번 플레이스 행들(서술 표지 안쪽) 고정 꼴 — 서술 스크립트가 import 해 써도 된다
+    "$PY" scripts/place.py row --compute work/compute.json         # 11번 플레이스 행들(서술 표지 안쪽) 고정 꼴 — 서술 스크립트가 import 해 써도 된다
   공통: [--checklist <경로>] (시험·리허설은 스크래치 — 운영 기본은 저장소 audit/place-checklist.csv, 첫 실사용이 만든다)
 
 - 체크리스트 = CSV 한 파일, **줄 추가만**(덮어쓰기 0 · 글자 칸 0). 칸: recorded(쓴 날 KST) · id(config items 의 P1~P9) · state(done ✓ · todo ✗ · no 안 함 · later 미룸) ·
-  state_date(done = 바꾼 날 — 비면 "처음부터 됨"(판정 안 함) · no·later = 결정한 날) · revisit(later = 다시 볼 날) · in12_since(12번 ✗ 행에 오른 날 — todo 만).
-  id 마다 마지막 줄이 지금 상태. 쓸 때마다 12번 ✗ 행(todo 중 config 순서 위 items_in_12 개)을 다시 정해, 상태나 in12_since 가 바뀐 id 의 줄을 덧붙인다.
+  state_date(done = 바꾼 날 — 비면 "처음부터 됨"(판정 안 함) · no·later = 결정한 날) · revisit(later = 다시 볼 날) · in12_since(11번 ✗ 행에 오른 날 — todo 만 · 판 H 까지 화면 12번, 칸 이름 그대로).
+  id 마다 마지막 줄이 지금 상태. 쓸 때마다 11번 ✗ 행(todo 중 config 순서 위 items_in_12 개)을 다시 정해, 상태나 in12_since 가 바뀐 id 의 줄을 덧붙인다.
 - 쓰기 전 검사(하나라도 걸리면 [FAIL] 쓰기 0): id 가 config 에 없음 · 상태 낱말 밖 · 날짜가 ISO 아님·미래(바꾼 날)·과거(다시 볼 날) · 첫 set 에 빠진 id ·
   지금과 같은 상태(같은 줄) · 바꾼 날이 지금 기록보다 앞 · 머리줄·줄 꼴 다름. 쓴 뒤 다시 읽어 앞 줄 바이트가 그대로인지 본다.
 종료 코드: 0 = 통과(status·row 는 체크리스트 없음·꼴 다름이어도 0 — [주의]) · 1 = [FAIL](쓰기 0) · 2 = 인자.
@@ -142,14 +142,14 @@ def done_events(rows):
 
 
 def in12_ids(cur, cfg=None):
-    """12번 ✗ 행 — todo 이면서 in12_since 가 있는 id, config 순서, items_in_12 개까지."""
+    """11번 ✗ 행 — todo 이면서 in12_since 가 있는 id, config 순서, items_in_12 개까지."""
     c = pcfg(cfg)
     return [it["id"] for it in c["items"] if it["id"] in cur and cur[it["id"]]["state"] == "todo"
             and cur[it["id"]]["in12_since"]][: int(c["items_in_12"])]
 
 
 def wanted_in12(states, cfg=None):
-    """상태만으로 정한 12번 ✗ 행(쓸 때 다시 정하는 규칙) — todo 중 config 순서 위 items_in_12 개."""
+    """상태만으로 정한 11번 ✗ 행(쓸 때 다시 정하는 규칙) — todo 중 config 순서 위 items_in_12 개."""
     c = pcfg(cfg)
     return [it["id"] for it in c["items"] if states.get(it["id"], {}).get("state") == "todo"][: int(c["items_in_12"])]
 
@@ -245,14 +245,14 @@ def append_rows(path, new_rows, cfg=None):
     parse_checklist(after.decode("utf-8"), cfg)
 
 
-# ---------------------------------------------------------------- 12번 행(서술 표지 안쪽 — 고정 꼴)
+# ---------------------------------------------------------------- 11번 행(서술 표지 안쪽 — 고정 꼴 · 판 H 까지 12번)
 def band_text(P):
     b = P["띠"]
     return f"클릭 {b['clicks'][0]:+d}~{b['clicks'][1]:+d}% · CTR {b['ctr'][0]:+d}~{b['ctr'][1]:+d}%"
 
 
 def rows_html(R):
-    """compute.json(R)의 플레이스전후["12번"] → 12번 플레이스 행 안쪽 HTML 목록(순서 그대로). 'M/D까지' = 합본 마지막 날."""
+    """compute.json(R)의 플레이스전후["12번"] → 11번 플레이스 행 안쪽 HTML 목록(순서 그대로). 'M/D까지' = 합본 마지막 날."""
     P = R["플레이스전후"]
     W = P["창일수"]
     out = []
@@ -270,7 +270,7 @@ def rows_html(R):
             detail = (f"(하루 클릭 {a['하루클릭']} → {b['하루클릭']}건 {ch['하루클릭']:+.0f}% · "
                       f"CTR {a['CTR']} → {b['CTR']}% {ch['CTR']:+.0f}%)")
         nxt = (f"{it['끝날']}까지 {W}일이 차면 바꾸기 전 {W}일과 비교" if it["값"].startswith(P["낱말"]["measuring"])
-               else f"판정 그대로 — {P['남김일']}일 뒤 12번에서 빼고 이월 판정 줄에 한 번")
+               else f"판정 그대로 — {P['남김일']}일 뒤 11번에서 빼고 이월 판정 줄에 한 번")
         out.append('<span class="tag tag-ink">✓</span> '
                    f"<b>플레이스 {it['id']} {it['문구']} — {it['바꾼날']} 바꿈 · {P['기준']} 판정 = {it['값']}</b>{detail}"
                    f" — 장부 판정 = {P['장부판정']}"
@@ -292,7 +292,7 @@ def word_of(c, r):
         return f"{w}({md(r['state_date'])} 결정)"
     if r["state"] == "later":
         return f"{w}({md(r['revisit'])} 다시 봄)"
-    return w + (f"(12번 {md(r['in12_since'])}부터)" if r["in12_since"] else "")
+    return w + (f"(11번 {md(r['in12_since'])}부터)" if r["in12_since"] else "")
 
 
 def cmd_status(a):
@@ -308,13 +308,13 @@ def cmd_status(a):
     print(f"[체크리스트] {path} · 집계 끝 {md(end)}({WD[end.weekday()]})")
     if rows is None:
         if st == "체크리스트 없음":
-            print("[체크리스트] 없음 → 첫 회 9항목 질문은 ⓐ 와 별도 메시지(답이 없으면 이번 회차는 12번 플레이스 행 0 · 다음 회차에 다시 묻는다):")
+            print("[체크리스트] 없음 → 첫 회 9항목 질문은 ⓐ 와 별도 메시지(답이 없으면 이번 회차는 11번 플레이스 행 0 · 다음 회차에 다시 묻는다):")
             for it in c["items"]:
                 print(f"  {it['id']} {it['문구']} — {it['확인 방법']}")
             print('  답 예: "P1 ✓ P2 ✗ P3 ✗ P4 ✓ P5 안 함 P6 미룸 11/1 P7 ✗ P8 ✓ P9 ✓" → place.py set P1=done P2=todo … P6=later:YYYY-MM-DD --dry-run → 같은 명령에서 --dry-run 빼고')
             print("STATUS first=yes ask7=none chat=none")
         else:
-            print(f"[주의] 체크리스트 {st} — 쓰지 않음(손으로 고치지 말고 사용자에게 보고) · 12번 플레이스 행은 compute 가 '확인 못 함'")
+            print(f"[주의] 체크리스트 {st} — 쓰지 않음(손으로 고치지 말고 사용자에게 보고) · 11번 플레이스 행은 compute 가 '확인 못 함'")
             print("STATUS first=no ask7=none chat=broken")
         return 0
     cur = current(rows)
@@ -326,7 +326,7 @@ def cmd_status(a):
     for i in ids12:
         since = cur[i]["in12_since"]
         if (end - since).days >= int(c["chat_after_days"]):
-            chat.append(f"{i} 12번 {md(since)}부터 {(end - since).days}일 그대로")
+            chat.append(f"{i} 11번 {md(since)}부터 {(end - since).days}일 그대로")
     for i, r in cur.items():
         if r["state"] == "later" and r["revisit"] <= end:
             chat.append(f"{i} 미룸 다시 볼 날({md(r['revisit'])}) 지남")
@@ -371,7 +371,7 @@ def run_write(a, requests, first_allowed):
     except (ChecklistError, OSError) as e:
         print(f"[FAIL] 체크리스트 쓰기: {e}")
         return 1
-    print(f"[추가] {0 if first else len(rows)} → {(0 if first else len(rows)) + len(new)}줄 · 12번 ✗ 행 {in12_ids(current(load_checklist(path)[0]))}")
+    print(f"[추가] {0 if first else len(rows)} → {(0 if first else len(rows)) + len(new)}줄 · 11번 ✗ 행 {in12_ids(current(load_checklist(path)[0]))}")
     return 0
 
 
