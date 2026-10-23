@@ -191,7 +191,10 @@ def _extras_config(rf, raw):
         mi, su, unk = ga.get("min_imps"), ga.get("show_unknown"), ga.get("unknown", "알 수 없음")
         if isinstance(mi, bool) or not isinstance(mi, int) or mi < 0 or not isinstance(su, bool) or not isinstance(unk, str) or not unk:
             raise ExtrasError(f"gender_age min_imps {mi!r} · show_unknown {su!r} · unknown {unk!r}")
-        out["gender_age"] = {"min_imps": mi, "show_unknown": su, "unknown": unk}
+        hk = ga.get("hide_unknown_kinds", [])   # 판 J(2026-10-23 결정 8) — show_unknown 이어도 알 수 없음 줄을 빼는 종류(연령대)
+        if not isinstance(hk, list) or not all(isinstance(k, str) and k in kinds for k in hk):
+            raise ExtrasError(f"gender_age hide_unknown_kinds {hk!r} — reports 종류(kind) 목록이어야")
+        out["gender_age"] = {"min_imps": mi, "show_unknown": su, "unknown": unk, "hide_unknown_kinds": list(hk)}
     if len(set(kinds)) != len(kinds):
         raise ExtrasError(f"종류 이름이 겹침: {kinds}")
     for k in kinds:

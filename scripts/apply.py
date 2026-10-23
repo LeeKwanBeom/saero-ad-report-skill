@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
-판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12 · 판 H 07 정식표 접기 2026-10-17 · 판 I 콘텐츠 지면 빼기 2026-10-23).
+판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12 · 판 H 07 정식표 접기 2026-10-17 · 판 I 콘텐츠 지면 빼기 2026-10-23 ·
+판 J 불필요 항목 빼기 2026-10-23 오후).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-I):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-J):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
@@ -14,21 +15,27 @@
     04 구역 끝(본 표·note 뒤) 계정 변경 기록 블록 · 05 구역 끝(차트 카드 아래) 성별·연령대 블록 — 표지 `<!-- saero:extra history|gender-age -->` 짝 · 새 CSS 0) → r2026-10-H(`convert_g_to_h` —
     meta · 07 정식표 wrapper 바로 뒤(범례·클릭 1건 목록 앞) 접힌 표 하나(details.fold · 같은 머리 · 빈 tbody · summary "나머지 0행 펼치기") — details 5 → 6 · 새 CSS·JS 0) →
     r2026-10-I(`convert_h_to_i` — meta · 01 ① 머리글 "노출·CTR 변화" · ① 칸 머리 검색·콘텐츠 둘 빼기 · 10번 "검색 지면 vs 콘텐츠 지면" 구역 통째 · placementChart 스크립트 블록 ·
-    11·12 구역 주석·번호 배지 → 10·11 · 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외" → "KPI·01~07번에서 제외" — 구역 11 · 캔버스 7 · 새 CSS·JS·색 0). meta 가 사슬 위의 옛 판이면
-    `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-H ≠ config …`.
+    11·12 구역 주석·번호 배지 → 10·11 · 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외" → "KPI·01~07번에서 제외" — 구역 11 · 캔버스 7 · 새 CSS·JS·색 0) →
+    r2026-10-J(`convert_i_to_j` — 불필요 항목 빼기, 사용자 결정 "추천대로": meta · masthead 제목 '주간' 빼기 · KPI 평균 클릭률 보조 줄 '업종 평균 수준' 빼기 · KPI 클릭 단위 '건' ·
+    02 groupChart 이름 '(4개 그룹 · 자동매칭 포함)' · 고정 표지 04-foot·07-src·12-desc 새 글 · 12-basis 세 줄(집계 기간 · 타겟 지역 줄 빼기 · 클릭률 강조) · 07-legend 끝 '노출 N회 미만' 한 구 ·
+    서술 표지 03-desc·08-note·09-desc·09-call 종류 매회차 → 고정(compare 가 그 숫자를 전부 읽는다 — 숫자를 빼도 narrative 미교체 FAIL 이 안 나게). 새 CSS·JS·색 0).
+    meta 가 사슬 위의 옛 판이면 `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-I ≠ config …`.
   · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g` → `convert_g_to_h` →
-    `convert_h_to_i`) 뒤 값을 바꾼다.
+    `convert_h_to_i` → `convert_i_to_j`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` — 판 G 추가 블록 안 접기는 빼고 셈(`strip_extra`, 2026-10-15) · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
     `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안 ·
     판 H 07 "나머지 N행" summary 정확히 1 · 그 접기가 정식표 wrapper 바로 뒤 · 접힌 표가 "클릭 1건 검색어" 앞 · `top_rows_07` 1 이상 정수 ·
     판 I 구역 주석 1~`markers.sections` 순서대로 · 마지막 구역 = Action items · 번호 배지 = 그 구역 번호 · placementChart·`n:10-` 표지 0 · 캔버스 = `markers.canvases` ·
-    ① 칸 머리 5)는 사슬 끝에 한 번 — 값만 경로도 같다.
+    ① 칸 머리 5 · 판 J 고정 글(`check_trim` — 뺀 고정 글 0 · 클릭 단위 건 · 네 표지 고정))는 사슬 끝에 한 번 — 값만 경로도 같다.
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09 — 판 H 까지는 10 placementChart 도) ·
   05 mediaChart 라벨·색 = compute `05.top5` 순서(`media_labels` — 2026-10-14, 그 전엔 값 배열만 바꿔 순위가 바뀐 날 라벨·색이 옛 순서로 남았다) ·
   02 도넛 제목 총액 · 01 표 5행(최신 위 — 2026-10-15 · 판 I 는 날짜·노출·클릭·CTR·CPC 5칸, 판 H 까지는 검색·콘텐츠 포함 7칸)·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
   04 표(앞 2칸 = 직전 행) · 06 매칭표 2행·카드 일차·큰 숫자 · 07 정식표(판 H — 위 표 = compute 정식표 앞 `top_rows_07` 행 · 접힌 표 = 나머지, 순서 그대로) ·
   07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
+  (판 J — 값만 경로도 매 회차) 07 정식표 노출 칸 쉼표 · 노출 config `ctr_few_07.min_imps` 미만 행 클릭률 '적음'(강조 0) · KPI 클릭 단위 '건' · 06 카드 = compute 06.카드(밖이 된 그룹의 카드 블록은
+  서술 표지째 지우고 · 있어야 할 카드가 없으면 FAIL) · 04 이름 칸 `(M/D 신규)` 는 compute 04.신규 그룹만(그 밖은 지움) · 04 변경 기록 끝 스킬 줄 0 · 05 성별·연령대 머리 `(네이버 추정)` ·
+  알 수 없음 % 는 표에 그 줄이 없는 종류만 ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행(판 H 까지 — 판 I 는 구역 없음) ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 정식표 "나머지 N행(클릭 a~b건 · 합 M건 · X원)"(판 H — 나머지가 없으면 "나머지 0행") ·
   07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
@@ -40,7 +47,9 @@
   01·06 모바일 펼치기 버튼 문구("이전 N일(M/D~M/D) 펼치기")는 HTML 에 없다 — 도우미가 화면에서 data.labels 로 만든다(apply 기계 자리 0).
 - 서술(문장)은 바꾸지 않는다 — 그 회차의 n<날짜>.py(저장소 밖 스크래치)가 서술 표지 `<!-- n:<자리>:<매회차|고정> -->` 안을 바꾼다
   (references/report-structure.md "서술 표지"). 변환·값 교체 모두 표지 안쪽 바이트를 건드리지 않는다 — 하나의 예외는 판 I 변환이 고정 표지 12-basis 의
-  "KPI·01~07·10번에서 제외" 한 곳을 고치는 것(10 = 없어진 지면 구역 · 사용자 결정 2026-10-23). summary·details 는 apply 몫.
+  "KPI·01~07·10번에서 제외" 한 곳을 고치는 것(10 = 없어진 지면 구역 · 사용자 결정 2026-10-23)과 판 J 변환이 고정 표지(04-foot·07-src·07-legend·12-desc·12-basis) 안 글과
+  네 표지(03-desc·08-note·09-desc·09-call)의 종류를 고치는 것(사용자 결정 2026-10-23 오후 — 그 뒤 운영 서술은 고정 표지 글을 다시 쓰지 않는다) · 판 J 값 교체가 카드 밖이 된 06 카드를
+  표지째 지우는 것. summary·details 는 apply 몫.
 - 앵커: `once()` 만 "정확히 하나"를 검사한다(못 찾거나 둘 이상이면 `[FAIL] apply: …` exit 1). 차트 배열의 `chart()`/`labels()` 는
   `getElementById('<id>')` 부터 다음 `new Chart` 앞까지에서 **첫 일치**를 바꾼다(없으면 FAIL, 둘이어도 FAIL 하지 않음 — 판 C 템플릿은 블록 안에 하나씩).
   파일은 끝에 한 번만 쓰므로 실패하면 작업본은 그대로다.
@@ -589,7 +598,7 @@ TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        
 # compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
 # data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
 LAYOUT_F = "r2026-10-F"
-CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I 도 잔액 카드 그대로)
+CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I", "r2026-10-J")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I·J 도 잔액 카드 그대로)
 BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
      값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
   .kpi-wide{grid-column:1 / -1;}
@@ -776,7 +785,7 @@ def balance_values(h, R):
 # 앵커: 구역 n 의 마지막 `\n  </div>\n`(구역 div 닫힘) 앞 — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐이어야(정확히 하나). 04 의 표는 블록이 본 표 뒤에 오므로
 # apply 의 04 tbody 앵커(구역 첫 tbody)·compare _s04(구역 첫 <table>)·validate parse_04_rows(숫자 칸 7개 행)와 겹치지 않는다.
 LAYOUT_G = "r2026-10-G"
-EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I")  # 추가 카드·표가 있는 판(판 H·I 도 그대로)
+EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I", "r2026-10-J")  # 추가 카드·표가 있는 판(판 H·I·J 도 그대로)
 GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
 HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
 MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
@@ -790,11 +799,15 @@ def esc(s):
     return html_escape(str(s), quote=False)
 
 
-def ga_block(R):
-    """05 아래 성별·연령대 카드(표지 줄 포함 · 끝 줄바꿈). R 에 "성별연령" 이 없거나 상태 ≠ ok 면 '확인 못 함'."""
+GA_HEAD_I, GA_HEAD_J = "(캠페인 전체(제외 그룹 포함) · 네이버 추정)", "(네이버 추정)"   # 05 카드 머리 괄호 — 판 J(결정 8) 부터 '(네이버 추정)'(제외 그룹 노출 10월 0 · ※ 각주가 캠페인 단위를 밝힘)
+
+
+def ga_block(R, trim=True):
+    """05 아래 성별·연령대 카드(표지 줄 포함 · 끝 줄바꿈). R 에 "성별연령" 이 없거나 상태 ≠ ok 면 '확인 못 함'.
+    trim(판 J — 결정 8) = 머리 `(네이버 추정)` · sub-head 의 `알 수 없음 N%` 는 표에 그 줄이 없는 종류만(compute 알수없음줄 — 성별은 줄이 있어 괄호 = 기간만). trim=False = 판 I 까지의 글(사슬 중간 판)."""
     g = (R or {}).get("성별연령") or {"상태": "없음", "사유": "compute.json 에 \"성별연령\" 없음(5단계 compute 에 --extra work/extra)"}
     L = [f"    {GA_OPEN}", '    <div class="card" data-extra="gender-age" style="margin-top:16px;">',
-         f'      <div class="sub-head" style="margin-top:0;">성별 · 연령대 <span {MUTED}>(캠페인 전체(제외 그룹 포함) · 네이버 추정)</span></div>']
+         f'      <div class="sub-head" style="margin-top:0;">성별 · 연령대 <span {MUTED}>{GA_HEAD_J if trim else GA_HEAD_I}</span></div>']
     if g.get("상태") != "ok":
         L.append(f'      <div class="note">확인 못 함 — {esc(g.get("사유", "추가 합본 없음"))}</div>')
     else:
@@ -802,7 +815,7 @@ def ga_block(R):
             if t.get("상태") != "ok":
                 L.append(f'      <div class="sub-head">{esc(t.get("종류", ""))} <span {MUTED}>(확인 못 함 — {esc(t.get("사유", ""))})</span></div>')
                 continue
-            unk = "" if t.get("알수없음%") is None else f" · 알 수 없음 {t['알수없음%']:.1f}%"
+            unk = "" if t.get("알수없음%") is None or (trim and t.get("알수없음줄")) else f" · 알 수 없음 {t['알수없음%']:.1f}%"
             L.append(f'      <div class="sub-head">{esc(t["종류"])} <span {MUTED}>({esc(t["기간"])}{unk})</span></div>')
             L += ['      <div style="overflow-x:auto;" class="wide-table">', "      <table>", "        <thead>", "          <tr>",
                   "            <th>구분</th>", '            <th class="num">노출수</th>', '            <th class="num">비중</th>',
@@ -842,8 +855,10 @@ def strip_extra(h):
     return re.sub(r"<!-- saero:extra (\S+) -->.*?<!-- /saero:extra \1 -->", "", h, flags=re.S)
 
 
-def hi_block(R):
-    """04 아래 계정 변경 기록 표(표지 줄 포함 · 끝 줄바꿈). R 에 "변경기록" 이 없거나 상태 ≠ ok 면 '확인 못 함'. 목록 원문·아이디 0(개수·주체 낱말만)."""
+def hi_block(R, trim=True):
+    """04 아래 계정 변경 기록 표(표지 줄 포함 · 끝 줄바꿈). R 에 "변경기록" 이 없거나 상태 ≠ ok 면 '확인 못 함'. 목록 원문·아이디 0(개수·주체 낱말만).
+    trim(판 J — 결정 7) = 끝 note '스킬 제외 검색어 등록 n회(실행 수) · 삭제 k건 — …' 0(제외 검색어 현황은 07 ② · compute "스킬" 키는 남는다 — show_system 이면 SYSTEM 줄만 note 로).
+    trim=False = 판 I 까지의 글(사슬 중간 판)."""
     h = (R or {}).get("변경기록") or {"상태": "없음", "사유": "compute.json 에 \"변경기록\" 없음(5단계 compute 에 --extra work/extra)"}
     who = "·".join(h.get("보일주체") or ["사람"])
     L = [f"    {HI_OPEN}", '    <div class="card" data-extra="history" style="margin-top:14px;">']
@@ -867,8 +882,11 @@ def hi_block(R):
             L.append(f'      <div class="note">이 기간 {esc(who)} 변경 기록 없음</div>')
         sk = h["스킬"]
         tail = f" · SYSTEM 하루예산 중단 {h['시스템']['하루예산중단']}회" if "시스템" in h else ""
-        L.append(f'      <div class="note" style="margin-top:8px;">스킬 제외 검색어 등록 {sk["등록회"]}회(실행 수) · 삭제 {sk["삭제건"]}건 — 등록 내역은 07번{tail} · '
-                 "광고주센터 변경 이력 관리 기준(목록 원문 없이 개수만)</div>")
+        if not trim:
+            L.append(f'      <div class="note" style="margin-top:8px;">스킬 제외 검색어 등록 {sk["등록회"]}회(실행 수) · 삭제 {sk["삭제건"]}건 — 등록 내역은 07번{tail} · '
+                     "광고주센터 변경 이력 관리 기준(목록 원문 없이 개수만)</div>")
+        elif tail:
+            L.append(f'      <div class="note" style="margin-top:8px;">{tail[3:]}</div>')
     L += ["    </div>", f"    {HI_CLOSE}"]
     return "\n".join(L) + "\n"
 
@@ -909,9 +927,9 @@ def convert_f_to_g(h, lay):
     return h
 
 
-def extra_values(h, R):
-    """판 G 블록 두 개를 매 회차 compute.json 으로 통째로 다시 쓴다(변환을 건너뛴 회차에도). 표지 사이 = 블록 하나."""
-    for op, cl, blk in ((HI_OPEN, HI_CLOSE, hi_block(R)), (GA_OPEN, GA_CLOSE, ga_block(R))):
+def extra_values(h, R, trim=True):
+    """판 G 블록 두 개를 매 회차 compute.json 으로 통째로 다시 쓴다(변환을 건너뛴 회차에도). 표지 사이 = 블록 하나. trim = 판 J 글(hi_block·ga_block)."""
+    for op, cl, blk in ((HI_OPEN, HI_CLOSE, hi_block(R, trim)), (GA_OPEN, GA_CLOSE, ga_block(R, trim))):
         i = find1(h, op)
         i = h.rindex("\n", 0, i) + 1
         j = find1(h, cl, i) + len(cl) + 1   # 닫는 표지 줄 끝 줄바꿈까지
@@ -928,7 +946,7 @@ def extra_values(h, R):
 # summary 는 "나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기" — 경쟁사 summary 꼴("표 N행 · 펼치기")·07 앵커 문구(클릭 1건 검색어 · 노출은 있으나 클릭 0건인 ·
 # line-height:1.9;"> · 클릭의 N% 차지)를 쓰지 않는다(apply·compare 의 07 첫 일치·once_in 보호). 행이 top_rows_07 이하면 "나머지 0행 펼치기" + 빈 tbody(details 수 고정 — 03 "이전 0일" 선례).
 LAYOUT_H = "r2026-10-H"
-FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I")  # 07 정식표 접기가 있는 판(판 I 도 그대로)
+FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I", "r2026-10-J")  # 07 정식표 접기가 있는 판(판 I·J 도 그대로)
 SUM07 = r"(<summary[^>]*>)나머지 \d+행(?:\([^)<]*\))? 펼치기(</summary>)"   # apply·시험이 다시 쓰는 summary(07 구역 안 정확히 하나)
 SUM07_HEAD = re.compile(r"<summary[^>]*>나머지 ")
 WRAP_END = re.compile(r"</table>\n([ \t]*)</div>\n")
@@ -1018,7 +1036,7 @@ def convert_g_to_h(h, lay):
 # 서술 표지는 건드리지 않는다 — 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외"(10 = 없어진 지면 구역) 한 곳만 고친다(사용자 결정 기본값 — 매회차 표지 글은 운영 서술 몫).
 # 표지·config·compute 키·함수 이름의 11·12(11-list·12-1 · items_in_12 · "12번")는 내부 이름이라 그대로(화면 번호 10·11 — report-structure.md "서술 표지").
 LAYOUT_I = "r2026-10-I"
-NOPLACE_LAYOUTS = (LAYOUT_I,)   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸)
+NOPLACE_LAYOUTS = (LAYOUT_I, "r2026-10-J")   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸 — 판 J 도 그대로)
 H1_OLD, H1_NEW = "① 일별 지표 — 노출·CTR·지면 변화", "① 일별 지표 — 노출·CTR 변화"
 TH_SC = r'\n[ \t]*<th class="num">검색</th>\n[ \t]*<th class="num">콘텐츠</th>'   # ① 칸 머리 둘(정확히 하나)
 BASIS_OLD, BASIS_NEW = "KPI·01~07·10번에서 제외", "KPI·01~07번에서 제외"
@@ -1113,10 +1131,158 @@ def convert_h_to_i(h, lay):
     return h
 
 
+# ── 판 J(r2026-10-J, 2026-10-23 오후 — 불필요 항목 빼기, 사용자 결정 "추천대로" 1·5·7·8·10~15·19~25·27~38): 화면 글·고정 글만 — 구역·캔버스·접기·CSS·JS·색 그대로 ──
+# 변환(한 번) = 고정 글: masthead 제목 · KPI 평균 클릭률 보조 줄 · KPI 클릭 단위 · 02 groupChart 이름 · 고정 표지 04-foot·07-src·07-legend·12-desc·12-basis · 네 표지 종류(매회차 → 고정).
+# 값(매 회차 — apply 의 trim 갈래) = 07 노출 쉼표·'적음' · 06 카드 집합 · 04 '(M/D 신규)' 기한 · 04 스킬 줄 0 · 05 머리·알 수 없음 %. 서술(매회차 표지 글)은 운영 서술 스크립트 몫.
+# 표지가 없는 판(시험 fixture — 옛 판에서 사슬로 온 판)은 그 표지 단계를 건너뛴다 · 표지가 있는데 글이 옛 글도 새 글도 아니면 FAIL(손으로 바꾼 판).
+LAYOUT_J = "r2026-10-J"
+TRIM_LAYOUTS = (LAYOUT_J,)   # 판 J 값 갈래(07 '적음'·쉼표 · 06 카드 집합 · 04 신규 기한 · KPI 클릭 '건' · 판 G 블록 글)
+TITLE_OLD, TITLE_NEW = '<div class="title">네이버 검색광고 주간 리포트</div>', '<div class="title">네이버 검색광고 리포트</div>'
+KPI_SUB_CTR = r'(<div class="label">평균 클릭률</div>\s*<div class="value">[^\n]*</div>)\n[ \t]*<div class="sub">업종 평균 수준</div>'
+KPI_CLK_UNIT = r'(<div class="label">총 클릭수</div>\s*<div class="value">[^<]*<span class="unit">)회(</span></div>\s*<div class="sub">일 평균 [\d.]+)회(</div>)'
+KPI_CLK_J = re.compile(r'<div class="label">총 클릭수</div>\s*<div class="value">[^<]*<span class="unit">건</span></div>\s*<div class="sub">일 평균 [\d.]+건</div>')
+GROUP_OLD, GROUP_NEW = "['파워링크 광고','(4개 키워드 합산)']", "['파워링크 광고','(4개 그룹 · 자동매칭 포함)']"
+FOOT04 = ('※ 평균순위는 파워링크 전용 지표(플레이스는 —) · 파워링크 첫 광고그룹 "노원필라테스"는 OFF 상태(키워드 10개 등록, 집행만 멈춤)라 이 표와 KPI 집계에서 제외.',
+          "※ 평균순위 칸은 파워링크 그룹만 — 플레이스 순위는 01번 ②")
+SRC07 = ("네이버 검색어 보고서는 광고 유형을 구분하지 않습니다. CPC 400원대는 파워링크, 900~1,300원대는 플레이스로 대략 구분됩니다.",
+         '네이버 검색어 보고서는 광고 유형을 구분하지 않습니다. 매칭이 "확장"인 행은 파워링크 자동매칭(CPC 대개 600원 이하), "일치" 행은 대부분 플레이스(CPC 1,000원 이상)입니다.')
+DESC12 = ("지난 회차 항목 이월 판정 + 다음 조치 · 비용 영향 큰 순", "다음 조치 · 비용 영향 큰 순")
+BASIS_PERIOD = ("· <b>집계 기간</b>: 개업일(2026.08.26)부터 누적 — 네이버가 보고서를 최근 30일까지만 내려줘 2026.09.26부터 월별 원본을 따로 보관해 합산",
+                "· <b>집계 기간</b>: 개업일(2026.08.26)부터 누적")
+BASIS_TARGET = re.compile(r"· <b>타겟 지역</b>: [^<\n]*<br>\n[ \t]*")   # 줄째(다음 줄 머리 들여쓰기까지)
+TO_FIXED = ("03-desc", "08-note", "09-desc", "09-call")   # 판 J 에서 숫자·날짜를 빼도 compare 가 숫자를 전부 읽는 표지(G1 — 매회차 → 고정)
+TRIM_GONE = ("주간 리포트", "업종 평균 수준", "(4개 키워드 합산)", "평균순위는 파워링크 전용 지표", "900~1,300원대는 플레이스", "지난 회차 항목 이월 판정 +",
+             "최근 30일까지만 내려줘", "<b>타겟 지역</b>", "4% 이상인 행만 진한 민트색")   # 판 J 가 뺀 고정 글(어디에도 0 — 운영 서술이 옛 고정 글을 다시 쓰면 apply·validate FAIL)
+
+
+def legend07_tail(cfg_or_lay):
+    """07-legend 끝에 붙는 한 구(판 J 결정 35) — 숫자 = config ctr_few_07.min_imps."""
+    return f" · 노출 {int(cfg_or_lay['ctr_few_07']['min_imps'])}회 미만은 '적음'"
+
+
+def basis_ctr(cfg):
+    """12-basis 클릭률 강조 줄(판 J 결정 33) — 4% = config ctr_high_threshold · 20 = ctr_few_07.min_imps."""
+    return (f"· <b>클릭률 강조</b>: 01·07번 표의 클릭률 {float(cfg['ctr_high_threshold']):g}% 이상 칸은 진한 민트색"
+            f"(07번 노출 {int(cfg['ctr_few_07']['min_imps'])}회 미만 행은 '적음')")
+
+
+def marker(h, name):
+    """고정 표지 하나의 (여는 표지 끝, 닫는 표지 시작) — 없으면 None · 둘 이상이면 FAIL."""
+    pat = re.compile(r"<!-- n:" + re.escape(name) + r":(?:매회차|고정) -->(.*?)<!-- /n -->", re.S)
+    ms = list(pat.finditer(h))
+    if len(ms) > 1:
+        raise ApplyError(f"서술 표지 {name} 가 {len(ms)}개 — 손으로 바꾼 판으로 보임")
+    return (ms[0].start(1), ms[0].end(1)) if ms else None
+
+
+def swap_body(h, name, old, new):
+    """고정 표지 안 글 old → new(정확히 같은 글일 때만 — 옛 글도 새 글도 아니면 FAIL). 표지가 없으면 그대로."""
+    se = marker(h, name)
+    if se is None:
+        return h
+    body = h[se[0]:se[1]]
+    if body == new:
+        return h
+    if body != old:
+        raise ApplyError(f"고정 표지 {name} 글이 판 I 글이 아님({body[:40]!r}…) — 손으로 바꾼 판으로 보임, 변환하지 않음")
+    return h[:se[0]] + new + h[se[1]:]
+
+
+def check_trim(h, cfg, why):
+    """판 J 표지 — 뺀 고정 글(TRIM_GONE) 0 · KPI 총 클릭수 단위 '건'(값·보조 줄) 하나 · 네 표지(TO_FIXED)가 있으면 고정 · 07-legend·12-basis 가 있으면 새 글(config 숫자)."""
+    gone = [w for w in TRIM_GONE if w in h]
+    if gone:
+        raise ApplyError(f"{why} 판 J 가 뺀 고정 글이 남음 {gone} — 운영 서술이 옛 고정 글을 다시 썼거나 손으로 바꾼 판")
+    if len(KPI_CLK_J.findall(h)) != 1:
+        raise ApplyError(f"{why} KPI 총 클릭수 단위 '건'(값 · 일 평균) {len(KPI_CLK_J.findall(h))}곳 ≠ 1 — 손으로 바꾼 판으로 보임")
+    stale = [n for n in TO_FIXED if f"<!-- n:{n}:매회차 -->" in h]
+    if stale:
+        raise ApplyError(f"{why} 표지 {stale} 가 매회차 — 판 J 는 고정(compare 가 숫자를 전부 읽음)")
+    se = marker(h, "07-legend")
+    if se and not h[se[0]:se[1]].endswith(legend07_tail(cfg)):
+        raise ApplyError(f"{why} 07-legend 끝이 {legend07_tail(cfg)!r} 가 아님(config ctr_few_07.min_imps)")
+    se = marker(h, "12-basis")
+    if se and basis_ctr(cfg) not in h[se[0]:se[1]]:
+        raise ApplyError(f"{why} 12-basis 클릭률 강조 줄이 {basis_ctr(cfg)!r} 가 아님(config ctr_high_threshold · ctr_few_07)")
+
+
+def convert_i_to_j(h, lay, cfg=None):
+    """레이아웃 판 r2026-10-I → r2026-10-J(불필요 항목 빼기 — 고정 글만). 바뀌는 곳 = meta · masthead 제목(있으면) · KPI 평균 클릭률 보조 줄 · KPI 클릭 단위 둘 ·
+    02 groupChart 이름 · 고정 표지 04-foot·07-src·12-desc 글 · 12-basis 세 줄 · 07-legend 끝 한 구 · 네 표지 종류. 앵커는 전부 정확히 하나(표지는 없으면 건너뜀) —
+    옛 글이 아닌 고정 표지는 FAIL(손으로 바꾼 판, 변환 안 함). 구역·캔버스·접기·CSS·JS·다른 서술 표지 안쪽 바이트 그대로."""
+    from reportlib import load_config
+    cfg = cfg or load_config()
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_I}">', f'<meta name="report-layout" content="{LAYOUT_J}">', h)        # ①
+    if h.count(TITLE_OLD) > 1:                                                                                                     # ② 제목
+        raise ApplyError(f"masthead 제목 {TITLE_OLD!r} 가 {h.count(TITLE_OLD)}개")
+    h = h.replace(TITLE_OLD, TITLE_NEW)
+    h = once(KPI_SUB_CTR, lambda m: m.group(1), h)                                                                                 # ③ 평균 클릭률 보조 줄
+    h = once(KPI_CLK_UNIT, lambda m: f"{m.group(1)}건{m.group(2)}건{m.group(3)}", h)                                              # ④ 클릭 단위
+    h = once(re.escape(GROUP_OLD), lambda m: GROUP_NEW, h)                                                                         # ⑤ 02 groupChart 이름
+    for name, (old, new) in (("04-foot", FOOT04), ("07-src", SRC07), ("12-desc", DESC12)):                                         # ⑥ 고정 표지 글
+        h = swap_body(h, name, old, new)
+    se = marker(h, "07-legend")                                                                                                    # ⑦ 07 범례 끝 한 구
+    if se:
+        body = h[se[0]:se[1]]
+        if legend07_tail(cfg) in body or "회 미만은" in body:
+            raise ApplyError("07-legend 에 '노출 N회 미만은' 이 이미 있음 — 손으로 바꾼 판으로 보임, 변환하지 않음")
+        h = h[:se[1]] + legend07_tail(cfg) + h[se[1]:]
+    se = marker(h, "12-basis")                                                                                                     # ⑧ 집계 기준 세 줄
+    if se:
+        body = h[se[0]:se[1]]
+        old_ctr = f"· <b>클릭률 강조</b>: 01·07번 표에서 클릭률 {float(cfg['ctr_high_threshold']):g}% 이상인 행만 진한 민트색"
+        if body.count(BASIS_PERIOD[0]) != 1 or len(BASIS_TARGET.findall(body)) != 1 or body.count(old_ctr) != 1:
+            raise ApplyError("고정 표지 12-basis 가 판 I 글(집계 기간 · 타겟 지역 · 클릭률 강조 줄 각 하나)이 아님 — 손으로 바꾼 판으로 보임, 변환하지 않음")
+        body = BASIS_TARGET.sub("", body.replace(BASIS_PERIOD[0], BASIS_PERIOD[1]).replace(old_ctr, basis_ctr(cfg)))
+        h = h[:se[0]] + body + h[se[1]:]
+    for name in TO_FIXED:                                                                                                          # ⑨ 네 표지 종류
+        n = h.count(f"<!-- n:{name}:매회차 -->")
+        if n > 1:
+            raise ApplyError(f"서술 표지 {name} 가 {n}개 — 손으로 바꾼 판으로 보임")
+        h = h.replace(f"<!-- n:{name}:매회차 -->", f"<!-- n:{name}:고정 -->")
+    check_trim(h, cfg, "변환 뒤")                                                                                                  # ⑩
+    return h
+
+
+CARD_HEAD = re.compile(r'<div style="font-size:12px;font-weight:600;color:var\(--ink-soft\);">(\S+) <span style="color:var\(--mint-dark\);font-weight:700;">\([\d/]+ 등록, \d+일차\)</span></div>')
+CARD_OPEN, CARD_CLOSE = '\n    <div class="card" style="margin-top:12px;">\n', "\n    </div>\n"
+
+
+def card_groups(h):
+    """06 구역 요약 카드의 그룹 이름(문서 순) — compare·validate 카드 정규식과 같은 머리."""
+    a, b = bounds(h, 6)
+    return CARD_HEAD.findall(h, a, b)
+
+
+def drop_cards(h, keep):
+    """판 J(결정 5) — 06 카드 중 keep(compute 06.카드) 밖 그룹의 카드 블록(`    <div class="card" style="margin-top:12px;">` 줄 ~ 그 카드 닫는 `    </div>` 줄 — 서술 표지
+    06-card-<그룹> 째)을 지운다. 블록에 카드 머리가 하나가 아니거나 그 그룹 표지 밖의 것(다른 표지·캔버스·접기·표)이 있으면 FAIL(손으로 바꾼 판). (새 HTML, 지운 그룹 목록)."""
+    gone = []
+    for g in card_groups(h):
+        if g in keep:
+            continue
+        a, b = bounds(h, 6)
+        i = h.index(f'">{g} <span style="color:var(--mint-dark);font-weight:700;">(', a)
+        s = h.rfind(CARD_OPEN, a, i)
+        e = h.find(CARD_CLOSE, i)
+        if s == -1 or e == -1 or e > b:
+            raise ApplyError(f"06 카드 {g!r} 블록(카드 div 여닫이)을 못 찾음 — 손으로 바꾼 판으로 보임")
+        blk = h[s + 1:e + len(CARD_CLOSE)]
+        marks = re.findall(r"<!-- n:([^\s:]+):", blk)
+        if len(CARD_HEAD.findall(blk)) != 1 or [m for m in marks if m != f"06-card-{g}"] or re.search(r"<canvas|<details|<table", blk):
+            raise ApplyError(f"06 카드 {g!r} 블록에 카드 밖의 것(카드 머리 {len(CARD_HEAD.findall(blk))} · 표지 {marks}) — 손으로 바꾼 판으로 보임")
+        h = h[:s + 1] + h[e + len(CARD_CLOSE):]
+        gone.append(g)
+    return h, gone
+
+
+NEW_TAG = re.compile(r'\s*<span[^>]*>\(\d+/\d+ 신규\)</span>')   # 04 이름 칸 '(M/D 신규)' 메모(판 J 결정 30 — compute 04.신규 밖 그룹은 지운다)
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
 STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
          (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g), (LAYOUT_G, LAYOUT_H, convert_g_to_h),
-         (LAYOUT_H, LAYOUT_I, convert_h_to_i))
+         (LAYOUT_H, LAYOUT_I, convert_h_to_i), (LAYOUT_I, LAYOUT_J, convert_i_to_j))
 
 
 def chain(frm, to):
@@ -1149,9 +1315,11 @@ def apply(h, R, cfg, layout=False):
     meta r2026-10-B → C → D → E → F → G → H → I · meta r2026-10-C·D·E·F·G·H → … → I · meta = config → 값만 · 사슬 밖 FAIL.
     config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지 · 판 G 추가 블록 표지 · 판 H 07 정식표 접기 자리 · 판 I 구역 11·캔버스 7·지면 흔적 0)는 사슬 끝에 한 번(값만 경로 포함).
     판 F·G·H·I 는 compute.json "잔액" 이 없으면 FAIL(balance_values) · 판 G·H·I 블록은 "변경기록"·"성별연령" 이 없으면 '확인 못 함'(extra_values — FAIL 아님).
-    판 I 는 01 ① 5칸(날짜·노출·클릭·CTR·CPC)이고 placementChart·10 표를 쓰지 않는다(판 H 까지는 7칸 + placementChart + 10 표 4행)."""
+    판 I 는 01 ① 5칸(날짜·노출·클릭·CTR·CPC)이고 placementChart·10 표를 쓰지 않는다(판 H 까지는 7칸 + placementChart + 10 표 4행).
+    판 J(TRIM_LAYOUTS)는 값 갈래가 더 있다 — KPI 클릭 '건' · 07 노출 쉼표·'적음' · 06 카드 집합(drop_cards) · 04 '(M/D 신규)' 기한(compute 04.신규) · 판 G 블록 글(trim)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
+    trim = lid in TRIM_LAYOUTS
     if k < 1:
         raise ApplyError(f"config report_layout.recent_days {k} — 1 이상이어야 함")
     k7 = top_rows_07(lay) if lid in FOLD07_LAYOUTS else None   # 판 H 07 정식표 위 표 행 수(쓰기 전에 FAIL)
@@ -1173,7 +1341,7 @@ def apply(h, R, cfg, layout=False):
         if path and not layout:
             raise ApplyError(f"레이아웃 판 meta {metas[0]} ≠ config {lid} — --layout 을 붙여 {metas[0]} → {lid}")
     for f in path:
-        h = f(h, lay)
+        h = f(h, lay, cfg) if f is convert_i_to_j else f(h, lay)
     if LAYOUT_META.findall(h) != [lid]:
         raise ApplyError(f"변환 뒤 레이아웃 판 meta {LAYOUT_META.findall(h)} ≠ config {lid!r}")
     if len(DETAILS.findall(strip_extra(h))) != int(lay["markers"]["details"]):   # 판 G 추가 블록 안 접기는 빼고 센다(strip_extra)
@@ -1187,11 +1355,13 @@ def apply(h, R, cfg, layout=False):
         check_fold07(h, f"레이아웃 판 {lid} 인데")
     if lid in NOPLACE_LAYOUTS:
         check_noplace(h, lay, f"레이아웃 판 {lid} 인데")
+    if trim:
+        check_trim(h, cfg, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     if lid in CARD_LAYOUTS:
         h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
     if lid in EXTRA_LAYOUTS:
-        h = extra_values(h, R)                            # 판 G 04·05 추가 블록(매 회차 — compute.json "성별연령"·"변경기록", 없으면 '확인 못 함')
+        h = extra_values(h, R, trim)                      # 판 G 04·05 추가 블록(매 회차 — compute.json "성별연령"·"변경기록", 없으면 '확인 못 함' · 판 J 글)
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)
@@ -1199,7 +1369,8 @@ def apply(h, R, cfg, layout=False):
     for label, val in [("총 노출수", c(K["노출"])), ("총 클릭수", c(K["클릭"])), ("평균 클릭률", f"{K['CTR']:g}"), ("총 광고비", c(K["광고비"]))]:
         h = once(rf'(<div class="label">{label}</div>\s*<div class="value">)[^<]+', rf"\g<1>{val}", h)
     h = once(r'일 평균 [\d.]+회(</div>\s*</div>\s*<div class="kpi" style="--accent:#2ea88f;">)', rf'일 평균 {K["일평균노출"]}회\g<1>', h)
-    h = once(r'(총 클릭수</div>\s*<div class="value">[^<]+<span class="unit">회</span></div>\s*<div class="sub">)일 평균 [\d.]+회', rf'\g<1>일 평균 {K["일평균클릭"]}회', h)
+    u = "건" if trim else "회"   # 판 J(결정 37) — 클릭 단위 '건'(노출은 '회' 그대로)
+    h = once(rf'(총 클릭수</div>\s*<div class="value">[^<]+<span class="unit">{u}</span></div>\s*<div class="sub">)일 평균 [\d.]+{u}', rf'\g<1>일 평균 {K["일평균클릭"]}{u}', h)
     h = once(r"클릭당 평균 [\d,]+원", f'클릭당 평균 {c(K["클릭당"])}원', h)
     h = re.sub(r'min-width:\s*\d+px;">(\s*<canvas id="(?:dailyChart|rankChart)")', rf'min-width:{R["minwidth"]}px;">\g<1>', h)
     h = re.sub(r'(height:280px; )min-width:\d+px;(">\s*<canvas id="dailyChart")', rf'\g<1>min-width:{R["minwidth"]}px;\g<2>', h)
@@ -1285,11 +1456,18 @@ def apply(h, R, cfg, layout=False):
         if r["그룹"] not in prev:
             raise ApplyError(f"04 표에 없는 새 그룹 {r['그룹']!r} — 유형 태그·이름 칸을 사람이 한 행 넣은 뒤 다시")
         a, b = prev[r["그룹"]]
+        if trim and r["그룹"] not in R["04"]["신규"]:   # 판 J(결정 30) — '(M/D 신규)' 는 일차 < group_cards.new_days 그룹만(compute 04.신규)
+            b = NEW_TAG.sub("", b)
         rows.append(tr(["            " + a, "            " + b, td(c(r["노출"])), td(r["클릭"]), td(f"{r['CTR']:.2f}%"), td(f"{c(r['총비용'])}원"),
                         td(f"{c(r['CPC'])}원"), td(f"{r['비중']:.1f}%"), td("—" if r["순위"] is None else f"{r['순위']:.2f}위")]))
     h = h.replace("@@04@@", "\n" + "\n".join(rows) + "\n        ", 1)
 
-    # 06 매칭표·카드
+    # 06 매칭표·카드 — 판 J: 카드 집합 = compute 06.카드(밖이 된 카드는 표지째 지움 · 있어야 할 카드가 없으면 FAIL — 사람이 카드를 넣는다)
+    if trim:
+        h, _ = drop_cards(h, set(R["06"]["카드"]))
+        miss = [g for g in R["06"]["카드"] if g not in card_groups(h)]
+        if miss:
+            raise ApplyError(f"06 카드가 없는 그룹 {miss} — 카드(머리 · 큰 숫자 · 서술 표지 06-card-<그룹>)를 사람이 한 장 넣은 뒤 다시(config group_cards)")
     for name, key in [("직접 등록 키워드", "직접"), ("자동매칭( - )", "자동")]:
         v = R["06"][key]
         h = once(rf"({re.escape(name)}<br>.*?</td>\s*<td class=\"num\">)[\d,]+(</td>\s*<td class=\"num\">)\d+(</td>\s*<td class=\"num\">)[\d.]+(위</td>\s*<td class=\"num\">)[\d,]+원",
@@ -1304,6 +1482,10 @@ def apply(h, R, cfg, layout=False):
         return f'<span class="tag tag-mint">{m}</span>' if m.startswith("일치") else f'<span class="tag tag-ink">{m}</span>'
 
     def row7(r):
+        if trim:   # 판 J(결정 34·35) — 노출 쉼표 · 노출 ctr_few_07 미만은 클릭률 '적음'(강조 0)
+            ctr = td("적음") if r["적음"] else td(f"{r['CTR']:.2f}%", "num ctr-high" if r["hl"] else "num")
+            return tr([td(r["검색어"], "name-cell"), f'            <td>{tag(r["매칭"].replace("*동률", ""))}</td>', td(c(r["노출"])), td(r["클릭"]),
+                       ctr, td(f"{c(r['CPC'])}원"), td(f"{c(r['총비용'])}원")])
         return tr([td(r["검색어"], "name-cell"), f'            <td>{tag(r["매칭"].replace("*동률", ""))}</td>', td(r["노출"]), td(r["클릭"]),
                    td(f"{r['CTR']:.2f}%", "num ctr-high" if r["hl"] else "num"), td(f"{c(r['CPC'])}원"), td(f"{c(r['총비용'])}원")])
     rows7 = R["07"]["정식표"]
@@ -1381,7 +1563,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H·I)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -1419,6 +1601,12 @@ def main():
     fold7 = (f" · 07 정식표 위 {min(top_rows_07(cfg['report_layout']), len(R['07']['정식표']))}행 · "
              f"{re.sub(r'<[^>]+>', '', m7.group(0))}" if lid in FOLD07_LAYOUTS and m7 else "")   # 판 H — 운영 세션이 출력에서 접힌 행·summary 를 본다
     nopl = (f" · 구역 {len(SEC_COMMENT.findall(new))} · 캔버스 {len(re.findall(r'<canvas id=', new))}(지면 구역 없음)" if lid in NOPLACE_LAYOUTS else "")   # 판 I
+    if lid in TRIM_LAYOUTS:   # 판 J — 운영 세션이 출력에서 06 카드 집합(뺀 카드)·04 신규 메모를 본다
+        now = card_groups(new)
+        dropped = [g for g in card_groups(h) if g not in now]
+        a4, b4 = bounds(new, 4)
+        n_new = len(NEW_TAG.findall(new, a4, b4))
+        nopl += f" · 06 카드 {now}" + (f"(뺌 {dropped})" if dropped else "") + f" · 04 신규 메모 {n_new}"
     print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + fold7 + nopl + (" (변경 없음)" if new == h else ""))
     return 0
 

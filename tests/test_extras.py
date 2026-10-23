@@ -4,6 +4,8 @@ compare.py 판 G 구역·_s04 첫 표 · apply.py 판 G 블록. 네이버 접속
 
 실행: "$PY" tests/test_extras.py   (저장소 루트, Git Bash — $PY = 저장소 밖 venv 파이썬)
 완료 기준(구현 지시 표) 줄: 4·5·6·9·10·11·12·13·14·16·18·19·20·27·30·31 + 시험 후보(B 멱등 · 빈 셀). 브라우저 쪽(1·2·3·8·24·25·26·29)은 tests/test_fetch_reports.py.
+(2026-10-23 판 J 불필요 항목 빼기) 연령대 알 수 없음 줄 0(config gender_age.hide_unknown_kinds) · 표마다 알수없음줄 · 첫 숫자가 같으면 '미만' 이 앞 ·
+확장소재 추가 = '확장 소재 n개 추가'(같은 분 묶음 건수 합 — compute·validate 따로) · 변경 기록 스킬 줄 0(compare "04 변경 기록 스킬 줄 0" · validate 남으면 FAIL).
 """
 import datetime as dt
 import glob
@@ -378,13 +380,24 @@ class ComputeG(unittest.TestCase):
         self.assertEqual((sx["종류"], sx["기간"], sx["알수없음%"]), ("성별", "10/1~10/9", 18.2))
         self.assertEqual([(r["구분"], r["노출"], r["비중"], r["클릭"], r["CTR"], r["적음"]) for r in sx["rows"]],
                          [("남성", 180, 54.5, 6, 3.33, False), ("여성", 90, 27.3, 3, None, True), ("알 수 없음", 60, 18.2, 1, None, True)])
-        self.assertEqual([r["구분"] for r in ag["rows"]], ["25~29세", "40~44세", "60세~", "알 수 없음"])
+        self.assertEqual([r["구분"] for r in ag["rows"]], ["25~29세", "40~44세", "60세~"])                # 판 J(결정 8) — 연령대는 알 수 없음 줄 0(hide_unknown_kinds)
+        self.assertEqual((sx["알수없음줄"], ag["알수없음줄"], ag["알수없음%"]), (True, False, 13.3))        # 줄이 없는 종류만 머리 괄호에 %
         self.assertEqual(ag["기간"], "10/1~10/10")
         cfg = json.loads(json.dumps(CFG))
         cfg["report_fetch"]["extras"]["gender_age"]["show_unknown"] = False
         ga2, _, _ = self.cards(os.path.join(self.tmp, "x"), cfg=cfg)
         self.assertEqual([r["구분"] for r in ga2["표"][0]["rows"]], ["남성", "여성"])
-        self.assertEqual(ga2["표"][0]["알수없음%"], 18.2)
+        self.assertEqual((ga2["표"][0]["알수없음%"], ga2["표"][0]["알수없음줄"]), (18.2, False))
+        cfg["report_fetch"]["extras"]["gender_age"].update(show_unknown=True, hide_unknown_kinds=[])
+        ga3, _, _ = self.cards(os.path.join(self.tmp, "x"), cfg=cfg)
+        self.assertEqual(ga3["표"][1]["rows"][-1]["구분"], "알 수 없음")                                    # 숨기는 종류가 없으면 연령대도 줄 있음
+        cfg["report_fetch"]["extras"]["gender_age"]["hide_unknown_kinds"] = ["없는종류"]
+        self.assertIsNone(X.extras_config(cfg["report_fetch"])[0])                                           # 낯선 종류 → 추가 설정 꺼짐([주의])
+
+    def test_age_order_under_first(self):
+        """판 J(결정 36) — 첫 숫자가 같으면 '미만' 이 앞: 14세 미만 · 14세 ~ 18세 · 19세 ~ 24세(compute _ga_order · validate 같은 규칙)."""
+        labels = ["19세 ~ 24세", "14세 ~ 18세", "알 수 없음", "14세 미만", "60세 ~ 99세"]
+        self.assertEqual(sorted(labels, key=lambda v: C._ga_order(v, "알 수 없음")), ["14세 미만", "14세 ~ 18세", "19세 ~ 24세", "60세 ~ 99세", "알 수 없음"])
 
     def test_history_period_three_cases(self):
         """기준 19 — 표 기간 = 집계 기간 ∩ 기록 구간 마지막 연속 구간: ① B 실패 다음 날(기록 구간 끝 < 집계 끝) ② 손 다운로드 날(받은 날은 기록 구간 밖) ·
@@ -415,6 +428,9 @@ class ComputeG(unittest.TestCase):
         self.assertEqual(C.change_phrase("광고그룹 변경", "g\n변경 전\n하루예산: 10,000원\n변경 후\n하루예산: 20,000원"), "하루예산 10,000원 → 20,000원")
         self.assertEqual(C.change_phrase("광고그룹 하루예산 중단", "g\n설정 값\n하루예산: 10,000원"), "")
         self.assertEqual(C.change_phrase("모르는 유형", "한 줄"), "")
+        ext = "ext-1(전화번호)\n등록된 내용\n확장 소재 유형: 전화번호\n부모 ID: grp-1\nPC 채널 ID: b\n모바일 채널 ID: b\nOn/Off: ON"
+        self.assertEqual(C.change_phrase("확장소재 추가", ext), "확장 소재 1개 추가")                         # 판 J(결정 28) — 속성 칸 수(옛 '등록 5개')가 아니라 한 줄 = 하나
+        self.assertEqual(C.merge_ext(["확장 소재 1개 추가", "등록 2개(확장 검색)", "확장 소재 1개 추가", "확장 소재 1개 추가"]), ["확장 소재 3개 추가", "등록 2개(확장 검색)"])
         d = write_extra(os.path.join(self.tmp, "b"), ga=False)
         _, hi, _ = self.cards(d)
         self.assertEqual(hi["스킬"], {"등록회": 17, "삭제건": 3})
@@ -474,6 +490,33 @@ class ComputeG(unittest.TestCase):
             V.check_extras(bad, d, V.read_csv(kw))
         res = [r for r in V.results if "추가 카드·표" in r[0]]
         self.assertTrue(res and not res[-1][1] and "변경 기록 표" in res[-1][2], res)
+
+    def test_extension_count_same_minute(self):
+        """판 J(결정 28) — 확장소재 추가 줄 = '확장 소재 n개 추가'(같은 분 묶음 안 원장 줄 수의 합 — 12:46 노원역 2 + 노원산전 1 = 3) · validate 가 따로 다시 묶은 값과 같다 ·
+        옛 꼴('등록 5개(확장 소재 유형·…)')이면 FAIL."""
+        ext = lambda when, g, t: (when, "확장소재 추가", "사람", "새로필라테스 파워링크", g, f"ext({t})\n등록된 내용\n확장 소재 유형: {t}\n부모 ID: grp\nPC 채널 ID: b\n모바일 채널 ID: b\nOn/Off: ON")
+        rows = [ext("2026.10.10. 12:47", "상계동필라테스", "플레이스 정보"), ext("2026.10.10. 12:47", "상계동필라테스", "전화번호"),
+                ext("2026.10.10. 12:46", "노원역필라테스", "플레이스 정보"), ext("2026.10.10. 12:46", "노원역필라테스", "전화번호"), ext("2026.10.10. 12:46", "노원산전필라테스", "플레이스 정보"),
+                ext("2026.10.10. 12:42", "노원산전필라테스", "전화번호"),
+                ("2026.10.10. 12:47", "확장소재 검토", "기타", "", "", "ext(검토 상태: 노출가능)")]
+        d = write_extra(os.path.join(self.tmp, "e"), rows=rows, ga=False)
+        _, hi, _ = self.cards(d)
+        self.assertEqual([(r["일시"], r["대상"], r["내용"]) for r in hi["rows"]],
+                         [("10/10 12:47", "상계동필라테스", "확장 소재 2개 추가"), ("10/10 12:46", "노원역필라테스 · 노원산전필라테스", "확장 소재 3개 추가"),
+                          ("10/10 12:42", "노원산전필라테스", "확장 소재 1개 추가")])
+        blk = A.hi_block({"변경기록": hi})
+        html = f'<div>{blk}<!-- saero:extra gender-age --><div class="note">확인 못 함 — t</div><!-- /saero:extra gender-age --></div>'
+        kw = os.path.join(self.tmp, "kw.csv")
+        with open(kw, "w", encoding="utf-8") as f:
+            f.write("키워드 보고서(2026.08.26.~2026.10.10.),2580077\n일별,노출수\n" + "".join(f"{x},1\n" for x in days(D(2026, 8, 26), D(2026, 10, 10))))
+        import validate as V
+        for page, ok in ((html, True), (html.replace("확장 소재 3개 추가", "확장 소재 2개 추가", 1), False),
+                         (html.replace("확장 소재 2개 추가", "등록 5개(확장 소재 유형·부모 ID·PC 채널 ID·모바일 채널 ID·On/Off)", 1), False)):
+            del V.results[:]
+            with redirect_stdout(io.StringIO()):
+                V.check_extras(page, d, V.read_csv(kw))
+            res = [r for r in V.results if "추가 카드·표" in r[0]]
+            self.assertTrue(res and res[-1][1] == ok, res)
 
     def test_latest_day_fold(self):
         """2026-10-15 사용자 결정 "최근 날짜 내용만 남기고 나머지는 일별 추이처럼 숨겨줘" — 맨 위 줄과 같은 날짜 줄만 펼친 표 · 나머지는 details.fold 하나
@@ -621,16 +664,17 @@ class ApplyValidateCompareG(unittest.TestCase):
             out = r.stdout
             self.assertIn("[OK]   04 표:", out)
             self.assertNotIn("파싱 실패 [04] — 마크업이 바뀌었으면 compare.py를 고칠 것: IndexError", out)   # 옛 rows(sec(4)) 는 새 표의 4칸 줄에서 r[8] IndexError
-            for item in ("04 변경 기록 머리(기간)", "04 변경 기록 표", "04 변경 기록 스킬 줄", "05 성별 머리(기간·알 수 없음)", "05 성별 표", "05 연령대 머리(기간·알 수 없음)", "05 연령대 표"):
+            for item in ("04 변경 기록 머리(기간)", "04 변경 기록 표", "04 변경 기록 스킬 줄 0", "05 성별 머리(기간·알 수 없음)", "05 성별 표", "05 연령대 머리(기간·알 수 없음)", "05 연령대 표"):
                 self.assertIn(f"[OK]   {item}", out)
             self.assertNotIn("파싱 실패 [04·05 추가(판 G)]", out)
             RX2 = json.loads(json.dumps(self.RX))
-            RX2["변경기록"]["스킬"]["등록회"] += 1
             RX2["성별연령"]["표"][0]["rows"][0]["노출"] += 1
             with open(jp, "w", encoding="utf-8") as f:
                 json.dump(RX2, f, ensure_ascii=False)
+            with open(hp, "w", encoding="utf-8", newline="") as f:   # 판 J 가 뺀 스킬 줄이 되살아난 화면 → DIFF
+                f.write(self.G1.replace("<!-- /saero:extra history -->", '<div class="note">스킬 제외 검색어 등록 17회(실행 수) · 삭제 3건</div><!-- /saero:extra history -->', 1))
             out = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "compare.py"), hp, jp], capture_output=True, text=True, encoding="utf-8").stdout
-            self.assertIn("[DIFF] 04 변경 기록 스킬 줄", out)
+            self.assertIn("[DIFF] 04 변경 기록 스킬 줄 0", out)
             self.assertIn("[DIFF] 05 성별 표", out)
         finally:
             shutil.rmtree(td, ignore_errors=True)
@@ -646,14 +690,14 @@ class ApplyValidateCompareG(unittest.TestCase):
         """기준 27(A-5)·9·11·13 — 카드 유무 기준 = work/extra 파일 유무(첫 회·실패면 '확인 못 함' 이 PASS) · 값·기간 다르면 FAIL · 아이디 꼴·SYSTEM FAIL."""
         name, ok, det = self.vcheck(self.G1, self.extra)
         self.assertTrue(ok, det)
-        self.assertIn("변경 기록 9/12~10/10 3/3줄(펼침 1) · 스킬 17회·삭제 3", det)      # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12) · 펼침 = 9/21 하루(2026-10-15)
+        self.assertIn("변경 기록 9/12~10/10 3/3줄(펼침 1) · 스킬 줄 0(원장 스킬 17회·삭제 3)", det)      # 9/17 15:30 두 줄 = 같은 분 → 한 줄(2026-10-12) · 펼침 = 9/21 하루(2026-10-15) · 판 J 스킬 줄 0
         self.assertTrue(self.vcheck(self.G0, os.path.join(self.tmp, "없음"))[1])         # 첫 회 — 파일 없음 + '확인 못 함'
         self.assertTrue(self.vcheck(self.G0, None)[1])                                   # --extra 없음
         self.assertFalse(self.vcheck(self.G0, self.extra)[1])                            # 파일이 있는데 '확인 못 함'
         self.assertFalse(self.vcheck(self.G1, None)[1])                                  # 입력이 없는데 값이 있음(옛 값)
         for label, mut in (("노출", lambda h: h.replace('<td class="num">180</td>', '<td class="num">181</td>', 1)),
                            ("기간", lambda h: h.replace("(9/12~10/10 기록", "(9/12~10/11 기록", 1)),
-                           ("스킬", lambda h: h.replace("등록 17회(실행 수)", "등록 16회(실행 수)", 1)),
+                           ("스킬 줄 되살림", lambda h: h.replace("<!-- /saero:extra history -->", '<div class="note">스킬 제외 검색어 등록 17회(실행 수) · 삭제 3건</div><!-- /saero:extra history -->', 1)),
                            ("줄", lambda h: h.replace("On/Off ON → OFF", "On/Off OFF → ON", 1)),
                            ("아이디", lambda h: h.replace("</body>", "<!-- x:naver --></body>", 1)),
                            ("SYSTEM", lambda h: h.replace("<!-- /saero:extra history -->", "하루예산 중단 3회<!-- /saero:extra history -->", 1))):

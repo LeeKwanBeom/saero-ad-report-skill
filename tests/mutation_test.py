@@ -35,6 +35,11 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   (2026-10-12 판 G 보고서 더 받기 A + B) index.html 옆 extra/(precheck 와 같은 work/extra — 추가 합본·원장 사본)를 사본으로 옮겨 validate 에 --extra 로 넘긴다
      (없으면 빈 폴더 — 카드가 '확인 못 함' 이어야 기준 PASS). "추가 카드·표": 변조 4(성별·연령대 표 첫 노출 +1 · 변경 기록 기간 끝 하루 뒤 · 스킬 등록 회수 +1 ·
      배포본에 아이디 꼴 `:naver` 주석) — 카드가 '확인 못 함' 이면 앞 셋은 SKIP + 0건 가드 2(변경 기록 블록 표지 지우기 → "추가 카드·표" · "레이아웃 판" 각각).
+  (2026-10-23 판 J 불필요 항목 빼기) 기준 사본은 판 J 작업본(서술까지 판 J 꼴)이어야 한다 — 판 I 배포본은 기준 실행에서 "레이아웃 판"·"판 J 뺀 글 0"·"10번 항목 수·판정 줄" FAIL(기대값).
+     "추가 카드·표": '스킬 등록 회수 +1' → '스킬 줄 되살림'(판 J 에서 뺀 줄) · "06번 카드 그룹"(새 검사): 변조 2(오래된 그룹 카드 되살림 · 04 이름 칸에 '(M/D 신규)' 되살림) ·
+     "판 J 뺀 글 0"(새 검사): 변조 3(01 머리 줄 누적 CTR A → B · 10 변화 없음 줄에 숫자 · 11 note 정렬 줄) + 0건 가드 1(Section 3 주석 변조 → 구역 0자) ·
+     "레이아웃 판": 변조 +2(KPI '업종 평균 수준' 되살림 · 09-call 표지 매회차로) · "07번 클릭률": 변조 +1('적음' 칸을 숫자로) · "10번 항목 수·판정 줄": 변조 +1(판정 줄 M/D 하루 앞) ·
+     "05번 mediaChart": 변조 +1(콘텐츠 매체 MLB파크 5위 막대 되살림) · config 실험 +2(group_cards.promotion_groups 비움 → "06번 카드 그룹" FAIL · ctr_few_07.min_imps +1 → "레이아웃 판" FAIL).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -390,9 +395,38 @@ def main():
         muts.append(("성별·연령대 표 첫 노출 +1", "추가 카드·표", {"html": H.replace(ga, ga.replace(m.group(0), f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}", 1), 1) if m else None}))
         m = re.search(r"(\((?:\d+/\d+)~)(\d+)/(\d+)( 기록)", H)
         muts.append(("변경 기록 기간 끝 하루 뒤", "추가 카드·표", {"html": H.replace(m.group(0), f"{m.group(1)}{m.group(2)}/{int(m.group(3)) + 1}{m.group(4)}", 1) if m else None}))
-        m = re.search(r"(스킬 제외 검색어 등록 )(\d+)(회\(실행 수\))", H)
-        muts.append(("스킬 등록 회수 +1", "추가 카드·표", {"html": H.replace(m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}", 1) if m else None}))
+        muts.append(("스킬 줄 되살림(판 J 에서 뺀 줄)", "추가 카드·표",
+                     {"html": H.replace("<!-- /saero:extra history -->", '<div class="note">스킬 제외 검색어 등록 28회(실행 수) · 삭제 3건</div>\n    <!-- /saero:extra history -->', 1)
+                      if "<!-- /saero:extra history -->" in H and "확인 못 함 —" not in H[H.find("<!-- saero:extra history -->"):H.find("<!-- /saero:extra history -->")] else None}))
         muts.append(("배포본에 아이디 꼴 주석(:naver)", "추가 카드·표", {"html": H.replace("</body>", "<!-- x:naver --></body>", 1) if "saero:extra" in H else None}))
+
+        # (2026-10-23 판 J) 06 카드 규칙 · 뺀 글 0 · 레이아웃 판 J 고정 글 · 07 '적음' · 판정 줄 M/D · 05 검색 지면 막대
+        m = re.search(r'(\n    <div class="card" style="margin-top:12px;">\n.*?\n    </div>\n)', s6, re.S)
+        muts.append(("06 오래된 그룹 카드 되살림(카드 규칙 밖)", "06번 카드 그룹",
+                     {"html": H.replace(s6, s6.replace(m.group(1), m.group(1) + re.sub(r'">(\S+) <span style="color:var\(--mint-dark\)', '">노원산전필라테스 <span style="color:var(--mint-dark)', m.group(1)[1:], count=1), 1), 1) if m else None}))
+        m = re.search(r'(<td class="name-cell">)(노원산전필라테스|[^<]+?)(</td>)', section(H, 4))
+        muts.append(("04 이름 칸에 '(M/D 신규)' 되살림(등록 뒤 10일 넘은 그룹)", "06번 카드 그룹",
+                     {"html": replace_in_section(H, 4, m.group(0), f'{m.group(1)}{m.group(2)} <span style="font-weight:400;color:var(--mint-dark);font-size:11px;">(9/2 신규)</span>{m.group(3)}') if m and "플레이스" not in m.group(2) else None}))
+        m = re.search(r"(<!-- n:01-desc:매회차 -->[^<]*?)(<!-- /n -->)", H)
+        muts.append(("01 머리 줄에 '누적 CTR A → B' 되살림", "판 J 뺀 글", {"html": H.replace(m.group(0), m.group(1) + ", 누적 CTR 3.34 → 3.34%" + m.group(2), 1) if m else None}))
+        m = re.search(r"(변화 없음</b> — )", s11)
+        muts.append(("10 변화 없음 줄에 숫자", "판 J 뺀 글", {"html": replace_in_section(H, 10, m.group(1), m.group(1) + "모바일 비중 79.6% · ") if m else None}))
+        m = re.search(r"(<!-- n:12-note:매회차 -->)", H)
+        muts.append(("11 note 에 정렬 줄 되살림", "판 J 뺀 글", {"html": H.replace(m.group(1), m.group(1) + "· <b>정렬</b>: 1번은 맨 위<br>", 1) if m else None}))
+        m = re.search(r'(<div class="label">평균 클릭률</div>\s*<div class="value">[^\n]*</div>\n)', H)
+        muts.append(("KPI '업종 평균 수준' 되살림", "레이아웃 판", {"html": H.replace(m.group(1), m.group(1) + '      <div class="sub">업종 평균 수준</div>\n', 1) if m else None}))
+        muts.append(("09-call 표지 매회차로", "레이아웃 판", {"html": H.replace("<!-- n:09-call:고정 -->", "<!-- n:09-call:매회차 -->", 1) if "<!-- n:09-call:고정 -->" in H else None}))
+        muts.append(("07 '적음' 칸을 클릭률 숫자로", "07번 클릭률", {"html": replace_in_section(H, 7, '<td class="num">적음</td>', '<td class="num">50.00%</td>')}))
+        m = re.search(r"(\d+)/(\d+)(까지 지난 회차 10번)", s11)
+        muts.append(("10 판정 줄 'M/D까지' 하루 앞", "10번 항목 수", {"html": replace_in_section(H, 10, m.group(0), f"{m.group(1)}/{int(m.group(2)) - 1 or 1}{m.group(3)}") if m and int(m.group(2)) > 1 else None}))
+        i = H.find("getElementById('mediaChart')")
+        blk5 = H[i:H.find("new Chart", i + 10)] if i != -1 else ""
+        mm = re.search(r"(labels:\s*\[)(.*?)(\],\n)", blk5, re.S)
+        md5_ = re.search(r"(label:\s*'노출수'[^\n]*\n\s*data:\s*\[)([^\]]*)(\])", blk5)
+        mc = re.search(r"(backgroundColor:\s*\[)([^\]]*)(\])", blk5)
+        b5 = (blk5.replace(mm.group(0), f"{mm.group(1)}{mm.group(2)},['MLB파크','모바일']{mm.group(3)}", 1).replace(md5_.group(0), f"{md5_.group(1)}{md5_.group(2)}, 828{md5_.group(3)}", 1)
+              .replace(mc.group(0), f"{mc.group(1)}{mc.group(2)}, mint{mc.group(3)}", 1)) if mm and md5_ and mc else None
+        muts.append(("05 콘텐츠 매체 MLB파크 5위 막대 되살림", "05번 mediaChart", {"html": H.replace(blk5, b5, 1) if b5 else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -441,6 +475,8 @@ def main():
                        {"html": H.replace("<!-- Section 1:", "<!-- Sect 1:", 1).replace("<!-- Section 10:", "<!-- Sect 10:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1)}))
         # (2026-10-23 판 I) 서술 표지 이름 꼴 변조 → 표지 0개 → "화면 글 구역 번호" 0건 가드
         guards.append(("0건: 서술 표지 이름 꼴 변조(<!-- n: → <!-- m:)", "화면 글 구역 번호", {"html": H.replace("<!-- n:", "<!-- m:") if "<!-- n:" in H else None}))
+        # (2026-10-23 판 J) Section 3 주석 변조 → 03 구역 0자 → "판 J 뺀 글 0" 0건 가드
+        guards.append(("0건: Section 3 주석 변조(판 J 뺀 글 검사 구역 0자)", "판 J 뺀 글", {"html": H.replace("<!-- Section 3:", "<!-- Sect 3:", 1)}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0
@@ -448,6 +484,8 @@ def main():
         c3 = json.loads(cfg_text); c3["report_layout"]["layout_id"] = lid + "-config변조"
         c4 = json.loads(cfg_text); c4["report_layout"]["mobile"]["max_px"] = int(cfg["report_layout"]["mobile"]["max_px"]) + 1
         c5 = json.loads(cfg_text); c5["leads"]["publish"] = "counts"   # (2026-10-10) 공개 범위를 넓히면 기준 사본이 "장부 라벨+숫자" FAIL — config 를 읽는지
+        c6 = json.loads(cfg_text); c6["group_cards"]["promotion_groups"] = []   # (2026-10-23 판 J) 승격 그룹을 비우면 기준 사본의 카드가 규칙 밖 → "06번 카드 그룹" FAIL
+        c7 = json.loads(cfg_text); c7["ctr_few_07"]["min_imps"] = int(cfg["ctr_few_07"]["min_imps"]) + 1   # 07 범례·집계 기준 글의 N 과 config 가 어긋남 → "레이아웃 판" FAIL
 
         # --- 실행 ---
         ok = True
@@ -493,6 +531,14 @@ def main():
         hit5 = [f for f in failed if "장부 라벨+숫자" in f and "counts" in f]
         print(f"  leads.publish verdict→counts: 기준 사본 '장부 라벨+숫자' FAIL {len(hit5)}건" + ("" if hit5 else "  ← MISS"))
         ok &= bool(hit5)
+        rc, passed, failed, err = run(cfg_override=json.dumps(c6, ensure_ascii=False))
+        hit6 = [f for f in failed if "06번 카드 그룹" in f]
+        print(f"  group_cards.promotion_groups {cfg['group_cards']['promotion_groups']}→[]: 기준 사본 '06번 카드 그룹' FAIL {len(hit6)}건" + ("" if hit6 else "  ← MISS"))
+        ok &= bool(hit6)
+        rc, passed, failed, err = run(cfg_override=json.dumps(c7, ensure_ascii=False))
+        hit7 = [f for f in failed if "레이아웃 판" in f and "ctr_few_07" in f]
+        print(f"  ctr_few_07.min_imps {cfg['ctr_few_07']['min_imps']}→{c7['ctr_few_07']['min_imps']}: 기준 사본 '레이아웃 판' FAIL {len(hit7)}건" + ("" if hit7 else "  ← MISS"))
+        ok &= bool(hit7)
 
         uncovered = [c for c in checks if c not in covered]
         print(f"\n== 커버리지: 기준 검사 {len(checks)}개 중 변조로 FAIL 확인 {len(covered)}개")

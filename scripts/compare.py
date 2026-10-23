@@ -33,6 +33,14 @@
   콘텐츠 누적 노출) 대신 ③ 첫 문장 3항목: "01 ③ 누적 CTR" = compute `01.누적CTR` · "01 ③ 괄호(…)" = [콘텐츠첫날, 콘텐츠끝날, 콘텐츠누적노출, 검색지면.CTR]
   (콘텐츠 노출 합 0 이면 괄호 없음 = None) · "01 ③ 옛 구절 0"(콘텐츠 지면 없는 날 · 검색 지면만 계산하면 · 콘텐츠 노출 N회는 — 판 H 꼴이 복사돼 남으면 DIFF).
   **항목 수 N = 110 − 8 = 102**(판 G 둘 다 ok · 종류 2).
+- (2026-10-23 판 J 불필요 항목 빼기 — 사용자 결정 "추천대로") KPI 보조 줄은 순번이 아니라 글로 찾는다(평균 클릭률 보조 줄이 빠져 넷 → 셋 · 클릭 단위 '건') ·
+  04 새 2항목 "04 예산 비중 한 값(02 desc = 04 표 플레이스 행 · 04 회색 파워링크 = 100 − 그 값)"(결정 27 — 화면 세 자리를 서로 대조) · "04 격차 기준(…)"(04 민트 줄 그룹·CPC 둘 = 04 rows[1]·rows[0]) ·
+  07 정식표 행에 '적음'(노출 config ctr_few_07 미만 — 클릭률 칸 '적음' · 강조 0, 결정 35 · 노출 쉼표 34) · 07 "확장·클릭0 행단위 3일"·"마지막날 개수" 2항목 삭제(결정 10 — ③ 뒷부분을 뺌) ·
+  08 "확인불가" = 비용 비중 하나(결정 23) · "08 11위" 삭제(결정 11) · "08 각주 N회" 에 '비중 계산도 N 기준' 의 N(= 전체 — 08-note 가 고정 표지가 되어 숫자를 전부 읽는다) ·
+  09 "심야 콜아웃" 새 꼴(`심야(22시~09시) 노출 N회(N%)·클릭 N건(N%)·비용 N원` — 결정 24) · "09 심야 클릭% (괄호)"·"09 최다" 삭제(콜아웃의 최다 구절을 뺌 — 최다는 "09 desc 최다") ·
+  "09 2위" 에 동률 시간(`… N건으로 N시와 같음` — 09-call 이 고정 표지가 되어 숫자를 전부 읽는다) · 클릭 단위 '건'(09 desc·2위) ·
+  판 G "04 변경 기록 스킬 줄" → "04 변경 기록 스킬 줄 0"(결정 7 — 줄이 남으면 DIFF) · 05 머리 알 수 없음 % 는 표에 그 줄이 없는 종류만(결정 8).
+  **항목 수 N = 102 + 2 − 2 − 1 − 2 = 99**(판 G 둘 다 ok · 종류 2).
 """
 import json
 import re
@@ -75,8 +83,9 @@ def _kpi():  # masthead·KPI
     kpi = S["kpi"] = dict(re.findall(r'<div class="label">([^<]+)</div>\s*<div class="value">([^<]+)<span', html)); sub = re.findall(r'<div class="sub">([^<]+)</div>', html)
     cmp("KPI 노출", num(kpi["총 노출수"]), R["KPI"]["노출"]); cmp("KPI 클릭", num(kpi["총 클릭수"]), R["KPI"]["클릭"])
     cmp("KPI CTR", float(kpi["평균 클릭률"]), R["KPI"]["CTR"]); cmp("KPI 광고비", num(kpi["총 광고비"]), R["KPI"]["광고비"])
-    cmp("KPI sub 일평균노출", float(grp(r"([\d.]+)회", sub[0]).group(1)), R["KPI"]["일평균노출"]); cmp("KPI sub 일평균클릭", float(grp(r"([\d.]+)회", sub[1]).group(1)), R["KPI"]["일평균클릭"])
-    cmp("KPI sub 클릭당", num(grp(r"([\d,]+)원", sub[3]).group(1)), R["KPI"]["클릭당"])
+    # 보조 줄은 글로 찾는다(판 J — 평균 클릭률 카드 보조 줄이 빠져 순번이 당겨짐 · 클릭 단위 '건'). 잔액 카드 보조 줄은 data-balance 라 안 잡힌다
+    cmp("KPI sub 일평균노출", float(grp(r"([\d.]+)회", sub[0]).group(1)), R["KPI"]["일평균노출"]); cmp("KPI sub 일평균클릭", float(grp(r"일 평균 ([\d.]+)건", sub[1]).group(1)), R["KPI"]["일평균클릭"])
+    cmp("KPI sub 클릭당", num(grp(r"([\d,]+)원", next(s for s in sub if s.startswith("클릭당 평균"))).group(1)), R["KPI"]["클릭당"])
 
 # 01 ③ 첫 문장(판 I — 2026-10-23 사용자 승인 꼴): "→ 누적 CTR <b>N%</b>(M/D~M/D 콘텐츠 지면 노출 N회 포함 — 빼면 <b>N%</b>). 상향 뒤 …" · 콘텐츠 노출 합 0 이면 괄호 없이
 # "→ 누적 CTR <b>N%</b>. 상향 뒤 …". 띄어쓰기 자리는 공백 여럿·줄바꿈도 받는다(폭에 맞춘 줄바꿈). 글자를 바꾸려면 사용자에게 다시 묻는다.
@@ -128,7 +137,15 @@ def _s04():  # 04 — 본 표 = 04 구역 첫 <table> 만(B-6, 2026-10-12: 판 G
              "총비용": num(r[5]), "CPC": num(r[6]), "순위": None if r[8] == "—" else float(r[8].rstrip("위")), "비중": float(r[7].rstrip("%"))} for r in rows(t4)]
     S["got4"] = got4
     cmp("04 표", got4, R["04"]["rows"]); cmp("04 CPC 격차 desc", float(grp(r"→ ([\d.]+)배", sec(4)).group(1)), R["04"]["CPC격차"])
-    cmp("04 파워링크 비중", float(grp(r"비중은 [\d.]+ → ([\d.]+)%", sec(4)).group(1)), R["04"]["파워링크비중"])
+    pw4 = float(grp(r"비중은 [\d.]+ → ([\d.]+)%", sec(4)).group(1))
+    cmp("04 파워링크 비중", pw4, R["04"]["파워링크비중"])
+    # 판 J(결정 27) — 같은 비중이 한 값: 02 desc = 04 표 플레이스 행 · 04 회색 파워링크 = 100 − 그 값(화면 세 자리끼리 — compute 정의가 다시 갈라져도 DIFF)
+    pl4 = got4[0]["비중"] if got4 and got4[0]["유형"] == "플레이스" else None
+    cmp("04 예산 비중 한 값(02 desc = 04 표 플레이스 행 · 04 회색 파워링크 = 100 − 그 값)",
+        [float(grp(r"예산의 ([\d.]+)%", sec(2)).group(1)), pw4], [pl4, None if pl4 is None else round(100 - pl4, 1)])
+    m = grp(r'격차 기준 = 파워링크 총비용 1위 "([^"]+)" CPC ([\d,]+)원 vs 플레이스 ([\d,]+)원', sec(4))   # 판 J(결정 21 (b)) — 04 민트 줄
+    cmp("04 격차 기준(파워링크 총비용 1위 그룹·CPC · 플레이스 CPC)", [m.group(1), num(m.group(2)), num(m.group(3))],
+        [R["04"]["rows"][1]["그룹"], R["04"]["rows"][1]["CPC"], R["04"]["rows"][0]["CPC"]])
 
 def _s05():  # 05
     blk5 = html[html.find("getElementById('mediaChart')"):]
@@ -149,15 +166,17 @@ def _s06():  # 06
     cmp("06 카드(그룹·등록일·일차·큰숫자)", {c[0]: {"순위": float(c[3]), "등록일": c[1], "일차": int(c[2])} for c in cards}, R["06"]["카드"])
     cmp("06 카드 큰 숫자 = 04 셀", {c[0]: float(c[3]) for c in cards}, {r["그룹"]: r["순위"] for r in S["got4"] if r["그룹"] in {c[0] for c in cards}})
 
-ROW7 = r'<td class="name-cell">([^<]+)</td>\s*<td><span class="tag[^>]*>([^<]*)</span></td>\s*<td class="num">([\d,]+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num( ctr-high)?">([\d.]+)%</td>\s*<td class="num">([\d,]+)원</td>\s*<td class="num">([\d,]+)원</td>'
+ROW7 = r'<td class="name-cell">([^<]+)</td>\s*<td><span class="tag[^>]*>([^<]*)</span></td>\s*<td class="num">([\d,]+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num( ctr-high)?">(?:([\d.]+)%|(적음))</td>\s*<td class="num">([\d,]+)원</td>\s*<td class="num">([\d,]+)원</td>'
 SUM07 = r"<summary[^>]*>나머지 ([\d,]+)행(?:\(클릭 ([\d,]+)(?:~([\d,]+))?건 · 합 ([\d,]+)건 · ([\d,]+)원\))? 펼치기</summary>"
 
 
 def _s07():  # 07 — 판 H(2026-10-17): 정식표 = 위 표(07 첫 tbody) + 접힌 표("나머지 N행" summary 뒤) — "클릭 1건 검색어" 앞을 이어 읽으면 전 행
     s7 = sec(7); main_html = s7[:s7.find("클릭 1건 검색어")]
     m7 = re.findall(ROW7, main_html)
-    got7 = [{"검색어": a, "매칭": b, "노출": num(c), "클릭": num(d), "CTR": float(f), "hl": bool(e), "CPC": num(g), "총비용": num(h)} for a, b, c, d, e, f, g, h in m7]
-    want7 = [dict(r, 매칭=r["매칭"].replace("*동률", "")) for r in R["07"]["정식표"]]
+    # 판 J(결정 35) — 노출 config ctr_few_07 미만 행은 클릭률 칸 '적음'(CTR 없음 · 강조 0) — compute 적음 과 대조
+    got7 = [{"검색어": a, "매칭": b, "노출": num(c), "클릭": num(d), "CTR": float(f) if f else None, "hl": bool(e), "적음": bool(z), "CPC": num(g), "총비용": num(h)}
+            for a, b, c, d, e, f, z, g, h in m7]
+    want7 = [dict(r, 매칭=r["매칭"].replace("*동률", ""), CTR=None if r["적음"] else r["CTR"]) for r in R["07"]["정식표"]]
     cmp("07 정식표 행수", len(got7), len(want7))
     cmp("07 정식표 값(뱃지 동률은 배포본 유지)", got7, [dict(w, 매칭=g["매칭"]) if "*동률" in r["매칭"] else w for w, g, r in zip(want7, got7, R["07"]["정식표"])] if len(got7) == len(want7) else want7)
     print("      07 뱃지 동률 항목:", [r["검색어"] for r in R["07"]["정식표"] if "*동률" in r["매칭"]])
@@ -170,8 +189,7 @@ def _s07():  # 07 — 판 H(2026-10-17): 정식표 = 위 표(07 첫 tbody) + 접
     cmp("07 클릭0 목록(집합)", sorted([{"검색어": a, "노출": int(b)} for a, b in c0], key=lambda x: x["검색어"]), sorted(R["07"]["클릭0목록"], key=lambda x: x["검색어"]))
     cmp("07 클릭0 목록 노출 내림차순", [int(b) for _, b in c0] == sorted([int(b) for _, b in c0], reverse=True), True)
     m = grp(r"클릭 0인 검색어 전체는 (\d+)개·노출 ([\d,]+)회", s7); cmp("07 클릭0 전체 각주", {"개수": int(m.group(1)), "노출": num(m.group(2))}, R["07"]["클릭0전체"])
-    m = grp(r"행 단위 확장·클릭 0 노출은 (\S+) (\d+)회 → (\S+) (\d+)회 → (\S+) <b>(\d+)회</b>\((\d+)개", s7)
-    cmp("07 확장·클릭0 행단위 3일", {m.group(1): int(m.group(2)), m.group(3): int(m.group(4)), m.group(5): int(m.group(6))}, R["07"]["확장클릭0행단위3일"]); cmp("07 확장·클릭0 마지막날 개수", int(m.group(7)), R["07"]["확장클릭0마지막날개수"])
+    # (판 J 결정 10 — ③ 뒷부분 "행 단위 확장·클릭 0 노출 …" 을 뺐다: 그 2항목 삭제. 남으면 validate "판 J 뺀 글 0" 이 FAIL)
     segc = s7[s7.find("경쟁사 브랜드명 검색어"):]
     mc = re.findall(r'<td class="name-cell">([^<]+)</td>\s*<td>[^<]*</td>\s*<td><span class="tag[^>]*>[^<]*</span></td>\s*<td class="num">(\d+)</td>\s*<td class="num">(\d+)</td>\s*<td class="num">([\d,]+)원</td>', segc)
     gc = [{"검색어": a, "노출": int(b), "클릭": int(c), "총비용": num(d)} for a, b, c, d in mc]
@@ -205,23 +223,25 @@ def _s08():  # 08
     cmp("08 컴팩트 목록(집합, 지역명 축약)", sorted(got8, key=lambda x: x["지역"]), sorted([{"지역": short(r["지역"]), "노출": r["노출"], "클릭": r["클릭"]} for r in R["08"]["컴팩트"]], key=lambda x: x["지역"]))
     cmp("08 컴팩트 정렬(클릭↓, 동률 노출↓, 그 안은 직전 순서)", [(x["클릭"], x["노출"]) for x in got8] == sorted([(x["클릭"], x["노출"]) for x in got8], reverse=True), True)
     m = grp(r"클릭 0인 (\d+)개 지역에서 노출 ([\d,]+)회", s8); cmp("08 클릭0 각주", {"개수": int(m.group(1)), "노출": num(m.group(2))}, R["08"]["클릭0"])
-    m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", s8); cmp("08 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3))}, R["08"]["각주"])
+    m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이.*?비중 계산도 ([\d,]+) 기준", s8, re.S)   # 판 J — 08-note 고정 표지: 분모 숫자까지 읽는다
+    cmp("08 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3)), "분모": num(m.group(4))}, dict(R["08"]["각주"], 분모=R["08"]["각주"]["전체"]))
     m = grp(r"노원구 단독으로 전체 노출의 (\d+)%·클릭의 (\d+)%", s8); cmp("08 노원 비중", {"노출%": int(m.group(1)), "클릭%": int(m.group(2))}, R["08"]["노원"])
     m = grp(r"노출 비중 (\d+)%·클릭 (\d+)%", s8); cmp("08 desc 타겟 비중", {"노출%": int(m.group(1)), "클릭%": int(m.group(2))}, {k: R["08"]["타겟"][k] for k in ("노출%", "클릭%")})
-    m = grp(r"확인불가\"는 노출 ([\d,]+)·클릭 (\d+)·비용 ([\d,]+)원.*?비용 비중이 [\d.]+% → <b>([\d.]+)%</b>, CTR은 [\d.]+% → ([\d.]+)%", s8, re.S)
-    cmp("08 확인불가", {"노출": num(m.group(1)), "클릭": int(m.group(2)), "비용": num(m.group(3)), "비용%": float(m.group(4)), "CTR": float(m.group(5))}, R["08"]["확인불가"])
+    cmp("08 확인불가 비용 비중", float(grp(r'확인불가["\']? 비용 비중 ([\d.]+)%', s8).group(1)), R["08"]["확인불가"]["비용%"])   # 판 J(결정 23) — 표에 없는 비용 비중 하나만
     m = grp(r"타겟 밖 서울\(노출 ([\d,]+)·클릭 (\d+)\)의 CTR ([\d.]+)%는 타겟 5개 구\(([\d.]+)%\)", s8)
     cmp("08 타겟 밖 서울", {"노출": num(m.group(1)), "클릭": int(m.group(2)), "CTR": float(m.group(3))}, R["08"]["타겟밖서울"]); cmp("08 타겟 CTR", float(m.group(4)), R["08"]["타겟"]["CTR"])
     cmp("08 서울·경기 밖 비용%", float(grp(r"비용 비중 5%는 [\d.]+ → ([\d.]+)%", s8).group(1)), R["08"]["서울경기밖비용%"])
-    m = grp(r"11위 (\S+)는 .*?(\d+)회·(\d+)건이 돼", s8); cmp("08 11위", {"지역": m.group(1), "노출": int(m.group(2))}, {"지역": short(R["08"]["11위"]["지역"]), "노출": R["08"]["11위"]["노출"]})
+    # (판 J 결정 11 — "11위 … 바로 아래" 문장을 뺐다: "08 11위" 항목 삭제. 남으면 validate "판 J 뺀 글 0" 이 FAIL)
 
 def _s09():  # 09
     s9 = sec(9); cmp("09 hourlyChart 노출", chart_data("hourlyChart", "노출수"), R["09"]["노출"]); cmp("09 hourlyChart 클릭", chart_data("hourlyChart", "클릭수"), R["09"]["클릭"])
-    m = grp(r"심야\(22시~09시\)에도 노출 ([\d,]+)회·클릭 (\d+)회\(전체 클릭의 (\d+)%\)·비용 ([\d,]+)원 발생. 노출 비중은 (\d+)%, 클릭 비중은 (\d+)%", s9)
-    cmp("09 심야 콜아웃", {"노출": num(m.group(1)), "클릭": int(m.group(2)), "비용": num(m.group(4)), "노출%": int(m.group(5)), "클릭%": int(m.group(6))}, R["09"]["심야"]); cmp("09 심야 클릭% (괄호)", int(m.group(3)), R["09"]["심야"]["클릭%"])
-    m = grp(r"최다 클릭 시간대는 (\d+)시 (\d+)회", s9); cmp("09 최다", {"시": int(m.group(1)), "클릭": int(m.group(2))}, R["09"]["최다"])
-    m = grp(r"2위는 (\d+)시 (\d+)회", s9); cmp("09 2위", {"시": int(m.group(1)), "클릭": int(m.group(2))}, {k: R["09"]["2위"][k] for k in ("시", "클릭")}); print("      09 2위 동률:", R["09"]["2위"]["동률"])
-    cmp("09 desc 최다", [int(x) for x in grp(r"(\d+)시대 클릭 최다\((\d+)회", s9).groups()], [R["09"]["최다"]["시"], R["09"]["최다"]["클릭"]])
+    # 판 J(결정 24·37) — 콜아웃 첫 문장 새 꼴 · 클릭 단위 '건' · 최다 구절은 머리 줄에만("09 desc 최다") · 09-desc·09-call 은 고정 표지(숫자를 전부 읽는다 — 동률 시간 포함)
+    m = grp(r"심야\(22시~09시\) 노출 ([\d,]+)회\((\d+)%\)·클릭 (\d+)건\((\d+)%\)·비용 ([\d,]+)원", s9)
+    cmp("09 심야 콜아웃", {"노출": num(m.group(1)), "클릭": int(m.group(3)), "비용": num(m.group(5)), "노출%": int(m.group(2)), "클릭%": int(m.group(4))}, R["09"]["심야"])
+    m = grp(r"2위는 (\d+)시 (\d+)건(?:으로 ((?:\d+시·)*\d+시)와 같음)?", s9)
+    cmp("09 2위(동률 시간 포함)", {"시": int(m.group(1)), "클릭": int(m.group(2)), "동률": [int(x) for x in re.findall(r"\d+", m.group(3) or "")]},
+        {"시": R["09"]["2위"]["시"], "클릭": R["09"]["2위"]["클릭"], "동률": [x for x in R["09"]["2위"]["동률"] if x != R["09"]["2위"]["시"]]})
+    cmp("09 desc 최다", [int(x) for x in grp(r"(\d+)시대 클릭 최다\((\d+)건\)", s9).groups()], [R["09"]["최다"]["시"], R["09"]["최다"]["클릭"]])
     m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", s9); cmp("09 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3))}, R["09"]["각주"])
 
 def _s11():  # 10·11 — 판 I(2026-10-23): 10 핵심 요약 · 11 다음 액션(판 H 까지 11·12 — 지면 구역 10 이 빠지며 당김). 함수 이름은 그대로
@@ -259,7 +279,7 @@ def _sx():  # 판 G(2026-10-12 보고서 더 받기 A + B) — 04 계정 변경 
         more = f" · 최근 {H['표시']}건 / {H['건수']}건" if H["건수"] > H["표시"] else ""
         cmp("04 변경 기록 머리(기간)", _plain(grp(r"계정 변경 기록\([^)]*\) <span[^>]*>\((.*?)\)</span>", hb).group(1)), f"{H['기간']} 기록{more}")
         cmp("04 변경 기록 표", _trs(hb), [(r["일시"], r["유형"], r["대상"], r["내용"] or "—") for r in H["rows"]])
-        cmp("04 변경 기록 스킬 줄", [int(x) for x in grp(r"스킬 제외 검색어 등록 (\d+)회\(실행 수\) · 삭제 (\d+)건", hb).groups()], [H["스킬"]["등록회"], H["스킬"]["삭제건"]])
+        cmp("04 변경 기록 스킬 줄 0(판 J — 제외 검색어 현황은 07 ②)", "스킬 제외 검색어 등록" in _plain(hb), False)
     G = R.get("성별연령") or {"상태": "없음"}
     if G.get("상태") != "ok":
         cmp("05 성별·연령대 '확인 못 함'(compute 상태 " + str(G.get("상태")) + ")", ("확인 못 함 —" in gb) and gb.count('<div class="sub-head">') == 0, True)
@@ -273,7 +293,7 @@ def _sx():  # 판 G(2026-10-12 보고서 더 받기 A + B) — 04 계정 변경 
         if t.get("상태") != "ok":
             cmp(f"05 {t['종류']} '확인 못 함'", bool(got) and got[0].startswith("확인 못 함"), True)
             continue
-        unk = "" if t.get("알수없음%") is None else f" · 알 수 없음 {t['알수없음%']:.1f}%"
+        unk = "" if t.get("알수없음%") is None or t.get("알수없음줄") else f" · 알 수 없음 {t['알수없음%']:.1f}%"   # 판 J(결정 8) — 표에 그 줄이 있으면 괄호에 % 0
         cmp(f"05 {t['종류']} 머리(기간·알 수 없음)", got[0] if got else None, f"{t['기간']}{unk}")
         cmp(f"05 {t['종류']} 표", got[1] if got else None,
             [(r["구분"], f"{r['노출']:,}", f"{r['비중']:.1f}%", f"{r['클릭']:,}", "적음" if r["적음"] else f"{r['CTR']:.2f}%", f"{r['비용']:,}원") for r in t["rows"]])
