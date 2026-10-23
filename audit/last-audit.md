@@ -18,6 +18,104 @@ propose 창 2026-10-22~2026-10-22 · 등록 미룸(사용자): 아니오
 
 ---
 
+# 기능 추가 구현 기준선(콘텐츠 지면 빼기 — 판 I, 2026-10-23) · 브랜치 `feat-20261023-content`
+점검일: 2026-10-23 09:15 ~ 10:3x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_콘텐츠지면빼기_작업지시_2026-10-23.md`(다듬기 세션이 씀).
+기준: 시작 `git fetch` — origin/main `5abcc45`(지시문 사실과 같음 · 운영 폴더 HEAD 도 `5abcc45` · 고칠 파일 마지막 커밋 전부 지시문과 같음 — 코드 자리 다시 볼 것 없음). clone `D:\saero\feat-20261023-content`(`git clone -c core.autocrlf=false`). **코드 커밋 `9a0fb59`** + 이 기록.
+지킨 제약: 네이버 호출 0 · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = `rev-parse` 1 · work/ 재료 복사 — 리허설 뒤 운영 쪽 md5 15파일 전부 같음) · data/·registry·place-checklist 변경 0 · fetch_reports·ingest·archive·exclusions·balance 실행 0 · deploy 는 `push --dry-run` 만 · 브라우저 = playwright 새 임시 프로필(overflow file:// · chart_check·section_compare 만 cdnjs 2).
+방법: 조정자가 설계·코드·시험·리허설·자체 검토 · 문서는 에이전트 1(조정자 grep 대조) · 하위 토큰 약 44만.
+
+## 사용자 결정(2026-10-23 — 지시문 원문, 다시 묻지 않음 · 원문 "너 말처럼 이 질문을 다듬어서 새 작업 세션으로 넘겨줘 / 지금 할수있는건 다 하자")
+1. 01 ① 표: 검색·콘텐츠 두 칸을 뺀다 → 날짜 · 노출 · 클릭 · CTR · CPC 5칸. 머리글 "① 일별 지표 — 노출·CTR 변화".
+2. 01 ③ 민트 줄: "콘텐츠 지면 없는 날 N일" · "검색 지면만 계산하면 …(노출 N·클릭 N)" · "콘텐츠 노출 N회는 9/6 이후 늘지 않음" 을 빼고, 위 KPI 카드 평균 클릭률(콘텐츠 노출이 섞인 값)의 설명만 괄호 한 줄로 남긴다.
+3. 10번 "검색 지면 vs 콘텐츠 지면" 구역을 통째로 뺀다 — 차트(`placementChart` 캔버스 + 스크립트) · "매체 변경" 항목별 표 · 민트 줄 · note. 파트너 매체 줄도 같이 사라진다(09-24 사용자 "아예 제껴줘" 로 이미 추적하지 않는 항목 — checklist [의도된 동작] 10).
+4. 11 핵심 요약 → 10, 12 다음 액션 → 11 로 당긴다(빈 번호를 두지 않는다).
+5. 콘텐츠 지면 노출이 다시 생기면(9/6 이후 날에 1회 이상) 운영 회차 채팅에 경고 한 줄 — 멈추지 않는다.
+6. 레이아웃 판 하나(r2026-10-I) · 첫 적용은 보류로 시작 + 전후 비교(1280·390 — 01 · 옛 10 · 옛 11 → 새 10).
+다듬기 세션 기본값(사용자에게 알림 — 바꾸라는 답 없음): 7. 판 이름 = `r2026-10-I`. 확장 소재(보고서 더 받기 C)는 그다음 판(J) — report-structure.md 판 G 절의 "(… 판 H 는 2026-10-17 07 정식표 접기가 썼다)" 문구도 맞춘다. 8. ③ 첫 문장 꼴 — `→ 누적 CTR <b>3.34%</b>(8/28~9/5 콘텐츠 지면 노출 1,746회 포함 — 빼면 <b>3.73%</b>). 상향 뒤 하루 평균은 … <b>상향 유지 결론 그대로</b>(재상정 조건 미달).` · 숫자 넷(기간 첫날·끝날 · 노출 합 · 검색 지면만 CTR)은 compute 키에서만(기간 두 날짜는 새 키) · compare 가 읽는다 · 합 0 이면 괄호 없이 `→ 누적 CTR <b>N%</b>. 상향 뒤 …` · 글자를 바꾸려면 코드 전에 다시 묻는다 · 폭에 맞춘 줄바꿈은 된다. 9. compute 출력 키 `"10"` 은 지우지 않는다(운영 서술 재료 — `work/n1023.py` 127행) — 문서에 "리포트 구역 없음 — 서술 재료". 10. 번호 범위 — 구역 주석 · 배지 · 화면 글 "N번" · validate/compare/reportlib 구역 번호 · 문서 절 번호는 새 번호 하나로, config 키·compute 키·서술 표지 이름·함수 이름은 그대로(report-structure.md 서술 표지 절에 "표지·키 이름의 11·12 = 화면 10·11" 한 줄).
+이 회차에 받은 답: 없음(지시문 안에서 끝남 — 채팅 질문 0).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `9a0fb59`, 25파일 +1,094/−398) [실측]
+- `scripts/apply.py` 1303 → 1427 · 2ceca600 → 62a645a6 · `scripts/compare.py` 291 → 294 · 6085aa60 → bc4482d5 · `scripts/compute.py` 635 → 658 · 21f9632d → f9b26e0c · `scripts/validate.py` 897 → 962 · 3e16e19d → a45f7303 · `scripts/reportlib.py` 60 → 78 · f29e64fc → 110c6c86 · `scripts/place.py` 444 → 444 · 4bd82fee → 51e214d8 · `scripts/leads.py` 585 → 585 · 23e37556 → d8229edc(둘 다 화면·채팅 글 번호 12 → 11)
+- `config/report-config.json` 333 → 339 · 3b72a9ac → 7d244a66(`layout_id` r2026-10-I · `markers.sections` 11 · `markers.canvases` 7 · 새 `content_watch.since` "2026-09-06" · `_comment` 판 I)
+- `tests/test_apply.py` 928 → 1116 · 7e9dd4f4 → f80f8837 · `tests/test_place.py` 304 → 331 · b290a4bf → 3fd509d4 · `tests/test_leads.py` 570 → 570 · 63a9cb70 → 8b83fe4d · `tests/test_validate_07.py` 90 → 126 · f365c604 → a30e4300 · `tests/test_compare_sections.py` 177 → 199 · f270bc28 → 240a82a2 · `tests/mutation_test.py` 501 → 518 · 5c239508 → 44144605 · `tests/chart_check.py` 879 → 895 · dc3037cf → 03bde24f · `tests/section_compare.py` 141 → 198 · 7d84e23b → 584f9bc8 · `tests/fixtures/layout_old.html` 489 → 500 · 3bc6e477 → b989c90d(01 ① thead 7칸 — 배포본과 같은 꼴)
+- `SKILL.md` 695 → 711 · 36f62ad4 → f446c220 · `references/report-structure.md` 773 → 830 · c9d1e6f9 → a56e9d78 · `references/code-tab.md` 315 → 320 · 723a3ff2 → b00d57d1 · `references/css-and-layout.md` 299 → 301 · 1a48bc3b → 10066228 · `references/exclusion-ui.md` 173 → 173 · 1f382675 → c223ef14 · `audit/checklist.md` 563 → 566 · d5b71f9e → 9136437d · `local/prompt-polish/SKILL.md` 208 → 208 · 11a83cc8 → 051f8c00 · `local/q-saero-run/SKILL.md` 34 → 34 · 5d1ea18e → c7f0a5e3 · `audit/last-audit.md`(이 절)
+- 흐름: 5단계 compute(`01.콘텐츠첫날`·`콘텐츠끝날`·`콘텐츠재발` · 재발이면 `[주의]` 한 줄) → apply `--layout` — meta r2026-10-H 판 → `convert_h_to_i`(meta · ① 머리글·칸 머리 둘 · 10 구역 통째 · placementChart 블록 · 11·12 주석·배지 → 10·11 · 12-basis 한 곳) → 사슬 끝 `check_noplace` → ① 5칸 = compute 표5 · placementChart·10 표 쓰기 없음 → 서술(운영 n<날짜>.py — 판 I 꼴) → 6 precheck(validate **29** · compare **102**) → 7 deploy `--layout-change`(첫 적용 — 사용자 "배포" 답 뒤만).
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. 판 I 변환 `convert_h_to_i` — 바뀌는 곳 = meta · 01 ① 머리글 글 · ① 칸 머리 `검색`·`콘텐츠` 두 줄 · 10 구역 통째(주석 줄 머리 ~ 11 주석 줄 머리 앞) · placementChart 차트 블록(바로 앞 `// N. … placement …` 주석 줄과 그 앞 빈 줄 포함 — 블록 앞뒤 빈 줄 하나 그대로) · 11·12 구역 주석·번호 배지 → 10·11 · 고정 표지 12-basis 한 곳. FAIL(변환 안 함) = 마지막 구역이 12번 Action items 아님 · 10 구역 밖에 10-* 표지 · ① 앵커가 하나 아님 · 10 구역에 placementChart 밖 캔버스·접기·추가 블록·10-* 밖 표지·스크립트 · placementChart 블록 시작이 하나 아님·끝 못 찾음 · 블록 밖 placementChart 남음 · 옛 11·12 배지가 다른 값 · 12-basis 가 둘 이상이거나 옛 글 아닌 10번. 결과 = 시안 `proto_i.html` 과 서술 표지 줄(01-mint · 06-card · 11-list 두 줄 · 11-verdict · 12-note 두 줄)만 다름(서술은 운영 몫 — 시안은 서술까지 고쳤다).
+2. 사슬 끝 대조 `check_noplace`(구역 주석 1~`markers.sections` 순서 · 마지막 = Action items · 구역마다 배지(있으면) = 번호 · placementChart·10-* 0 · 캔버스 = `markers.canvases` · ① 머리글 새 글 하나·옛 글 0 · ① 칸 머리 5) — config 새 키 `markers.sections` 11 · `markers.canvases` 7(apply·validate·chart_check 가 읽음). `NOPLACE_LAYOUTS = (r2026-10-I,)` · 판 I 는 `CARD_LAYOUTS`·`EXTRA_LAYOUTS`·`FOLD07_LAYOUTS` 에도. 제목 글 "검색 지면 vs 콘텐츠 지면" 은 validate 23 만 본다(apply 는 구역 통째 삭제라 따로 안 봄).
+3. 번호 배지는 배지가 있는 구역만 바꾸고 대조(옛 fixture 발췌는 배지 없음) — validate 23 은 01~11 전부 요구(배포본).
+4. 12-basis 고침은 변환 몫(표지 안쪽을 고치는 유일한 예외 — apply 머리말에 적음) — 표지가 없으면(옛 fixture) 건너뜀.
+5. compute 새 키 `01.콘텐츠첫날`·`01.콘텐츠끝날`(콘텐츠 노출이 있는 첫날·끝날 M/D — 없으면 null) · `01.콘텐츠재발`([{날짜, 노출}]) — 한 함수 `content_days(inc, days, cfg)`. 표5 의 `검색`·`콘텐츠` 키는 뺌(운영 narr_lib·n1023 이 쓰지 않음 — grep 확인). 키 `"10"` 은 그대로(서술 재료). ③ 누적 CTR 은 compare 가 `01.누적CTR` 과 대조(운영 서술은 `KPI.CTR` 로 써 왔다 — 둘 다 `pct(clk, imp)` 같은 값).
+6. 재발 경고 자리 = compute(5a·5·precheck 마다 같은 줄) — stderr `[주의] 콘텐츠 지면 노출 재발 — 기준일 9/6 이후 N일: M/D N회 · … (01 ③ 괄호 기간 a~b · 리포트에는 지면 구역 없음 — 끝 보고·채팅 한 줄)` · `[compute]` 요약 끝 `콘텐츠 재발 N일` · exit 0. 기준일 = config `content_watch.since` "2026-09-06"(그날 포함).
+7. 직전 배포본 다음 액션 = `reportlib.action_section(html)` — 번호 대신 주석 이름 `Action items`(판 H 12번 · 판 I 11번) · 없거나 둘이면 `SectionError` → compute `[FAIL] 직전 배포본 다음 액션 구역: …` exit 1 · html 비면 "". 번호로 읽는 나머지(validate·compare·mutation_test·test_compare_sections)는 작업본(= config 판 I)만 읽으므로 새 번호로 고정.
+8. 옛 번호 검사 = validate 새 검사 28 "화면 글 구역 번호(판 I — 없는 12번·지면 10번·옛 지면 글 0)" — 서술 표지 안 글만(07 목록 같은 기계 자리의 검색어는 안 봄) · `NN번`(앞이 숫자·글자 아님 · 뒤 '째'·'출구' 아님 · `07·10번`·`01~07·10번` 묶음은 숫자마다) — ① 11 초과 · ② 10번이 지면을 가리킴(같은 묶음에 07 · 앞뒤 30자에 지면·매체 설정·파트너 매체) · ③ '콘텐츠 지면 N일 연속 0'·'검색 지면 vs 콘텐츠 지면'. 10번은 핵심 요약으로 쓰이므로 통째로 막지 않는다. (검사 번호 28 · 개수 29 — 검사 9 가 01·06 둘)
+9. 판 I 구조 대조는 validate 23 "레이아웃 판" 안(배지 01~11 · Action items = 11 · 지면 흔적 0 · 캔버스 7 · ① 칸 머리 5 — PASS 끝 `· 구역 11 · 캔버스 7 · ① 5칸`) · 11 "섹션 주석" 은 1~N 순서·그 밖 번호 0 으로 엄격히(옛: 1~12 있기만).
+10. compare — 구역 "10"(지면) 8항목 삭제 · 01 옛 3항목 → "01 ③ 누적 CTR" · "01 ③ 괄호(…)"(합 0 이면 None 대조) · "01 ③ 옛 구절 0(…)" · "01 표 5일(5칸)" · 구역 "10·11"·"11 장부·플레이스" · 판정 줄 리터럴 `지난 회차 10번 …`(첫 적용 회차에도 새 번호 — 지난 회차 핵심 요약은 판 H 의 11번이었지만 화면 이름은 10번) · 띄어쓰기 자리는 공백 여럿·줄바꿈 허용(폭에 맞춘 줄바꿈) · 110 → **102**.
+11. 화면·채팅 글 속 번호(compute·place·leads): 채팅 질문 `P? 11번 M/D부터 N일 그대로` · 이월 줄 `P? ✗(11번 자리 순서로 내림)` · 플레이스 행 `… 일 뒤 11번에서 빼고 이월 판정 줄에 한 번` · `[주의] … 11번 장부 판정·플레이스 행 0` — 화면에 실리는 글이 validate 28 에 걸리지 않게. 키·칸 이름(`"12번"`·`in12_since`·`items_in_12`)은 그대로.
+12. 시험: fixture `layout_old.html` 01 ① thead(배포본과 같은 7칸) · `at(cfg, lid)` 는 판 H·I 를 details 6 그대로 · test_apply `ApplyLayoutI` 6(사슬·범위·5칸·판 H 경로 그대로·손 수정 H 8·I 7) + `ComputeContentWatch` 1 · test_place 직전 배포본 H/I 같은 이월 줄(옛 `section(prev, 12)` 길은 다시 씀 — 막은 결함을 시험이 보임) · test_validate_07 `SectionRefs` 3 · 지시문 완료 기준 ③ 의 "mutation_test 변조" 몫 = compare 변조 시험 `test_compare_sections` 2경우(괄호 노출 합 +1 · 판 H 꼴 구절 끝에 붙임 — mutation_test 는 validate·archive 전용) · mutation_test 판 I 변조 7 + 0건 가드 1.
+13. chart_check — 캔버스 수 = config · `--base` 가 판 H(placementChart 있음)·작업본 판 I 면 "섹션 1·6 높이 = 기준"(06 같음·01 같거나 줄어듦)·"인쇄 PC PDF = 기준"(기준에서 placementChart 이미지 하나 뺀 구성)을 "판 I 전환" 으로 대조 — 그대로면 첫 적용 회차 chart_check 가 의도된 차이로 FAIL 2(리허설 첫 실행 실측: 01 841 → 823 · PDF 822×220 이미지 하나 빠짐).
+14. section_compare — `--sections` = 옛 구역 번호 · 새 짝 = 같은 제목(`.section-title`) · 없으면 "새 판에서 빠짐" 옛 그림만 · 같은 제목 둘이면 FAIL · 제목 없는 구역은 같은 번호. 기본값 `11`(옛 판 다음 액션 — 판 I 부터) · 판 I 첫 적용 = `--sections 1,10,11`.
+15. `[apply]` 출력 끝 `· 구역 11 · 캔버스 7(지면 구역 없음)`(판 I — 운영 세션이 출력에서 본다).
+
+## 리허설 결과 [실측 — 09:49~10:00 KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · clone `work/`(운영 `work/` 와 같은 자리 구조 — git 무시)]
+- **재료**(운영 `work/` 에서 복사 · 리허설 뒤 운영 쪽 md5 15파일 전부 같음): `prev.html`·`index.html` = 10/23 배포본 9b90500d(같은 기간 첫 적용 흉내 — 4단계 fetch·cp 와 같은 상태) · `combined/` CSV 4(키워드 e4ac6cd7 …) · `extra/` 4 · `balance.json`(10/23 08:47 기록 — balance.py 실행 0) · `c57/compute.json`(n1023 의 지난 회차 값) · `narr_lib.py` 18dd9c39 · `n1023.py` 82ccd829.
+- **R1 5단계**: compute(`[주의] 장부 확인 못 함(장부 없음)` — 운영과 같음 · 재발 줄 0 · `01` 콘텐츠 8/28~9/5 · 1,746 · 검색 지면 3.73 · 누적 3.34) → apply `--layout` 없이 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-H ≠ config r2026-10-I — --layout 을 붙여 r2026-10-H → r2026-10-I — 작업본은 바꾸지 않음` → `--layout` `131,245 → 127,055자 · 레이아웃 판 변환(r2026-10-H → r2026-10-I, 분기 2) · 잔액 카드 541,771원 · … · 07 정식표 위 10행 · 나머지 19행(…) 펼치기 · 구역 11 · 캔버스 7(지면 구역 없음)` → 두 번째 `(변환 건너뜀) … (변경 없음)`.
+- **R1b 옛 서술 그대로**(apply 직후): validate **FAIL 2**(`10번 항목 수·판정 줄` · `화면 글 구역 번호` — 06-card '12번' · 11-list '12번' 2·'콘텐츠 지면 N일 연속 0' · 12-note '12번' 2) · compare **OK 98 / DIFF 2**(01 ③ · 10·11 판정 줄) — 복사된 판 H 서술은 요란하게 멈춘다.
+- **R2 서술**: 사본 `narr_lib.py`·`n1023i.py` 를 판 I 꼴로(바꾼 줄 = 첫 적용 본보기 3) → `n1023i(판 I 리허설) 완료 126994 표지 34 10번 8 2`.
+- **R3 precheck**(`scripts/precheck.sh work/index.html work/combined work/prev.html`): **validate 29/29** · compute → **compare OK 102 / DIFF 0** · overflow 360·390·430 넘침 0(details 7 연 상태) · narrative `[주의] 같은 기간 — 대조 생략(표지 34개 중 매회차 23개)` · 도장 185d075b · 9b90500d · full.
+- **R4 deploy** `push --file work/index.html --base work/prev.html --dry-run`: `precheck 도장 … 확인` · **`[주의] 레이아웃 판이 바뀜 — 실제 push 에는 --layout-change(사용자가 작업본 화면을 본 뒤) · 직전 배포본(--base) r2026-10-H → 작업본(--file) r2026-10-I`** · base md5 확인(GET 본문 = 9b90500d) · 자격 증명 확인됨(git) · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0.
+- **R5 chart_check** `--base work/prev.html --out work/chart_1023i`: 첫 실행 PASS 31 / FAIL 2(의도된 차이 — 임의 결정 13) → 판 I 전환 대조로 고친 뒤 **PASS 33 / FAIL 0** · `390·1280 캔버스·pageerror — 캔버스 7 · Chart.getChart 7 · pageerror 0` · `1280 섹션 1·6 높이 = 기준 — 새 [823, 606] · 기준 [841, 606] · 판 I 전환` · `인쇄 1280 PC PDF = 기준 … (판 I 전환 — 기준에서 placementChart 822×220 하나 뺌)` · 외부 허용 2 · 차단 0.
+- **R6 전후 비교** `tests/section_compare.py work/index.html work/prev.html --out work/cmp_1023i --sections 1,10,11` → `[짝] 옛 1번 「일별 추이」 → 새 1번 · 옛 10번 「검색 지면 vs 콘텐츠 지면」 → 새 판에서 빠짐 · 옛 11번 「핵심 요약」 → 새 10번` · 01 1280 841 → 823 · 390 1,076 → 1,059(시안 측정과 같음) · 옛 10 1280 616 · 390 733(빠짐) · 핵심 요약 577 → 577 · 1,154 → 1,154 · 밖 요청 막음 0 → **`work/cmp_1023i/compare.html`**.
+- **R7 회귀 바이트**(prev.html 판 H ↔ index.html 판 I): 구역 2~9 바이트 같음(06 한 곳 = 06-card 표지 "(12번 2번)" → "(11번 2번)") · 머리(CSS 포함) = meta 만 · 스크립트 = placementChart 블록만 빠짐 · 새 색 0 · CDN 2 그대로 · 바뀐 표지 6(01-mint · 06-card · 11-list · 11-verdict · 12-basis · 12-note) · 사라진 표지 3(10-desc · 10-mint · 10-note).
+- **R8 변조**: `mutation_test`(R3 산출) **검사 29개 중 변조로 FAIL 확인 29 · config 실험 5 · archive 7종 · 원본 md5 동일 — 전부 살아 있음**(새 변조 8 전부 OK) · `test_compare_sections`(R3 산출) 기준 OK 102 · 9경우 전부 그 구역 그 항목만 DIFF(새 2경우 포함) · test_apply 리허설 몫(`work/RX/same` = R3 산출) 멱등 OK.
+- **R9 직전 판 H·I**: compute `--competitors-html work/prev.html`(판 H) ↔ `work/index.html`(판 I) 출력 **전체 같음**(플레이스전후 포함).
+- **R10 재발 경고 실제 파이프라인**: 합본 사본 키워드 CSV 에 9/5 콘텐츠 행을 10/22 로 복사(노출 3) → `[주의] 콘텐츠 지면 노출 재발 — 기준일 9/6 이후 1일: 10/22 3회 (01 ③ 괄호 기간 8/28~10/22 · …)` 한 줄 · `[compute]` 끝 `콘텐츠 재발 1일` · exit 0 / 원래 합본 → 줄 0.
+- **네트워크**: GitHub GET(dry-run sha·본문·권한 — 읽기) + cdnjs 2(chart_check·section_compare) 뿐 · 네이버 0 · 쓰기 0.
+
+## 전체 시험(커밋 전 한 번 — 10:03~10:10 KST, clone `work/alltests_1023i.log`)
+py_compile 31 OK · bash -n 2 OK · **test_apply 48**(+ `ApplyLayoutI` 6 · `ComputeContentWatch` 1 · 리허설 RX 판 I 포함) · test_balance 13 · test_deploy 45 · test_exclusions 49 · test_extras 19 · test_fetch_reports 25 · test_ingest 10 · test_leads 23 · test_narrative_check 7 · test_place 10 · test_validate_07 9 — 전부 rc 0 · data/·registry·place-checklist 변경 0. + 리허설 R5·R8: chart_check 33/0 · mutation_test 전부 살아 있음 · test_compare_sections 전부 맞음. (그 뒤 바뀐 것 = 문서 · section_compare 기본값·머리말 3줄 — 시험 대상 밖)
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 조정자 1회 · "다음 단계로 가도 된다" · 막음 0)
+- 완료 기준 표 줄 1(① 5칸 — compare "01 표 5일(5칸)"·validate 01 클릭률·`test_values_rows_5`) · 2(③ — compare 새 3항목 · 변조 2 · 합 0 괄호 없음은 compare want None) · 3(구조 — validate 11·23 · chart_check 7/7 · pageerror 0) · 4(옛 번호 — validate 28 · mutation 3 + 가드 1 · `SectionRefs`(노원역10번출구·노원역 12번 출구 오탐 0) · R1b) · 5(재발 — `ComputeContentWatch` · R10 · code-tab 4절 행) · 6(직전 판 H·I — test_place · R9) · 7(판 규약 — test_apply · R1·R4) · 8(회귀 — R7 · `test_conversion_scope_h_to_i`) · 9(문서 — 아래) · 10(리허설 — 위) 모두 참.
+- 막음 후보로 본 것: 직전 배포본 다음 액션을 번호(`section(prev, 12)`)로 읽던 compute — 판 I 이후 같은 기간 다시 계산에서 빈 글이 돼 이미 실은 이월 줄을 다시 쓴다(조용한 서술 오류) → 이름으로 읽게 고침(임의 결정 7 · 시험이 옛 길의 결함을 보임). 그 밖 막음 0.
+
+## 문서 = 코드(문서 에이전트 고침 · 조정자 grep 대조)
+- `grep -n "1[012]번\|Section 1[0-2]\|12개 섹션\|12개 구역\|placement\|r2026-10-H\|콘텐츠 지면\|검색 지면" references/*.md SKILL.md audit/checklist.md local/*/SKILL.md README.md` 179줄 분류: 현재 규칙 = 새 번호(10 핵심 요약 · 11 다음 액션 — 판 I 설명 줄 포함) · 옛 번호는 날짜·판이 박힌 역사 기록(report-structure 판 G·H 절 · SKILL compare 99·101항목 이력 · 판 H PASS 문구 · checklist 판 H 이력 등 — "(판 H 까지 12번)" 괄호 포함)과 내부 이름(compute `"플레이스전후"."12번"` · `items_in_12`·`max_open_rows_12` · 판 H 입력의 "12번 Action items")·데이터 낱말("검색 지면만")뿐 — **현재 규칙으로 남은 옛 번호 0**.
+- 에이전트가 지시 밖으로 더 넣은 것(유지): checklist 갱신 이력 한 줄·[의도된 동작] 31(판 I) · code-tab 4절 compute `[FAIL] 직전 배포본 다음 액션 구역` 행 · css-and-layout 판 I 한 줄 · exclusion-ui "12번 1번" 세 곳(지시는 두 곳) · local/q-saero-run "07·10·11 문구만".
+- 에이전트가 짚은 어긋남 → 조정자 처리: section_compare 기본값 `12`(판 I 배포본엔 Section 12 없음) → `11` 로 고침(코드·SKILL) · ③ 누적 CTR 출처(서술 `KPI.CTR` ↔ compare `01.누적CTR`) = 같은 값(임의 결정 5) · apply 는 제목 글을 안 봄(임의 결정 2).
+
+## 이월(한 줄씩 — 막음 아님, 첫 적용 뒤 또는 정기점검)
+- 같은 기간 첫 적용에서 직전 배포본(판 H) 다음 액션에 옛 꼴 이월 줄 "(12번 자리 순서로 내림)" 이 있었다면 새 글 "(11번 …)" 과 달라 한 번 더 실린다 — 10/23 배포본엔 그 줄 없음(플레이스 이월 줄 0) · 첫 적용 한 번뿐.
+- validate 28 은 서술 표지 밖 정적 글의 번호는 보지 않는다 — 정적 글은 판 변환이 정함(지금 "(06번의 …)" 하나 · 판 I 에서 바뀐 정적 번호 = 구역 주석·배지뿐).
+- '번' 을 횟수로 쓰면("12번 클릭") validate 28 이 요란하게 FAIL — 서술 관행은 회·건.
+- 콘텐츠 기간은 첫날~끝날이라 재발하면 사이 0일도 기간 안으로 보인다(기본값 8 "재발하면 끝날이 바뀐다" 그대로).
+- 새 날 첫 적용이면 narrative 가 `[주의] 직전 배포본에만 있는 표지 3개: 10-desc, 10-mint, 10-note`(정보 — FAIL 아님).
+- `tests/chart_check.py`·`tests/test_apply.py` 머리말 일부가 옛 판 글(글만).
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1 ① 5칸·머리글·값·.ctr-high(compare `_s01` · validate 5 · `ApplyLayoutI.test_values_rows_5`) · 2 ③ 꼴·옛 세 구절 0·괄호 숫자 넷 = compute·합 0 괄호 없음(compare "01 ③" 3항목 · test_compare_sections 새 2경우) · 3 옛 10 구역·placementChart·10-* 0 · 구역 주석 1~11 · 배지 01~11 · 마지막 = 다음 액션 · 캔버스 7 = Chart 7 · pageerror 0(validate 11·23 · `check_noplace` · chart_check R5) · 4 옛 번호 참조 잡힘 · 검색어 오탐 0(validate 28 · `SectionRefs` · mutation_test 새 변조 · R1b) · 5 재발 경고 한 줄 · exit 0(`ComputeContentWatch` · R10 · code-tab 4절 행) · 6 직전 판 H·I 같은 결과(`test_prev_action_section_layout_h_or_i` · R9) · 7 판 I 규약(meta·config·사슬 H→I·옛 → … → I·멱등·`--layout` 없이 FAIL 문구·deploy 게이트 — test_apply · R1·R4) · 8 회귀 0(`test_conversion_scope_h_to_i` · R7 · 새 CSS·JS·색 0) · 9 문서 = 코드(위 grep 분류) · 10 리허설(이 절 — 재료 clone `work/` 로 사본 재실행).
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 1시간 20분(09:15~10:3x KST — 시험·chart_check·문서 에이전트 대기 포함) · 하위 에이전트 1(문서 — 약 44만 토큰) · 조정자 즉석 코드(저장소 밖) — 패치 스크립트 7(test_apply·test_place/leads·mutation_test·chart_check·리허설 서술 사본 등) · 회귀 바이트·재발 주입 확인 약 60행.
+쓴 곳: 브랜치 커밋 `9a0fb59`(코드·문서·시험) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_콘텐츠지면빼기_검증지시_회차1_2026-10-23.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/q-saero-run` — 판 I 첫 적용 · 보류로 시작)
+1. 첫 말: "**판 I(콘텐츠 지면 빼기) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. 평소대로 ①~5 — apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-H → r2026-10-I, 분기 2)` 와 끝 `· 구역 11 · 캔버스 7(지면 구역 없음)` 확인(`--layout` 없이 돌리면 `meta r2026-10-H ≠ config r2026-10-I` FAIL — 작업본 그대로). compute 에 `[주의] 콘텐츠 지면 노출 재발 — …` 줄이 있으면 끝 보고·채팅에 그 줄 그대로(멈추지 않는다).
+3. 서술 스크립트(n<날짜>.py · narr_lib.py — 저장소 밖)에서 바꿀 줄(리허설 clone `work/n1023i.py`·`work/narr_lib.py` 에서 실제로 바꾼 줄 — 그대로 옮겨 쓰면 된다):
+   - `narr_lib.blocks()` 01-mint: 첫 문장 `→ 누적 CTR <b>{KPI CTR}%</b>{괄호}. 상향 뒤 …` — 괄호 = `({R['01']['콘텐츠첫날']}~{R['01']['콘텐츠끝날']} 콘텐츠 지면 노출 {c(R['01']['콘텐츠누적노출'])}회 포함 — 빼면 <b>{R['01']['검색지면']['CTR']:.2f}%</b>)`(합 0 이면 빈 글) · 끝 문장 "콘텐츠 노출 N회는 9/6 이후 늘지 않음." 빼기.
+   - `narr_lib.blocks()` 10-mint·10-note·10-desc 세 자리를 지운다(`A, B, C_, D` assert 줄 포함 — rep_all 이 작업본 표지와 글 목록을 맞추므로 남기면 assert 로 멈춘다).
+   - `narr_lib.blocks()` 12-basis 고정 글 "KPI·01~07·10번에서 제외" → "KPI·01~07번에서 제외"(판 변환과 같은 글 — 운영 서술이 고정 표지를 다시 쓰므로) · 12-note 기본 꼴 "지난 회차 12번" → "11번" · 06 카드 "(12번 2번)" → "(11번 2번)".
+   - `narr_lib.items_common()` "07번 ②·12번 1번" → "07번 ②·11번 1번" · 변화 없음 줄의 " · 콘텐츠 지면 N일 연속 0" 빼기 · "상계동 카드 유지(12번 2번)" → "(11번 2번)".
+   - n<날짜>.py: 06 카드 old_card·바꿀 글 "(12번 2번)" → "(11번 2번)" · 변화 없음 줄 tail·바꿀 글 "12번 2번" → "11번 2번" · 11-verdict "지난 회차 11번" → "지난 회차 10번"(첫 적용 회차에도 새 번호 — validate·compare 리터럴) · 12-note "지난 회차 12번 3개 항목" → "11번" · "(12번 행 없음)" → "(11번 행 없음)".
+   - 하나라도 빠지면: validate "화면 글 구역 번호" FAIL(옛 12번·지면 10번·"콘텐츠 지면 N일 연속 0") · validate "10번 항목 수·판정 줄" FAIL · compare "01 ③ …" DIFF(리허설 R1b 실측) — 요란하게 멈춘다.
+4. 6 precheck(validate 29 — 레이아웃 판 끝 `· 구역 11 · 캔버스 7 · ① 5칸` · 화면 글 구역 번호 PASS · compare **102** · overflow · narrative) → 도장.
+5. 전후 비교: `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 1,10,11` → `work/cmp_<날짜>/compare.html`(01 · 옛 10 "검색 지면 vs 콘텐츠 지면"(새 판에서 빠짐) · 옛 11 핵심 요약 → 새 10 — 1280·390) + `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(PASS 33 · 캔버스 7 · `섹션 1·6 높이`·`인쇄 1280 PC PDF` 두 줄은 "판 I 전환" 표기로 PASS)와 작업본을 사용자에게 보인다.
+6. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜 … r2026-10-H → r2026-10-I` 만).
+
+---
+
 ## 갱신 회차 (2026-10-22 01:25~01:37 KST — Code 탭 `/q-saero-run`, main 작업 폴더) · **배포 완료 `784a1f6`**
 합본 `일별` 2026.08.26 — 10.21 (57일) · 저장소 반영 커밋 `784a1f6`(직전 `43d1d8b`, 파일 sha 537b18f → f5152fc) · 집계 기간 `2026.08.26 — 10.21 (57일)`
 저장소 반영(커밋) 784a1f6 01:34 · 공개 사이트 반영 01:35(커밋 뒤 74초 · Pages #174)

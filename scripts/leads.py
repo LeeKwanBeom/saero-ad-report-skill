@@ -8,7 +8,7 @@
     "$PY" scripts/leads.py add … --replace --week YYYY-MM-DD [--dry-run]  # 정정(사용자 "정정" 답이 있을 때만) — 옛 파일은 .bak-<시각>
     "$PY" scripts/leads.py skip [--dry-run]                       # 사용자 "건너뜀" 답 — 숫자 칸 없는 줄(판정에서는 미입력(구멍))
     "$PY" scripts/leads.py guard --staged [--message-file F]      # 스킬 저장소 커밋 전 — staged 추가 줄·커밋 메시지에 장부 숫자가 있으면 [FAIL]
-    "$PY" scripts/leads.py row --compute work/compute.json        # 12번 장부 행(서술 표지 안쪽) 고정 꼴 — 서술 스크립트가 import 해 써도 된다
+    "$PY" scripts/leads.py row --compute work/compute.json        # 11번 장부 행(서술 표지 안쪽) 고정 꼴 — 서술 스크립트가 import 해 써도 된다
   공통: [--ledger <장부 경로>] (시험·리허설은 스크래치 — 운영 기본은 config leads.path)
 
 - 장부 = CSV 한 파일(저장소 밖). 칸: week(월요일 ISO) · status(ok|skip) · inquiry·trial·signup·naver(필수 숫자) · revenue·place_visit·call·direction·save(선택 숫자) ·
@@ -317,9 +317,9 @@ def replace_row(path, week, line, now):
     return bak
 
 
-# ---------------------------------------------------------------- 12번 행(서술 표지 안쪽 — 고정 꼴)
+# ---------------------------------------------------------------- 11번 행(서술 표지 안쪽 — 고정 꼴 · 판 H 까지 12번)
 def row_html(R):
-    """compute.json(R)의 성과장부 → 12번 장부 행 안쪽 HTML. 'M/D까지' = 합본 마지막 날(masthead 끝) · 판정 낱말만(숫자 0)."""
+    """compute.json(R)의 성과장부 → 11번 장부 행 안쪽 HTML. 'M/D까지' = 합본 마지막 날(masthead 끝) · 판정 낱말만(숫자 0)."""
     g = R["성과장부"]
     return ('<span class="tag tag-mint">매주</span> '
             f"<b>성과 장부(광고비 → 문의 → 등록) — {g['기준']} 장부 기준 판정 = {g['판정']}</b>"

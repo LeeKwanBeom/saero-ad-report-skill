@@ -25,9 +25,13 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
   (2026-10-08 판 E) "레이아웃 판": 0건 가드 +1(01 모바일 터치 축 axis:'y' 지우기 — 판 D 꼴로 되돌림).
   (2026-10-09 판 F) "광고비 잔액 카드": 변조 4(카드 값 +1원 · 기준 시각 +1분 · 며칠분 +1 — 실패 기록이면 보조 줄 끝 글자 · 잔액 기록 읽은 시각을 집계 마지막 날로(지난 회차 기록))
      + 0건 가드 2(카드 표지 data-balance 지우기 → "광고비 잔액 카드" · "레이아웃 판" 각각).
-  (2026-10-10 매출 작업 A·C) "01·11·12 서술에 장부 라벨+숫자 0": 변조 1(11 첫 항목에 '장부 등록 1명') + 0건 가드 1(Section 1·11·12 주석 변조)
-     + config 실험(leads.publish 를 counts 로 → 기준 사본 FAIL) / "12번 장부·플레이스 행": 변조 2(판정 낱말 config 밖 · 'M/D까지' 하루 앞) + 0건 가드 1(판정 문구 변조).
-     기준 사본은 12번 장부 행이 있는 배포본(첫 적용 뒤)이어야 한다 — 첫 적용 전 배포본은 기준 실행에서 "12번 장부·플레이스 행" FAIL 로 멈춘다(기대값).
+  (2026-10-10 매출 작업 A·C) "01·10·11 서술에 장부 라벨+숫자 0"(판 I — 판 H 까지 01·11·12): 변조 1(10 첫 항목에 '장부 등록 1명') + 0건 가드 1(Section 1·10·11 주석 변조)
+     + config 실험(leads.publish 를 counts 로 → 기준 사본 FAIL) / "11번 장부·플레이스 행": 변조 2(판정 낱말 config 밖 · 'M/D까지' 하루 앞) + 0건 가드 1(판정 문구 변조).
+     기준 사본은 11번 장부 행이 있는 배포본(첫 적용 뒤)이어야 한다 — 첫 적용 전 배포본은 기준 실행에서 "11번 장부·플레이스 행" FAIL 로 멈춘다(기대값).
+  (2026-10-23 판 I 콘텐츠 지면 빼기) 기준 사본은 판 I 배포본(구역 11 · 지면 구역 없음)이어야 한다 — 판 H 배포본은 기준 실행에서 "레이아웃 판"·"섹션 주석"·
+     "화면 글 구역 번호" FAIL 로 멈춘다(기대값). 11·12번 변조는 10·11번으로 · "섹션 주석": 변조 +1(Section 12 주석 덧붙임 — 그 밖 번호) ·
+     "레이아웃 판": 변조 +3(placementChart 캔버스 덧붙임 · 11 번호 배지 → 12 · ① 칸 머리 검색·콘텐츠 되살림) · "화면 글 구역 번호": 변조 3(다음 액션 표지 글에 '12번 행 없음' ·
+     12-basis 를 'KPI·01~07·10번' 으로 되돌림 · 요약 표지에 '콘텐츠 지면 47일 연속 0') + 0건 가드 1(서술 표지 이름 꼴 변조 → 표지 0개).
   (2026-10-12 판 G 보고서 더 받기 A + B) index.html 옆 extra/(precheck 와 같은 work/extra — 추가 합본·원장 사본)를 사본으로 옮겨 validate 에 --extra 로 넘긴다
      (없으면 빈 폴더 — 카드가 '확인 못 함' 이어야 기준 PASS). "추가 카드·표": 변조 4(성별·연령대 표 첫 노출 +1 · 변경 기록 기간 끝 하루 뒤 · 스킬 등록 회수 +1 ·
      배포본에 아이디 꼴 `:naver` 주석) — 카드가 '확인 못 함' 이면 앞 셋은 SKIP + 0건 가드 2(변경 기록 블록 표지 지우기 → "추가 카드·표" · "레이아웃 판" 각각).
@@ -252,7 +256,7 @@ def main():
             return 1
 
         H = base["html"]
-        s7, s1, s6, s11 = section(H, 7), section(H, 1), section(H, 6), section(H, 11)
+        s7, s1, s6, s11 = section(H, 7), section(H, 1), section(H, 6), section(H, 10)   # s11 = 핵심 요약(판 I 10번 — 판 H 까지 11번, 변수 이름 그대로)
         date_secs = [int(n) for n in cfg["chart_min_width"]["date_based_sections"]]
         sr_cols = base["sr"].split("\n")[1].split(",")
 
@@ -301,7 +305,7 @@ def main():
         imp_col = rg_lines[1].split(",").index("노출수")
         muts.append(("상세지역 CSV 첫 행 노출 +1", "상세지역 CSV 노출 합계", {"csv": {"rg": csv_edit(base["rg"], 2, imp_col, 1)}}))
 
-        # (2026-09-26 추가) 05 top5 · 06 카드 · 경쟁사 2종 · 검색어 클릭합 · 11번 2종
+        # (2026-09-26 추가) 05 top5 · 06 카드 · 경쟁사 2종 · 검색어 클릭합 · 10번(판 H 까지 11번) 2종
         i = H.find("getElementById('mediaChart')")
         m = re.search(r"(data:\s*\[)(\d+)(,)", H[i:]) if i != -1 else None
         muts.append(("05 mediaChart 첫 값 +1", "05번 mediaChart",
@@ -322,10 +326,21 @@ def main():
         muts.append(("검색어 CSV 첫 행 클릭 −1", "검색어 CSV 클릭 합계", {"csv": {"sr": csv_edit(base["sr"], 2, sr_cols.index("클릭수"), -1)}}))
 
         m = re.search(r"(항목 판정: 유지 )(\d+)", s11)
-        muts.append(("11 판정 줄 유지 +1", "11번 항목 수",
-                     {"html": replace_in_section(H, 11, m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}") if m else None}))
-        muts.append(("11 첫 항목에 금칙어 삽입", "11·12번 금칙어", {"html": replace_in_section(H, 11, "<li><b>", "<li><b>필요 ")}))
-        muts.append(("12 첫 항목에 잔존 문구 삽입", "잔존 문구", {"html": replace_in_section(H, 12, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
+        muts.append(("10 판정 줄 유지 +1", "10번 항목 수",
+                     {"html": replace_in_section(H, 10, m.group(0), f"{m.group(1)}{int(m.group(2)) + 1}") if m else None}))
+        muts.append(("10 첫 항목에 금칙어 삽입", "10·11번 금칙어", {"html": replace_in_section(H, 10, "<li><b>", "<li><b>필요 ")}))
+        muts.append(("11 첫 항목에 잔존 문구 삽입", "잔존 문구", {"html": replace_in_section(H, 11, "<td><span class=\"tag tag-mint\">", "<td>확인 요청 <span class=\"tag tag-mint\">")}))
+        # (2026-10-23 판 I 콘텐츠 지면 빼기) 섹션 주석 그 밖 번호 · 레이아웃 판(지면 흔적 · 배지 · ① 칸 머리) · 화면 글 구역 번호(옛 12번 · 지면 10번 · 옛 지면 글)
+        muts.append(("Section 12 주석 덧붙임(그 밖 번호)", "섹션 주석", {"html": H.replace("\n<script>", "\n<!-- Section 12: x -->\n<script>", 1) if "\n<script>" in H else None}))
+        muts.append(("placementChart 캔버스 덧붙임", "레이아웃 판", {"html": H.replace('<canvas id="hourlyChart"></canvas>', '<canvas id="hourlyChart"></canvas><canvas id="placementChart"></canvas>', 1) if '<canvas id="hourlyChart"></canvas>' in H else None}))
+        muts.append(("11 번호 배지 → 12", "레이아웃 판", {"html": H.replace('<span class="section-num">11</span>', '<span class="section-num">12</span>', 1) if '<span class="section-num">11</span>' in H else None}))
+        muts.append(("01 ① 칸 머리 검색·콘텐츠 되살림", "레이아웃 판",
+                     {"html": replace_in_section(H, 1, '<th class="num">노출</th>\n', '<th class="num">노출</th>\n            <th class="num">검색</th>\n            <th class="num">콘텐츠</th>\n')}))
+        m = re.search(r"(<!-- n:12-note:매회차 -->)", H)
+        muts.append(("다음 액션 표지 글에 '(12번 행 없음)'", "화면 글 구역 번호", {"html": H.replace(m.group(1), m.group(1) + "(12번 행 없음) ", 1) if m else None}))
+        muts.append(("12-basis 를 'KPI·01~07·10번' 으로 되돌림", "화면 글 구역 번호", {"html": H.replace("KPI·01~07번에서 제외", "KPI·01~07·10번에서 제외", 1) if "KPI·01~07번에서 제외" in H else None}))
+        m = re.search(r"(<!-- n:11-list:매회차 --><ul>\s*<li>)", H)
+        muts.append(("요약 표지에 '콘텐츠 지면 47일 연속 0'", "화면 글 구역 번호", {"html": H.replace(m.group(1), m.group(1) + "콘텐츠 지면 47일 연속 0 · ", 1) if m else None}))
         # (2026-10-06 추가) 07 각주 세 자리 — 변조 1 + 아래 0건 가드 2
         muts.append(("07 각주 ② 문구 변조(제외 검색어: → 제외검색어:)", "07 각주 세 자리", {"html": replace_in_section(H, 7, "제외 검색어:", "제외검색어:")}))
         # (2026-10-06 회차 2) 레이아웃 판 — 변조 2 + 아래 0건 가드 2 + config 실험
@@ -361,12 +376,12 @@ def main():
             _rec["read_at"] = _dt.strptime(_last, "%Y.%m.%d").strftime("%Y-%m-%dT23:59:00+09:00")
             stale = json.dumps(_rec, ensure_ascii=False)
         muts.append(("잔액 기록 읽은 시각 = 집계 마지막 날(지난 회차 기록)", "광고비 잔액 카드", {"html": H if stale else None, "bal": stale}))
-        # (2026-10-10 매출 작업 A·C) 장부 라벨+숫자 삽입(01·11·12) · 12번 장부 판정 낱말 밖 · 장부 행 'M/D까지' 하루 앞
-        muts.append(("11 첫 항목에 장부 숫자 삽입(등록 1명)", "장부 라벨+숫자", {"html": replace_in_section(H, 11, "<li><b>", "<li><b>장부 등록 1명 · ")}))
+        # (2026-10-10 매출 작업 A·C) 장부 라벨+숫자 삽입(01·10·11) · 11번 장부 판정 낱말 밖 · 장부 행 'M/D까지' 하루 앞
+        muts.append(("10 첫 항목에 장부 숫자 삽입(등록 1명)", "장부 라벨+숫자", {"html": replace_in_section(H, 10, "<li><b>", "<li><b>장부 등록 1명 · ")}))
         m = re.search(r"(장부 기준 판정 = )([^<]+)(</b>)", H)
-        muts.append(("12 장부 판정 낱말을 config 밖으로(좋아질 듯)", "12번 장부·플레이스 행", {"html": H.replace(m.group(0), f"{m.group(1)}좋아질 듯{m.group(3)}", 1) if m else None}))
+        muts.append(("11 장부 판정 낱말을 config 밖으로(좋아질 듯)", "11번 장부·플레이스 행", {"html": H.replace(m.group(0), f"{m.group(1)}좋아질 듯{m.group(3)}", 1) if m else None}))
         m = re.search(r"(\d+)/(\d+)(까지 장부 기준 판정 = )", H)
-        muts.append(("12 장부 행 'M/D까지' 하루 앞(지난 회차 날짜)", "12번 장부·플레이스 행",
+        muts.append(("11 장부 행 'M/D까지' 하루 앞(지난 회차 날짜)", "11번 장부·플레이스 행",
                      {"html": H.replace(m.group(0), f"{m.group(1)}/{int(m.group(2)) - 1 or 1}{m.group(3)}", 1) if m and int(m.group(2)) > 1 else None}))
 
         # (2026-10-12 판 G) 추가 카드·표 — 성별·연령대 첫 노출 +1 · 변경 기록 기간 끝 하루 뒤 · 스킬 등록 회수 +1 · 아이디 꼴 주석
@@ -390,9 +405,9 @@ def main():
             ("0건: mediaChart id 변조", "05번 mediaChart", {"html": H.replace("getElementById('mediaChart')", "getElementById('mediaChartX')", 1)}),
             ("0건: 06 카드 등록 문구 변조", "06번 카드", {"html": H.replace(s6, s6.replace(" 등록, ", " 등록· "), 1) if s6 else None}),
             ("0건: 경쟁사표 name-cell 변조", "경쟁사표", {"html": H.replace(s7, s7[:s7.find("경쟁사 브랜드명")] + s7[s7.find("경쟁사 브랜드명"):].replace('class="name-cell"', 'class="namecell"'), 1)}),
-            ("0건: 11 판정 줄 문구 변조", "11번 항목 수", {"html": H.replace("항목 판정: 유지", "항목 판정 - 유지", 1)}),
-            ("0건: Section 11·12 주석 변조(본문 0자)", "11·12번 금칙어", {"html": H.replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}),
-            ("0건: Section 11·12 주석 변조(잔존 문구 검사)", "잔존 문구", {"html": H.replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}),
+            ("0건: 10 판정 줄 문구 변조", "10번 항목 수", {"html": H.replace("항목 판정: 유지", "항목 판정 - 유지", 1)}),
+            ("0건: Section 10·11 주석 변조(본문 0자)", "10·11번 금칙어", {"html": H.replace("<!-- Section 10:", "<!-- Sect 10:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1)}),
+            ("0건: Section 10·11 주석 변조(잔존 문구 검사)", "잔존 문구", {"html": H.replace("<!-- Section 10:", "<!-- Sect 10:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1)}),
         ]
         for n in date_secs:
             m = re.search(r"\s*min-width:\s*\d+px;?", section(H, n))
@@ -416,14 +431,16 @@ def main():
         nob = H.replace(' data-balance="value"', "", 1).replace(' data-balance="sub"', "", 1) if 'data-balance="value"' in H else None
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 잔액 검사", "광고비 잔액 카드", {"html": nob}))
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nob}))
-        # (2026-10-10 매출 작업 A·C) 12번 장부 판정 문구 변조 → 장부 행 0 · Section 1·11·12 주석 변조 → 01·11·12 본문 0자
+        # (2026-10-10 매출 작업 A·C) 11번 장부 판정 문구 변조 → 장부 행 0 · Section 1·10·11 주석 변조 → 01·10·11 본문 0자
         noh = H.replace("<!-- saero:extra history -->", "", 1).replace("<!-- /saero:extra history -->", "", 1) if "<!-- saero:extra history -->" in H else None
         guards.append(("0건: 판 G 변경 기록 블록 표지 지우기 → 추가 카드·표", "추가 카드·표", {"html": noh}))
         guards.append(("0건: 판 G 변경 기록 블록 표지 지우기 → 레이아웃 판", "레이아웃 판", {"html": noh}))
-        guards.append(("0건: 12 장부 판정 문구 변조(장부 기준 판정 = → 장부 판정:)", "12번 장부·플레이스 행",
+        guards.append(("0건: 11 장부 판정 문구 변조(장부 기준 판정 = → 장부 판정:)", "11번 장부·플레이스 행",
                        {"html": H.replace("장부 기준 판정 = ", "장부 판정: ") if "장부 기준 판정 = " in H else None}))
-        guards.append(("0건: Section 1·11·12 주석 변조(장부 라벨 검사 본문 0자)", "장부 라벨+숫자",
-                       {"html": H.replace("<!-- Section 1:", "<!-- Sect 1:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1).replace("<!-- Section 12:", "<!-- Sect 12:", 1)}))
+        guards.append(("0건: Section 1·10·11 주석 변조(장부 라벨 검사 본문 0자)", "장부 라벨+숫자",
+                       {"html": H.replace("<!-- Section 1:", "<!-- Sect 1:", 1).replace("<!-- Section 10:", "<!-- Sect 10:", 1).replace("<!-- Section 11:", "<!-- Sect 11:", 1)}))
+        # (2026-10-23 판 I) 서술 표지 이름 꼴 변조 → 표지 0개 → "화면 글 구역 번호" 0건 가드
+        guards.append(("0건: 서술 표지 이름 꼴 변조(<!-- n: → <!-- m:)", "화면 글 구역 번호", {"html": H.replace("<!-- n:", "<!-- m:") if "<!-- n:" in H else None}))
 
         # --- 5. config 실험 ---
         c1 = json.loads(cfg_text); c1["ctr_high_threshold"] = float(cfg["ctr_high_threshold"]) + 1.0

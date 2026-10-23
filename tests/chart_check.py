@@ -18,7 +18,7 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
   01 버튼 누름 → 01 전 기간(tick n · 라벨 2n/2n · 높이 n×row+pad · 맨 아래 = 첫 날짜 · 문구 그대로 · aria-expanded true) · 06 은 그대로(접힘) /
   01 다시 누름 → 처음과 같음 · 버튼 화면 위치 그대로(±1px) / 06 누름 → 06 전 기간 · 01 그대로 / 둘 다 펼침 /
   짧은 사본(apply 로 01·06 배열을 최근 K일·K+1일로 자른 판): K일이면 버튼 0·전부 · K+1일이면 "이전 1일(…)" 버튼 /
-  문서 scrollWidth = 폭 / 문서의 캔버스 전부(8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
+  문서 scrollWidth = 폭 / 문서의 캔버스 전부(config markers.canvases — 판 I 부터 7 · 판 H 까지 8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
 - PC 폭(기본 1280): 01·06 indexAxis 'x' · tick n · 보이는 datalabels(01 2n · 06 0) · chartArea·첫 화면 일수·섹션 1·6 높이·뱃지 = --base 측정값
   (첫 화면은 새 판·기준 둘 다 01·06 박스를 맨 왼쪽으로 되돌려 잰다 — 판 C 이후 기준은 로드 때 최신 쪽이라) ·
   S(스크롤 시작 최신 쪽): 01·06 박스 scrollLeft = scrollWidth − clientWidth · 래퍼 .at-end 있음·.at-start 없음 · 첫 화면 끝 날짜 = 최신 · 펼치기 버튼 0.
@@ -127,7 +127,8 @@ PAGE = """() => {
   const s3 = document.querySelector('summary.fold-more'), st = s3 ? getComputedStyle(s3) : null;   // 문서 첫 접기 summary = 03 "이전 N일" — 펼치기 버튼 글꼴 기준
   return {canvases: cv.length, charts: cv.filter(c => Chart.getChart(c)).length, missing: cv.filter(c => !Chart.getChart(c)).map(c => c.id),
           docSW: document.documentElement.scrollWidth, docSH: document.documentElement.scrollHeight, secs, scrollY: window.scrollY,
-          foldBtns: document.querySelectorAll('.chart-fold').length, sum3: st ? [st.fontSize, st.fontWeight, st.color, st.fontFamily] : null};
+          foldBtns: document.querySelectorAll('.chart-fold').length, sum3: st ? [st.fontSize, st.fontWeight, st.color, st.fontFamily] : null,
+          cvs: cv.map(c => [c.id, c.width, c.height])};   // 판 I 전환 판정(placementChart 유무·비트맵 크기) — 2026-10-23
 }"""
 
 # 인쇄 훅 — DOMContentLoaded 에 걸어 페이지의 beforeprint/afterprint 리스너(차트 스크립트 끝 분기 도우미 · 안내 스크립트)보다 뒤에 돈다
@@ -497,6 +498,15 @@ def print_rows_ok(hits, n):
     return sorted(order) == list(range(n)) and order == list(range(n))[::-1]
 
 
+def place_size(page):
+    """판 I(2026-10-23 콘텐츠 지면 빼기) 전환 판정 — 문서의 placementChart 캔버스 비트맵 (가로, 세로) · 없으면 None(판 I 부터 지면 구역 없음).
+    --base 에만 있으면 '섹션 1·6 높이'·'PC PDF' 기준 대조를 판 I 의 의도된 차이(01 ① 두 칸 · placementChart 이미지 하나)만큼 넓힌다."""
+    for cid, cw, ch in (page or {}).get("cvs", []):
+        if cid == "placementChart":
+            return (cw, ch)
+    return None
+
+
 def pdf_signature(imgs):
     """이미지 구성 비교용 — (크기, 배치 수, 보이는 비율) 정렬 목록."""
     by = {}
@@ -556,6 +566,7 @@ def main():
     a = ap.parse_args()
     cfg = load_config()
     mob = cfg["report_layout"]["mobile"]
+    ncv = int(cfg["report_layout"]["markers"]["canvases"])   # 캔버스 수(판 I 2026-10-23 부터 7 — 지면 구역 placementChart 가 빠짐 · 판 H 까지 8)
     maxpx, printmax = int(mob["max_px"]), int(mob["print_max_height_px"])
     row, padpx = {k: int(v) for k, v in mob["row_px"].items()}, {k: int(v) for k, v in mob["pad_px"].items()}
     K = {k: int(v) for k, v in mob["recent_days"].items()}
@@ -660,7 +671,7 @@ def main():
                         run.check(f"{w} {k}", False, v["err"])
                 if "err" in d or "err" in r:
                     continue
-                run.check(f"{w} 캔버스·pageerror", pgi["charts"] == pgi["canvases"] == 8 and not errs,
+                run.check(f"{w} 캔버스·pageerror", pgi["charts"] == pgi["canvases"] == ncv and not errs,
                           f"캔버스 {pgi['canvases']} · Chart.getChart {pgi['charts']}(없음 {pgi['missing']}) · pageerror {len(errs)}{(' ' + errs[0][:120]) if errs else ''}")
                 run.check(f"{w} 문서 가로 넘침", pgi["docSW"] == w, f"scrollWidth {pgi['docSW']} / 폭 {w}")
                 if mobile:
@@ -697,7 +708,7 @@ def main():
                         if sD:
                             ok1, det1 = view_ok("01", sD["01"], labels, K["01"], True, row, padpx, bpad["01"], sum3)
                             ok6, det6 = view_ok("06", sD["06"], labels, K["06"], True, row, padpx, bpad["06"], sum3)
-                            ok = ok1 and ok6 and sD["page"]["charts"] == sD["page"]["canvases"] == 8 and sD["page"]["docSW"] == w and not errs
+                            ok = ok1 and ok6 and sD["page"]["charts"] == sD["page"]["canvases"] == ncv and sD["page"]["docSW"] == w and not errs
                             run.check(f"{w} 01·06 둘 다 펼침", ok, f"01 {det1} | 06 {det6} | 캔버스 {sD['page']['charts']}/{sD['page']['canvases']} · 문서 폭 {sD['page']['docSW']} · pageerror {len(errs)}")
                             print(f"       {w} 펼침 섹션 높이 1 {sD['page']['secs'].get('1', {}).get('h')} · 6 {sD['page']['secs'].get('6', {}).get('h')} · 문서 높이 {sD['page']['docSH']}")
                         else:
@@ -726,7 +737,9 @@ def main():
                     if B:
                         s_new = [pgi["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         s_old = [B["page"]["secs"].get(s, {}).get("h") for s in ("1", "6")]
-                        run.check(f"{w} 섹션 1·6 높이 = 기준", s_new == s_old, f"새 {s_new} · 기준 {s_old}")
+                        tr_i = bool(place_size(B["page"])) and not place_size(pgi)   # 판 I 전환 — 직전 배포본에만 지면 구역(placementChart)
+                        ok = (s_new[1] == s_old[1] and None not in (s_new[0], s_old[0]) and s_new[0] <= s_old[0]) if tr_i else s_new == s_old
+                        run.check(f"{w} 섹션 1·6 높이 = 기준", ok, f"새 {s_new} · 기준 {s_old}" + (" · 판 I 전환 — 06 같음 · 01 은 ① 검색·콘텐츠 두 칸이 빠져 같거나 줄어듦만" if tr_i else ""))
                     run.check(f"{w} 펼치기 버튼 없음(PC)", pgi["foldBtns"] == 0, f"문서의 .chart-fold {pgi['foldBtns']}개")
 
             # ── 회전: 모바일 폭 → 가로(844) → 모바일 ──
@@ -856,8 +869,11 @@ def main():
                     ok = not N["errs"] and len(big) == 2
                     if "base" in res:
                         sig_new, sig_old = pdf_signature(N["imgs"]), pdf_signature(res["base"]["imgs"])
-                        ok = ok and sig_new == sig_old
-                        det += f" · 이미지 구성 기준과 {'같음' if sig_new == sig_old else '다름 새 ' + str(sig_new) + ' / 기준 ' + str(sig_old)}"
+                        pl = place_size(res["base"]["m0"]["page"]) if not place_size(N["m0"]["page"]) else None   # 판 I 전환 — 직전 배포본 placementChart 이미지 하나만 빠져야
+                        want = [e for e in sig_old if not ((e[0], e[1]) == pl and e[2] == 1)] if pl else sig_old
+                        ok = ok and sig_new == want and (not pl or len(want) == len(sig_old) - 1)
+                        det += (f" · 이미지 구성 기준과 {'같음' if sig_new == want else '다름 새 ' + str(sig_new) + ' / 기준 ' + str(want)}"
+                                + (f"(판 I 전환 — 기준에서 placementChart {pl[0]}×{pl[1]} 하나 뺌)" if pl else ""))
                     else:
                         det += " · --base 없음 — 기준 대조 생략"
                     run.check(f"인쇄 {w} PC PDF = 기준", ok, det + f" · pageerror {len(N['errs'])}")

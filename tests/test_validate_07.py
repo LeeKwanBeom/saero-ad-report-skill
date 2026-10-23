@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""validate.py "07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)" 시험 — 합성 07 구역(배포본·CSV 의존 없음).
+"""validate.py "07 각주 세 자리(경쟁사 판정·제외 검색어·클릭 0 전체)" · 28 "화면 글 구역 번호"(판 I — 2026-10-23) 시험 — 합성 구역(배포본·CSV 의존 없음).
 
 평상 회차 · exclusion-ui.md 9절 예외 회차 고정 문구(등록 0 · "등록은 나중에" · 부분 실패 a/b · 재노출 · 등록 누락) → PASS /
 a > b · b ≠ 등록 × 대상 그룹 수 · ①②③ 하나라도 없음 · 클릭 0 목록 0건 → FAIL.
@@ -84,6 +84,42 @@ class Footnotes07(unittest.TestCase):
         ok, d = run("<!-- Section 7: x -->\n<div>각주 없음</div>\n" + LIST0)
         self.assertFalse(ok)
         self.assertIn('class="note" 0개', d)
+
+
+class SectionRefs(unittest.TestCase):
+    """validate 28 "화면 글 구역 번호"(판 I — 2026-10-23 콘텐츠 지면 빼기): 서술 표지 안 'NN번' 이 1~11 · 지면 가리키는 10번 0 · 옛 지면 글 0.
+    검색어 속 숫자('노원역10번출구' · '노원역 12번 출구')·'N번째' 는 안 센다 · 기계 자리(표지 밖) 글은 안 본다 · 표지 0개 FAIL."""
+    def check(self, *bodies, outside=""):
+        V.results.clear()
+        html = "".join(f"<div><!-- n:x{i}:매회차 -->{b}<!-- /n --></div>\n" for i, b in enumerate(bodies)) + outside
+        with contextlib.redirect_stdout(io.StringIO()):
+            V.check_section_refs(html)
+        (name, ok, detail), = V.results
+        self.assertTrue(name.startswith("화면 글 구역 번호"), name)
+        return ok, detail
+
+    def test_pass_forms(self):
+        ok, d = self.check("<li>제외 검색어 — 등록 5개(07번 ②·11번 1번)</li>", "카드 유지(11번 2번)", "지난 회차 10번 8개 항목 판정: 유지 6",
+                           "KPI·01~07번에서 제외 — 08·09번은 포함", '"노원역10번출구"(5회) · 노원역 12번 출구 · 3번째 날 · 01·04번 참고',
+                           outside="<td>노원역 12번 출구(3회)</td> 12번 · 콘텐츠 지면 47일 연속 0")
+        self.assertTrue(ok, d)
+
+    def test_fail_forms(self):
+        for body, frag in (("(12번 2번)", "'12번'(없는 구역"), ("07번 ②·12번 1번", "없는 구역"),
+                           ("지난 회차 12번 3개 항목", "없는 구역"), ("(12번 행 없음)", "없는 구역"),
+                           ("KPI·01~07·10번에서 제외", "지면 구역을 가리키는 10번"), ("콘텐츠 지면 노출 1,746회는 10번 참고", "지면 구역을 가리키는 10번"),
+                           ("· 콘텐츠 지면 47일 연속 0 ·", "옛 지면 구역 글"), ("검색 지면 vs 콘텐츠 지면", "옛 지면 구역 글")):
+            with self.subTest(body=body):
+                ok, d = self.check("정상 글(11번 1번)", body)
+                self.assertFalse(ok, d)
+                self.assertIn(frag, d)
+
+    def test_zero_markers_guard(self):
+        V.results.clear()
+        with contextlib.redirect_stdout(io.StringIO()):
+            V.check_section_refs("<div>표지 없음 12번</div>")
+        self.assertFalse(V.results[0][1])
+        self.assertIn("서술 표지 0개", V.results[0][2])
 
 
 if __name__ == "__main__":

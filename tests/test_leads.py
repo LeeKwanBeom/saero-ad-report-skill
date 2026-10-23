@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""주간 성과 장부(설계안 A — 매출 작업, 2026-10-10) 시험 — scripts/leads.py · compute.py leads_card · validate.py 새 검사 25·26 · compare "12 장부·플레이스" ·
+"""주간 성과 장부(설계안 A — 매출 작업, 2026-10-10) 시험 — scripts/leads.py · compute.py leads_card · validate.py 새 검사 25·26 · compare "11 장부·플레이스"(판 I — 판 H 까지 12) ·
 narrative_check(같은 주 이틀 연속 회차).
 
 임시 폴더의 스크래치 장부·합성 합본(키워드.csv 일별만)·임시 git 저장소만 쓴다 — 실제 ~/saero-leads·운영 작업 폴더·네트워크에 닿지 않는다(SAERO_LEADS 를 늘 임시 경로로).
@@ -10,7 +10,7 @@ narrative_check(같은 주 이틀 연속 회차).
 - 판정(9): 8주 미만 판정 전(N/8주) · 구멍 · 직전 0 비교 불가 · 포아송 2σ 경계(12 대 4 = 구별 안 됨, 13 대 4 = 좋아짐) · 장부 없음·꼴 다름 확인 못 함(12).
 - 공개 범위(7): compute 성과장부에 건수 0 · publish ≠ verdict FAIL · guard(현실 값 초안·커밋 메시지 FAIL, 기록 꼴 PASS, 장부 파일 staged FAIL, 최근 매출 값 FAIL) ·
   validate "장부 라벨+숫자 0" — 제외 검색어 문구('등록 31개' 등)는 PASS.
-- compare(8): 12번 판정 낱말 ≠ compute → DIFF · 같으면 OK. narrative(6): 같은 주 이틀 연속 회차의 장부 행은 'M/D까지' 가 달라 PASS.
+- compare(8): 11번(판 H 까지 12번) 판정 낱말 ≠ compute → DIFF · 같으면 OK. narrative(6): 같은 주 이틀 연속 회차의 장부 행은 'M/D까지' 가 달라 PASS.
 실행: "$PY" tests/test_leads.py
 """
 import contextlib
@@ -514,7 +514,7 @@ class ValidateCompareNarrative(unittest.TestCase):
         for i, h in enumerate(place_rows, 3):
             rows.append(f'<tr><td><span class="tag tag-mint">{i}</span></td><td><!-- n:12-{i}:매회차 -->{h}<!-- /n --></td></tr>')
         return (f'<div>집계 기간<b>{period}</b></div>\n<!-- Section 1: x -->\n<div class="section-desc">01 글</div>\n<!-- Section 2: x -->\n'
-                f'<!-- Section 11: x -->\n<ul><li>관찰</li></ul>\n<!-- Section 12: x -->\n<table><tbody>\n' + "\n".join(rows)
+                f'<!-- Section 10: x -->\n<ul><li>관찰</li></ul>\n<!-- Section 11: Action items -->\n<table><tbody>\n' + "\n".join(rows)
                 + f"\n</tbody></table>\n<div class=\"note\">{extra12}</div>\n<script>\nconst x = 1;\n</script>")
 
     def test_validate_checks(self):
@@ -545,10 +545,10 @@ class ValidateCompareNarrative(unittest.TestCase):
                 with open(j, "w", encoding="utf-8") as f:
                     json.dump({"성과장부": {"판정": want}, "플레이스전후": {"12번": []}}, f, ensure_ascii=False)
                 r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "compare.py"), h, j], capture_output=True, text=True, encoding="utf-8")
-                line = [x for x in r.stdout.splitlines() if "12 장부 기준 판정" in x and x.startswith("  [")]
+                line = [x for x in r.stdout.splitlines() if "11 장부 기준 판정" in x and x.startswith("  [")]
                 self.assertEqual(len(line), 1, r.stdout[-500:])
                 self.assertEqual("[DIFF]" in line[0], diff, line[0])
-                self.assertEqual("[OK]" in [x for x in r.stdout.splitlines() if "12 플레이스 행" in x and x.startswith("  [")][0], True)
+                self.assertEqual("[OK]" in [x for x in r.stdout.splitlines() if "11 플레이스 행" in x and x.startswith("  [")][0], True)
         finally:
             shutil.rmtree(td, ignore_errors=True)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""index.html(배포본 또는 작업본)에서 12개 섹션 값을 파싱해 compute.py JSON과 항목별 대조. 배포 전 차이 0이어야 한다.
+"""index.html(배포본 또는 작업본)에서 11개 구역 값을 파싱해 compute.py JSON과 항목별 대조. 배포 전 차이 0이어야 한다.
 
 사용법: "$PY" scripts/compare.py <index.html> <compute.json>   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 - 표 값·차트 배열·각주·section-desc 숫자·11번 항목 수·금칙어까지 대조한다(2026-09-27 ad48222 기준 95항목 —
@@ -8,7 +8,7 @@
   HTML의 동률 순서는 직전 순서 유지가 정본이고 compute.py 출력의 동률 순서(클릭1건 2차 키 총비용↓ 등)는 참고다.
 - 잔존 문구(확인 요청 등)는 여기서 보지 않는다 — validate.py 검사 21(`--pending`)이 유일한 자리.
 - 마크업이 바뀌어 항목을 못 찾으면 [DIFF]로 나온다(조용히 통과하지 않음). 종료 코드 1 = 차이 있음.
-- (2026-10-06) 구역별 try — 한 구역(masthead·KPI, 01~10, 11·12)에서 파싱이 실패하면 그 구역만 `파싱 실패 [구역]` [DIFF]로
+- (2026-10-06) 구역별 try — 한 구역(masthead·KPI, 01~09, 10·11 — 판 H 까지 01~10, 11·12)에서 파싱이 실패하면 그 구역만 `파싱 실패 [구역]` [DIFF]로
   남기고 다음 구역을 계속 대조한다(옛 판은 첫 실패 뒤 나머지 항목을 전부 생략 — 01 해석 문단 삭제 프로브가 OK 17에서 멈춤).
   10번 나열 항목은 "최근 7일 노출은 …회, 클릭은 …건(M/D~M/D)" + "9/6 이후 N일 하루 평균 N건(N일 평균 N건)"으로 바뀜
   (항목 수 95 그대로 — 9/6 이후 나열 2항목·일수 1항목 → 최근 7일 2항목·일수/평균 1항목).
@@ -27,6 +27,12 @@
   "07 정식표 위 표 행수 = min(K, n)"(07 구역 첫 tbody 의 행 수 · K = config `report_layout.top_rows_07`) · "07 summary 정식표 나머지(행·클릭 범위·합·비용) = compute 정식표[K:]"
   ("클릭 1건 검색어" 앞의 `나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기` — 나머지가 없으면 `나머지 0행 펼치기`). 시안에서 summary 숫자를 틀리게 바꾼 사본이
   108/0 으로 조용히 통과하던 길을 막는다. **항목 수 N = 108 + 2 = 110**.
+- (2026-10-23 판 I 콘텐츠 지면 빼기) 구역 "10"(지면 — A/B/C/D 표 · placementChart 노출·클릭 · 최근 7일 노출·클릭 나열 · 9/6 이후 평균 · desc · 파트너 마지막날 8항목)을
+  뺀다(리포트 구역 없음 — compute "10" 은 서술 재료로만 남는다). 구역 "11·12" → "10·11"(10 핵심 요약 · 11 다음 액션 — 항목 이름·판정 줄 리터럴 `지난 회차 10번`) ·
+  "12 장부·플레이스" → "11 장부·플레이스". 01: 표는 5칸(날짜·노출·클릭·CTR·CPC — `len(r) == 5` · "01 표 5일(5칸)") · 옛 3항목(검색지면 CTR · 검색지면 노출·클릭 ·
+  콘텐츠 누적 노출) 대신 ③ 첫 문장 3항목: "01 ③ 누적 CTR" = compute `01.누적CTR` · "01 ③ 괄호(…)" = [콘텐츠첫날, 콘텐츠끝날, 콘텐츠누적노출, 검색지면.CTR]
+  (콘텐츠 노출 합 0 이면 괄호 없음 = None) · "01 ③ 옛 구절 0"(콘텐츠 지면 없는 날 · 검색 지면만 계산하면 · 콘텐츠 노출 N회는 — 판 H 꼴이 복사돼 남으면 DIFF).
+  **항목 수 N = 110 − 8 = 102**(판 G 둘 다 ok · 종류 2).
 """
 import json
 import re
@@ -72,24 +78,34 @@ def _kpi():  # masthead·KPI
     cmp("KPI sub 일평균노출", float(grp(r"([\d.]+)회", sub[0]).group(1)), R["KPI"]["일평균노출"]); cmp("KPI sub 일평균클릭", float(grp(r"([\d.]+)회", sub[1]).group(1)), R["KPI"]["일평균클릭"])
     cmp("KPI sub 클릭당", num(grp(r"([\d,]+)원", sub[3]).group(1)), R["KPI"]["클릭당"])
 
-def _s01():  # 01 — 표 5행은 최신 위(2026-10-15) → DOM [::-1] = compute 표5 오름차순 · 순위 5칸은 오름차순 그대로
+# 01 ③ 첫 문장(판 I — 2026-10-23 사용자 승인 꼴): "→ 누적 CTR <b>N%</b>(M/D~M/D 콘텐츠 지면 노출 N회 포함 — 빼면 <b>N%</b>). 상향 뒤 …" · 콘텐츠 노출 합 0 이면 괄호 없이
+# "→ 누적 CTR <b>N%</b>. 상향 뒤 …". 띄어쓰기 자리는 공백 여럿·줄바꿈도 받는다(폭에 맞춘 줄바꿈). 글자를 바꾸려면 사용자에게 다시 묻는다.
+MINT01 = (r"→\s+누적\s+CTR\s+<b>([\d.]+)%</b>(?:\((\d+/\d+)~(\d+/\d+)\s+콘텐츠\s+지면\s+노출\s+([\d,]+)회\s+포함\s+—\s+빼면\s+<b>([\d.]+)%</b>\))?\.\s+상향\s+뒤")
+OLD01 = ("콘텐츠 지면 없는 날", "검색 지면만 계산하면", "회는 9/6 이후")   # 판 H 까지의 ③ 구절(판 I 에서 0)
+
+
+def _s01():  # 01 — 표 5행은 최신 위(2026-10-15) → DOM [::-1] = compute 표5 오름차순 · 순위 5칸은 오름차순 그대로 · 판 I(2026-10-23) 표 5칸 · ③ 첫 문장 괄호
     s1 = sec(1)
     cmp("01 dailyChart 노출", chart_data("dailyChart", "노출수"), R["01"]["노출"]); cmp("01 dailyChart 총비용", chart_data("dailyChart", "총비용\\(원\\)"), R["01"]["총비용"])
     lbl = re.findall(r"labels:\s*\[((?:'\d+/\d+\(.\)',?)+)\]", html)
     cmp("01/06 labels", [l.split(",")[0].strip("'") for l in lbl] + [len(l.split(",")) for l in lbl], [R["01"]["labels"][0]] * 2 + [R["nlabels"]] * 2)
     cmp("01 min-width", int(grp(r"min-width:\s*(\d+)px", s1).group(1)), R["minwidth"])
-    t1 = [{"날짜": r[0], "노출": num(r[1]), "검색": num(r[2]), "콘텐츠": num(r[3]), "클릭": num(r[4]), "CTR": float(r[5].rstrip("%")), "CPC": num(r[6])} for r in rows(s1) if len(r) == 7][::-1]
+    t1 = [{"날짜": r[0], "노출": num(r[1]), "클릭": num(r[2]), "CTR": float(r[3].rstrip("%")), "CPC": num(r[4])} for r in rows(s1) if len(r) == 5][::-1]
     hl1 = re.findall(r'<td class="num( ctr-high)?">([\d.]+)%</td>', s1)[::-1]
-    cmp("01 표 5일", t1, [{k: v for k, v in r.items() if k != "hl"} for r in R["01"]["표5"]]); cmp("01 표 .ctr-high", [bool(h) for h, _ in hl1], [r["hl"] for r in R["01"]["표5"]])
+    cmp("01 표 5일(5칸)", t1, [{k: v for k, v in r.items() if k != "hl"} for r in R["01"]["표5"]]); cmp("01 표 .ctr-high", [bool(h) for h, _ in hl1], [r["hl"] for r in R["01"]["표5"]])
     grid = re.findall(r'margin-bottom:2px;">([^<]+)</div>\s*<div style="font-size:15px;font-weight:800;(color:var\(--mint-dark\);)?">([\d.]+)위', s1)
     cmp("01 플레이스 순위 5칸", [{"날짜": d, "순위": float(v)} for d, _, v in grid], R["01"]["플레이스순위5"]); cmp("01 순위 민트 칸", [d for d, c, _ in grid if c], [R["01"]["순위민트"]])
-    m = grp(r"검색 지면만 계산하면 <b>([\d.]+)%</b>\(노출 ([\d,]+)·클릭 (\d+)\)", s1)
-    cmp("01 검색지면 CTR", float(m.group(1)), R["01"]["검색지면"]["CTR"]); cmp("01 검색지면 노출·클릭", [num(m.group(2)), num(m.group(3))], [R["01"]["검색지면"]["노출"], R["01"]["검색지면"]["클릭"]])
     m = grp(r"하루 평균은 ([\d,]+)원·클릭 ([\d.]+)건·CPC ([\d,]+)원으로, 상향 전 9/1~9/16\(하루 평균 ([\d,]+)원·([\d.]+)건·CPC ([\d,]+)원\)", s1)
     cmp("01 상향후 평균", [num(m.group(1)), float(m.group(2)), num(m.group(3))], [R["01"]["상향후"]["광고비"], R["01"]["상향후"]["클릭"], R["01"]["상향후"]["CPC"]])
     cmp("01 상향전 평균", [num(m.group(4)), float(m.group(5)), num(m.group(6))], [R["01"]["상향전"]["광고비"], R["01"]["상향전"]["클릭"], R["01"]["상향전"]["CPC"]])
     cmp("01 누적 가중순위", float(grp(r"누적 가중평균은 [\d.]+ → ([\d.]+)위", s1).group(1)), R["01"]["플레이스누적가중순위"])
-    cmp("01 콘텐츠 누적 노출", num(grp(r"콘텐츠 노출 ([\d,]+)회", s1).group(1)), R["01"]["콘텐츠누적노출"])
+    # ③ 첫 문장(판 I) — 누적 CTR · 괄호 숫자 넷(기간 첫날·끝날 · 콘텐츠 노출 합 · 검색 지면만 CTR) = compute · 합 0 이면 괄호 없음 · 옛 세 구절 0
+    m = grp(MINT01, s1)
+    cmp("01 ③ 누적 CTR", float(m.group(1)), R["01"]["누적CTR"])
+    got = None if m.group(2) is None else [m.group(2), m.group(3), num(m.group(4)), float(m.group(5))]
+    want = None if not R["01"]["콘텐츠누적노출"] else [R["01"]["콘텐츠첫날"], R["01"]["콘텐츠끝날"], R["01"]["콘텐츠누적노출"], R["01"]["검색지면"]["CTR"]]
+    cmp("01 ③ 괄호(콘텐츠 기간·노출 합·검색 지면만 CTR — 합 0 이면 괄호 없음)", got, want)
+    cmp("01 ③ 옛 구절 0(콘텐츠 지면 없는 날·검색 지면만 계산하면·콘텐츠 노출 N회는)", [w for w in OLD01 if w in s1] + re.findall(r"콘텐츠 노출 [\d,]+회는", s1), [])
 
 def _s02():  # 02
     cmp("02 desc 플레이스 비중", float(grp(r"예산의 ([\d.]+)%", sec(2)).group(1)), R["02"]["플레이스비중"])
@@ -208,35 +224,22 @@ def _s09():  # 09
     cmp("09 desc 최다", [int(x) for x in grp(r"(\d+)시대 클릭 최다\((\d+)회", s9).groups()], [R["09"]["최다"]["시"], R["09"]["최다"]["클릭"]])
     m = grp(r"노출 합계는 ([\d,]+)회로 상단 KPI\(([\d,]+)회\)와 (\d+)회 차이", s9); cmp("09 각주 N회", {"전체": num(m.group(1)), "KPI": num(m.group(2)), "차이": int(m.group(3))}, R["09"]["각주"])
 
-def _s10():  # 10
-    s10 = sec(10)
-    cmp("10 A/B/C/D 표", [[num(r[2]), num(r[3]), num(r[4])] for r in rows(s10)], [R["10"]["A"], R["10"]["B"], R["10"]["C"], R["10"]["D"]])
-    cmp("10 placementChart 노출", chart_data("placementChart", "노출수"), R["10"]["placement"]["노출"]); cmp("10 placementChart 클릭", chart_data("placementChart", "클릭수"), R["10"]["placement"]["클릭"])
-    m = grp(r"최근 7일 노출은 (.*?)회, 클릭은 (.*?)건\(([\d/]+~[\d/]+)\)", s10)  # 2026-10-06: 9/6 이후 전부 나열 → 최근 7일 + 평균
-    cmp("10 최근7일 노출 나열", [int(x) for x in re.sub(r"<wbr>", "", m.group(1)).split("·")], R["10"]["최근7일노출"])
-    cmp("10 최근7일 클릭 나열·기간", [[int(x) for x in re.sub(r"<wbr>", "", m.group(2)).split("·")], m.group(3)], [R["10"]["최근7일클릭"], R["10"]["최근7일"]])
-    m = grp(r"9/6 이후 (\d+)일 하루 평균 ([\d.]+)건\((\d+)일 평균 ([\d.]+)건\)", s10)
-    cmp("10 9/6이후 일수·하루평균클릭(전체 평균 포함)", [int(m.group(1)), float(m.group(2)), int(m.group(3)), float(m.group(4))],
-        [R["10"]["9/6이후일수"], R["10"]["9/6이후하루평균클릭"], R["nlabels"], R["KPI"]["일평균클릭"]])
-    cmp("10 desc 콘텐츠 N일 연속 0·클릭 A", [int(x) for x in grp(r"콘텐츠 지면 (\d+)일 연속 0회 — 클릭 (\d+)건 중 (\d+)건", s10).groups()], [R["10"]["9/6이후일수"], R["KPI"]["클릭"], R["10"]["A"][1]])
-    cmp("10 파트너 마지막날", int(grp(r"— \d+/\d+는 (\d+)회", s10).group(1)), R["10"]["파트너마지막날"]); print("      10 B 분해:", R["10"]["B분해"])
-
-def _s11():  # 11·12
-    s11, s12 = sec(11), sec(12); li = re.findall(r"<li>(.*?)</li>", s11, re.S)
-    cmp("11 항목 수(본문 ≤8, 참고 ≤2)", [len([x for x in li if "(참고)" not in x[:30]]) <= 8, len([x for x in li if "(참고)" in x[:30]]) <= 2], [True, True])
-    for w in ["필요", "시점", "할 것", "검토", "주째"]: cmp(f"11·12 금칙어 '{w}'", len(re.findall(w, re.sub(r"<[^>]+>", "", s11 + s12))), 0)
-    cmp("11 판정 줄 유지+뒤집힘+소멸 = 직전 항목 수", (lambda m: int(m.group(2)) + int(m.group(3)) + int(m.group(4)) == int(m.group(1)))(grp(r"지난 회차 11번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s11)), True)
+def _s11():  # 10·11 — 판 I(2026-10-23): 10 핵심 요약 · 11 다음 액션(판 H 까지 11·12 — 지면 구역 10 이 빠지며 당김). 함수 이름은 그대로
+    s10, s11 = sec(10), sec(11); li = re.findall(r"<li>(.*?)</li>", s10, re.S)
+    cmp("10 항목 수(본문 ≤8, 참고 ≤2)", [len([x for x in li if "(참고)" not in x[:30]]) <= 8, len([x for x in li if "(참고)" in x[:30]]) <= 2], [True, True])
+    for w in ["필요", "시점", "할 것", "검토", "주째"]: cmp(f"10·11 금칙어 '{w}'", len(re.findall(w, re.sub(r"<[^>]+>", "", s10 + s11))), 0)
+    cmp("10 판정 줄 유지+뒤집힘+소멸 = 직전 항목 수", (lambda m: int(m.group(2)) + int(m.group(3)) + int(m.group(4)) == int(m.group(1)))(grp(r"지난 회차 10번 (\d+)개 항목 판정: 유지 (\d+) · 뒤집힘 (\d+) · 근거 소멸 (\d+)", s10)), True)
 
 
 PLACE_ROW = re.compile(r"플레이스 (P\d+) [^<]*? — [^<]*?(?<!\d)\d+/\d+까지 (상태|판정) = ([^<]+?)</b>")
 
 
-def _s12g():  # 12 장부·플레이스(2026-10-10 매출 작업 A·C)
-    s12 = sec(12)
-    got = re.findall(r"장부 기준 판정 = ([^<]+?)</b>", s12)
-    cmp("12 장부 기준 판정 = 성과장부.판정", got, [R["성과장부"]["판정"]])
-    rows = sorted(PLACE_ROW.findall(s12))
-    cmp("12 플레이스 행(id·상태/판정) = 플레이스전후.12번", rows, sorted((x["id"], x["종류"], x["값"]) for x in R["플레이스전후"]["12번"]))
+def _s12g():  # 11 장부·플레이스(2026-10-10 매출 작업 A·C — 판 H 까지 12번). 함수 이름·compute 키 "12번"은 그대로
+    s11 = sec(11)
+    got = re.findall(r"장부 기준 판정 = ([^<]+?)</b>", s11)
+    cmp("11 장부 기준 판정 = 성과장부.판정", got, [R["성과장부"]["판정"]])
+    rows = sorted(PLACE_ROW.findall(s11))
+    cmp("11 플레이스 행(id·상태/판정) = 플레이스전후.12번", rows, sorted((x["id"], x["종류"], x["값"]) for x in R["플레이스전후"]["12번"]))
 
 
 def _plain(x): return re.sub(r"<[^>]+>", "", x).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&").strip()
@@ -278,7 +281,7 @@ def _sx():  # 판 G(2026-10-12 보고서 더 받기 A + B) — 04 계정 변경 
 
 S = {}  # 구역 사이에 넘기는 값(kpi → 07 · got4 → 06). 앞 구역이 실패해 없으면 뒤 구역의 그 항목이 KeyError → 그 구역 [DIFF]
 SECTIONS = [("masthead·KPI", _kpi), ("01", _s01), ("02", _s02), ("03", _s03), ("04", _s04), ("05", _s05), ("06", _s06),
-            ("07", _s07), ("08", _s08), ("09", _s09), ("10", _s10), ("11·12", _s11), ("12 장부·플레이스", _s12g)]
+            ("07", _s07), ("08", _s08), ("09", _s09), ("10·11", _s11), ("11 장부·플레이스", _s12g)]   # 판 I — 지면 구역(옛 10) 없음
 if "saero:extra" in html:  # 판 G 블록이 있는 판만(옛 판 대조는 항목 그대로)
     SECTIONS.append(("04·05 추가(판 G)", _sx))
 for _label, _fn in SECTIONS:  # 구역별 try — 한 구역의 첫 파싱 실패가 다른 구역 항목을 생략시키지 않는다(2026-10-06, 탐색 프로브 r9: OK 17에서 멈춤)

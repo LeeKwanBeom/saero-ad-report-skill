@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """섹션 전후 비교 페이지 — 옛 배포본과 작업본의 같은 섹션을 폭마다 캡처해 나란히 놓은 한 파일(compare.html, 그림 base64 내장)을 쓴다.
 
-사용법: "$PY" tests/section_compare.py <작업본 index.html> <직전 배포본 index.html> --out <폴더> [--sections 12] [--widths 1280,390]
+사용법: "$PY" tests/section_compare.py <작업본 index.html> <직전 배포본 index.html> --out <폴더> [--sections 11] [--widths 1280,390]
 
 자리(2026-10-10 매출 작업 A·C): **precheck 밖** — 리포트 글·행을 바꾸는 기능의 첫 적용 "보류" 회차(운영 세션)에서 도장 뒤 사용자에게 보이는 재료
-(판 C·D·F 의 chart_check compare.html 은 상단 카드·01·06 만 — 12번처럼 레이아웃 판을 바꾸지 않는 서술 행 추가는 이 도구로).
+(판 C·D·F 의 chart_check compare.html 은 상단 카드·01·06 만 — 다음 액션(판 I 11번 · 판 H 까지 12번)처럼 레이아웃 판을 바꾸지 않는 서술 행 추가는 이 도구로 ·
+기본 `--sections 11` = 옛 판 다음 액션(판 I 부터 — 직전 배포본이 판 H 면 12 를 준다)).
 - 섹션 = `<!-- Section N: … -->` 주석 바로 뒤 요소(.section). 그 요소만 element screenshot(폭마다 옛·새) — 화면 크기·글꼴은 chart_check 와 같은 조건
   (모바일 폭 ≤ config report_layout.mobile.max_px 는 dpr 2·모바일 UA·터치, 그 밖 dpr 1).
+- (2026-10-23 판 I 콘텐츠 지면 빼기) `--sections` 는 **옛(직전 배포본) 구역 번호**이고, 새(작업본) 짝은 같은 제목(`.section-title` 글)의 구역이다 —
+  번호가 어긋나도(판 I 첫 적용: 옛 11 핵심 요약 → 새 10) 제목으로 짝짓는다. 새 판에 같은 제목이 없으면(옛 10 "검색 지면 vs 콘텐츠 지면") 옛 그림만 싣고
+  "새 판에서 빠짐" 으로 적는다. 제목이 같으면 번호도 같던 판(판 H 까지)은 예전과 같은 결과. 판 I 첫 적용 = `--sections 1,10,11`.
 - 밖 요청은 배포본 head 의 cdnjs 두 건(Chart.js·datalabels)만 보내고 나머지는 막고 센다(새 CDN·파일 0 원칙 — 막힌 요청 수를 출력). file:// 그대로.
 - 파일 쓰기는 --out 폴더 안(PNG·compare.html)뿐 — 두 HTML 은 읽기만.
 종료 코드: 0 = 모든 폭·섹션 캡처 · 1 = 섹션을 못 찾음·캡처 실패 · 2 = 인자.
@@ -48,25 +52,53 @@ MARK = """(n) => {
   }
   return null;
 }"""
+TITLES = """() => {
+  const it = document.createNodeIterator(document.body, NodeFilter.SHOW_COMMENT);
+  const out = {};
+  let c;
+  while ((c = it.nextNode())) {
+    const m = c.nodeValue.trim().match(/^Section (\\d+):/);
+    if (!m) continue;
+    let e = c.nextSibling;
+    while (e && e.nodeType !== 1) e = e.nextSibling;
+    const t = e ? e.querySelector('.section-title') : null;
+    out[m[1]] = t ? t.textContent.trim() : '';
+  }
+  return out;
+}"""
+
+
+def new_page(pw, path, width, max_px):
+    mobile = width <= max_px
+    browser = pw.chromium.launch()
+    ctx = browser.new_context(viewport={"width": width, "height": 900}, device_scale_factor=2 if mobile else 1, is_mobile=mobile, has_touch=mobile)
+    blocked = []
+
+    def route(r):
+        u = r.request.url
+        if u.startswith("file:") or u in CDN_ALLOW:
+            return r.continue_()
+        blocked.append(u)
+        return r.abort()
+    ctx.route("**/*", route)
+    page = ctx.new_page()
+    page.goto("file:///" + os.path.abspath(path).replace("\\", "/"), wait_until="networkidle")
+    page.wait_for_timeout(1800)
+    return browser, page, blocked
+
+
+def titles(pw, path, max_px):
+    """{구역 번호: 제목} — 1280 폭 한 번(제목은 폭과 무관)."""
+    browser, page, _ = new_page(pw, path, 1280, max_px)
+    try:
+        return {int(k): v for k, v in page.evaluate(TITLES).items()}
+    finally:
+        browser.close()
 
 
 def capture(pw, path, width, sections, out, tag, max_px):
-    mobile = width <= max_px
-    browser = pw.chromium.launch()
+    browser, page, blocked = new_page(pw, path, width, max_px)
     try:
-        ctx = browser.new_context(viewport={"width": width, "height": 900}, device_scale_factor=2 if mobile else 1, is_mobile=mobile, has_touch=mobile)
-        blocked = []
-
-        def route(r):
-            u = r.request.url
-            if u.startswith("file:") or u in CDN_ALLOW:
-                return r.continue_()
-            blocked.append(u)
-            return r.abort()
-        ctx.route("**/*", route)
-        page = ctx.new_page()
-        page.goto("file:///" + os.path.abspath(path).replace("\\", "/"), wait_until="networkidle")
-        page.wait_for_timeout(1800)
         res = {}
         for n in sections:
             box = page.evaluate(MARK, n)
@@ -91,7 +123,7 @@ def main():
     ap.add_argument("new")
     ap.add_argument("old")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--sections", default="12")
+    ap.add_argument("--sections", default="11", help="옛(직전 배포본) 구역 번호 — 새 짝은 같은 제목 구역(번호가 어긋나도 · 없으면 '새 판에서 빠짐')")
     ap.add_argument("--widths", default="1280,390")
     a = ap.parse_args()
     try:
@@ -108,32 +140,57 @@ def main():
     max_px = int(load_config()["report_layout"]["mobile"]["max_px"])
     shots, nblock = {}, 0
     with sync_playwright() as pw:
+        t_old, t_new = titles(pw, a.old, max_px), titles(pw, a.new, max_px)
+        miss = [n for n in sections if n not in t_old]
+        if miss:
+            print(f"[FAIL] 옛 판에 Section {miss} 주석이 없음 — {a.old}")
+            return 1
+        by_title = {}
+        for k, v in t_new.items():
+            by_title.setdefault(v, []).append(k)
+        pairs = []
+        for n in sections:
+            cand = by_title.get(t_old[n], []) if t_old[n] else ([n] if n in t_new else [])
+            if len(cand) > 1:
+                print(f"[FAIL] 새 판에 제목 {t_old[n]!r} 구역이 {cand} 둘 이상 — 짝을 정할 수 없음")
+                return 1
+            pairs.append((n, cand[0] if cand else None))
+            print(f"[짝] 옛 {n}번 「{t_old[n]}」 → " + (f"새 {cand[0]}번" if cand else "새 판에서 빠짐(같은 제목 없음 — 옛 그림만)"))
         for w in widths:
-            for tag, p in (("old", a.old), ("new", a.new)):
-                r, blocked = capture(pw, p, w, sections, a.out, tag, max_px)
+            for tag, p, secs in (("old", a.old, [o for o, _ in pairs]), ("new", a.new, [x for _, x in pairs if x is not None])):
+                r, blocked = capture(pw, p, w, secs, a.out, tag, max_px)
                 nblock += len(blocked)
                 if r is None:
                     return 1
                 shots[(tag, w)] = r
     rows = []
-    for n in sections:
-        rows.append(f"<h2>{n}번 섹션</h2>")
+    for o, n in pairs:
+        head = f"옛 {o}번 「{H.escape(t_old[o])}」" + (f" → 새 {n}번" if n is not None and n != o else "" if n is not None else " — 새 판에서 빠짐")
+        rows.append(f"<h2>{head}</h2>")
         for w in widths:
-            (po, bo), (pn, bn) = shots[("old", w)][n], shots[("new", w)][n]
+            po, bo = shots[("old", w)][o]
+            if n is None:
+                rows.append(f"<h3>{w}px — 옛 높이 {bo['h']}px · 새 판 없음</h3><div class='pair'>"
+                            f"<figure><figcaption>옛(직전 배포본) {o}번</figcaption><img src='data:image/png;base64,{img(po)}' style='width:{min(w, 640)}px'></figure>"
+                            "<figure><figcaption>새(작업본)</figcaption><p>이 구역은 새 판에서 빠짐</p></figure></div>")
+                print(f"[캡처] 옛 {o}번 {w}px {bo['w']}×{bo['h']} · 새 판 없음")
+                continue
+            pn, bn = shots[("new", w)][n]
             rows.append(f"<h3>{w}px — 높이 {bo['h']} → {bn['h']}px</h3><div class='pair'>"
-                        f"<figure><figcaption>옛(직전 배포본)</figcaption><img src='data:image/png;base64,{img(po)}' style='width:{min(w, 640)}px'></figure>"
-                        f"<figure><figcaption>새(작업본)</figcaption><img src='data:image/png;base64,{img(pn)}' style='width:{min(w, 640)}px'></figure></div>")
-            print(f"[캡처] {n}번 {w}px 옛 {bo['w']}×{bo['h']} · 새 {bn['w']}×{bn['h']}")
+                        f"<figure><figcaption>옛(직전 배포본) {o}번</figcaption><img src='data:image/png;base64,{img(po)}' style='width:{min(w, 640)}px'></figure>"
+                        f"<figure><figcaption>새(작업본) {n}번</figcaption><img src='data:image/png;base64,{img(pn)}' style='width:{min(w, 640)}px'></figure></div>")
+            print(f"[캡처] 옛 {o}번 → 새 {n}번 {w}px 옛 {bo['w']}×{bo['h']} · 새 {bn['w']}×{bn['h']}")
+    label = ",".join(str(o) if n == o else f"{o}→{n if n is not None else '없음'}" for o, n in pairs)
     doc = ("<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
-           f"<title>전후 비교 — {','.join(str(n) for n in sections)}번</title><style>body{{font-family:sans-serif;margin:16px;background:#faf8f3;color:#1c2b2a}}"
+           f"<title>전후 비교 — {label}번</title><style>body{{font-family:sans-serif;margin:16px;background:#faf8f3;color:#1c2b2a}}"
            ".pair{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}figure{margin:0}figcaption{font-weight:700;margin:4px 0}"
            "img{border:1px solid #ccc;background:#fff;max-width:100%}</style></head><body>"
-           f"<h1>전후 비교 — {','.join(str(n) for n in sections)}번 섹션</h1><p>옛 = {H.escape(os.path.basename(a.old))} · 새 = {H.escape(os.path.basename(a.new))}"
+           f"<h1>전후 비교 — {label}번 섹션(짝 = 같은 제목)</h1><p>옛 = {H.escape(os.path.basename(a.old))} · 새 = {H.escape(os.path.basename(a.new))}"
            f" · 폭 {', '.join(str(w) for w in widths)}px · 밖 요청 막음 {nblock}건</p>" + "".join(rows) + "</body></html>")
     out = os.path.join(a.out, "compare.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(doc)
-    print(f"[PASS] 전후 비교 {out} · 섹션 {sections} · 폭 {widths} · 밖 요청 막음 {nblock}건")
+    print(f"[PASS] 전후 비교 {out} · 짝 {pairs} · 폭 {widths} · 밖 요청 막음 {nblock}건")
     return 0
 
 
