@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2 + 판 r2026-10-C 01 차트 회차 1 + 판 r2026-10-D 모바일 기간 접기 2026-10-07 +
 판 r2026-10-E 01 모바일 터치 날짜 2026-10-08 + 판 r2026-10-F 광고비 잔액 카드 2026-10-09 + 판 r2026-10-G 보고서 더 받기 2026-10-12 +
-판 r2026-10-H 07 정식표 접기 2026-10-17 + 판 r2026-10-I 콘텐츠 지면 빼기 2026-10-23) + compute.py 직전 경쟁사표 0행 가드 · 콘텐츠 재발 감시(content_days).
+판 r2026-10-H 07 정식표 접기 2026-10-17 + 판 r2026-10-I 콘텐츠 지면 빼기 2026-10-23 + 판 r2026-10-J 불필요 항목 빼기 2026-10-23 오후) + compute.py 직전 경쟁사표 0행 가드 ·
+콘텐츠 재발 감시(content_days) · 06 카드 규칙(card_groups — 판 J).
 
 fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지·레이아웃 meta 없는 옛 판) +
           tests/fixtures/layout_old.compute.json(같은 가짜 값의 compute 출력 꼴 — 03.rows 만 10일(12/29~1/7)이라 "최근 7 + 접힌 3" 분배가 보인다).
@@ -29,6 +30,14 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   다른 서술 표지 안쪽 그대로 · 10-* 표지는 구역째 사라짐) · ① 5칸 = compute 표5 · 캔버스 7 · 구역 주석 1~11 · 멱등 · 판 H 경로(at(cfg, H))는 7칸·placementChart·10 표 그대로 ·
   손 수정 H(① 칸 머리 없음 · 10 구역에 다른 캔버스 · placementChart 블록 없음 · 10-* 표지가 구역 밖 · 12-basis 다른 10번 · 마지막 구역 아님 · 배지 다름)·
   I(구역 12 주석 · placementChart · 배지 · ① 7칸 · 캔버스 8 · 옛 머리글 · Action items 이름) FAIL.
+- 판 J(ApplyLayoutJ, 2026-10-23 오후 — 불필요 항목 빼기, config 판): I → J = 사슬 바이트 · `--layout` 없이 I 면 `레이아웃 판 meta r2026-10-I ≠ config r2026-10-J — --layout …` ·
+  바뀌는 곳 = 고정 글만(meta · 제목 · KPI 평균 클릭률 보조 줄 · KPI 클릭 단위 · groupChart 이름 · 04-foot·07-src·12-desc · 12-basis 세 줄 · 07-legend 끝 · 네 표지 종류 — 줄 단위 diff 가 허용 목록 밖 0) ·
+  값 갈래(KPI 건 · 07 노출 쉼표·'적음' · 04 '(M/D 신규)' 기한 · 06 카드 집합 — 밖이 된 카드 지움·없는 카드 FAIL · 판 G 블록 머리·알 수 없음 %·스킬 줄 0) · 멱등 ·
+  손 수정 I(고정 표지 다른 글 · 12-basis 줄 없음 · KPI 보조 줄 없음 · 07-legend 에 이미 한 구)·J(뺀 고정 글 되살림 · 표지 매회차 · 07-legend 끝 없음 · KPI 클릭 '회' · 카드 블록에 다른 표지) FAIL ·
+  직전 판 I·J 읽기 같음(G3 — compute prev_period_end · deployed_competitors · reportlib action_section 의 이월 줄 · apply 04 이름 칸 그룹 키).
+  (판 I 시험 ApplyLayoutI 는 config 를 판 I 로 둔 사본 `at(cfg, LAYOUT_I)` 로 돈다 — 판 I 몫은 사슬 중간)
+- 06 카드 규칙(ComputeCardRule — 판 J 결정 5 · 완료 기준 "시험(새 그룹 카드)"): compute card_groups = 새 그룹(일차 < new_days) · 승격 그룹 — 오래된 그룹·최근 7일 노출 0·노원역 0 ·
+  validate "06번 카드 그룹" 이 같은 판정(CSV 로 따로) · 새 그룹 카드가 없으면·오래된 그룹에 '(M/D 신규)' 가 남으면 FAIL.
 - compute 콘텐츠 재발 감시(ComputeContentWatch): 콘텐츠 노출 0 이면 (None, None, []) · 줄 0 / since 뒤 노출 있으면 [주의] 한 줄(날짜·노출) · 첫날·끝날.
 - 멱등: 같은 compute.json 으로 두 번 돌리면 바이트 같음(--layout 있음·없음, 서술 표지를 넣은 fixture 도 — 표지 안쪽 바이트 불변·details 밖).
 - 앵커·행 수: masthead·og·KPI·차트·01 표 5행(최신 위 — 2026-10-15)·순위 5칸(오름차순 그대로)·03 = 합계 맨 위 + 최근 7일 최신 위 + 접힌 표 나머지 최신 위 ·
@@ -39,7 +48,7 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   직전 블록의 같은 매체 줄 나눔 유지 · 멱등·되돌리면 바이트 그대로) — validate check_media_top5 와 같은 읽기로 대조 · 따옴표 이름·낯선 유형·빈 조각·색 배열 없음 → ApplyError.
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
-- 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-I 있음 — 2026-10-23 구현 리허설: 운영 배포본(판 H) 사본을 apply --layout 으로 바꾸고 서술을 판 I 꼴로 다시 쓴 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
+- 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-J 있음 — 2026-10-23 오후 구현 리허설: 운영 배포본(판 I 2d28896) 사본을 apply --layout 으로 바꾸고 서술을 판 J 꼴로 다시 쓴 것)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
 import hashlib
@@ -105,7 +114,7 @@ def tbodies(sec):
 def at(cfg, lid):
     """config 를 사슬 중간 판 lid 로 둔 시험용 사본 — 판 G 까지는 접기 5개(markers.details 5 — 판 H 가 07 정식표 접기 하나를 더한다 · 판 I 도 6)."""
     lay = dict(cfg["report_layout"], layout_id=lid)
-    if lid not in (A.LAYOUT_H, A.LAYOUT_I):
+    if lid not in (A.LAYOUT_H, A.LAYOUT_I, A.LAYOUT_J):
         lay["markers"] = dict(lay["markers"], details=5)
     return dict(cfg, report_layout=lay)
 
@@ -159,7 +168,8 @@ class ApplyFixture(unittest.TestCase):
         o1 = A.apply(H2, self.R, self.cfg, layout=True)
         self.assertEqual(A.apply(o1, self.R, self.cfg), o1)
         blk = r"<!-- n:[^>]+-->.*?<!-- /n -->"
-        self.assertEqual(re.findall(blk, o1, re.S), re.findall(blk, H2, re.S))   # 변환·값 교체 모두 표지 안쪽 바이트 불변
+        want = [b.replace("<!-- n:08-note:매회차 -->", "<!-- n:08-note:고정 -->") for b in re.findall(blk, H2, re.S)]   # 판 J 변환은 08-note 종류만 고정으로
+        self.assertEqual(re.findall(blk, o1, re.S), want)                         # 변환·값 교체 모두 표지 안쪽 바이트 불변
         for m in re.finditer(blk, o1, re.S):                                     # 표지는 접기 밖(항상 보임)
             self.assertEqual(o1.count("<details", 0, m.start()), o1.count("</details>", 0, m.start()), m.group(0)[:40])
         self.assertEqual(o1.count("위</div>"), self.out.count("위</div>"))  # 순위 5칸이 그대로 생성됨
@@ -363,8 +373,8 @@ class ApplyLayoutD(unittest.TestCase):
 
     def test_chain_old_to_d(self):
         o, R = self.out, self.R
-        self.assertEqual(self.lay["layout_id"], "r2026-10-I")                     # config 는 판 I — 판 D 몫은 사슬 끝(I) 결과에 그대로 남는다
-        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-I"])
+        self.assertEqual(self.lay["layout_id"], "r2026-10-J")                     # config 는 판 J — 판 D 몫은 사슬 끝(J) 결과에 그대로 남는다
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-J"])
         self.assertEqual(o.count("/* saero:mobile-branch 01 */"), 1)
         self.assertEqual(o.count("/* saero:mobile-branch 06 */"), 1)
         self.assertEqual(len(A.BRANCH.findall(o)), self.lay["markers"]["mobile_branch"])
@@ -404,9 +414,9 @@ class ApplyLayoutD(unittest.TestCase):
     def test_b_and_c_to_d(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.B), ["r2026-10-B"])
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.C), ["r2026-10-C"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-I — --layout 을 붙여 r2026-10-B → r2026-10-I"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-J — --layout 을 붙여 r2026-10-B → r2026-10-J"):
             A.apply(self.B, self.R, self.cfg)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-I — --layout 을 붙여 r2026-10-C → r2026-10-I"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-J — --layout 을 붙여 r2026-10-C → r2026-10-J"):
             A.apply(self.C, self.R, self.cfg)
         self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E → F → G → H → I = 옛 → B → … → I 사슬과 같은 바이트
         self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E → F → G → H → I 도 같은 바이트
@@ -505,7 +515,7 @@ class ApplyLayoutE(unittest.TestCase):
 
     def test_d_to_e(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.D), ["r2026-10-D"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-I — --layout 을 붙여 r2026-10-D → r2026-10-I"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-J — --layout 을 붙여 r2026-10-D → r2026-10-J"):
             A.apply(self.D, self.R, self.cfg)
         self.assertEqual(A.apply(self.D, self.R, self.cfg_e, layout=True), self.E)   # D → E = 옛 → B → C → D → E 사슬과 같은 바이트
         self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E → F → G → H 도 사슬과 같은 바이트
@@ -567,10 +577,10 @@ class ApplyLayoutF(unittest.TestCase):
         return o[i:o.index("\n    </div>\n", i) + len("\n    </div>\n")]
 
     def test_e_to_f(self):
-        self.assertEqual(self.lay["layout_id"], "r2026-10-I")
+        self.assertEqual(self.lay["layout_id"], "r2026-10-J")
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.E), ["r2026-10-E"])
         self.assertNotIn("data-balance", self.E)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-I — --layout 을 붙여 r2026-10-E → r2026-10-I"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-J — --layout 을 붙여 r2026-10-E → r2026-10-J"):
             A.apply(self.E, self.R, self.cfg)
         self.assertEqual(A.apply(self.E, self.R, self.cfg_f, layout=True), self.F)   # E → F = 옛 → B → C → D → E → F 사슬과 같은 바이트
         self.assertEqual(A.apply(self.E, self.R, self.cfg, layout=True), self.out)   # E → F → G → H 도 사슬과 같은 바이트
@@ -602,8 +612,9 @@ class ApplyLayoutF(unittest.TestCase):
         tiles = re.findall(r'<div class="label">([^<]+)</div>\s*<div class="value">([^<]+)<span class="unit">', self.out)
         self.assertEqual([t[0] for t in tiles], ["총 노출수", "총 클릭수", "평균 클릭률", "총 광고비"])   # validate parse_kpi_tiles 에 새 카드가 안 잡힘
         subs = re.findall(r'<div class="sub">([^<]+)</div>', self.out)
-        self.assertEqual(len(subs), 4)                                               # compare _kpi 의 sub 순번(0·1·3) 그대로
-        self.assertTrue(subs[3].startswith("클릭당 평균"))
+        self.assertEqual(len(subs), 3)                                               # 판 J — 평균 클릭률 보조 줄 0 · compare _kpi 는 '클릭당 평균' 을 글로 찾는다
+        self.assertTrue(subs[2].startswith("클릭당 평균"))
+        self.assertEqual(len(re.findall(r'<div class="sub">([^<]+)</div>', self.F)), 4)   # 판 F(사슬 중간)는 넷 그대로
 
     def test_values_every_run(self):
         o, R = self.out, self.R
@@ -662,7 +673,7 @@ def long07(R, n):
     R2 = json.loads(json.dumps(R))
     clicks = list(range(n + 20, n + 20 - (n - 3), -1)) + [5, 3, 3]
     R2["07"]["정식표"] = [{"검색어": f"가짜정식{i:02d}", "매칭": "일치" if i % 2 else "확장", "노출": 50 + c * 10, "클릭": c,
-                           "CTR": round(c * 100 / (50 + c * 10), 2), "hl": c * 100 / (50 + c * 10) >= 4, "CPC": 400 + i, "총비용": c * (400 + i)}
+                           "CTR": round(c * 100 / (50 + c * 10), 2), "hl": c * 100 / (50 + c * 10) >= 4, "적음": False, "CPC": 400 + i, "총비용": c * (400 + i)}
                           for i, c in enumerate(clicks[:n])]
     return R2
 
@@ -690,19 +701,19 @@ class ApplyLayoutH(unittest.TestCase):
         cls.long = A.apply(cls.H, cls.RL, cls.cfg, layout=True)                    # 정식표 K + 3 행 — 접힌 표 3행
 
     def test_config_and_chain(self):
-        self.assertEqual((self.lay["layout_id"], self.K, self.lay["markers"]["details"]), ("r2026-10-I", 10, 6))   # config 는 판 I — 판 H 몫(07 접기)은 사슬 끝(I)에 그대로
+        self.assertEqual((self.lay["layout_id"], self.K, self.lay["markers"]["details"]), ("r2026-10-J", 10, 6))   # config 는 판 J — 판 H 몫(07 접기)은 사슬 끝(J)에 그대로
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.G), ["r2026-10-G"])
         self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", self.G)), 5)
         self.assertIsNone(A.SUM07_HEAD.search(self.G))
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-G ≠ config r2026-10-I — --layout 을 붙여 r2026-10-G → r2026-10-I"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-G ≠ config r2026-10-J — --layout 을 붙여 r2026-10-G → r2026-10-J"):
             A.apply(self.G, self.R, self.cfg)
-        self.assertEqual(A.apply(self.G, self.R, self.cfg, layout=True), self.out)   # G → H → I = 옛 → B → … → I 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.G, self.R, self.cfg, layout=True), self.out)   # G → H → I → J = 옛 → B → … → J 사슬과 같은 바이트
         self.assertEqual(A.apply(self.G, self.RL, self.cfg, layout=True), self.long)
         self.assertEqual(A.chain("r2026-10-G", "r2026-10-H"), [A.convert_g_to_h])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-H")[-2:], [A.convert_f_to_g, A.convert_g_to_h])
         self.assertIsNone(A.chain("r2026-10-H", "r2026-10-G"))                       # 거꾸로는 없다
         for o in (self.out, self.long):
-            self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-I"])
+            self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-J"])
             self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), 6)
             self.assertEqual(len(re.findall(r"<details[^>]*>\s*<summary", o)), 6)
             self.assertEqual(o.count("</details>"), 6)
@@ -808,6 +819,14 @@ class ApplyLayoutH(unittest.TestCase):
                 with self.assertRaisesRegex(A.ApplyError, frag):
                     A.apply(bad, self.RL, self.cfg)
 
+BASIS_H = ("· <b>집계 기간</b>: 개업일(2026.08.26)부터 누적 — 네이버가 보고서를 최근 30일까지만 내려줘 2026.09.26부터 월별 원본을 따로 보관해 합산<br>\n"
+           '      · <b>제외 규칙</b>: 파워링크 첫 광고그룹 "노원필라테스"는 <b>OFF 상태</b>(키워드 10개 등록, 집행만 멈춤)라 KPI·01~07·10번에서 제외 — '
+           "08·09번은 원본 보고서에 광고그룹 구분이 없어 포함(차이는 08·09번 각주)<br>\n"
+           "      · <b>평균노출순위</b>: <b>노출수 가중평균</b>(광고시스템 화면의 단순 평균과 다를 수 있음)<br>\n"
+           "      · <b>타겟 지역</b>: 노원·도봉·강북·중랑·성북구 5개 자치구 합산<br>\n"
+           "      · <b>클릭률 강조</b>: 01·07번 표에서 클릭률 4% 이상인 행만 진한 민트색")   # 배포본 판 H 12-basis 글(판 I 변환이 'KPI·01~07·10번' 한 곳 · 판 J 변환이 세 줄을 고친다)
+
+
 def with_marks(h):
     """판 I 변환 범위 시험용 — 옛 fixture 에 서술 표지(01-rank · 10 구역 안 10-desc·10-mint · 11-list · 12-note · 12-basis(옛 'KPI·01~07·10번'))와
     번호 배지(10·11·12)를 넣은 판(배포본 판 H 꼴 — 표지는 운영 서술이 넣는 자리)."""
@@ -821,7 +840,7 @@ def with_marks(h):
              '  <div class="section"><div class="section-head"><span class="section-num">11</span></div><!-- n:11-list:매회차 --><ul><li>가짜 요약(07번 ②·12번 1번)</li></ul><!-- /n --></div>'),
             ('  <div class="section"><div class="note">가짜 액션</div></div>\n',
              '  <div class="section"><div class="section-head"><span class="section-num">12</span></div><div class="note"><!-- n:12-note:매회차 -->가짜 액션(12번 행 없음)<!-- /n --></div></div>\n'
-             '  <div class="card"><div class="note"><!-- n:12-basis:고정 -->· 제외 규칙: 가짜 그룹은 KPI·01~07·10번에서 제외 — 08·09번은 포함<!-- /n --></div></div>\n'))
+             '  <div class="card"><div class="note"><!-- n:12-basis:고정 -->' + BASIS_H + '<!-- /n --></div></div>\n'))
     for a, b in reps:
         assert h.count(a) == 1, a[:60]
         h = h.replace(a, b)
@@ -832,26 +851,28 @@ NARR = r"<!-- n:([^\s:]+):[^>]*-->(.*?)<!-- /n -->"
 
 
 class ApplyLayoutI(unittest.TestCase):
-    """판 r2026-10-I(콘텐츠 지면 빼기 — 2026-10-23 사용자 결정 1~6): H → I · 바뀌는 곳 · ① 5칸 · 구역 11·캔버스 7 · 멱등 · 판 H 경로 그대로 · 손 수정 FAIL."""
+    """판 r2026-10-I(콘텐츠 지면 빼기 — 2026-10-23 사용자 결정 1~6): H → I · 바뀌는 곳 · ① 5칸 · 구역 11·캔버스 7 · 멱등 · 판 H 경로 그대로 · 손 수정 FAIL.
+    (판 J 부터 판 I 는 사슬 중간 — config 를 판 I 로 둔 사본 cfg_i 로 돈다)"""
     @classmethod
     def setUpClass(cls):
         cls.F, cls.R, cls.cfg = with_marks(read(FIX)), jread(FIXJ), load_config()
         cls.lay = cls.cfg["report_layout"]
         cls.cfg_h = at(cls.cfg, A.LAYOUT_H)
+        cls.cfg_i = at(cls.cfg, A.LAYOUT_I)                                      # 판 J 부터 판 I 는 사슬 중간 — config 를 판 I 로 둔 사본
         cls.H = A.apply(cls.F, cls.R, cls.cfg_h, layout=True)                    # meta r2026-10-H 판(배포본 판 H 꼴 — 값 채움, 표지·배지 있음)
-        cls.out = A.apply(cls.F, cls.R, cls.cfg, layout=True)                    # 옛 → … → H → I
+        cls.out = A.apply(cls.F, cls.R, cls.cfg_i, layout=True)                  # 옛 → … → H → I
 
     def test_config_and_chain(self):
-        self.assertEqual((self.lay["layout_id"], self.lay["markers"]["sections"], self.lay["markers"]["canvases"]), ("r2026-10-I", 11, 7))
+        self.assertEqual((self.cfg_i["report_layout"]["layout_id"], self.lay["markers"]["sections"], self.lay["markers"]["canvases"]), ("r2026-10-I", 11, 7))
         self.assertEqual(A.chain("r2026-10-H", "r2026-10-I"), [A.convert_h_to_i])
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-I")[-2:], [A.convert_g_to_h, A.convert_h_to_i])
         self.assertIsNone(A.chain("r2026-10-I", "r2026-10-H"))
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.H), ["r2026-10-H"])
         with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-H ≠ config r2026-10-I — --layout 을 붙여 r2026-10-H → r2026-10-I"):
-            A.apply(self.H, self.R, self.cfg)
-        self.assertEqual(A.apply(self.H, self.R, self.cfg, layout=True), self.out)   # H → I = 옛 → … → I 사슬과 같은 바이트
-        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)               # 값만(멱등)
-        self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)
+            A.apply(self.H, self.R, self.cfg_i)
+        self.assertEqual(A.apply(self.H, self.R, self.cfg_i, layout=True), self.out)   # H → I = 옛 → … → I 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.out, self.R, self.cfg_i), self.out)               # 값만(멱등)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg_i, layout=True), self.out)
         o = self.out
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-I"])
         self.assertEqual(re.findall(r"<!-- Section (\d+):", o), [str(n) for n in range(1, 12)])
@@ -898,7 +919,7 @@ class ApplyLayoutI(unittest.TestCase):
         R2 = json.loads(json.dumps(R))
         for r in R2["01"]["표5"]:                                                                     # 판 I 표는 검색·콘텐츠 키를 읽지 않는다(compute 판 I 출력 꼴)
             r.pop("검색", None), r.pop("콘텐츠", None)
-        self.assertEqual(A.apply(o, R2, self.cfg), o)
+        self.assertEqual(A.apply(o, R2, self.cfg_i), o)
 
     def test_layout_h_path_unchanged(self):
         """판 H 경로(config 판 H — 사슬 중간): ① 7칸 · placementChart 배열 · 10 표 4행 = compute "10" 그대로(옛 판 회귀 0)."""
@@ -930,7 +951,7 @@ class ApplyLayoutI(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertNotEqual(bad, h)
                 with self.assertRaisesRegex(A.ApplyError, msg):
-                    A.apply(bad, self.R, self.cfg, layout=True)
+                    A.apply(bad, self.R, self.cfg_i, layout=True)
 
     def test_hand_edited_i_fails(self):
         o = self.out
@@ -947,7 +968,247 @@ class ApplyLayoutI(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertNotEqual(bad, o)
                 with self.assertRaisesRegex(A.ApplyError, msg):
-                    A.apply(bad, self.R, self.cfg)
+                    A.apply(bad, self.R, self.cfg_i)
+
+
+def with_marks_j(h):
+    """판 J 변환 범위 시험용 — with_marks(판 H 꼴 표지) 위에 판 J 가 고치는 표지(매회차 03-desc·08-note·09-desc·09-call · 고정 04-foot·07-src·07-legend·12-desc —
+    고정 글은 배포본 판 I 글 그대로)를 구역 첫 줄 뒤에 하나씩 더한 판. 변환은 표지 이름으로 찾으므로 구역 안 자리면 된다."""
+    h = with_marks(h)
+    add = {3: '<span class="section-desc"><!-- n:03-desc:매회차 -->최고치 1/2(금) 9,000원 그대로 — 1/7(수)은 5,000원(플레이스 4,000원 + 파워링크 1,000원)<!-- /n --></span>',
+           4: f'<div style="font-size:11px;"><!-- n:04-foot:고정 -->{A.FOOT04[0]}<!-- /n --></div>',
+           7: (f'<div class="note"><!-- n:07-src:고정 -->{A.SRC07[0]}<!-- /n --></div><div><!-- n:07-legend:고정 --><span style="color:var(--mint-dark);font-weight:800;">'
+               '진한 민트색 클릭률</span> = 4% 이상 (일반적인 검색광고 "양호" 기준인 2%의 2배 이상)<!-- /n --></div>'),
+           8: '<div class="note"><!-- n:08-note:매회차 -->가짜 08 각주.<!-- /n --></div>',
+           9: '<span class="section-desc"><!-- n:09-desc:매회차 -->1시대 클릭 최다(2회, 3회차 연속) — 상시 문의 대응 전략과 부합<!-- /n --></span><div><!-- n:09-call:매회차 -->→ 가짜 심야.<!-- /n --></div>'}
+    for n, blk in add.items():
+        a = h.index(f"<!-- Section {n}:")
+        e = h.index("\n", h.index('<div class="section"', a)) + 1
+        h = h[:e] + "    " + blk + "\n" + h[e:]
+    old = '<div class="section-head"><span class="section-num">12</span></div>'
+    assert h.count(old) == 1
+    return h.replace(old, f'<div class="section-head"><span class="section-num">12</span><span class="section-desc"><!-- n:12-desc:고정 -->{A.DESC12[0]}<!-- /n --></span></div>')
+
+
+J_DIFF_OK = (  # 판 I → J 줄 단위 diff 에 나올 수 있는 글(이 밖의 줄이 바뀌면 FAIL — G5)
+    'content="r2026-10-I"', 'content="r2026-10-J"', A.TITLE_OLD, A.TITLE_NEW, "업종 평균 수준", '<span class="unit">회</span>', '<span class="unit">건</span>',
+    A.GROUP_OLD, A.GROUP_NEW, A.FOOT04[0], A.FOOT04[1], A.SRC07[0], A.SRC07[1], A.DESC12[0], A.DESC12[1], "진한 민트색 클릭률",
+    "<b>집계 기간</b>", "<b>타겟 지역</b>", "<b>클릭률 강조</b>", "<!-- n:03-desc:", "<!-- n:08-note:", "<!-- n:09-desc:", "<!-- n:09-call:",
+    f"일 평균 {jread(FIXJ)['KPI']['일평균클릭']}")   # KPI 클릭 보조 줄(fixture 값 — 노출 보조 줄은 이 글이 아니라 허용 밖)
+
+
+class ApplyLayoutJ(unittest.TestCase):
+    """판 r2026-10-J(불필요 항목 빼기 — 2026-10-23 오후 사용자 결정 "추천대로"): I → J · 바뀌는 곳(고정 글만) · 값 갈래(KPI 건 · 07 쉼표·'적음' · 04 신규 기한 ·
+    06 카드 집합 · 판 G 블록 글) · 멱등 · 손 수정 I/J FAIL · 직전 판 I·J 읽기 같음(G3)."""
+    @classmethod
+    def setUpClass(cls):
+        cls.F, cls.R, cls.cfg = with_marks_j(read(FIX)), jread(FIXJ), load_config()
+        cls.lay = cls.cfg["report_layout"]
+        cls.cfg_i = at(cls.cfg, A.LAYOUT_I)
+        cls.I = A.apply(cls.F, cls.R, cls.cfg_i, layout=True)                    # meta r2026-10-I 판(표지 있음 — 배포본 판 I 꼴)
+        cls.out = A.apply(cls.F, cls.R, cls.cfg, layout=True)                    # 옛 → … → I → J
+
+    def test_config_and_chain(self):
+        self.assertEqual(self.lay["layout_id"], "r2026-10-J")
+        self.assertEqual(A.chain("r2026-10-I", "r2026-10-J"), [A.convert_i_to_j])
+        self.assertEqual(A.chain("r2026-10-B", "r2026-10-J")[-2:], [A.convert_h_to_i, A.convert_i_to_j])
+        self.assertIsNone(A.chain("r2026-10-J", "r2026-10-I"))
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-I ≠ config r2026-10-J — --layout 을 붙여 r2026-10-I → r2026-10-J"):
+            A.apply(self.I, self.R, self.cfg)
+        self.assertEqual(A.apply(self.I, self.R, self.cfg, layout=True), self.out)   # I → J = 옛 → … → J 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)               # 값만(멱등)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)
+        o = self.out
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-J"])
+        self.assertEqual(re.findall(r"<!-- Section (\d+):", o), [str(n) for n in range(1, 12)])
+        self.assertEqual(len(re.findall(r'<canvas id="', o)), 7)
+        self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", A.strip_extra(o))), 6)
+        self.assertEqual([w for w in A.TRIM_GONE if w in o], [])
+
+    def test_conversion_scope_i_to_j(self):
+        """I → J 가 바꾸는 줄은 허용 목록(J_DIFF_OK)의 글이 든 줄뿐 — 다른 구역·서술 표지 안쪽·CSS·JS 바이트 그대로(G5). 바뀐 곳마다 새 글."""
+        import difflib
+        i, j = self.I, A.convert_i_to_j(self.I, self.lay, self.cfg)
+        changed = [l for l in difflib.unified_diff(i.split("\n"), j.split("\n"), lineterm="", n=0) if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+        self.assertTrue(changed)
+        self.assertEqual([l for l in changed if not any(w in l for w in J_DIFF_OK)], [])
+        self.assertEqual(i[i.index("<style>"):i.index("</style>")], j[j.index("<style>"):j.index("</style>")])                # 새 CSS 0
+        si, sj = i[i.index("<script>"):], j[j.index("<script>"):]
+        self.assertEqual(si.replace(A.GROUP_OLD, A.GROUP_NEW, 1), sj)                                                      # 스크립트 = groupChart 이름 한 곳
+        for n in (2, 5, 6, 10):
+            self.assertEqual(section(i, n), section(j, n), n)                                                               # 고칠 글이 없는 구역 그대로
+        nar = lambda h: dict((k, v) for k, v in re.findall(NARR, h, re.S))
+        ni, nj = nar(i), nar(j)
+        self.assertEqual(set(ni), set(nj))
+        self.assertEqual({k for k in ni if ni[k] != nj[k]}, {"04-foot", "07-src", "07-legend", "12-desc", "12-basis"})    # 안쪽이 바뀐 표지 = 고정 글 다섯
+        self.assertEqual(nj["07-legend"], ni["07-legend"] + A.legend07_tail(self.cfg))
+        self.assertEqual(nj["12-basis"].count("<br>"), ni["12-basis"].count("<br>") - 1)                                   # 타겟 지역 줄 하나 빠짐
+        self.assertIn(A.basis_ctr(self.cfg), nj["12-basis"])
+        self.assertIn("· <b>집계 기간</b>: 개업일(2026.08.26)부터 누적<br>", nj["12-basis"])
+        for n in A.TO_FIXED:
+            self.assertEqual((i.count(f"<!-- n:{n}:매회차 -->"), j.count(f"<!-- n:{n}:고정 -->")), (1, 1), n)
+
+    def test_values_j(self):
+        o, R = self.out, self.R
+        self.assertIn(f'<div class="value">{R["KPI"]["클릭"]:,}<span class="unit">건</span></div>', o)          # 결정 37 — 클릭 '건'
+        self.assertIn(f"일 평균 {R['KPI']['일평균클릭']}건", o)
+        self.assertIn(f'<div class="value">{R["KPI"]["노출"]:,}<span class="unit">회</span></div>', o)          # 노출은 '회' 그대로
+        self.assertEqual(len(re.findall(r'<div class="sub">([^<]+)</div>', o)), 3)                              # 결정 13 — 평균 클릭률 보조 줄 0
+        R2 = json.loads(json.dumps(R))                                                                          # 결정 34·35 — 07 노출 쉼표 · '적음'
+        R2["07"]["정식표"][0].update(노출=2671)
+        R2["07"]["정식표"][1].update(노출=9, CTR=22.22, hl=False, 적음=True)
+        o2 = A.apply(o, R2, self.cfg)
+        s7 = section(o2, 7)
+        top = [cells(t) for t in rows(s7[s7.index("<tbody>"):s7.index("</tbody>")]) if "<td" in t]
+        self.assertEqual([(r[2], r[4]) for r in top], [("2,671", f"{R2['07']['정식표'][0]['CTR']:.2f}%"), ("9", "적음")])
+        self.assertEqual(s7.count('<td class="num">적음</td>'), 1)
+        self.assertNotIn("22.22%", s7)
+        self.assertEqual(A.apply(o2, R, self.cfg), o)                                                           # 되돌리면 바이트 그대로
+        self.assertIn("(1/2 신규)", section(o, 4))                                                             # 결정 30 — 04.신규 = [가짜그룹B](4일차)
+        R3 = json.loads(json.dumps(R))
+        R3["04"]["신규"] = []
+        o3 = A.apply(o, R3, self.cfg)
+        self.assertNotIn("신규)", section(o3, 4))
+        self.assertIn('<td class="name-cell">가짜그룹B</td>', section(o3, 4))
+        self.assertEqual(A.apply(o3, R3, self.cfg), o3)
+        R4 = json.loads(json.dumps(R))                                                                          # 결정 5 — 카드 밖이 된 그룹의 카드는 지움
+        R4["06"]["카드"] = {}
+        o4 = A.apply(o, R4, self.cfg)
+        self.assertEqual((A.card_groups(o), A.card_groups(o4)), (["가짜그룹B"], []))
+        self.assertNotIn("평균노출순위", section(o4, 6))
+        self.assertEqual(A.apply(o4, R4, self.cfg), o4)
+        with self.assertRaisesRegex(A.ApplyError, "06 카드가 없는 그룹"):                                       # 있어야 할 카드는 만들지 않는다(사람이 넣는다 — 04 새 그룹과 같음)
+            A.apply(o4, R, self.cfg)
+
+    def test_extra_blocks_trim(self):
+        """결정 7·8 — 판 G 블록: 변경 기록 끝 스킬 줄 0 · 성별·연령대 머리 '(네이버 추정)' · 알 수 없음 % 는 표에 그 줄이 없는 종류만(trim=False = 판 I 글)."""
+        H = {"상태": "ok", "기간": "9/12~10/10", "건수": 1, "표시": 1, "보일주체": ["사람"], "스킬": {"등록회": 3, "삭제건": 1},
+             "rows": [{"일시": "10/10 10:00", "유형": "확장소재 추가", "대상": "가짜", "내용": "확장 소재 2개 추가"}]}
+        hb, hb_i = A.hi_block({"변경기록": H}), A.hi_block({"변경기록": H}, trim=False)
+        self.assertNotIn("스킬 제외 검색어 등록", hb)
+        self.assertIn("스킬 제외 검색어 등록 3회(실행 수) · 삭제 1건", hb_i)
+        self.assertIn("SYSTEM 하루예산 중단 2회", A.hi_block({"변경기록": dict(H, 시스템={"하루예산중단": 2})}))
+        rows_ = lambda unk: [{"구분": "가", "노출": 100, "비중": 80.0, "클릭": 1, "CTR": 1.0, "적음": False, "비용": 10}] + (
+            [{"구분": "알 수 없음", "노출": 25, "비중": 20.0, "클릭": 0, "CTR": None, "적음": True, "비용": 0}] if unk else [])
+        G = {"상태": "ok", "min_imps": 100, "표": [{"상태": "ok", "종류": "성별", "기간": "10/1~10/9", "알수없음%": 20.0, "알수없음줄": True, "rows": rows_(True)},
+                                                 {"상태": "ok", "종류": "연령대", "기간": "10/1~10/9", "알수없음%": 20.0, "알수없음줄": False, "rows": rows_(False)}]}
+        gb, gb_i = A.ga_block({"성별연령": G}), A.ga_block({"성별연령": G}, trim=False)
+        self.assertIn(A.GA_HEAD_J, gb)
+        self.assertNotIn("제외 그룹 포함", gb)
+        self.assertIn(f">성별 <span {A.MUTED}>(10/1~10/9)</span>", gb)                                           # 줄이 있는 종류 — 괄호에 % 0
+        self.assertIn(f">연령대 <span {A.MUTED}>(10/1~10/9 · 알 수 없음 20.0%)</span>", gb)                     # 줄이 없는 종류 — % 남김
+        self.assertIn(A.GA_HEAD_I, gb_i)
+        self.assertIn(f">성별 <span {A.MUTED}>(10/1~10/9 · 알 수 없음 20.0%)</span>", gb_i)
+
+    def test_hand_edited_fails(self):
+        i, o, R = self.I, self.out, self.R
+        legend_i = '2배 이상)<!-- /n -->'
+        cases_i = (("04-foot 다른 글", i.replace(A.FOOT04[0], "※ 손으로 고친 각주", 1), "고정 표지 04-foot 글이 판 I 글이 아님"),
+                   ("12-basis 타겟 지역 줄 없음", A.BASIS_TARGET.sub("", i, count=1), "12-basis 가 판 I 글"),
+                   ("KPI 평균 클릭률 보조 줄 없음", i.replace('<div class="sub">업종 평균 수준</div>', "", 1), "앵커가 정확히 하나가 아님"),
+                   ("07-legend 에 이미 한 구", i.replace(legend_i, "2배 이상) · 노출 20회 미만은 '적음'<!-- /n -->", 1), "이미 있음"),
+                   ("03-desc 표지 둘", i.replace("<!-- Section 4:", "<!-- n:03-desc:매회차 -->x<!-- /n -->\n  <!-- Section 4:", 1), "03-desc 가 2개"))
+        for label, bad, msg in cases_i:
+            with self.subTest(label=label):
+                self.assertNotEqual(bad, i)
+                with self.assertRaisesRegex(A.ApplyError, msg):
+                    A.apply(bad, R, self.cfg, layout=True)
+        R4 = json.loads(json.dumps(R))
+        R4["06"]["카드"] = {}
+        card_note = "<!-- n:06-card-가짜그룹B:"
+        cases_j = (("뺀 고정 글 되살림", o.replace("</body>", "<!-- 업종 평균 수준 --></body>", 1), R, "뺀 고정 글이 남음"),
+                   ("표지 매회차로", o.replace("<!-- n:09-call:고정 -->", "<!-- n:09-call:매회차 -->", 1), R, "가 매회차"),
+                   ("07-legend 끝 없음", o.replace(A.legend07_tail(self.cfg) + "<!-- /n -->", "<!-- /n -->", 1), R, "07-legend 끝"),
+                   ("KPI 클릭 '회'", o.replace('<span class="unit">건</span>', '<span class="unit">회</span>', 1), R, "KPI 총 클릭수 단위"),
+                   ("카드 블록에 다른 표지", o.replace('4일차. 가짜 카드 서술.', '4일차. 가짜 카드 서술.<!-- n:xx:고정 -->x<!-- /n -->', 1) if card_note not in o else None, R4, "카드 밖의 것"))
+        for label, bad, RR, msg in cases_j:
+            with self.subTest(label=label):
+                self.assertIsNotNone(bad)
+                self.assertNotEqual(bad, o)
+                with self.assertRaisesRegex(A.ApplyError, msg):
+                    A.apply(bad, RR, self.cfg)
+
+    def test_prev_readers_i_and_j_same(self):
+        """G3 — 다음 회차가 직전 배포본에서 읽는 곳이 판 I·J 둘 다 같은 결과: masthead 끝 날 · 07 경쟁사표 행 · 다음 액션 구역(이월 줄) · 04 이름 칸 그룹 키."""
+        import compute as C
+        from reportlib import action_section
+        i, j = self.I, self.out
+        self.assertIsNotNone(C.prev_period_end(j))
+        self.assertEqual(C.prev_period_end(i), C.prev_period_end(j))
+        self.assertEqual(C.deployed_competitors(i), C.deployed_competitors(j))
+        self.assertTrue(C.deployed_competitors(j))
+        line = "P3 안 함(1/5 결정)"
+        for h in (i, j):
+            page = h.replace("<!-- n:12-note:매회차 -->", f"<!-- n:12-note:매회차 -->{line} ", 1)
+            self.assertIn(line, action_section(page))
+        names = lambda h: [cells(t)[1].split("(")[0].strip() for t in rows(section(h, 4)) if "<td" in t]
+        self.assertEqual(names(i), names(j))
+        self.assertEqual(names(j), [r["그룹"] for r in self.R["04"]["rows"]])
+
+
+class ComputeCardRule(unittest.TestCase):
+    """판 J(결정 5·30) 06 카드 규칙 — compute card_groups(새 그룹 · 승격 그룹 · 오래된 그룹 · 최근 7일 노출 0 · 노원역) + validate "06번 카드 그룹"(CSV 로 따로) 같은 판정 ·
+    완료 기준 "시험(새 그룹 카드)"."""
+    GC = {"new_days": 10, "promotion_groups": ["승격그룹"]}
+
+    def frames(self):
+        import pandas as pd
+        days = [f"2026.10.{d:02d}." for d in range(1, 21)]
+        rows_ = []
+        for g, first, last in (("노원역필라테스", 0, 19), ("새그룹", 15, 19), ("오래된그룹", 0, 19), ("승격그룹", 0, 19), ("멈춘새그룹", 12, 12)):
+            for k in range(first, last + 1):
+                rows_.append({"일별": days[k], "캠페인": "새로필라테스 파워링크", "광고그룹": g, "노출수": 10, "클릭수": 0, "총비용": 0})
+        rows_.append({"일별": days[0], "캠페인": "플레이스#1", "광고그룹": "새로필라테스", "노출수": 10, "클릭수": 0, "총비용": 0})
+        kw = pd.DataFrame(rows_)
+        return kw, days
+
+    def test_new_group_card(self):
+        import compute as C
+        kw, days = self.frames()
+        pw = kw[~kw["캠페인"].str.startswith("플레이스")]
+        to = lambda s: dt_date(s)
+        nth = {g: (to(days[-1]) - to(s["일별"].min())).days + 1 for g, s in pw.groupby("광고그룹")}
+        self.assertEqual((nth["새그룹"], nth["멈춘새그룹"], nth["오래된그룹"]), (5, 8, 20))
+        self.assertEqual(C.card_groups(pw, days, nth, self.GC), ["새그룹", "승격그룹"])     # 새 그룹(5일차) · 승격 그룹 — 오래된·최근 7일 노출 0·노원역 밖
+        self.assertEqual(C.card_groups(pw, days, nth, dict(self.GC, promotion_groups=[])), ["새그룹"])
+        self.assertEqual(C.card_groups(pw, days, nth, dict(self.GC, new_days=21)), ["새그룹", "오래된그룹", "승격그룹"])
+
+    def vcheck(self, html, kw):
+        import contextlib
+        import io
+        import validate as V
+        cfg = dict(V.GC)
+        V.GC.update(self.GC)
+        try:
+            del V.results[:]
+            with contextlib.redirect_stdout(io.StringIO()):
+                V.check_card_rule(html, kw, kw)
+            return V.results[-1]
+        finally:
+            V.GC.clear()
+            V.GC.update(cfg)
+
+    def page(self, cards, tagged=()):
+        head = lambda g: (f'<div style="font-size:12px;font-weight:600;color:var(--ink-soft);">{g} <span style="color:var(--mint-dark);font-weight:700;">'
+                          f'(10/1 등록, 3일차)</span></div>')
+        names = "".join(f'<tr><td class="name-cell">{g} <span style="font-weight:400;">(10/1 신규)</span></td></tr>' for g in tagged)
+        return f'<!-- Section 4: x --><table>{names}</table><!-- Section 6: x -->{"".join(head(g) for g in cards)}<!-- Section 7: x -->'
+
+    def test_validate_same_rule(self):
+        kw, _ = self.frames()
+        self.assertTrue(self.vcheck(self.page(["새그룹", "승격그룹"], ["새그룹"]), kw)[1])
+        name, ok, det = self.vcheck(self.page(["승격그룹"]), kw)                                     # 새 그룹 카드 없음
+        self.assertFalse(ok)
+        self.assertIn("규칙 ['새그룹', '승격그룹']", det)
+        self.assertFalse(self.vcheck(self.page(["새그룹", "승격그룹", "오래된그룹"]), kw)[1])           # 오래된 그룹 카드가 남음
+        name, ok, det = self.vcheck(self.page(["새그룹", "승격그룹"], ["오래된그룹"]), kw)             # 오래된 그룹에 '(M/D 신규)'
+        self.assertFalse(ok)
+        self.assertIn("오래된그룹(20일차)", det)
+
+
+def dt_date(s):
+    import datetime as dt
+    return dt.date(*(int(x) for x in s.rstrip(".").split(".")))
 
 
 class ComputeContentWatch(unittest.TestCase):
@@ -1007,10 +1268,11 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
-        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G → r2026-10-H → r2026-10-I, details 6 · 분기 2)", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G → r2026-10-H → r2026-10-I → r2026-10-J, details 6 · 분기 2)", out)
         self.assertIn("· 잔액 카드 123,456원 · 1/8(목) 09:05 기준 · 약 28일분", out)                  # 판 F — 운영 세션이 출력에서 카드 글을 본다
         self.assertIn("· 07 정식표 위 2행 · 나머지 0행 펼치기", out)                                      # 판 H — fixture 정식표 2행 ≤ K
         self.assertIn("· 구역 11 · 캔버스 7(지면 구역 없음)", out)                                        # 판 I — 운영 세션이 출력에서 구역·캔버스 수를 본다
+        self.assertIn("· 06 카드 ['가짜그룹B'] · 04 신규 메모 1", out)                                    # 판 J — 06 카드 집합 · 04 신규 메모 수
 
     def test_cli_twice_same_bytes_and_flag_required(self):
         td = tempfile.mkdtemp()
@@ -1099,7 +1361,8 @@ class ApplyRehearsal(unittest.TestCase):
         H = read(os.path.join(ROOT, "work", "RX", "same", "index.html"))
         R = jread(os.path.join(ROOT, "work", "RX", "same", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
-        self.assertIn('<meta name="report-layout" content="r2026-10-I">', H)               # 리허설 RX = 판 I(meta 로 판 선택 — --layout 없이)
+        self.assertIn('<meta name="report-layout" content="r2026-10-J">', H)               # 리허설 RX = 판 J(meta 로 판 선택 — --layout 없이)
+        self.assertEqual([w for w in A.TRIM_GONE if w in H], [])                            # 판 J 가 뺀 고정 글 0
         self.assertNotIn("placementChart", H)                                               # 지면 구역 없음
         self.assertEqual(re.findall(r"<!-- Section (\d+):", H), [str(n) for n in range(1, 12)])
         self.assertNotIn("<!-- n:10-", H)

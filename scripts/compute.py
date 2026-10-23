@@ -25,8 +25,13 @@
   환경 변수 SAERO_LEADS·SAERO_PLACE). 'M/D까지' 는 합본 마지막 날(masthead 끝).
 - (2026-10-12 판 G 보고서 더 받기 A + B) --extra <work/extra>(extras.py combine 의 추가 합본·원장 사본) 면 "성별연령"(05 아래 카드 — 종류마다 기간 = 합본 머리 ·
   노출·비중·클릭·클릭률(노출 min_imps 미만 '적음')·비용 · 알 수 없음 % · 캠페인 단위라 제외 그룹 포함)·"변경기록"(04 아래 표 — 기간 = 집계 기간 ∩ 기록 구간 마지막 연속 구간 ·
-  보일 주체 줄 — 같은 분은 한 줄(2026-10-12) — 최신 위 max_rows · 내용 한 구(등록 n개 · 삭제 n개 · 변경(전 n → 후 m개) · 칸 전 → 후 · 그 밖 유형만) · 스킬 등록 n회(고유 분)·삭제 k건 ·
+  보일 주체 줄 — 같은 분은 한 줄(2026-10-12) — 최신 위 max_rows · 내용 한 구(등록 n개 · 삭제 n개 · 변경(전 n → 후 m개) · 칸 전 → 후 · 확장 소재 n개 추가 · 그 밖 유형만) · 스킬 등록 n회(고유 분)·삭제 k건 ·
   show_system 이면 SYSTEM 하루예산 중단 회수). 폴더·파일이 없거나 extras 설정이 꺼져 있으면 상태 '없음' + [주의](exit 0 — '확인 못 함'). 5단계·precheck 는 늘 붙인다.
+- (2026-10-23 판 J 불필요 항목 빼기 — 사용자 결정 "추천대로") og = 'M/D~M/D 누적 성과 요약'(38) · 02.플레이스비중 = 04 표 플레이스 행 비중 · 04.파워링크비중 = 100 − 그 값(27 — 한 값) ·
+  04.신규 = 일차 < config group_cards.new_days 인 파워링크 그룹(apply 가 04 이름 칸 '(M/D 신규)' 를 그 밖 그룹에서 뺀다 — 30) · 05.top5 = config media_chart(검색 지면 매체 상위 4 — 1) ·
+  06.카드 = 최근 7일 노출 있고 (일차 < new_days 또는 config group_cards.promotion_groups) 인 그룹(5) · 07.정식표[].적음 = 노출 < config ctr_few_07.min_imps(hl 은 적음이 아닐 때만 — 35) ·
+  성별·연령대: config gender_age.hide_unknown_kinds 종류는 알 수 없음 줄 0 · 표마다 '알수없음줄'(줄이 보이면 sub-head 괄호에 % 를 쓰지 않는다 — 8) · 첫 숫자가 같으면 '미만' 이 앞(36) ·
+  변경 기록 확장소재 추가 = '확장 소재 n개 추가'(같은 분 묶음 안 건수의 합 — 28).
 """
 import argparse
 import datetime as dt
@@ -98,6 +103,15 @@ def content_days(inc, days, cfg):
     return first, last, rec
 
 
+def card_groups(pw, days, nth, gc):
+    """판 J(2026-10-23 결정 5) 06 요약 카드 그룹(파워링크 그룹 순서) — 노원역필라테스(rankChart 그룹) 밖 · 최근 7일(날짜 7개) 노출 > 0 ·
+    (일차 < config group_cards.new_days 이거나 promotion_groups). nth = {그룹: 첫 노출일 포함 일차}."""
+    promo = set(gc["promotion_groups"])
+    return [g for g in pw["광고그룹"].unique()
+            if g != "노원역필라테스" and pw[(pw["광고그룹"] == g) & (pw["일별"].isin(days[-7:]))]["노출수"].sum() > 0
+            and (nth[g] < int(gc["new_days"]) or g in promo)]
+
+
 def deployed_competitors(html):
     """직전 배포본 07번 경쟁사표 name-cell 목록."""
     s7 = section(html, 7)
@@ -115,7 +129,7 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
     imp, clk, cost = int(inc["노출수"].sum()), int(inc["클릭수"].sum()), int(inc["총비용"].sum())
     all_imp, all_clk = int(kw["노출수"].sum()), int(kw["클릭수"].sum())
     out["masthead"] = f"{days[0][:10]} — {days[-1][5:10]} ({nd}일)"
-    out["og"] = f"{md(days[0])}~{md(days[-1])} 주간 성과 요약"
+    out["og"] = f"{md(days[0])}~{md(days[-1])} 누적 성과 요약"   # 판 J(결정 38 — '주간' 빼기)
     out["KPI"] = {"노출": imp, "클릭": clk, "CTR": pct(clk, imp), "광고비": cost, "일평균노출": round(imp / nd, 1),
                   "일평균클릭": round(clk / nd, 1), "클릭당": cpc(cost, clk)}
     out["minwidth"] = max(nd * cfg["chart_min_width"]["per_day_px"], cfg["chart_min_width"]["floor_px"])
@@ -148,7 +162,7 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
     out["01"]["상향후"] = avg_pl("2026.09.17.", days[-1])   # 플레이스 일예산 상향(9/17) 뒤 — 배포본 서술용
     out["01"]["상향전"] = avg_pl("2026.09.01.", "2026.09.16.")
     # ---- 02 광고 유형별
-    out["02"] = {"플레이스비중": lr_share([int(pl["총비용"].sum()), int(pw["총비용"].sum())], cost)[0],
+    out["02"] = {"플레이스비중": None,   # 판 J(결정 27) — 04 표 플레이스 행 비중과 한 값(아래 04 뒤에 채운다 — 두 몫 최대잔여법은 다섯 행 값과 어긋났다)
                  "groupChart": {"노출": [int(pl["노출수"].sum()), int(pw["노출수"].sum())], "클릭": [int(pl["클릭수"].sum()), int(pw["클릭수"].sum())]},
                  "costPie": [int(pl["총비용"].sum()), int(pw["총비용"].sum())]}
 
@@ -167,29 +181,34 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
               cpc(int(s["총비용"].sum()), int(s["클릭수"].sum())), wrank(s) if t == "파워링크" else None) for t, n, s in rows4]
     rows4 = [rows4[0]] + sorted(rows4[1:], key=lambda r: -r[5])
     sh = lr_share([r[5] for r in rows4], cost)
+    gc = cfg["group_cards"]
+    first_day = {gname: pw[pw["광고그룹"] == gname]["일별"].min() for gname in pw["광고그룹"].unique()}
+    to_ts = lambda s: pd.Timestamp(s.rstrip(".").replace(".", "-"))
+    nth = {gname: (to_ts(days[-1]) - to_ts(first_day[gname])).days + 1 for gname in first_day}   # 등록일(첫 노출일) 포함 일차
     out["04"] = {"rows": [dict(zip(["유형", "그룹", "노출", "클릭", "CTR", "총비용", "CPC", "순위"], r)) | {"비중": s} for r, s in zip(rows4, sh)],
                  "비중합": round(sum(sh), 1), "CPC격차": round(rows4[0][6] / rows4[1][6], 2),
-                 "파워링크비중": lr_share([int(pl["총비용"].sum()), int(pw["총비용"].sum())], cost)[1]}
-    # ---- 05 매체·기기 — top5 = 매체이름 노출 상위 5(제외 그룹 뺀 값), 색 = 캠페인 유형
-    m5 = inc.groupby("매체이름")["노출수"].sum().sort_values(ascending=False)
-    mtype = inc.groupby("매체이름")["캠페인"].agg(lambda s: "플레이스" if s.str.startswith("플레이스").all() else ("파워링크" if (~s.str.startswith("플레이스")).all() else "혼합"))
-    out["05"] = {"top5": [{"매체": m, "노출": int(v), "유형": mtype[m]} for m, v in m5.head(5).items()],
+                 "파워링크비중": round(100 - sh[0], 1),   # 판 J(결정 27) — = 04 표 파워링크 행 합(플레이스 + 파워링크 = 100.0)
+                 "신규": sorted(g for g, n in nth.items() if n < int(gc["new_days"]))}   # 판 J(결정 30) — '(M/D 신규)' 를 둘 그룹(일차 < new_days)
+    out["02"]["플레이스비중"] = sh[0]
+    # ---- 05 매체·기기 — top5(키 이름 그대로) = config media_chart: `검색/콘텐츠 매체` == placement 행의 매체이름 노출 상위 top_n(제외 그룹 뺀 값 — 판 J 결정 1, 판 I 까지 전체 상위 5), 색 = 캠페인 유형
+    mc = cfg["media_chart"]
+    med = inc[inc["검색/콘텐츠 매체"] == mc["placement"]]
+    m5 = med.groupby("매체이름")["노출수"].sum().sort_values(ascending=False)
+    mtype = med.groupby("매체이름")["캠페인"].agg(lambda s: "플레이스" if s.str.startswith("플레이스").all() else ("파워링크" if (~s.str.startswith("플레이스")).all() else "혼합"))
+    out["05"] = {"top5": [{"매체": m, "노출": int(v), "유형": mtype[m]} for m, v in m5.head(int(mc["top_n"])).items()],
                  "device": [int(pl[pl["PC/모바일 매체"] == "모바일"]["노출수"].sum()), int(pl[pl["PC/모바일 매체"] == "PC"]["노출수"].sum()),
                             int(pw[pw["PC/모바일 매체"] == "모바일"]["노출수"].sum()), int(pw[pw["PC/모바일 매체"] == "PC"]["노출수"].sum())],
                  "모바일비중": round(inc[inc["PC/모바일 매체"] == "모바일"]["노출수"].sum() / imp * 100, 1)}
-    # ---- 06 순위 추이 — rankChart = 노원역필라테스 그룹 전체(자동매칭 포함) 일별 가중순위, 매칭표 순위 1자리, 카드 = 최근 7일 노출 있는 신규 그룹
+    # ---- 06 순위 추이 — rankChart = 노원역필라테스 그룹 전체(자동매칭 포함) 일별 가중순위, 매칭표 순위 1자리,
+    # 카드 = 최근 7일 노출 있고 (일차 < group_cards.new_days 또는 promotion_groups) 인 그룹(판 J 결정 5 — 판 I 까지 최근 7일 노출 있는 그룹 전부)
     nw = pw[pw["광고그룹"] == "노원역필라테스"]
     direct, auto = pw[pw["키워드"] != "-"], pw[pw["키워드"] == "-"]
 
     def mrow(s):
         return {"노출": int(s["노출수"].sum()), "클릭": int(s["클릭수"].sum()), "순위": round(wrank(s), 1), "총비용": int(s["총비용"].sum())}
-    first_day = {gname: pw[pw["광고그룹"] == gname]["일별"].min() for gname in pw["광고그룹"].unique()}
-    to_ts = lambda s: pd.Timestamp(s.rstrip(".").replace(".", "-"))
     out["06"] = {"rankChart": [wrank(nw[nw["일별"] == d]) for d in days], "노원역순위": wrank(nw), "직접": mrow(direct), "자동": mrow(auto),
-                 "카드": {gname: {"순위": wrank(pw[pw["광고그룹"] == gname]), "등록일": md(first_day[gname]),
-                                "일차": (to_ts(days[-1]) - to_ts(first_day[gname])).days + 1}
-                         for gname in pw["광고그룹"].unique()
-                         if gname != "노원역필라테스" and pw[(pw["광고그룹"] == gname) & (pw["일별"].isin(days[-7:]))]["노출수"].sum() > 0},
+                 "카드": {gname: {"순위": wrank(pw[pw["광고그룹"] == gname]), "등록일": md(first_day[gname]), "일차": nth[gname]}
+                         for gname in card_groups(pw, days, nth, gc)},
                  "마지막날": {"직접": int(direct[direct["일별"] == days[-1]]["노출수"].sum()), "자동": int(auto[auto["일별"] == days[-1]]["노출수"].sum())}}
     # 카드 서술용(카드 대조 항목과 섞지 않게 따로) — 그룹 하루 노출 30회 이상인 날(승격 조건 판정, [의도된 동작] 15)
     out["06"]["카드30회이상일"] = {g: [md(d) for d, v in pw[pw["광고그룹"] == g].groupby("일별")["노출수"].sum().items() if v >= 30]
@@ -206,9 +225,11 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
         badge[k] = ("일치" if s.iloc[0]["검색 유형"].startswith("일치") else "확장") + ("*동률" if tie else "")  # 동률이면 직전 뱃지 유지
     gen = gs[~gs["검색어"].isin(comp)]
     main = gen[gen["클릭"] >= 2].sort_values(["클릭", "노출"], ascending=[False, False])  # 동률 → 노출 내림차순
+    few = int(cfg["ctr_few_07"]["min_imps"])   # 판 J(결정 35) — 노출이 이보다 적으면 클릭률 칸 '적음'(강조 0)
     out["07"] = {
         "정식표": [{"검색어": r.검색어, "매칭": badge[r.검색어], "노출": int(r.노출), "클릭": int(r.클릭), "CTR": pct(r.클릭, r.노출),
-                   "hl": bool(pct(r.클릭, r.노출) >= CTRH), "CPC": cpc(int(r.총비용), int(r.클릭)), "총비용": int(r.총비용)} for r in main.itertuples()],
+                   "hl": bool(pct(r.클릭, r.노출) >= CTRH and r.노출 >= few), "적음": bool(r.노출 < few),
+                   "CPC": cpc(int(r.총비용), int(r.클릭)), "총비용": int(r.총비용)} for r in main.itertuples()],
         "클릭1": [{"검색어": r.검색어, "노출": int(r.노출), "총비용": int(r.총비용)}
                  for r in gen[gen["클릭"] == 1].sort_values(["노출", "총비용"], ascending=[False, False]).itertuples()],  # 노출↓. 동률: HTML은 직전 순서 유지가 정본, 이 출력의 2차 키(총비용↓)는 참고 — compare.py는 집합+정렬 방향만 본다
         "클릭0목록": [{"검색어": r.검색어, "노출": int(r.노출)} for r in gen[(gen["클릭"] == 0) & (gen["노출"] >= 5)].sort_values("노출", ascending=False).itertuples()],
@@ -280,21 +301,23 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
 
 # ---- 판 G(2026-10-12 — 보고서 더 받기 A + B): 추가 합본(work/extra — scripts/extras.py combine) → 05 아래 카드 · 04 아래 표
 def _ga_order(label, unknown):
-    """성별·연령대 줄 순서 — 알 수 없음은 맨 끝, 숫자가 든 값(연령 구간)은 첫 숫자 순, 그 밖은 글자 순(남성 < 여성)."""
+    """성별·연령대 줄 순서 — 알 수 없음은 맨 끝, 숫자가 든 값(연령 구간)은 첫 숫자 순(같으면 '미만' 이 앞 — 판 J 결정 36: 14세 미만 · 14세 ~ 18세), 그 밖은 글자 순(남성 < 여성)."""
     m = re.search(r"\d+", label)
-    return (label == unknown, int(m.group(0)) if m else 10**6, label)
+    return (label == unknown, int(m.group(0)) if m else 10**6, "미만" not in label, label)
 
 
 def ga_table(path, name, spec, ga):
     """추가 합본 <종류>.csv 하나 → 성별 또는 연령대 표 값. 기간 = 합본 머리(실제 기간 — masthead 와 다를 수 있다) · 비중 = 노출 ÷ 합(소수 1자리) ·
-    클릭률 = 노출 min_imps 미만이면 None + 적음 · 알 수 없음% = 알 수 없음 노출 ÷ 합 · show_unknown false 면 그 줄은 표에서 뺀다(머리 % 는 그대로).
-    캠페인 단위 보고서라 excluded_groups 를 못 뺀다(카드 머리 '캠페인 전체(제외 그룹 포함)' — A-6)."""
+    클릭률 = 노출 min_imps 미만이면 None + 적음 · 알 수 없음% = 알 수 없음 노출 ÷ 합 · show_unknown false 거나 종류가 hide_unknown_kinds 에 들면 그 줄은 표에서 뺀다
+    (판 J 결정 8 — 연령대: 줄이 성별과 같다) · 알수없음줄 = 그 줄이 표에 있나(있으면 sub-head 괄호에 % 를 쓰지 않는다 — apply·compare·validate).
+    캠페인 단위 보고서라 excluded_groups 를 못 뺀다(카드 ※ 각주 '캠페인 단위라 04 표와 합이 다를 수 있음' — A-6 · 판 J 부터 머리 괄호는 '(네이버 추정)' 만)."""
     import extras as X
     if not os.path.exists(path):
         return {"상태": "없음", "사유": "추가 합본 없음(첫 회·수집 실패)"}
     _, s, e, _ = X.read_head(path)
     df = read_csv(path)
     dim, unk, mi = spec["dim"], ga["unknown"], int(ga["min_imps"])
+    show_unk = bool(ga["show_unknown"]) and spec["kind"] not in ga.get("hide_unknown_kinds", [])
     for c in ("노출수", "클릭수", "총비용"):
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
     g = df.groupby(df[dim].astype(str))[["노출수", "클릭수", "총비용"]].sum()
@@ -302,7 +325,7 @@ def ga_table(path, name, spec, ga):
     rows = []
     for val in sorted(g.index, key=lambda v: _ga_order(v, unk)):
         n, c, k = int(g.loc[val, "노출수"]), int(g.loc[val, "클릭수"]), int(g.loc[val, "총비용"])
-        if val == unk and not ga["show_unknown"]:
+        if val == unk and not show_unk:
             continue
         few = n < mi or n == 0
         rows.append({"구분": val, "노출": n, "비중": round(n / tot_i * 100, 1) if tot_i else 0.0, "클릭": c,
@@ -316,7 +339,8 @@ def ga_table(path, name, spec, ga):
     u = int(g.loc[unk, "노출수"]) if unk in g.index else 0
     return {"상태": "ok", "이름": name, "기간": f"{md(s.strftime('%Y.%m.%d.'))}~{md(e.strftime('%Y.%m.%d.'))}",
             "시작": s.strftime("%Y.%m.%d."), "끝": e.strftime("%Y.%m.%d."), "rows": rows,
-            "합": {"노출": tot_i, "클릭": tot_c, "비용": tot_k}, "알수없음%": round(u / tot_i * 100, 1) if tot_i else None, "유형별": by_type}
+            "합": {"노출": tot_i, "클릭": tot_c, "비용": tot_k}, "알수없음%": round(u / tot_i * 100, 1) if tot_i else None,
+            "알수없음줄": any(r["구분"] == unk for r in rows), "유형별": by_type}
 
 
 def _items(lines):
@@ -331,9 +355,12 @@ def _items(lines):
 def change_phrase(kind, content):
     """변경 내용 → 표의 '내용' 한 구(목록 원문 0 — 개수만). 둘째 줄로 가른다(막음 B-2):
     `등록된 내용` = 등록 n개 · `삭제된 내용` = 삭제 n개 · `변경 전`…`변경 후` = 타겟팅 변경이면 변경(전 n → 후 m개), 그 밖은 '칸 전 → 후'(값에 ', ' 목록이면 개수) ·
-    그 밖(설정 값 등) = '' (유형만)."""
+    그 밖(설정 값 등) = '' (유형만). 확장소재 추가 + `등록된 내용` = '확장 소재 1개 추가'(원장 한 줄 = 확장 소재 하나 — 판 J 결정 28, 그 전엔 속성 칸 수 '등록 5개' 로 틀렸다 ·
+    같은 분 묶음은 history_table 이 건수를 더한다)."""
     L = content.split("\n")
     lab = L[1].strip() if len(L) > 1 else ""
+    if kind == "확장소재 추가" and lab == "등록된 내용":
+        return "확장 소재 1개 추가"
     names = lambda seg: "·".join(dict.fromkeys(ln.partition(":")[0].strip() for ln in seg if ":" in ln and ln.partition(":")[0].strip()))
     if lab in ("등록된 내용", "삭제된 내용"):
         k = names(L[2:])
@@ -356,6 +383,22 @@ def change_phrase(kind, content):
                 parts.append(f"{k} {fb[k]} → {fa[k]}")
         return " · ".join(parts)
     return ""
+
+
+EXT_ADD = re.compile(r"확장 소재 (\d+)개 추가")
+
+
+def merge_ext(phrases):
+    """같은 분 묶음 안 '확장 소재 n개 추가' 구들 → 첫 자리에 하나(건수 합 — 판 J 결정 28: 12:46 노원역 2 + 노원산전 1 = 3개). 그 밖 구는 그대로(겹침 제거는 부르는 쪽)."""
+    n = sum(int(m.group(1)) for m in (EXT_ADD.fullmatch(p) for p in phrases) if m)
+    out, done = [], False
+    for p in phrases:
+        if not EXT_ADD.fullmatch(p):
+            out.append(p)
+        elif not done:
+            out.append(f"확장 소재 {n}개 추가")
+            done = True
+    return out
 
 
 def history_table(D, h, days):
@@ -393,7 +436,7 @@ def history_table(D, h, days):
             shown.append([r])
     j = lambda xs: " · ".join(dict.fromkeys(x for x in xs if x))
     out_rows = [{"일시": f"{int(g[0][0][5:7])}/{int(g[0][0][8:10])} {g[0][0][12:17]}", "유형": j(r[1] for r in g), "주체": j(r[2] for r in g),
-                 "대상": j(r[4] or r[3] or "—" for r in g), "내용": j(change_phrase(r[1], r[5]) for r in g)} for g in shown[:int(h["max_rows"])]]
+                 "대상": j(r[4] or r[3] or "—" for r in g), "내용": j(merge_ext([change_phrase(r[1], r[5]) for r in g]))} for g in shown[:int(h["max_rows"])]]
     sk = [r for r in inp if r[2] == "스킬" and r[1] == "타겟팅 변경"]
     lab = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
     out = {"상태": "ok", "기간": f"{ps.month}/{ps.day}~{pe.month}/{pe.day}", "시작": ps.strftime("%Y.%m.%d."), "끝": pe.strftime("%Y.%m.%d."),

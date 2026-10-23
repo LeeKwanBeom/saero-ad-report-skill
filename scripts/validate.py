@@ -14,7 +14,7 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
   2. KPI 총클릭수 = 07번 정식표 + 클릭1건 목록 + 경쟁사표 합계
   3. 09번 시간대별 클릭 합계 = 키워드 보고서 제외 전 전체 클릭 합계
      (시간대별 보고서는 광고그룹 구분이 없어 OFF 그룹이 포함된 값이다)
-  4. 07번 클릭률 기준 이상 행에만 .ctr-high가 적용됐는지 전수 대조
+  4. 07번 클릭률 기준 이상 행에만 .ctr-high가 적용됐는지 전수 대조 — (판 J 2026-10-23) 노출 config `ctr_few_07.min_imps` 미만 행은 클릭률 칸 '적음'(강조 0)이어야, 그 밖은 숫자
   5. 01번 표도 같은 규칙으로 전수 대조 (.ctr-high는 표 무관, 클릭률 전용)
   6. masthead 집계 기간 = CSV 일별 min~max·일수
   7. KPI 타일 4개(노출·클릭·클릭률·광고비) = CSV 계산값
@@ -26,12 +26,14 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  12. 08·09번 각주의 "N회 차이" = 제외 전 전체 노출 − KPI 노출
  13. 상세지역 CSV 노출 합계 = 제외 전 전체 노출
  14. (2026-09-26 추가) 05번 mediaChart top5 = 키워드 CSV `매체이름` 노출 상위 5 — 라벨·값·순서·색(플레이스=mint/파워링크=ink)
+     (판 J 2026-10-23 — 정의만 바꿈: config `media_chart` — `검색/콘텐츠 매체` == placement(검색) 행의 매체이름 노출 상위 top_n(4). 콘텐츠 매체 막대 0)
  15. (2026-09-26 추가) 06번 신규 키워드 카드 큰 숫자 = 04번 같은 그룹의 평균순위 셀
  16. (2026-09-26 추가) config `competitors` 이름을 포함하는 검색어(검색어 CSV)가 07번 경쟁사표 밖에 없는지 — 순방향만.
      표 안 이름이 config에 있는지(역방향)는 검사하지 않는다(어순이 다른 표기 변형이 있음)
  17. (2026-09-26 추가) 07번 경쟁사표 각 행의 노출·클릭 = 검색어 CSV 합계
  18. (2026-09-26 추가) 검색어 CSV 클릭 합계 = KPI 클릭 (종전 `참고` 출력을 FAIL로)
  19. (2026-09-26 추가) 10번(핵심 요약 — 판 H 까지 11번) 항목 수 ≤ 8 + (참고) ≤ 2, 판정 줄 "지난 회차 10번 N개 항목 판정: 유지+뒤집힘+근거 소멸 = 직전 항목 수"
+     — (판 J) 판정 줄 앞 `M/D까지 ` = 키워드 CSV 집계 마지막 날(뒤집힘 0 회차끼리 바이트가 같아지지 않게 · 낡은 날짜 FAIL)
  20. (2026-09-26 추가) 10·11번 본문(<script> 앞까지) 금칙어(필요·시점·할 것·검토·주째) 0건 — 조치 문장은 11번(다음 액션) 몫
  21. (2026-09-26 추가, 09-27 범위 확장) 07번 각주(`class="note"`)·10·11번 본문(<script> 앞까지)의 잔존 문구
      (확인 요청·판단 요청·기다림·확인 중·대기) 0건. 잔존 문구 검사는 이 검사 하나뿐이다(compare.py에는 없음 — --pending 일원화).
@@ -87,6 +89,17 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      파트너 매체) · ③ 옛 지면 구역 글(`콘텐츠 지면 N일 연속 0` · `검색 지면 vs 콘텐츠 지면`)이 있으면 FAIL. 검색어 속 숫자(`노원역10번출구`)는 안 센다.
      복사된 서술 스크립트(판 H 꼴)가 옛 번호를 다시 쓰는 길을 막는다. 서술 표지 0개면 FAIL(0건 가드).
 
+ 29. (2026-10-23 판 J 불필요 항목 빼기 — 결정 5·30) "06번 카드 그룹 = 카드 규칙 · 04 신규 메모 = 등록 뒤 N일 미만만" — 키워드 CSV(제외 그룹 뺌)로 compute.py 와 따로:
+     카드 그룹 = 노원역필라테스 밖 파워링크 그룹 중 최근 7일(날짜 7개) 노출 > 0 이고 (일차 < config group_cards.new_days 이거나 promotion_groups) — 화면 카드 그룹 집합과 같아야 ·
+     04 이름 칸 `(M/D 신규)` 가 붙은 그룹은 일차 < new_days 여야. 카드 0건이면 15 가 FAIL(0건 가드는 15).
+ 30. (판 J) "판 J 뺀 글 0(…)" — 판 J 가 뺀 서술 글(01 누적 CTR A → B · 01 닷새 나열·'~어려워 보임' · 03 '그대로'·마지막 날 · 04 격차 되풀이·예산 비중·'회차부터'·회색 숫자 ·
+     06 '회차 연속'·매칭 숫자·카드 'N일차 · 평균순위' · 07 ③ 지난 회차·행 단위 · 08 '모두 표시됨'·11위·지난 회차·확인불가 숫자 · 09 '회차 연속'·'전략과 부합'·'최다 클릭 시간대는'·지난 회차·클릭 '회' ·
+     10 순위 방향·상향 유지·클릭 1건 목록·(참고) 경쟁사·클릭 0·누적 CTR·판정 되풀이·변화 없음 숫자·제외 검색어(07 ② 에 실패·재노출이 없는 날) ·
+     11 registry·'다시 묻지 않음'·'채팅으로 알림'·정렬·경쟁사·신규 없음 사유·'조용히 사라진 항목'·체크리스트 9항목)이 그 구역에 다시 나오면 FAIL — 옛 서술 스크립트를 복사해
+     뺀 글이 돌아와도 다른 검사는 통과하던 길을 막는다. 구역 하나라도 0자면 FAIL(0건 가드).
+     (판 J — "레이아웃 판"(23) 에) 판 J 가 뺀 고정 글(masthead '주간' · KPI '업종 평균 수준' · groupChart '4개 키워드 합산' · 04-foot·07-src·12-desc·12-basis 옛 글) 0 · KPI 총 클릭수 단위 '건' 하나 ·
+     고정 표지 04-foot·07-src·12-desc = 판 J 글 · 07-legend 끝 '노출 N회 미만은 '적음''·12-basis 클릭률 강조 줄 = config 숫자 · 서술 표지 03-desc·08-note·09-desc·09-call = 고정. PASS 끝 `· 판 J 고정 글`.
+
 사용법(옵션): "$PY" scripts/validate.py ... [--pending] [--balance <work/balance.json>] [--extra <work/extra>]   ($PY = 저장소 밖 venv 파이썬 — references/code-tab.md 1절)
 
 검사 대상 셀이 0건이면 PASS가 아니라 FAIL이다. 마크업이 바뀌어 정규식이
@@ -132,6 +145,7 @@ RESIDUAL = ["확인 요청", "판단 요청", "기다림", "확인 중", "대기
 TAGS = ["div", "table", "tr", "td", "th", "thead", "tbody",
         "ul", "li", "span", "script", "style", "details", "summary"]  # details·summary: 2026-10-06(접기 모양 회차 2 선반영)
 N_TARGETS = len(CFG["exclusions"]["targets"])  # 07 각주 ② 확인 a/b 의 b = 등록 수 × 대상 그룹 수
+FEW07 = int(CFG["ctr_few_07"]["min_imps"])     # 판 J — 07 정식표 노출 이 값 미만은 클릭률 '적음'(05 의 min_imps 와 따로)
 LAYOUT = CFG["report_layout"]  # 레이아웃 판(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07) — layout_id · markers.details·mobile_branch · mobile
 
 results = []
@@ -154,16 +168,16 @@ def check_tags(html):
 
 
 def parse_main_rows(s7):
-    """07번 정식 표의 (검색어, 클릭, ctr적용여부, CTR값)."""
+    """07번 정식 표의 (검색어, 노출, 클릭, ctr적용여부, CTR값 — 판 J '적음' 칸이면 None)."""
     pat = re.compile(
         r'<td class="name-cell">([^<]+)</td>\s*'
         r'<td><span class="tag[^>]*>[^<]*</span></td>\s*'
         r'<td class="num">([\d,]+)</td>\s*'
         r'<td class="num">(\d+)</td>\s*'
-        r'<td class="num([^"]*)">([\d.]+)%</td>'
+        r'<td class="num([^"]*)">(?:([\d.]+)%|(적음))</td>'
     )
-    return [{"kw": m.group(1).strip(), "clicks": int(m.group(3)), "has_hl": "ctr-high" in m.group(4), "ctr": float(m.group(5))}
-            for m in pat.finditer(s7)]
+    return [{"kw": m.group(1).strip(), "imps": int(m.group(2).replace(",", "")), "clicks": int(m.group(3)), "has_hl": "ctr-high" in m.group(4),
+             "ctr": float(m.group(5)) if m.group(5) else None, "few": bool(m.group(6))} for m in pat.finditer(s7)]
 
 
 def parse_ctr_cells(sec):
@@ -308,24 +322,29 @@ def check_diff_footnotes(html, all_imp, kpi_imp, rg_imp):
     check("상세지역 CSV 노출 합계 = 제외 전 전체", rg_imp == all_imp, f"상세지역 CSV {rg_imp:,} vs 제외 전 전체 {all_imp:,}")
 
 
+MEDIA = CFG["media_chart"]   # 판 J(2026-10-23 결정 1) — 막대 = 검색 지면 매체 상위 top_n
+MEDIA_NAME = f"05번 mediaChart = CSV {MEDIA['placement']} 지면 매체 상위 {int(MEDIA['top_n'])}(라벨·값·순서·색)"
+
+
 def check_media_top5(html, kw_inc):
-    """14. 05번 mediaChart 라벨·값·순서·색 = 키워드 CSV 매체이름 노출 상위 5."""
+    """14. 05번 mediaChart 라벨·값·순서·색 = 키워드 CSV 매체이름 노출 상위(판 J — `검색/콘텐츠 매체` == media_chart.placement 행만 · top_n 개)."""
     i = html.find("getElementById('mediaChart')")
     blk = html[i:i + 3000] if i != -1 else ""
     lab = re.search(r"labels:\s*\[(.*?)\],\n", blk, re.S)
     dat = re.search(r"label:\s*'노출수'[^\n]*\n\s*data:\s*\[([^\]]*)\]", blk)
     col = re.search(r"backgroundColor:\s*\[([^\]]*)\]", blk)
     if not (lab and dat and col):
-        check("05번 mediaChart top5 = CSV 매체 상위 5", False, "mediaChart 라벨/데이터/색 배열을 못 찾음 — 스크립트 마크업 변경 의심")
+        check(MEDIA_NAME, False, "mediaChart 라벨/데이터/색 배열을 못 찾음 — 스크립트 마크업 변경 의심")
         return
     labels = [re.sub(r"[\[\]']", "", x).replace(",", " ").strip() for x in re.findall(r"\[[^\]]*\]", lab.group(1))]
     values = [int(x) for x in dat.group(1).split(",")]
     colors = col.group(1).replace(" ", "").split(",")
-    top = kw_inc.groupby("매체이름")["노출수"].sum().sort_values(ascending=False).head(5)
-    kind = kw_inc.groupby("매체이름")["캠페인"].agg(lambda s: "mint" if s.str.startswith("플레이스").all() else "ink")
+    sel = kw_inc[kw_inc["검색/콘텐츠 매체"] == MEDIA["placement"]]
+    top = sel.groupby("매체이름")["노출수"].sum().sort_values(ascending=False).head(int(MEDIA["top_n"]))
+    kind = sel.groupby("매체이름")["캠페인"].agg(lambda s: "mint" if s.str.startswith("플레이스").all() else "ink")
     want = [(m.replace(" - ", " ").replace("-", " "), int(v), kind[m]) for m, v in top.items()]
     got = list(zip(labels, values, colors))
-    check("05번 mediaChart top5 = CSV 매체 상위 5", got == want,
+    check(MEDIA_NAME, got == want,
           f"화면 {[(l, v) for l, v, _ in got]} / CSV {[(l, v) for l, v, _ in want]}" + ("" if [c for _, _, c in got] == [c for _, _, c in want] else f" / 색 화면 {colors} vs {[c for _, _, c in want]}"))
 
 
@@ -340,6 +359,34 @@ def check_cards_vs_04(html, rows4):
     rank04 = {name: rank for name, _, rank in rows4}
     bad = [f"{g}: 카드 {v}위 vs 04번 {rank04.get(g, '없음')}" for g, v in cards if rank04.get(g) != f"{v}위"]
     check("06번 카드 큰 숫자 = 04번 평균순위 셀", not bad, f"카드 {len(cards)}개 검사, 불일치 {len(bad)}건" + (f": {'; '.join(bad)}" if bad else ""))
+
+
+GC = CFG["group_cards"]
+CARD_RE = re.compile(r'color:var\(--ink-soft\);">(\S+) <span style="color:var\(--mint-dark\);font-weight:700;">\([\d/]+ 등록, \d+일차\)</span></div>')
+
+
+def check_card_rule(html, kw, kw_inc):
+    """29. (판 J 결정 5·30) 06 카드 그룹 = 규칙(compute 와 따로 — 키워드 CSV) · 04 '(M/D 신규)' 메모 = 일차 < new_days 그룹만."""
+    name = f"06번 카드 그룹 = 카드 규칙 · 04 신규 메모 = 등록 뒤 {int(GC['new_days'])}일 미만만"
+    pw = kw_inc[~kw_inc["캠페인"].astype(str).str.startswith("플레이스")]
+    dates = sorted(kw["일별"].astype(str).unique())   # 날짜 = 키워드 보고서 전체(compute day_list 와 같은 정의 — 계산은 따로)
+    if pw.empty or not dates:
+        check(name, False, "파워링크 행 0건 — 키워드 CSV 확인")
+        return
+    day = lambda s: dt.date(*(int(x) for x in s.rstrip(".").split(".")))
+    last, last7 = day(dates[-1]), set(dates[-7:])
+    nth = {g: (last - day(min(s["일별"].astype(str)))).days + 1 for g, s in pw.groupby("광고그룹")}
+    exp7 = {g: int(s[s["일별"].astype(str).isin(last7)]["노출수"].sum()) for g, s in pw.groupby("광고그룹")}
+    want = sorted(g for g in nth if g != "노원역필라테스" and exp7[g] > 0 and (nth[g] < int(GC["new_days"]) or g in GC["promotion_groups"]))
+    got = sorted(CARD_RE.findall(section(html, 6)))
+    tagged = re.findall(r'<td class="name-cell">([^<]+?)\s*<span[^>]*>\(\d+/\d+ 신규\)</span>', section(html, 4))
+    bad = []
+    if got != want:
+        bad.append(f"06 카드 {got} ≠ 규칙 {want}(최근 7일 노출 · 일차 < {GC['new_days']} 또는 승격 그룹 {GC['promotion_groups']})")
+    old = [f"{g.strip()}({nth.get(g.strip(), '?')}일차)" for g in tagged if nth.get(g.strip(), 0) >= int(GC["new_days"])]
+    if old:
+        bad.append(f"04 '(M/D 신규)' 가 등록 {GC['new_days']}일 넘은 그룹에 {old}")
+    check(name, not bad, "; ".join(bad) if bad else f"카드 {got} · 04 신규 메모 {len(tagged)}개 · 그룹 일차 {dict(sorted(nth.items()))}")
 
 
 def check_competitors(s7, sr):
@@ -359,7 +406,7 @@ def check_competitors(s7, sr):
     check("07번 경쟁사표 노출·클릭 = 검색어 CSV", not bad, f"{len(rows)}행 검사, 불일치 {len(bad)}건" + (f": {'; '.join(bad)}" if bad else ""))
 
 
-def check_11_12(html, pending=False):
+def check_11_12(html, pending=False, dmax=None):
     """19~21. 10번 항목 수·판정 줄, 10·11번 본문 금칙어, 07 각주·10·11 잔존 문구(--pending이면 허용).
     판 I(2026-10-23 — 지면 구역이 빠져 핵심 요약 10 · 다음 액션 11, 판 H 까지 11·12). 함수 이름은 그대로(내부 이름)."""
     s11, s12 = section(html, 10), section(html, 11)   # 변수 이름은 옛 번호 그대로 — s11 = 핵심 요약(10번) · s12 = 다음 액션(11번)
@@ -376,7 +423,11 @@ def check_11_12(html, pending=False):
         if n_main > 8: bad.append(f"본문 {n_main}개 > 8")
         if n_ref > 2: bad.append(f"(참고) {n_ref}개 > 2")
         if keep + flip + gone != prev: bad.append(f"판정 줄 {keep}+{flip}+{gone} ≠ {prev}")
-        check("10번 항목 수·판정 줄", not bad, f"본문 {n_main} + (참고) {n_ref}, 판정 {prev} = {keep}+{flip}+{gone}" + (f" — {'; '.join(bad)}" if bad else ""))
+        md = re.search(r"(\d+/\d+)까지 지난 회차 10번 \d+개 항목 판정:", s11)   # 판 J — 판정 줄 앞 M/D까지 = 집계 끝(G1)
+        want_md = f"{dmax.month}/{dmax.day}" if dmax is not None else None
+        if want_md and (not md or md.group(1) != want_md): bad.append(f"판정 줄 앞 'M/D까지' {md.group(1) if md else '없음'} ≠ 집계 끝 {want_md}")
+        check("10번 항목 수·판정 줄", not bad, f"본문 {n_main} + (참고) {n_ref}, 판정 {prev} = {keep}+{flip}+{gone}" + (f" · {want_md}까지" if want_md and not bad else "")
+              + (f" — {'; '.join(bad)}" if bad else ""))
     text = re.sub(r"<[^>]+>", "", s11 + s12)
     if not text.strip():
         check("10·11번 금칙어 0건", False, "10·11번 본문 0자 — 섹션 주석 또는 마크업 변경 의심")
@@ -497,9 +548,46 @@ def check_layout(html):
     th1 = re.search(r"<thead>(.*?)</thead>", s1[s1.find("① 일별 지표"):], re.S) if "① 일별 지표" in s1 else None
     n_th1 = len(re.findall(r"<th[\s>]", th1.group(1))) if th1 else 0
     if n_th1 != 5 or "<th class=\"num\">콘텐츠</th>" in s1: bad.append(f"01 ① 칸 머리 {n_th1}개 ≠ 5(날짜·노출·클릭·CTR·CPC)")
+    # 판 J(2026-10-23 오후 — 불필요 항목 빼기): 뺀 고정 글 0 · KPI 총 클릭수 '건' · 고정 표지 새 글(config 숫자) · 네 표지 고정 — apply check_trim 과 따로 쓴 같은 규칙
+    bad += check_trim_fixed(html)
     check(name, not bad, "; ".join(bad) if bad else
           f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y"
-          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else "") + f" · 구역 {want_sec} · 캔버스 {len(cv)} · ① 5칸")
+          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else "") + f" · 구역 {want_sec} · 캔버스 {len(cv)} · ① 5칸 · 판 J 고정 글")
+
+
+J_FIXED_GONE = ("주간 리포트", "업종 평균 수준", "(4개 키워드 합산)", "평균순위는 파워링크 전용 지표", "900~1,300원대는 플레이스", "지난 회차 항목 이월 판정 +",
+                "최근 30일까지만 내려줘", "<b>타겟 지역</b>", "인 행만 진한 민트색")
+J_FIXED = {"04-foot": "※ 평균순위 칸은 파워링크 그룹만 — 플레이스 순위는 01번 ②",
+           "07-src": '네이버 검색어 보고서는 광고 유형을 구분하지 않습니다. 매칭이 "확장"인 행은 파워링크 자동매칭(CPC 대개 600원 이하), "일치" 행은 대부분 플레이스(CPC 1,000원 이상)입니다.',
+           "12-desc": "다음 조치 · 비용 영향 큰 순"}
+J_TO_FIXED = ("03-desc", "08-note", "09-desc", "09-call")
+
+
+def _marker_body(html, nm):
+    m = re.findall(r"<!-- n:" + re.escape(nm) + r":(매회차|고정) -->(.*?)<!-- /n -->", html, re.S)
+    return m
+
+
+def check_trim_fixed(html):
+    """판 J 고정 글(레이아웃 판 검사 안) — 어긋남 목록. 표지가 없으면 그 자리 0건이라 FAIL(0건 가드)."""
+    bad = []
+    gone = [w for w in J_FIXED_GONE if w in html]
+    if gone: bad.append(f"판 J 가 뺀 고정 글 {gone}")
+    n_clk = len(re.findall(r'<div class="label">총 클릭수</div>\s*<div class="value">[\d,]+<span class="unit">건</span></div>\s*<div class="sub">일 평균 [\d.]+건</div>', html))
+    if n_clk != 1: bad.append(f"KPI 총 클릭수 단위 '건'(값·일 평균) {n_clk}곳 ≠ 1")
+    for nm, want in J_FIXED.items():
+        m = _marker_body(html, nm)
+        if len(m) != 1 or m[0][1] != want: bad.append(f"고정 표지 {nm} ≠ 판 J 글({len(m)}개{' · ' + m[0][1][:30] if m else ''})")
+    tail = f" · 노출 {FEW07}회 미만은 '적음'"
+    m = _marker_body(html, "07-legend")
+    if len(m) != 1 or not m[0][1].endswith(tail): bad.append(f"07-legend 끝 {tail!r} 아님(config ctr_few_07)")
+    ctr = f"· <b>클릭률 강조</b>: 01·07번 표의 클릭률 {CTR_HIGH:g}% 이상 칸은 진한 민트색(07번 노출 {FEW07}회 미만 행은 '적음')"
+    m = _marker_body(html, "12-basis")
+    if len(m) != 1 or ctr not in m[0][1]: bad.append("12-basis 클릭률 강조 줄 ≠ config(ctr_high_threshold · ctr_few_07)")
+    kinds = {nm: [k for k, _ in _marker_body(html, nm)] for nm in J_TO_FIXED}
+    off = {nm: k for nm, k in kinds.items() if k != ["고정"]}
+    if off: bad.append(f"서술 표지 {off} ≠ 고정(판 J — compare 가 숫자를 전부 읽는 표지)")
+    return bad
 
 
 KST = dt.timezone(dt.timedelta(hours=9))
@@ -592,9 +680,9 @@ def _ga_expect(path, dim, unk, min_imps, show_unknown):
             except ValueError:
                 pass
     total = sum(v[0] for v in agg.values())
-    def key(lbl):
+    def key(lbl):   # 첫 숫자가 같으면 '미만' 이 앞(판 J 결정 36 — 14세 미만 · 14세 ~ 18세)
         num = re.findall(r"\d+", lbl)
-        return (1 if lbl == unk else 0, int(num[0]) if num else 10**6, lbl)
+        return (1 if lbl == unk else 0, int(num[0]) if num else 10**6, 0 if "미만" in lbl else 1, lbl)
     out = []
     for lbl in sorted(agg, key=key):
         n, cl, k = agg[lbl]
@@ -605,7 +693,8 @@ def _ga_expect(path, dim, unk, min_imps, show_unknown):
         out.append((lbl, f"{n:,}", share, f"{cl:,}", ctr, f"{k:,}원"))
     per = f"{int(m.group(2))}/{int(m.group(3))}~{int(m.group(5))}/{int(m.group(6))}"
     u = agg.get(unk, [0])[0]
-    return per, (f" · 알 수 없음 {round(u / total * 100, 1):.1f}%" if total else ""), out
+    shown = any(r[0] == unk for r in out)   # 판 J(결정 8) — 표에 알 수 없음 줄이 있으면 머리 괄호에 % 0
+    return per, (f" · 알 수 없음 {round(u / total * 100, 1):.1f}%" if total and not shown else ""), out
 
 
 def _v_phrase(kind, body):
@@ -627,6 +716,8 @@ def _v_phrase(kind, body):
                 if f and f not in seen:
                     seen.append(f)
         return "·".join(seen)
+    if kind == "확장소재 추가" and tag == "등록된 내용":   # 판 J(결정 28) — 원장 한 줄 = 확장 소재 하나(속성 칸 수가 아니다)
+        return "확장 소재 1개 추가"
     if tag in ("등록된 내용", "삭제된 내용"):
         f = fields(lines[2:])
         return ("등록" if tag.startswith("등록") else "삭제") + f" {count(lines[2:])}개" + (f"({f})" if f else "")
@@ -644,6 +735,18 @@ def _v_phrase(kind, body):
                 bits.append(f"{f} {count([v])} → {count([w])}개" if (", " in v or ", " in w) else f"{f} {v} → {w}")
         return " · ".join(bits)
     return ""
+
+
+def _merge_ext(phrases):
+    """같은 분 묶음 안 '확장 소재 n개 추가' 구들 → 첫 자리에 하나(건수 합 — compute merge_ext 와 따로 쓴 같은 규칙, 판 J 결정 28)."""
+    n = sum(int(m.group(1)) for m in (re.fullmatch(r"확장 소재 (\d+)개 추가", p) for p in phrases) if m)
+    out = []
+    for p in phrases:
+        if not re.fullmatch(r"확장 소재 \d+개 추가", p):
+            out.append(p)
+        elif f"확장 소재 {n}개 추가" not in out:
+            out.append(f"확장 소재 {n}개 추가")
+    return out
 
 
 def check_extras(html, extra_dir, kw):
@@ -679,7 +782,8 @@ def check_extras(html, extra_dir, kw):
         g = got_ga.get(k)
         if p and os.path.exists(p):
             any_file = True
-            per, unk_txt, want_rows = _ga_expect(p, spec["dim"], ga.get("unknown", "알 수 없음"), int(ga.get("min_imps", 0)), bool(ga.get("show_unknown", True)))
+            per, unk_txt, want_rows = _ga_expect(p, spec["dim"], ga.get("unknown", "알 수 없음"), int(ga.get("min_imps", 0)),
+                                                 bool(ga.get("show_unknown", True)) and k not in ga.get("hide_unknown_kinds", []))
             if g is None:
                 bad.append(f"{k}: 합본이 있는데 카드에 표가 없음('확인 못 함' 또는 마크업)")
                 continue
@@ -730,7 +834,7 @@ def check_extras(html, extra_dir, kw):
             uniq = lambda xs: " · ".join(dict.fromkeys(x for x in xs if x))
             show = [[r for r in show if r[0] == k] for k in grp_keys]
             want = [(f"{int(g[0][0][5:7])}/{int(g[0][0][8:10])} {g[0][0][12:17]}", uniq(r[1] for r in g), uniq(r[4] or r[3] or "—" for r in g),
-                     uniq(_v_phrase(r[1], r[5]) for r in g) or "—") for g in show[:int(h["max_rows"])]]
+                     uniq(_merge_ext([_v_phrase(r[1], r[5]) for r in g])) or "—") for g in show[:int(h["max_rows"])]]
             label = f"{lo.month}/{lo.day}~{hi.month}/{hi.day} 기록" + (f" · 최근 {len(want)}건 / {len(show)}건" if len(show) > len(want) else "")
             mh = re.search(r"계정 변경 기록\([^)]*\) <span[^>]*>\((.*?)\)</span>", hi_b)
             if not mh or _plain(mh.group(1)) != label:
@@ -753,11 +857,11 @@ def check_extras(html, extra_dir, kw):
             sec_line = lambda r: (r[5].split("\n") + ["", ""])[1].strip()
             n_run = len({r[0] for r in sk if sec_line(r) == "등록된 내용"})
             n_del = len([r for r in sk if sec_line(r) == "삭제된 내용"])
-            if f"스킬 제외 검색어 등록 {n_run}회(실행 수) · 삭제 {n_del}건" not in _plain(hi_b):
-                bad.append(f"스킬 줄 ≠ 원장(등록 {n_run}회 · 삭제 {n_del}건)")
+            if "스킬 제외 검색어 등록" in _plain(hi_b):   # 판 J(결정 7) — 스킬 줄을 뺐다(제외 검색어 현황은 07 ②)
+                bad.append("스킬 줄('스킬 제외 검색어 등록 n회') 이 남음 — 판 J 에서 뺀 줄")
             if not h.get("show_system") and ("하루예산 중단" in hi_b or "SYSTEM" in hi_b or "시스템" in hi_b):
                 bad.append("show_system false 인데 표에 SYSTEM·하루예산 중단")
-            info.append(f"변경 기록 {lo.month}/{lo.day}~{hi.month}/{hi.day} {len(want)}/{len(show)}줄(펼침 {k}) · 스킬 {n_run}회·삭제 {n_del}")
+            info.append(f"변경 기록 {lo.month}/{lo.day}~{hi.month}/{hi.day} {len(want)}/{len(show)}줄(펼침 {k}) · 스킬 줄 0(원장 스킬 {n_run}회·삭제 {n_del})")
     else:
         if "확인 못 함" not in hi_b:
             bad.append("원장 사본(work/extra/변경이력.csv·기록 구간)이 없는데 표에 '확인 못 함'이 없음 — 옛 값이 남았거나 입력이 다름")
@@ -816,6 +920,54 @@ def check_12_growth(html, dmax):
         bad.append(f"✓ 아닌 행 {n_open}개 > {max_open}(config place_checklist.max_open_rows_12)")
     check(name, not bad, "; ".join(bad) if bad else
           f"표 {len(trs)}행(✓ 아닌 {n_open}) · 장부 판정 1 · 플레이스 {len(place)}행(✗ {n_x}) · {end}")
+
+
+TRIM_GONE = {   # 판 J(2026-10-23 오후 — 불필요 항목 빼기 결정 10~14·19~24·37) 가 뺀 서술 글 — 그 구역에 다시 나오면 FAIL(옛 서술 스크립트 복사 · 손 편집). (이름, 정규식)
+    1: [("01 머리 줄 누적 CTR A → B", r"누적 CTR [\d.]+ → [\d.]+%"), ("01 ② 닷새 나열", r"닷새 [\d.]+ →"), ("01 ② '~어려워 보임'", r"어려워 보임")],
+    3: [("03 머리 줄 '그대로'·마지막 날", r"원 그대로|\(플레이스 [\d,]+원 \+ 파워링크")],
+    4: [("04 민트 줄 격차 되풀이", r"격차 [\d.]+ → <b>"), ("04 '(지난 회차'", r"\(지난 회차"), ("04 '회차부터'", r"회차부터"),
+        ("04 회색 클릭 수", r"클릭 중 [\d,]+건"), ("04 회색 마지막 날", r"광고비 [\d,]+원·클릭 \d+건, 비중은")],
+    6: [("06 '회차 연속'", r"회차 연속"), ("06 매칭 숫자 되풀이", r"→ 노출 [\d,]+ 대 [\d,]+"), ("06 카드 'N일차 · 평균순위'", r"일차 · 평균순위"), ("06 '그룹 중 가장 좋음'", r"그룹 중 가장 좋음")],
+    7: [("07 ③ 지난 회차", r"경쟁사 포함 · 지난 회차"), ("07 ③ 행 단위", r"행 단위 확장")],
+    8: [("08 '모두 표시됨'", r"모두 표시됨"), ("08 '11위'", r"11위 "), ("08 '(지난 회차'", r"\(지난 회차"), ("08 확인불가 숫자 되풀이", r"확인불가\"는 노출")],
+    9: [("09 '회차 연속'", r"회차 연속"), ("09 '전략과 부합'", r"전략과 부합"), ("09 '최다 클릭 시간대는'", r"최다 클릭 시간대는"), ("09 '(지난 회차'", r"\(지난 회차"),
+        ("09 클릭 단위 '회'", r"클릭 \d+회|최다\(\d+회|\d+시 \d+회")],
+    10: [("10 순위·클릭 방향", r"순위와 하루 클릭"), ("10 상향 유지", r"상향 유지"), ("10 클릭 1건 목록", r"클릭 1건 목록"), ("10 (참고) 경쟁사·클릭 0", r"\(참고\)</b> (?:경쟁사|클릭 0)"),
+         ("10 누적 CTR·비중·직접/자동 되풀이", r"누적 CTR|비중 [\d.]+ → |직접 \d+·자동"), ("10 판정 줄 되풀이", r"이번 요약은|맨 위에 올렸고")],
+    11: [("11 registry 구", r"registry|다시 묻지 않음"), ("11 '채팅으로 알림'", r"채팅으로 알림"), ("11 '\"확장\" 행'", r"\"확장\" 행"),
+         ("11 note 정렬·경쟁사", r"<b>정렬</b>|경쟁사는 액션 항목"), ("11 note 신규 없음 사유", r"신규 없음(?:</b>)?\s*:"),
+         ("11 note '조용히 사라진 항목'", r"조용히 사라진 항목"), ("11 note 체크리스트", r"체크리스트 \d+항목")]}
+EXCL_EVENT = ("등록돼 있는데도 노출", "등록 누락", "미확인")   # 07 ② 의 예외 꼴(exclusion-ui.md 9절) — 이때만 10 에 제외 검색어 항목
+
+
+def check_trim_gone(html):
+    """30. (판 J) 뺀 서술 글 0 — TRIM_GONE · 10 변화 없음 줄 숫자 0(M/D까지 · (N시) · 구역 번호 · 'N위 그룹' 밖) · 10 제외 검색어 항목은 07 ② 에 실패·재노출·미확인이 있는 날만."""
+    name = "판 J 뺀 글 0(01·03·04·06~11 — 옛 서술 꼴·다른 구역 숫자 되풀이)"
+    bad, empty = [], []
+    for n, pats in TRIM_GONE.items():
+        s = section(html, n)
+        if not s.strip():
+            empty.append(n)
+            continue
+        for label, pat in pats:
+            hit = re.search(pat, s)
+            if hit:
+                bad.append(f"{label}: {re.sub(r'<[^>]+>', '', s[max(0, hit.start() - 12):hit.end() + 12])!r}")
+    if empty:
+        check(name, False, f"구역 {empty} 0자 — 섹션 주석 또는 마크업 변경 의심")
+        return
+    s10 = section(html, 10)
+    for li in re.findall(r"<li>(.*?)</li>", s10, re.S):
+        if "변화 없음" in li[:40]:
+            rest = re.sub(r"\d+/\d+까지|\(\d+시\)|\((?:\d{2}·)*\d{2}번\)|(?<![\d.])\d+위(?= 그룹)", "", re.sub(r"<[^>]+>", "", li))   # 순위 낱말(총비용 1위 그룹)은 값 아님
+            if re.search(r"\d", rest):
+                bad.append(f"10 변화 없음 줄에 숫자 {re.findall(r'[0-9][0-9.,%]*', rest)[:4]}(자리만 — 판 J 결정 14 (d))")
+        if re.search(r"<b>[^<]*제외 검색어", li[:60]):
+            t7 = re.sub(r"<[^>]+>", "", " ".join(re.findall(r'class="note"[^>]*>(.*?)</div>', section(html, 7), re.S)))
+            if not (re.search(r"실패 [1-9]", t7) or any(w in t7 for w in EXCL_EVENT)):
+                bad.append("10 제외 검색어 항목 — 07 ② 에 실패·재노출·미확인이 없는 날(판 J 결정 14 (a))")
+    check(name, not bad, "; ".join(bad[:6]) + (f" 외 {len(bad) - 6}건" if len(bad) > 6 else "") if bad else
+          f"구역 {len(TRIM_GONE)}개 · 꼴 {sum(len(v) for v in TRIM_GONE.values())}종 · 0건")
 
 
 NARR = re.compile(r"<!-- n:([^\s:]+):(?:매회차|고정) -->(.*?)<!-- /n -->", re.S)
@@ -907,13 +1059,18 @@ def main():
     check("09번 시간대별 클릭 합계 = 키워드 보고서 전체 클릭", hourly_clicks == all_clicks,
           f"시간대별 CSV {hourly_clicks} vs 전체 {all_clicks} (KPI {kpi_clicks})")
 
-    # --- 4. CTR 강조 규칙 (07번) ---
+    # --- 4. CTR 강조 규칙 (07번) — 판 J: 노출 FEW07 미만은 '적음'(강조 0), 그 밖은 숫자 + 기준 이상에만 강조 ---
+    n7 = f"07번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high(노출 {FEW07}회 미만 '적음')"
     if not rows:
-        check(f"07번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high", False, "정식표 행 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
+        check(n7, False, "정식표 행 0건 — 마크업이 바뀌어 정규식이 안 맞을 수 있음")
     else:
-        mismatched = [f"{r['kw']}({r['ctr']}%, 강조={'있음' if r['has_hl'] else '없음'})" for r in rows if r["has_hl"] != (r["ctr"] >= CTR_HIGH)]
-        check(f"07번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high", not mismatched,
-              f"{len(rows)}행 검사, 불일치 {len(mismatched)}건" + (f": {', '.join(mismatched)}" if mismatched else ""))
+        def ok7(r):
+            if r["imps"] < FEW07:
+                return r["few"] and not r["has_hl"]
+            return not r["few"] and r["has_hl"] == (r["ctr"] >= CTR_HIGH)
+        mismatched = [f"{r['kw']}(노출 {r['imps']} · {'적음' if r['few'] else str(r['ctr']) + '%'}, 강조={'있음' if r['has_hl'] else '없음'})" for r in rows if not ok7(r)]
+        check(n7, not mismatched,
+              f"{len(rows)}행 검사(적음 {sum(r['few'] for r in rows)}), 불일치 {len(mismatched)}건" + (f": {', '.join(mismatched)}" if mismatched else ""))
 
     # --- 5. CTR 강조 규칙 (01번) ---
     check_ctr_rule(f"01번 클릭률 {CTR_HIGH:g}% 이상에만 .ctr-high", parse_ctr_cells(section(html, 1)))
@@ -933,12 +1090,13 @@ def main():
     # --- 14~20. 2026-09-26 추가 (05 top5 · 06 카드 · 경쟁사 · 검색어 클릭합 · 11·12번) ---
     check_media_top5(html, kw_inc)
     check_cards_vs_04(html, rows4)
+    check_card_rule(html, kw, kw_inc)  # 2026-10-23 — 판 J 06 카드 규칙 · 04 신규 메모 기한
     sr = read_csv(sr_path)
     check_competitors(s7, sr)
     sr_clicks = int(sr["클릭수"].sum())
     check("검색어 CSV 클릭 합계 = KPI 클릭", sr_clicks == kpi_clicks,
           f"검색어 CSV {sr_clicks} vs KPI {kpi_clicks}" + ("" if sr_clicks == kpi_clicks else " — 검색어 보고서 기간이 다를 수 있음"))
-    check_11_12(html, pending)
+    check_11_12(html, pending, dmax)
     check_07_footnotes(s7)  # 2026-10-06 — 글 줄이기 회차 1
     check_layout(html)  # 2026-10-06 — 레이아웃 판 회차 2
     check_balance_card(html, kw, bal_path)  # 2026-10-09 — 판 F 광고비 잔액 카드
@@ -946,6 +1104,7 @@ def main():
     check_12_growth(html, dmax)  # 2026-10-10 — 매출 작업 A·C 11번(판 H 까지 12번) 행
     check_extras(html, extra_dir, kw)  # 2026-10-12 — 판 G 추가 카드·표(보고서 더 받기 A + B)
     check_section_refs(html)  # 2026-10-23 — 판 I 화면 글 구역 번호(옛 12번·지면 10번 0)
+    check_trim_gone(html)  # 2026-10-23 — 판 J 뺀 서술 글 0
 
     failed = [n for n, ok, _ in results if not ok]
     print("\n" + "=" * 50)

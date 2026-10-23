@@ -20,6 +20,7 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
   짧은 사본(apply 로 01·06 배열을 최근 K일·K+1일로 자른 판): K일이면 버튼 0·전부 · K+1일이면 "이전 1일(…)" 버튼 /
   문서 scrollWidth = 폭 / 문서의 캔버스 전부(config markers.canvases — 판 I 부터 7 · 판 H 까지 8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
 - PC 폭(기본 1280): 01·06 indexAxis 'x' · tick n · 보이는 datalabels(01 2n · 06 0) · chartArea·첫 화면 일수·섹션 1·6 높이·뱃지 = --base 측정값
+  (섹션 1·6 높이 — 판 I 전환은 01 같거나 줄어듦 · 판 J 전환(--base 판 I · 작업본 판 J, 2026-10-23 오후)은 01·06 둘 다 같거나 줄어듦만 — 01 머리 줄·② 각주 줄임 · 06 카드 규칙 밖 카드 빠짐)
   (첫 화면은 새 판·기준 둘 다 01·06 박스를 맨 왼쪽으로 되돌려 잰다 — 판 C 이후 기준은 로드 때 최신 쪽이라) ·
   S(스크롤 시작 최신 쪽): 01·06 박스 scrollLeft = scrollWidth − clientWidth · 래퍼 .at-end 있음·.at-start 없음 · 첫 화면 끝 날짜 = 최신 · 펼치기 버튼 0.
 - 회전(모바일 폭 → 01 펼침 → 가로 844 → 모바일): 844 에서 01 'x'·tick n·scrollWidth = compute minwidth·뱃지·scrollLeft 끝 · 06 'x'·tick n · 버튼 0 /
@@ -507,6 +508,15 @@ def place_size(page):
     return None
 
 
+def layout_of(path):
+    """html 파일의 레이아웃 판 meta 값(없으면 None) — 판 J 전환 판정(2026-10-23 오후)."""
+    if not path:
+        return None
+    with open(path, encoding="utf-8") as f:
+        m = re.search(r'<meta name="report-layout" content="([^"]*)">', f.read())
+    return m.group(1) if m else None
+
+
 def pdf_signature(imgs):
     """이미지 구성 비교용 — (크기, 배치 수, 보이는 비율) 정렬 목록."""
     by = {}
@@ -738,8 +748,15 @@ def main():
                         s_new = [pgi["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         s_old = [B["page"]["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         tr_i = bool(place_size(B["page"])) and not place_size(pgi)   # 판 I 전환 — 직전 배포본에만 지면 구역(placementChart)
-                        ok = (s_new[1] == s_old[1] and None not in (s_new[0], s_old[0]) and s_new[0] <= s_old[0]) if tr_i else s_new == s_old
-                        run.check(f"{w} 섹션 1·6 높이 = 기준", ok, f"새 {s_new} · 기준 {s_old}" + (" · 판 I 전환 — 06 같음 · 01 은 ① 검색·콘텐츠 두 칸이 빠져 같거나 줄어듦만" if tr_i else ""))
+                        tr_j = layout_of(a.base) == "r2026-10-I" and layout_of(a.html) == "r2026-10-J"   # 판 J 전환(2026-10-23 오후 — 01 머리 줄·② 각주 줄임 · 06 카드 빠짐)
+                        if tr_i:
+                            ok = s_new[1] == s_old[1] and None not in (s_new[0], s_old[0]) and s_new[0] <= s_old[0]
+                        elif tr_j:
+                            ok = None not in s_new + s_old and s_new[0] <= s_old[0] and s_new[1] <= s_old[1]
+                        else:
+                            ok = s_new == s_old
+                        run.check(f"{w} 섹션 1·6 높이 = 기준", ok, f"새 {s_new} · 기준 {s_old}" + (" · 판 I 전환 — 06 같음 · 01 은 ① 검색·콘텐츠 두 칸이 빠져 같거나 줄어듦만" if tr_i else "")
+                                  + (" · 판 J 전환 — 01(머리 줄·② 각주 줄임)·06(카드 규칙 밖 카드 빠짐)은 같거나 줄어듦만" if tr_j else ""))
                     run.check(f"{w} 펼치기 버튼 없음(PC)", pgi["foldBtns"] == 0, f"문서의 .chart-fold {pgi['foldBtns']}개")
 
             # ── 회전: 모바일 폭 → 가로(844) → 모바일 ──
