@@ -41,6 +41,10 @@
   "09 2위" 에 동률 시간(`… N건으로 N시와 같음` — 09-call 이 고정 표지가 되어 숫자를 전부 읽는다) · 클릭 단위 '건'(09 desc·2위) ·
   판 G "04 변경 기록 스킬 줄" → "04 변경 기록 스킬 줄 0"(결정 7 — 줄이 남으면 DIFF) · 05 머리 알 수 없음 % 는 표에 그 줄이 없는 종류만(결정 8).
   **항목 수 N = 102 + 2 − 2 − 1 − 2 = 99**(판 G 둘 다 ok · 종류 2).
+- (2026-10-26 판 K 01 요일 카드 — 사용자 결정 "추천대로 진행해줘") 요일 카드 표지(`data-weekday=`)가 있으면 구역 "01 요일 카드(판 K)" 4항목: 막대 노출 7칸 · 막대 위 클릭 7칸(null = 0일 요일) ·
+  보조 줄 `검색 지면 · M/D~M/D · 요일마다 N일`(다 같으면) / `N~M일` 의 [첫날, 끝날, 최소, 최대(같으면 None)] = compute `01.요일` · labels 월~일. 차트 블록은 getElementById('weekdayChart') 부터
+  차트 스크립트 끝(`</script>`)까지(분기 도우미 뒤 — 다음 new Chart 가 없다). 카드가 없는 판(J 까지)은 항목 그대로 · 판 K 에 카드가 없으면 validate "레이아웃 판" FAIL.
+  **항목 수 N = 99 + 4 = 103**(판 G 둘 다 ok · 종류 2).
 """
 import json
 import re
@@ -299,11 +303,29 @@ def _sx():  # 판 G(2026-10-12 보고서 더 받기 A + B) — 04 계정 변경 
             [(r["구분"], f"{r['노출']:,}", f"{r['비중']:.1f}%", f"{r['클릭']:,}", "적음" if r["적음"] else f"{r['CTR']:.2f}%", f"{r['비용']:,}원") for r in t["rows"]])
 
 
+def _sw():  # 판 K(2026-10-26 01 요일 카드) — 막대 노출 7 · 막대 위 클릭 7 · 보조 줄 기간·일수 범위 · labels = compute "01.요일"(검색 지면 · 제외 그룹 뺌 · 전 기간 요일 하루 평균)
+    W = R["01"]["요일"]
+    i = html.find("getElementById('weekdayChart')")
+    if i == -1: raise ValueError("요일 차트 블록 getElementById('weekdayChart') 없음")
+    blk = html[i:]; blk = blk[:blk.find("</script>")]
+    imp = grp(r"label:\s*'하루 평균 노출'\s*,\s*data:\s*\[([^\]]*)\]", blk).group(1)
+    clk = grp(r"clicks:\s*\[([^\]]*)\]", blk).group(1)
+    cmp("01 요일 카드 노출 7칸(검색 지면 하루 평균)", [int(x) for x in imp.split(",")], W["노출"])
+    cmp("01 요일 카드 클릭 7칸(null = 0일 요일)", [None if x.strip() == "null" else float(x) for x in clk.split(",")], W["클릭"])
+    m = grp(r'data-weekday="sub">검색 지면 · (\d+/\d+)~(\d+/\d+) · 요일마다 (\d+)(?:~(\d+))?일</div>', html)
+    lo, hi = min(W["일수"]), max(W["일수"])
+    cmp("01 요일 카드 보조 줄(기간 · 일수 최소 · 최대 — 같으면 None)", [m.group(1), m.group(2), int(m.group(3)), None if m.group(4) is None else int(m.group(4))],
+        [W["첫날"], W["끝날"], lo, None if lo == hi else hi])
+    cmp("01 요일 카드 labels 월~일", re.sub(r"\s+", "", grp(r"labels:\s*\[([^\]]*)\]", blk).group(1)), "'월','화','수','목','금','토','일'")
+
+
 S = {}  # 구역 사이에 넘기는 값(kpi → 07 · got4 → 06). 앞 구역이 실패해 없으면 뒤 구역의 그 항목이 KeyError → 그 구역 [DIFF]
 SECTIONS = [("masthead·KPI", _kpi), ("01", _s01), ("02", _s02), ("03", _s03), ("04", _s04), ("05", _s05), ("06", _s06),
             ("07", _s07), ("08", _s08), ("09", _s09), ("10·11", _s11), ("11 장부·플레이스", _s12g)]   # 판 I — 지면 구역(옛 10) 없음
 if "saero:extra" in html:  # 판 G 블록이 있는 판만(옛 판 대조는 항목 그대로)
     SECTIONS.append(("04·05 추가(판 G)", _sx))
+if "data-weekday=" in html:  # 판 K 요일 카드가 있는 판만(J 까지는 항목 그대로 — 판 K 에 카드가 없으면 validate "레이아웃 판" 이 FAIL)
+    SECTIONS.insert(2, ("01 요일 카드(판 K)", _sw))
 for _label, _fn in SECTIONS:  # 구역별 try — 한 구역의 첫 파싱 실패가 다른 구역 항목을 생략시키지 않는다(2026-10-06, 탐색 프로브 r9: OK 17에서 멈춤)
     try:
         _fn()

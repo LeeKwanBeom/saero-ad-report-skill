@@ -116,6 +116,91 @@ propose 창 2026-10-22~2026-10-22 · 등록 미룸(사용자): 아니오
 
 ---
 
+# 기능 추가 구현 기준선(01 요일 카드 — 판 K, 2026-10-26) · 브랜치 `feat-20261026-weekday`
+점검일: 2026-10-26 11:57 ~ 12:4x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` 하위 세션(부모 = 다듬기 세션) · Opus 5.5 · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_01요일카드_작업지시_2026-10-26.md`(부모 세션이 씀).
+기준: 시작 clone — origin/main `2347e78`(지시문 사실과 같음 · 고칠 파일 8개 마지막 커밋 전부 `6866817` — 코드 자리 다시 볼 것 없음). clone `D:\saero\feat-20261026-weekday`(`git clone -c core.autocrlf=false`, 브랜치 `feat-20261026-weekday`). **코드 커밋 `88d39da`** + 이 기록.
+지킨 제약: 네이버 호출 0 · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = work/ 재료 복사뿐) · data/·registry·place-checklist 변경 0(시험 전후 md5 `a4ee4be9` 같음) · fetch_reports·ingest·archive·exclusions·balance 실행 0 · deploy 는 `push --dry-run` 만 · 브라우저 = playwright 새 임시 프로필(overflow file:// · chart_check·section_compare 만 cdnjs 2).
+방법: 조정자 혼자 설계·코드·시험·리허설·문서·자체 검토 — **하위 에이전트 0 · 하위 토큰 0**(예산 에이전트 5 · +150만 안).
+
+## 사용자 결정(지시문 원문 — 다시 묻지 않음)
+- 원문(2026-10-26): "일별 추이 나오는 항목 뒤에 요일별 분포도? 넣는거 어떻게 생각해?" → 질문 세션 추천(새 구역이 아니라 01 안 작은 카드 — 02~11 번호 그대로 · 판 J 덜어내기 흐름에 맞춤) → "추천대로 진행해줘" → (부모 세션에) "구현과 검증 2개의 세션을 하위 세션으로 열어서 바로 작업 진행해줘".
+- 승인한 모양(지시문 "바꿀 모양" 그대로): 01 차트 카드 뒤 · 인사이트 박스 앞 · PC·모바일 같은 HTML · 머리 `요일별 하루 평균` · 보조 줄 `검색 지면 · 8/26~10/25 · 요일마다 8~9일` · 막대 7개(월~일) = 하루 평균 노출(#cdeee7 · 하단 정수 라벨) + 막대 위 `N.N건` = 하루 평균 클릭(잉크) · 강조색 0 · 범례 없음 · 0일 요일 = 막대 0 · 클릭 빈칸.
+- 바뀌는 규칙: 계산 = 제외 그룹 뺀 `검색/콘텐츠 매체 == 검색` 행 날마다 합 → 달력 요일 평균(노출 반올림 정수 · 클릭 소수 1자리 — KPI 와 같은 round · 날 = day_list 전부 · 전 기간 누적) · 10 핵심 요약 작성 기준 한 줄(요일 영향은 그 요일 평균과 같이 · 주말 낮음을 경고로 쓰지 않음).
+- 다듬기 세션 기본값(바꾸라는 답 없음): 1. 판 이름 `r2026-10-K`(report-structure "확장 소재 … 그다음 판 K" → "그다음 판") · 2. 검색 지면만 · 3. 전 기간 누적 · 4. 첫 적용은 보류로 시작 + 01 옛/새 전후 비교(1280 · 390).
+- 이유(지시문 [이유]): 목적은 읽기를 돕는 것 — 요일 입찰 가중치는 다음 액션 후보 정리 때 이미 뺐다(이 파일 "11 시간대·요일 가중치(의도된 심야·주말 운영과 부딪힘 · 플레이스는 API 가중치 미지원)"). 검색 지면만인 까닭: 지면 전부면 8/28~9/5 콘텐츠 지면 노출 1,746회 때문에 토요일이 302회로 가장 높게 나오고 검색 지면만이면 206회로 가장 낮다(다듬기 세션 실측 — 이 회차 compute 로 다시 잼, 아래 R1).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `88d39da`, 14파일 +692/−75) [실측]
+- `scripts/apply.py` 1615 → 1760 · 5f67ec2b → 0aae37d7 · `scripts/compute.py` 701 → 721 · 494bbef7 → 49155df3 · `scripts/compare.py` 314 → 336 · 3014bf53 → caf0a3ab · `scripts/validate.py` 1121 → 1136 · b6539a77 → d5ff13f4
+- `config/report-config.json` 358 → 359 · d48e16ef → f814cee8(`layout_id` r2026-10-K · `markers.canvases` 8 · 새 `markers.weekday_card` 1 · `_comment` 판 K)
+- `tests/test_apply.py` 1379 → 1566 · de83f4f3 → 867b1d00 · `tests/chart_check.py` 912 → 970 · 332e5dd5 → 19150b05 · `tests/mutation_test.py` 564 → 642 · 84b860c1 → aa1b0218 · `tests/fixtures/layout_old.compute.json` 650 → 681 · fcbb5165 → 796a3490(`01.요일` 추가)
+- `SKILL.md` 729 → 732 · c8c1123d → fe0bdcf9 · `references/report-structure.md` 903 → 948 · d21bdf6c → bd7bb762 · `references/code-tab.md` 324 → 327 · e8d57059 → 94973c76 · `references/css-and-layout.md` 305 → 308 · 801fa820 → 3c2862d0 · `audit/checklist.md` 574 → 580 · 0dfd47e9 → be59fc5b · `audit/last-audit.md`(이 절) · `local/` 변경 0(설치본 교체 없음)
+- 흐름: 5단계 compute(`01.요일` — weekday_avg) → apply `--layout` — meta r2026-10-J 판 → `convert_j_to_k`(카드 하나 · 스크립트 끝 블록 하나) → 사슬 끝 `check_weekday` → 값 `weekday_values`(막대 · clicks · 보조 줄) → 서술(운영 n<날짜>.py — 바꿀 표지 0) → 6 precheck(validate **31** — "레이아웃 판" 에 요일 카드 · compare **103**) → 7 deploy `--layout-change`(첫 적용 — 사용자 "배포" 답 뒤만).
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. compute 키 `01.요일` = {`첫날`·`끝날`(M/D) · `일수`·`노출`·`클릭`(각 7칸 월~일)} — 0일 요일은 노출 0 · 클릭 null. 반올림 = 파이썬 round(KPI 와 같음 — 정확히 반이면 짝수 쪽: 화 41/4 = 10.25 → 10.2 · 노출 250.5 → 250).
+2. 표지 = 카드 `data-weekday="card"` · 보조 줄 `data-weekday="sub"` · 캔버스 `weekdayChart` + config 새 키 `report_layout.markers.weekday_card` 1(판 F `balance_card` 꼴) · `markers.canvases` 7 → 8.
+3. 차트 블록 자리 = 차트 스크립트 **맨 끝(분기 도우미 IIFE 뒤 · `</script>` 앞)** + IIFE 안 `try` — 지시문 "`// 7b. Hourly` 뒤" 를 도우미 뒤로 읽음(도우미 앞이면 새 차트 예외가 01·06 모바일 분기 도우미를 막는다). hourlyChart 의 "다음 new Chart" 앵커(apply·compare)는 그대로.
+4. 클릭 배열 = 데이터셋 사용자 속성 `clicks`(두 번째 데이터셋 대신 — 막대 하나 · 묶음 폭·범례 영향 0) · datalabels `labels` 둘(`imp` 막대 하단 `anchor start · align top` · `clk` 막대 위 `anchor end · align top` · null 이면 숨김 · `toFixed(1) + '건'`).
+5. 데이터셋 이름 `하루 평균 노출`(팝업 글 — 범례 없음) · 높이 200px · `maxBarThickness` 56 · 위 여백 22 · y 0 시작 · 축 제목 없음 · 글자 11px(y 눈금 10px).
+6. 카드 마크업 = `.card`(인라인 margin-top:12px) + `.sub-head`(머리) + `.note`(보조 줄 — 머리 아래 한 줄) + 캔버스 컨테이너(인라인 height·margin) — 새 CSS 0 · min-width 0.
+7. 변환 앵커: 01 dailyChart 캔버스 뒤 · "① 일별 지표" 앞의 마지막 `<div class="card"` 줄 앞 — 그 사이가 닫는 div 셋뿐이어야(아니면 FAIL) · 분기 도우미가 스크립트 끝이 아니면 FAIL · 요일 표지가 이미 있으면 FAIL.
+8. `canvases_at(lay, lid)` — config `markers.canvases` 8 은 판 K 기준이라 사슬 중간 판 I·J 검사(`check_noplace`)는 7 로 셈(`check_noplace` 에 lid 인자).
+9. 판 K 는 `CARD_LAYOUTS`·`EXTRA_LAYOUTS`·`FOLD07_LAYOUTS`·`NOPLACE_LAYOUTS`·`TRIM_LAYOUTS` 에도(판 J 값 갈래 그대로) · 새 `WEEKDAY_LAYOUTS`.
+10. compare 새 구역 "01 요일 카드(판 K)"(`data-weekday=` 가 있는 판만) 4항목 — 보조 줄은 [첫날, 끝날, 최소, 최대(같으면 None)] 로 대조(`8~8일` 같은 꼴도 DIFF) · 99 → **103**.
+11. validate 는 새 검사 없이 23 "레이아웃 판" 안(검사 수 31 그대로 · PASS 끝 `· 요일 카드 1`). 요일 값의 CSV 독립 재계산은 넣지 않음(지시문 고치는 곳 밖 — 이월) — compute 정의는 test_apply `ComputeWeekday`(손 계산 기대값)와 리허설 R1(다듬기 세션 실측 7칸과 같음)이 지킨다.
+12. chart_check — `WEEKJS`·`week_ok`(폭마다) · 인쇄 요일 이미지 한 번·보이는 비율 1 · 판 K 전환(01 = 기준 + 카드 높이 + 위 여백 ±1 · 06 같음 · PC PDF 는 새 판 요일 이미지 하나 빼고 대조).
+13. mutation_test — 레이아웃 판 변조 3 + 새 `compare_experiments`(index.html 옆 compute.json — 없거나 카드 없으면 [MISS] = 통과 아님 · 시작 때 사본 config 를 원본 글로 되돌림).
+14. `[apply]` 출력 끝 `· 요일 카드 검색 지면 · M/D~M/D · 요일마다 N일`.
+15. 시험: test_apply `at()` 가 판 K 전(I·J)을 캔버스 7 · weekday_card 없음으로 정해 둠 · `ApplyLayoutJ` 는 `at(cfg, J)` 로 · 새 `ApplyLayoutK` 5 · `ComputeWeekday` 2 · fixture `layout_old.compute.json` 에 `01.요일`(1/1~1/7 요일마다 1일) · 리허설 몫 `ApplyRehearsal` 은 판 K.
+16. 10 핵심 요약 작성 기준 한 줄에 "그 요일 평균은 비교 기준값이라 6) 다른 구역 숫자 되풀이 안 함의 예외" — 지시문 예시(`10/25(일) 클릭 6건(일요일 하루 평균 9.2건)`)가 01 카드 숫자를 괄호에 쓰므로 판 J 결정 14 (b) 와 문서끼리 어긋나지 않게(validate 30 은 변화 없음 줄만 숫자를 봄 — 충돌 0 확인).
+17. 문서 — css-and-layout.md 에 판 K 한 줄(새 클래스는 없지만 판마다 한 줄인 목록) · code-tab.md 4절 첫 적용 목록에 판 K · checklist [의도된 동작] 33 신설(검색 지면만 · 평균 × 일수 ≠ 01 막대 합 등 — 결함 아님).
+
+## 리허설 결과 [실측 — 12:1x~12:3x KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · clone `work/`(git 무시)]
+- **재료**(운영 `work/` 에서 복사 — 읽기만): `combined/` CSV 4 · `extra/` 4 · `balance.json`(10/26 08:43) · `compute.json`(운영 10/26 회차 800a4981) · `c61/compute.json` · `prev.html`(10/25 배포본 29ed95c9) · `deployed_1026.html` = 운영 `index.html` = 10/26 배포본 6bc57c8(md5 **9f1b4f88** — 같은 기간 첫 적용 흉내의 시작·직전 배포본) · `n1026.py`·`narr_lib.py` 사본(읽기만 — 이 판은 서술을 바꾸지 않음).
+- **R1 5단계**(`work/RX/same/`): compute(`[주의] 장부 확인 못 함(장부 없음)` — 운영과 같음 · `01.요일` = 월 8일 277·11.8 / 화 8일 322·10.2 / 수 9일 289·10.7 / 목 9일 264·10.6 / 금 9일 249·9.7 / 토 9일 206·6.9 / 일 9일 238·9.2 — **지시문 다듬기 세션 실측과 7칸 모두 같음**) → apply `--layout` 없이 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-J ≠ config r2026-10-K — --layout 을 붙여 r2026-10-J → r2026-10-K`(작업본 그대로) → `--layout` `125,029 → 126,857자 · 레이아웃 판 변환(r2026-10-J → r2026-10-K, 분기 2) · … · 구역 11 · 캔버스 8(지면 구역 없음) · 06 카드 ['상계동필라테스'] · 04 신규 메모 0 · 요일 카드 검색 지면 · 8/26~10/25 · 요일마다 8~9일` → 두 번째 `--layout` `변환 건너뜀 … (변경 없음)`(멱등).
+- **R1b 회귀 바이트**: 배포본(9f1b4f88) ↔ 결과(7c0f1d71) `diff` = 3군데뿐 — meta 한 줄 · 카드 7줄(295행 뒤) · 스크립트 블록 35줄(분기 도우미 뒤) — 다른 구역·01 차트·① ② ③·서술 표지·CSS 바이트 그대로.
+- **R2 precheck**(`scripts/precheck.sh work/RX/same/index.html work/combined work/RX/same/prev.html`): **validate 31/31**(레이아웃 판 PASS 끝 `· 구역 11 · 캔버스 8 · ① 5칸 · 판 J 고정 글 · 요일 카드 1`) · compute(9099ae40) → **compare OK 103 / DIFF 0**(새 4항목 OK) · overflow 360·390·430 넘침 0(details 7 연 상태) · narrative `[주의] 같은 기간 — 대조 생략(표지 33개 중 매회차 18개)` · 도장 7c0f1d71 · 9f1b4f88 · full(`work/precheck_1026k.log`).
+- **R3 deploy** `push --file work/RX/same/index.html --base work/RX/same/prev.html --dry-run`: 도장 확인 · **`[주의] 레이아웃 판이 바뀜 — … 직전 배포본(--base) r2026-10-J → 작업본(--file) r2026-10-K`** · 배포본 = --base md5 9f1b4f88 확인(최신 sha f3fd67f) · 자격 증명 확인 · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0(`work/deploy_dry_1026k.log`).
+- **R4 chart_check** `work/RX/same/index.html … --base work/RX/same/prev.html --out work/chart_1026k`: 개발 중 첫 실행(같은 재료 `work/s1`)은 의도된 차이 2(01 805 → 1,093 · PC PDF 이미지 +1)로 FAIL → 판 K 전환 대조(임의 결정 12) 뒤 **PASS 37 / FAIL 0** — 폭마다 `01 요일 카드 그려짐·자리·글·겹침 0(판 K)`(라벨 14/14 · 밖 0 · 글자 겹침 0 · 카드 넘침 0 · 카드 높이 390 269.8 · 1280 275.8) · `인쇄 390/1280 01 요일 카드 PDF 한 번·안 잘림`(656×400 3쪽 · 822×200 2쪽 — 보이는 비율 1.0) · 1280 "섹션 1·6 높이" 판 K 전환 = 805 + 287.8 → 1,093 · 06 481 같음 · PC PDF = 기준(요일 이미지 하나 뺌) · 캔버스 8 · pageerror 0 · 외부 허용 2 · 차단 0(`work/chart_1026k.log`).
+- **R5 전후 비교** `tests/section_compare.py work/RX/same/index.html work/RX/same/prev.html --out work/cmp_1026k --sections 1` → **`work/cmp_1026k/compare.html`**(01 옛/새 — 1280 864×805 → 864×1,093 · 390 358×1,008 → 358×1,290 · 밖 요청 막음 0) + chart_check 의 **`work/chart_1026k/compare.html`**(01·06 옛/새 · 상단 · 04·05) — 첫 적용 보류 회차 재료. 눈 확인(1280·390 캡처): 막대 7개 · 하단 노출 · 위 클릭 라벨 겹침 없음 · 토요일도 같은 색 · 머리·보조 줄 지시문 글자 그대로.
+- **R6 변조**: `mutation_test`(R2 산출 + 옆 compute.json) **검사 31개 중 변조로 FAIL 확인 31 · 변조 58 + 0건 가드 27 + archive 7 = [OK] 92 · compare 실험 [OK] 5**(기준 DIFF 0 → 노출 첫 칸 +1 · 클릭 첫 칸 +0.1 · 보조 줄 끝날 하루 앞 · 일수 +1 · compute 쪽 노출 +1 — 각각 그 항목만 DIFF · exit 1) · config 실험 7 · 원본 md5 동일 — 전부 살아 있음(`work/mutation_k.log`) · `test_compare_sections`(R2 산출) 14경우 전부 그 구역 그 항목만 DIFF(요일 구역 4항목은 다른 구역이 깨져도 OK 그대로 — `work/tcs_1026k.log`) · test_apply 리허설 몫(`work/RX/same`) 멱등 OK(63 · skip 0).
+- **네트워크**: GitHub GET(dry-run sha·본문·권한 — 읽기) + cdnjs 2(chart_check·section_compare) 뿐 · 네이버 0 · 쓰기 0.
+
+## 전체 시험(커밋 전 한 번 — 12:1x KST)
+py_compile scripts/·tests/ 전부 OK · bash -n 2 OK · **test_apply 63**(새 `ApplyLayoutK` 5 · `ComputeWeekday` 2 · 리허설 RX 판 K — 그때 RX 없어 skip 1, 리허설 뒤 다시 63 · skip 0) · test_balance 13 · test_deploy 45 · test_exclusions 49 · test_extras 21 · test_fetch_reports 25 · test_ingest 10 · test_leads 23 · test_narrative_check 7 · test_place 10 · test_validate_07 14 · test_compare_sections 14경우 전부 맞음 — 전부 rc 0 · data/·registry·place-checklist md5 전 = 후 `a4ee4be9`. guard(`leads.py guard --staged --message-file`) PASS — staged 14파일 · 추가 줄 692 · 장부 숫자 0. (시험 뒤 바뀐 것 = mutation_test 의 사본 config 되돌림 두 줄 → mutation_test 다시 돌려 전부 살아 있음 · test_apply 머리말 한 줄)
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 조정자 1회 · "다음 단계로 가도 된다" · 막음 0)
+- 완료 기준 표 줄 1(요일 7칸·보조 줄 = compute — compare 새 4항목 · mutation compare 실험 5 · R1 값 = 다듬기 실측) · 2(판 K 규약 — test_apply `ApplyLayoutK` · validate 23 · R1·R3) · 3(다른 구역·01 차트·서술 바이트 그대로 · compare 기존 항목 OK · 날짜축 2배열 — R1b · R2 · test_compare_sections 14경우) · 4(390·1280 그려짐·넘침 0·pageerror 0·인쇄 안 잘림 — R4 · overflow) · 5(팔레트 밖 색 0 · 강조 새 뜻 0 · CDN·파일 0 — `ApplyLayoutK.test_conversion_scope_j_to_k` 색 = #cdeee7 하나 · chart_check 외부 요청 2) · 6(문서 = 코드 — 아래) · 7(리허설 — 위) 모두 참.
+- 막음 후보로 본 것: (가) 차트 블록을 도우미 앞에 두면 새 차트 예외가 모바일 분기를 막는 경로 — 도우미 뒤 + try 로 닫음(임의 결정 3 · 시험이 자리 대조). (나) 사슬 중간 판 I 의 캔버스 대조가 config 8 로 FAIL 하던 것 — `canvases_at`(임의 결정 8, 시험 `ApplyLayoutI` 통과 — 요란한 FAIL 이라 막음 아님). (다) compute 정의 오류는 compare 가 못 잡음(compute 대 HTML) — 정의는 시험 손 계산·리허설 실측 일치로 지킴 · validate 독립 검산은 이월. 그 밖 막음 0.
+
+## 문서 = 코드(조정자 grep 대조)
+- 고친 곳: report-structure.md 레이아웃 판 절(머리 r2026-10-K · 판 목록 · 표지 · 사슬 · 판 K 문단 · 판 G 절 "그다음 판 K" → "그다음 판") · 목차 · "01" 새 소절 "요일 카드(판 K)"(정의 · 검색 지면만 까닭 · 10/25 값) · "10. 핵심 요약 — 작성 기준" 1) 끝 한 줄 · SKILL.md 레이아웃 판 줄 · apply 사슬·FAIL 꼴·출력 · compare 103 · validate 23 판 K · 시험 목록 · code-tab.md 4절 첫 적용(판 K) · css-and-layout.md 판 K 한 줄 · checklist 갱신 이력 · [의도된 동작] 16·33 · [되돌리면 안 되는 것] 레이아웃 판 행 · config `_comment`.
+- grep 대조(`지금 r2026-10-J` · `config r2026-10-J` · `compare 99` · `(99항목` · `캔버스 7(지면` — SKILL.md · references/*.md · audit/checklist.md · local/*/SKILL.md · scripts · tests): 남은 것 = 날짜·판이 박힌 역사 기록(판 I·J 절 · 이력)과 판 J 시험(`ApplyLayoutJ` — `at(cfg, J)`)뿐. `local/` 변경 0.
+
+## 이월(한 줄씩 — 막음 아님)
+- validate 에 요일 값 CSV 독립 재계산 없음(compare 는 compute 대 HTML — compute 정의가 틀리면 시험·리허설만 지킴 · 지시문 고치는 곳 밖).
+- 0일 요일이면 막대 하단 라벨 `0` 이 보인다(지시문 "막대 값 0" 그대로 — 클릭 라벨만 빈칸 · 합본 7일 미만일 때만).
+- 팝업은 `하루 평균 노출: N` 만(클릭은 막대 위 라벨 — 팝업에 클릭을 넣으려면 글자 승인 필요).
+- 첫 적용 회차 10 핵심 요약의 요일 문장은 서술 스크립트 몫(아래 첫 적용 본보기 3) — 기계 검사 없음(작성 기준 글만, compare 파싱 문장 0 — 지시문대로).
+- 지시문 [진행]의 `test_deploy(격리 env)` 는 test_deploy 가 스스로 자식 환경의 `GIT_*` 를 지운다(따로 env 를 만들지 않음).
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0)
+1 카드 노출·클릭 7칸 = compute(검색 지면 · 제외 그룹 뺌 · 요일 평균 · 반올림) · 보조 줄 기간·일수 = compute(compare "01 요일 카드(판 K)" 4 · mutation compare 실험 5 · `ComputeWeekday`) · 2 판 K 규약(meta · config · 사슬 J → K · 옛 판 → … → K · 멱등 · `--layout` 없이 J FAIL 문구 · deploy 게이트 — test_apply `ApplyLayoutK` · validate 23 · R3) · 3 다른 구역 바이트 그대로 · compare 기존 항목 OK · 날짜축 2배열(R1b · R2 · test_compare_sections) · 4 390·1280 그려짐 · 넘침 0 · pageerror 0 · 인쇄 안 잘림(R4 `work/chart_1026k.log` · overflow) · 5 색·CDN·파일(시험 · chart_check 외부 요청) · 6 문서 = 코드 · 7 리허설(위 R1~R6).
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 50분(11:57~12:4x KST — 시험·리허설·문서 포함) · 하위 에이전트 0 · 조정자 즉석 코드(저장소 밖 `work/`) — 패치 스크립트(apply·config·validate·chart_check·SKILL·checklist·test_apply) · 리허설 명령.
+쓴 곳: 브랜치 커밋 `88d39da`(코드·문서·시험) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_01요일카드_검증지시_회차1_2026-10-26.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/q-saero-run` — 판 K 첫 적용 · 보류로 시작)
+1. 첫 말: "**판 K(01 요일 카드) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. 평소대로 ①~5 — apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-J → r2026-10-K, 분기 2)` 와 끝 `· 요일 카드 검색 지면 · 8/26~M/D · 요일마다 N일`(또는 `N~M일`) 확인(`--layout` 없이 돌리면 `meta r2026-10-J ≠ config r2026-10-K` FAIL — 작업본 그대로 · compute.json 에 `01.요일` 이 없으면 `[FAIL] apply: … "01.요일" 없음` — compute 를 이 판 코드로 다시).
+3. 서술 스크립트(n<날짜>.py · narr_lib.py — 저장소 밖): **바꿀 표지 0**. 10 핵심 요약에서 요일 영향을 말할 때만 짐작 문구 대신 그 요일 평균을 같이 — 예 n1026.py 의 `(지난 일요일 10/18도 5건이라 일요일 영향일 수 있음, 01번 참고)` 꼴이면 `10/25(일) 클릭 6건(일요일 하루 평균 9.2건)` 처럼(값 = compute `01.요일.클릭[요일]` — 월 0 … 일 6). 주말이 낮은 것을 경고로 쓰지 않는다 · 금칙어 그대로.
+4. 6 precheck(validate **31** — "레이아웃 판" PASS 끝 `· 요일 카드 1` · compare **103**(새 "01 요일 카드" 4) · overflow · narrative) → 도장.
+5. 전후 비교: `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` → `work/chart_<날짜>/compare.html`(01·06 옛/새 1280·390 — "판 K 전환" 표기로 "섹션 1·6 높이" PASS · `01 요일 카드 그려짐·자리·글·겹침 0(판 K)` 폭마다 PASS) + `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 1`(01 옛/새만 — 1280·390)과 작업본을 사용자에게 보인다(내장 브라우저는 file:// 를 못 여니 경로로 안내).
+6. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜 … r2026-10-J → r2026-10-K` 만).
+
+---
+
 ## 검증·병합 기록(2026-10-23 — 불필요 항목 빼기(레이아웃 판 r2026-10-J): 검증 1(막음 0) → main 병합)
 검증 세션: `D:\saero-verify` 하위 세션(Sonnet 5.5 · high · 울트라코드 켬) · 검증 clone `D:\saero-verify\feat-20261023-trim-1`(`git clone -c core.autocrlf=false`) · 대상 = 브랜치 `feat-20261023-trim` 코드 `6866817` + 기록 `33e4ba1`(origin/main `441735c` 위 — 시작 전 `git ls-remote` 일치 · main 안 앞섬). 전문 = `D:\saero-verify\saero-ad-report_검증_불필요항목빼기_회차1_2026-10-23.md`.
 방식: 조정자 직접 — 사본 재실행(compute → apply 판 I FAIL 문구 → `--layout` → 멱등 → 옛 서술 validate FAIL 2 → 판 J 서술 → precheck) · 시험 7종 · 작업 clone 전후 PNG 눈 확인 + 워크플로 에이전트 4(Sonnet 5.5 상속 · Opus 0 · 하위 토큰 1,210,489): 결정 1~38 화면·숫자 대조 · compute/apply/extras 코드 실험 · validate/compare 변조 171건 · 문서·판 규약·게이트·첫 적용 본보기 대조. 네이버 0 · 배포 PUT 0 · push 0.

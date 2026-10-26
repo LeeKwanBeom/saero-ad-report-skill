@@ -32,6 +32,8 @@
   06.카드 = 최근 7일 노출 있고 (일차 < new_days 또는 config group_cards.promotion_groups) 인 그룹(5) · 07.정식표[].적음 = 노출 < config ctr_few_07.min_imps(hl 은 적음이 아닐 때만 — 35) ·
   성별·연령대: config gender_age.hide_unknown_kinds 종류는 알 수 없음 줄 0 · 표마다 '알수없음줄'(줄이 보이면 sub-head 괄호에 % 를 쓰지 않는다 — 8) · 첫 숫자가 같으면 '미만' 이 앞(36) ·
   변경 기록 확장소재 추가 = '확장 소재 n개 추가'(같은 분 묶음 안 건수의 합 — 28).
+- (2026-10-26 판 K 01 요일 카드 — 사용자 결정 "추천대로 진행해줘") "01" 에 "요일"(weekday_avg — 검색 지면 · 제외 그룹 뺌 · 전 기간 누적 요일(월~일) 하루 평균:
+  첫날·끝날 M/D · 일수 7 · 노출 7(반올림 정수) · 클릭 7(소수 1자리 — 그 요일 날이 0 이면 노출 0 · 클릭 null)). 01 차트(지면 전부)와 틀이 달라 평균 × 일수 합 ≠ 01 막대 합이 정상.
 """
 import argparse
 import datetime as dt
@@ -103,6 +105,23 @@ def content_days(inc, days, cfg):
     return first, last, rec
 
 
+def weekday_avg(srch, days):
+    """판 K(2026-10-26 01 요일 카드) — 제외 그룹 뺀 키워드 보고서 `검색/콘텐츠 매체` == 검색 행(srch)을 날마다 합한 노출·클릭(날 = day_list 전부 — 행 없는 날 0)을
+    달력 요일(월~일)로 묶은 하루 평균. 노출 = 반올림 정수 · 클릭 = 소수 1자리(KPI 일평균클릭과 같은 파이썬 round — 정확히 반이면 짝수 쪽, 예 10.25 → 10.2) ·
+    그 요일 날이 0 이면(합본 7일 미만) 노출 0 · 클릭 None. 기간은 전 기간 누적(최근 N주로 자르지 않음 — 사용자 결정 기본값 3).
+    지면 전부(01 차트 틀)로 내지 않는 까닭: 8/28~9/5 콘텐츠 지면 노출이 토요일(8/29·9/5)을 가장 높게 만든다(검색 지면만이면 가장 낮음 — 기본값 2)."""
+    di = srch.groupby("일별")["노출수"].sum().reindex(days).fillna(0)
+    dc = srch.groupby("일별")["클릭수"].sum().reindex(days).fillna(0)
+
+    def wday(s):
+        y, m, d = s.rstrip(".").split(".")
+        return pd.Timestamp(int(y), int(m), int(d)).weekday()
+    by = [[d for d in days if wday(d) == k] for k in range(7)]
+    return {"첫날": md(days[0]), "끝날": md(days[-1]), "일수": [len(b) for b in by],
+            "노출": [round(int(di[b].sum()) / len(b)) if b else 0 for b in by],
+            "클릭": [round(int(dc[b].sum()) / len(b), 1) if b else None for b in by]}
+
+
 def card_groups(pw, days, nth, gc):
     """판 J(2026-10-23 결정 5) 06 요약 카드 그룹(파워링크 그룹 순서) — 노원역필라테스(rankChart 그룹) 밖 · 최근 7일(날짜 7개) 노출 > 0 ·
     (일차 < config group_cards.new_days 이거나 promotion_groups). nth = {그룹: 첫 노출일 포함 일차}."""
@@ -153,6 +172,7 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
         "검색지면": {"노출": int(srch["노출수"].sum()), "클릭": int(srch["클릭수"].sum()), "CTR": pct(srch["클릭수"].sum(), srch["노출수"].sum())},
         "플레이스누적가중순위": wrank(pl), "콘텐츠누적노출": int(cont["노출수"].sum())}
     out["01"]["콘텐츠첫날"], out["01"]["콘텐츠끝날"], out["01"]["콘텐츠재발"] = content_days(inc, days, cfg)   # 판 I — 01 ③ 괄호 기간 · 재발 감시
+    out["01"]["요일"] = weekday_avg(srch, days)   # 판 K — 01 요일 카드(검색 지면 · 전 기간 누적 요일 하루 평균)
 
     def avg_pl(a, b):
         s = pl[(pl["일별"] >= a) & (pl["일별"] <= b)]

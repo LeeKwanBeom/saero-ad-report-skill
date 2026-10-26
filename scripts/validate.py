@@ -63,6 +63,9 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
      (판 I, 2026-10-23 콘텐츠 지면 빼기) 같은 검사 안에서: 번호 배지 `<span class="section-num">NN</span>` = 01~markers.sections(11) 순서대로 · 다음 액션 주석
      `<!-- Section N: Action items -->` 이 마지막 구역(11) · 지면 구역 흔적 0(placementChart · 서술 표지 10-* · 제목 "검색 지면 vs 콘텐츠 지면") · `<canvas id=` 수 =
      markers.canvases(7) · 01 ① 칸 머리 5(날짜·노출·클릭·CTR·CPC). PASS 문구 끝에 `구역 11 · 캔버스 7 · ① 5칸`.
+     (판 K, 2026-10-26 01 요일 카드) 캔버스 = markers.canvases 8 · config `markers.weekday_card`(1)가 있으면 요일 카드 표지 `data-weekday="card"`·`"sub"`·`<canvas id="weekdayChart">` 각 그 수 ·
+     01 구역 안 dailyChart 캔버스 뒤 · ① 머리글 앞 · 차트 블록 `getElementById('weekdayChart')` 정확히 1 = 분기 도우미(`/* saero:mobile-helper`) 뒤 · labels 월~일(날짜 꼴 아님 — 10 이 세지 않는다).
+     값(막대·클릭·보조 줄)은 compare "01 요일 카드(판 K)" 몫. PASS 문구 끝에 `구역 11 · 캔버스 8 · ① 5칸 · 판 J 고정 글 · 요일 카드 1`.
  24. (2026-10-09 추가) "광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분" — `--balance <work/balance.json>`(balance.py 기록 — precheck 는 작업본 옆 파일)을
      직접 읽어(compute.py 와 계산 공유 0) 기록이 ok 면 카드 값 = ⌊bizmoney_raw⌋ 원(콤마 · 기록의 bizmoney 도 같은 값) · 보조 줄 = 읽은 시각 KST `M/D(요일) HH:MM 기준`
      + ` · 약 N일분`(N = ⌊원 × 창일수 ÷ 창합계⌋ — 창 = 키워드 CSV `일별` 달력 날짜로 마지막 날까지 7일(첫날 앞은 자름 · 행 없는 날 0원), 합계 = 제외 그룹 뺀 총비용,
@@ -548,11 +551,23 @@ def check_layout(html):
     th1 = re.search(r"<thead>(.*?)</thead>", s1[s1.find("① 일별 지표"):], re.S) if "① 일별 지표" in s1 else None
     n_th1 = len(re.findall(r"<th[\s>]", th1.group(1))) if th1 else 0
     if n_th1 != 5 or "<th class=\"num\">콘텐츠</th>" in s1: bad.append(f"01 ① 칸 머리 {n_th1}개 ≠ 5(날짜·노출·클릭·CTR·CPC)")
+    # 판 K(2026-10-26 — 01 요일 카드): 표지 card·sub·캔버스 각 markers.weekday_card · 01 안 차트 카드 뒤 · ① 앞 · 차트 블록 하나 = 분기 도우미 뒤 · labels 월~일 — apply check_weekday 와 따로 쓴 같은 규칙
+    want_wc = int(LAYOUT["markers"].get("weekday_card", 0))
+    if want_wc:
+        n_wc = [html.count('data-weekday="card"'), html.count('data-weekday="sub"'), html.count('<canvas id="weekdayChart">')]
+        wjs, hp = html.count("getElementById('weekdayChart')"), html.find("/* saero:mobile-helper")
+        wb = html[html.find("getElementById('weekdayChart')"):] if wjs else ""
+        wb = wb[:wb.find("</script>")]
+        if n_wc != [want_wc] * 3: bad.append(f"요일 카드 표지 card·sub·캔버스 {n_wc} ≠ 각 config weekday_card {want_wc} — apply.py --layout 으로 판 K")
+        elif not (-1 < s1.find('<canvas id="dailyChart">') < s1.find('data-weekday="card"') < s1.find("① 일별 지표")): bad.append("요일 카드가 01 구역 안 차트 카드 뒤 · ① 앞이 아님")
+        if wjs != 1 or not -1 < hp < html.find("getElementById('weekdayChart')"): bad.append(f"요일 차트 블록 {wjs}개(분기 도우미 뒤 하나여야)")
+        elif re.sub(r"\s+", "", (re.search(r"labels:\s*\[([^\]]*)\]", wb) or [None, ""])[1]) != "'월','화','수','목','금','토','일'": bad.append("요일 차트 labels 가 월~일이 아님")
     # 판 J(2026-10-23 오후 — 불필요 항목 빼기): 뺀 고정 글 0 · KPI 총 클릭수 '건' · 고정 표지 새 글(config 숫자) · 네 표지 고정 — apply check_trim 과 따로 쓴 같은 규칙
     bad += check_trim_fixed(html)
     check(name, not bad, "; ".join(bad) if bad else
           f"{metas[0]} · details {n_det} · summary 짝 {n_pair} · 분기 {n01 + n06} · M {ml[0][0]}/{ml[0][1]} · 최근 {ml[0][6]}/{ml[0][7]} · CSS {css[0]} · 01 터치 y"
-          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else "") + f" · 구역 {want_sec} · 캔버스 {len(cv)} · ① 5칸 · 판 J 고정 글")
+          + (f" · 잔액 카드 {nv}" if want_bc else "") + (f" · 추가 블록 {want_eb}" if want_eb else "") + f" · 구역 {want_sec} · 캔버스 {len(cv)} · ① 5칸 · 판 J 고정 글"
+          + (f" · 요일 카드 {want_wc}" if want_wc else ""))
 
 
 J_FIXED_GONE = ("주간 리포트", "업종 평균 수준", "(4개 키워드 합산)", "평균순위는 파워링크 전용 지표", "900~1,300원대는 플레이스", "지난 회차 항목 이월 판정 +",

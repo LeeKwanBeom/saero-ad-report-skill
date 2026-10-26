@@ -118,7 +118,7 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 작업본·직전 배포본이 그대로면 도장이 유효하다(deploy.py 가 도장 md5 = `--file`·`--base` 를 대조). 둘 중 하나라도 바뀌었으면 6단계부터.
 리포트 글·모양을 바꾸는 기능의 **첫 적용 회차**(예: 글 줄이기 회차 1 — 경로 C "다시 계산", 직전 배포본에 서술 표지 없음)는 사용자가 첫 말에
 "보류로 시작 — 6단계 도장까지만, 배포는 내가 말함"이라고 하고, 세션은 도장 뒤 작업본(`work/index.html`)을 사용자가 열어 보게 한 다음 "배포" 답에서 7단계로 간다.
-**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C · **판 E 첫 적용** — 직전 배포본 meta r2026-10-D · **판 F 첫 적용** — 직전 배포본 meta r2026-10-E · **판 G 첫 적용** — 직전 배포본 meta r2026-10-F · **판 H 첫 적용** — 직전 배포본 meta r2026-10-G · **판 I 첫 적용** — 직전 배포본 meta r2026-10-H · **판 J 첫 적용** — 직전 배포본 meta r2026-10-I)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
+**레이아웃 판을 바꾸는 첫 적용 회차**(회차 2 모양 — 직전 배포본에 `<meta name="report-layout">` 없음 · **판 C 첫 적용** — 직전 배포본 meta r2026-10-B · **판 D 첫 적용** — 직전 배포본 meta r2026-10-C · **판 E 첫 적용** — 직전 배포본 meta r2026-10-D · **판 F 첫 적용** — 직전 배포본 meta r2026-10-E · **판 G 첫 적용** — 직전 배포본 meta r2026-10-F · **판 H 첫 적용** — 직전 배포본 meta r2026-10-G · **판 I 첫 적용** — 직전 배포본 meta r2026-10-H · **판 J 첫 적용** — 직전 배포본 meta r2026-10-I · **판 K 첫 적용** — 직전 배포본 meta r2026-10-J)는 도장 뒤 작업본과 함께 전후 비교 페이지(구역 캡처 나란히)를 보이고,
 (판 C·D·E) `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` 결과(전부 PASS · 390·1280 섹션 1·6 캡처 · PDF —
 판 D 부터 같은 명령이 전후 비교 페이지 `work/chart_<날짜>/compare.html`(옛 판 · 새 판 모바일 접힘·펼침 · PC 나란히)도 쓴다 · 판 E 는 "01 모바일 터치 팝업(처음·펼침) = 누른 줄 날짜"
 두 줄이 핵심 — 판 E 는 모양이 그대로라 비교 그림은 옛·새가 같다 · 판 F 는 compare.html 맨 앞 "상단 카드" 옛/새(1280·390)와 `상단 잔액 카드 한 줄 전체(판 F)` 두 줄 PASS 가 핵심 —
@@ -133,7 +133,10 @@ note는 verify 뒤에도 "확인 전"이 남고, `--approved` 없는 verify의 "
 판 J 는 `"$PY" tests/section_compare.py work/index.html work/prev.html --out work/cmp_<날짜> --sections 1,2,3,4,5,6,7,8,9,10,11 --extra top,basis`(머리·KPI · 01~11 · 집계 기준 옛/새 — 1280·390)와
 `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(판 J 전환 — "섹션 1·6 높이"는 같거나 줄어듦만 PASS)·`[apply]` 출력 끝 `· 06 카드 [그룹…](뺌 [그룹…]) · 04 신규 메모 N`이 핵심 —
 서술 스크립트에서 바꿀 표지와 새 꼴(01-desc·01-rank·03-desc·04-mint·04-note·06-arrow·06-card·07-notes ③·08-note·08-mint·09-desc·09-call·11-list·11-verdict·12-1·12-note · 고정 글 표지 04-foot·07-src·07-legend·12-desc·12-basis 는 다시 쓰지 않음)은
-last-audit "첫 적용 본보기"(판 J) · 사용자 결정 2026-10-23 오후: 첫 적용 = 보류로 시작 + 전후 비교)도 보이고,
+last-audit "첫 적용 본보기"(판 J) · 사용자 결정 2026-10-23 오후: 첫 적용 = 보류로 시작 + 전후 비교 ·
+판 K 는 `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>`(compare.html 의 01 옛/새 1280·390 · 폭마다 `01 요일 카드 그려짐·자리·글·겹침 0(판 K)` ·
+`인쇄 … 01 요일 카드 PDF 한 번·안 잘림(판 K)` · 판 K 전환 "섹션 1·6 높이"(01 = 기준 + 카드 · 06 같음)·"인쇄 1280 PC PDF = 기준" PASS)와 `[apply]` 출력 끝 `· 요일 카드 검색 지면 · M/D~M/D · 요일마다 N일`이 핵심 —
+서술 스크립트에서 바꿀 표지 0(10 핵심 요약 작성 기준 한 줄만 — 요일 영향을 말할 때 그 요일 하루 평균을 같이 · last-audit "첫 적용 본보기"(판 K)) · 사용자 결정 2026-10-26: 첫 적용 = 보류로 시작 + 01 전후 비교)도 보이고,
 사용자의 "배포" 답이 있을 때만 7단계 실제 push 에 `--layout-change` 를 붙인다(답 전에는 dry-run 의 `[주의] 레이아웃 판이 바뀜`만 — 세션이 스스로 붙이지 않는다).
 
 **ⓑ 자동 검사 FAIL(멈추고 → 다음 행동)**
