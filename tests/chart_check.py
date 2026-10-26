@@ -18,7 +18,11 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
   01 버튼 누름 → 01 전 기간(tick n · 라벨 2n/2n · 높이 n×row+pad · 맨 아래 = 첫 날짜 · 문구 그대로 · aria-expanded true) · 06 은 그대로(접힘) /
   01 다시 누름 → 처음과 같음 · 버튼 화면 위치 그대로(±1px) / 06 누름 → 06 전 기간 · 01 그대로 / 둘 다 펼침 /
   짧은 사본(apply 로 01·06 배열을 최근 K일·K+1일로 자른 판): K일이면 버튼 0·전부 · K+1일이면 "이전 1일(…)" 버튼 /
-  문서 scrollWidth = 폭 / 문서의 캔버스 전부(config markers.canvases — 판 I 부터 7 · 판 H 까지 8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
+  문서 scrollWidth = 폭 / 문서의 캔버스 전부(config markers.canvases — 판 K 부터 8 · 판 I·J 7 · 판 H 까지 8) Chart.getChart 있음 / pageerror 0. n ≤ K 면 처음부터 전 기간·버튼 없음을 기대한다.
+- 01 요일 카드(판 K, 2026-10-26 — config markers.weekday_card 가 있으면, 폭마다 로드 상태): Chart.getChart('weekdayChart') · 세로 막대(PC·모바일 같음) · labels 월~일 ·
+  data·clicks = compute 01.요일 · 보이는 라벨 = 7 + 클릭 null 아닌 수 · 캔버스 밖 0 · 글자 겹침 0 · 01 구역 안 · 앞 형제 = 차트 카드 · 뒤 형제 = ① 박스 ·
+  머리 '요일별 하루 평균' · 보조 줄 = apply.week_sub · 카드 가로 넘침 0 / 인쇄(폭마다): 요일 캔버스 비트맵과 같은 크기 이미지가 PDF 에 한 번 · 보이는 비율 1(안 잘림) /
+  `--base` 판 J · 작업본 판 K(판 K 전환)면 PC "섹션 1·6 높이" = 06 같음 · 01 = 기준 + 요일 카드 높이 + 위 여백(±1) · "PC PDF = 기준" 은 새 판의 요일 이미지 하나를 빼고 대조.
 - PC 폭(기본 1280): 01·06 indexAxis 'x' · tick n · 보이는 datalabels(01 2n · 06 0) · chartArea·첫 화면 일수·섹션 1·6 높이·뱃지 = --base 측정값
   (섹션 1·6 높이 — 판 I 전환은 01 같거나 줄어듦 · 판 J 전환(--base 판 I · 작업본 판 J, 2026-10-23 오후)은 01·06 둘 다 같거나 줄어듦만 — 01 머리 줄·② 각주 줄임 · 06 카드 규칙 밖 카드 빠짐)
   (첫 화면은 새 판·기준 둘 다 01·06 박스를 맨 왼쪽으로 되돌려 잰다 — 판 C 이후 기준은 로드 때 최신 쪽이라) ·
@@ -223,6 +227,37 @@ def extra_ok(x, w, R):
           and x["docSW"] <= w and want_h in (x["history"]["head"] or ""))
     det = " · ".join(f"{k} {x[k]['count']}개 구역 안 {x[k]['inSec']} 넘침 {x[k]['over']} 표 {x[k]['tables']}" for k in ("history", "gender-age")) + \
         f" · 문서 폭 {x['docSW']}(≤ {w}) · 변경 기록 머리 {x['history']['head']!r}(기대 {want_h!r} 포함)"
+    return ok, det
+
+
+# 판 K(2026-10-26) 01 요일 카드 — 자리(01 구역 안 · 앞 형제 = dailyChart 카드 · 뒤 형제 = ① 박스) · 글(머리·보조 줄) · 차트 배열(data · clicks) · 카드 가로 넘침 · 카드 높이(전환 대조)
+WEEKJS = """() => {
+  const cv = document.getElementById('weekdayChart'); if (!cv) return {err: 'weekdayChart 캔버스 없음'};
+  const c = window.Chart ? Chart.getChart(cv) : null, card = cv.closest('.card');
+  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT); let cm, s1 = null;
+  while ((cm = tw.nextNode())) { if (cm.nodeValue.trim().startsWith('Section 1:')) { let e = cm.nextSibling; while (e && e.nodeType !== 1) e = e.nextSibling; s1 = e; break; } }
+  const prev = card ? card.previousElementSibling : null, next = card ? card.nextElementSibling : null, ds = c ? c.data.datasets[0] : null;
+  return {chart: !!c, indexAxis: c ? (c.options.indexAxis || 'x') : null, labels: c ? c.data.labels : null, data: ds ? ds.data : null, clicks: ds ? ds.clicks : null,
+          inSec1: !!(s1 && card && s1.contains(card)), prevChart: !!(prev && prev.querySelector('#dailyChart')), nextBox: !!(next && next.textContent.indexOf('① 일별 지표') !== -1),
+          head: card ? (card.querySelector('.sub-head') || {}).textContent : null, sub: card ? (card.querySelector('[data-weekday="sub"]') || {}).textContent : null,
+          over: card ? card.scrollWidth - card.clientWidth : null, h: card ? card.getBoundingClientRect().height : null, mt: card ? parseFloat(getComputedStyle(card).marginTop) : null};
+}"""
+
+
+def week_ok(wk, inf, R):
+    """판 K 요일 카드 — 그려짐(Chart.getChart · 세로 막대 · labels 월~일) · data·clicks = compute 01.요일 · 보이는 라벨 = 7(노출) + 클릭 null 아닌 수 · 캔버스 밖 0 ·
+    글자 겹침 0 · 자리(01 구역 안 · 차트 카드 바로 뒤 · ① 박스 바로 앞) · 머리 '요일별 하루 평균' · 보조 줄 = apply.week_sub(승인 꼴) · 카드 가로 넘침 0."""
+    import apply as A
+    if "err" in wk or "err" in inf:
+        return False, wk.get("err") or inf.get("err")
+    W = R["01"]["요일"]
+    want_dl = 7 + sum(x is not None for x in W["클릭"])
+    ok = (wk["chart"] and wk["indexAxis"] == "x" and wk["labels"] == list("월화수목금토일") and wk["data"] == W["노출"] and wk["clicks"] == W["클릭"]
+          and inf["dlVisible"] == want_dl and inf["outside"] == 0 and inf["glyphOverlap"] == 0 and wk["inSec1"] and wk["prevChart"] and wk["nextBox"]
+          and wk["head"] == "요일별 하루 평균" and wk["sub"] == A.week_sub(W) and wk["over"] is not None and wk["over"] <= 0)
+    det = (f"Chart.getChart {wk['chart']} · indexAxis {wk['indexAxis']} · labels {''.join(wk['labels'] or [])} · data {wk['data']} · clicks {wk['clicks']}(compute {W['노출']} · {W['클릭']}) · "
+           f"라벨 {inf['dl']}(기대 보임 {want_dl}) · 밖 {inf['outside']} · 글자 겹침 {inf['glyphOverlap']} {inf['glyphPairs'] if inf['glyphOverlap'] else ''}· "
+           f"자리 01 안 {wk['inSec1']} · 앞 = 차트 카드 {wk['prevChart']} · 뒤 = ① 박스 {wk['nextBox']} · 머리 {wk['head']!r} · 보조 줄 {wk['sub']!r} · 카드 넘침 {wk['over']} · 높이 {round(wk['h'] or 0, 1)}")
     return ok, det
 
 
@@ -576,7 +611,9 @@ def main():
     a = ap.parse_args()
     cfg = load_config()
     mob = cfg["report_layout"]["mobile"]
-    ncv = int(cfg["report_layout"]["markers"]["canvases"])   # 캔버스 수(판 I 2026-10-23 부터 7 — 지면 구역 placementChart 가 빠짐 · 판 H 까지 8)
+    ncv = int(cfg["report_layout"]["markers"]["canvases"])   # 캔버스 수(판 K 2026-10-26 부터 8 — 01 요일 카드 · 판 I·J 7 — 지면 구역 placementChart 가 빠짐 · 판 H 까지 8)
+    wcard = int(cfg["report_layout"]["markers"].get("weekday_card", 0))   # 판 K 01 요일 카드 수(config — 0 이면 요일 카드 검사 없음)
+    tr_k_all = layout_of(a.base) == "r2026-10-J" and layout_of(a.html) == "r2026-10-K"   # 판 K 전환(--base 판 J · 작업본 판 K)
     maxpx, printmax = int(mob["max_px"]), int(mob["print_max_height_px"])
     row, padpx = {k: int(v) for k, v in mob["row_px"].items()}, {k: int(v) for k, v in mob["pad_px"].items()}
     K = {k: int(v) for k, v in mob["recent_days"].items()}
@@ -636,6 +673,7 @@ def main():
             hts = {}   # 전후 비교 높이 표 — {폭: {판: (섹션 1, 섹션 6, 문서)}}
             sec_h = lambda pi: (pi["secs"].get("1", {}).get("h"), pi["secs"].get("6", {}).get("h"), pi["docSH"])
             bpad = {"01": 1, "06": 0}   # 모바일 padding 겹침 상한(01 = --base 측정값, 아래 모바일 폭에서 채움)
+            wks = {}   # 판 K 요일 카드 측정(폭마다 — 섹션 1 높이 전환 대조에 카드 높이·위 여백)
             for w in widths:
                 mobile = w <= maxpx
                 h = 844 if mobile else 900
@@ -652,6 +690,10 @@ def main():
                 run.check(f"{w} 상단 잔액 카드 한 줄 전체(판 F)", ok_t, det_t)
                 ok_x, det_x = extra_ok(pg.evaluate(EXTRAJS), w, R)                    # 판 G 04·05 추가 카드·표
                 run.check(f"{w} 04·05 추가 카드·표 제 구역 안·넘침 0(판 G)", ok_x, det_x)
+                if wcard:   # 판 K 01 요일 카드(로드 상태 — 모바일도 같은 세로 막대 7칸)
+                    wks[w] = pg.evaluate(WEEKJS)
+                    ok_w, det_w = week_ok(wks[w], pg.evaluate(INFO, "weekdayChart"), R)
+                    run.check(f"{w} 01 요일 카드 그려짐·자리·글·겹침 0(판 K)", ok_w, det_w)
                 shot_top(pg, out, f"{w}")
                 m_start = None
                 if not mobile:  # PC 모양 대조는 기준과 같은 스크롤 자리(맨 왼쪽)에서 — S 는 로드 상태(m)로 따로 본다
@@ -749,14 +791,19 @@ def main():
                         s_old = [B["page"]["secs"].get(s, {}).get("h") for s in ("1", "6")]
                         tr_i = bool(place_size(B["page"])) and not place_size(pgi)   # 판 I 전환 — 직전 배포본에만 지면 구역(placementChart)
                         tr_j = layout_of(a.base) == "r2026-10-I" and layout_of(a.html) == "r2026-10-J"   # 판 J 전환(2026-10-23 오후 — 01 머리 줄·② 각주 줄임 · 06 카드 빠짐)
+                        tr_k = tr_k_all   # 판 K 전환(2026-10-26 — 01 은 요일 카드 높이 + 위 여백만큼만 늘어남 · 06 같음)
+                        add = ((wks.get(w) or {}).get("h") or 0) + ((wks.get(w) or {}).get("mt") or 0)
                         if tr_i:
                             ok = s_new[1] == s_old[1] and None not in (s_new[0], s_old[0]) and s_new[0] <= s_old[0]
                         elif tr_j:
                             ok = None not in s_new + s_old and s_new[0] <= s_old[0] and s_new[1] <= s_old[1]
+                        elif tr_k:
+                            ok = None not in s_new + s_old and s_new[1] == s_old[1] and add > 0 and abs(s_new[0] - (s_old[0] + add)) <= 1
                         else:
                             ok = s_new == s_old
                         run.check(f"{w} 섹션 1·6 높이 = 기준", ok, f"새 {s_new} · 기준 {s_old}" + (" · 판 I 전환 — 06 같음 · 01 은 ① 검색·콘텐츠 두 칸이 빠져 같거나 줄어듦만" if tr_i else "")
-                                  + (" · 판 J 전환 — 01(머리 줄·② 각주 줄임)·06(카드 규칙 밖 카드 빠짐)은 같거나 줄어듦만" if tr_j else ""))
+                                  + (" · 판 J 전환 — 01(머리 줄·② 각주 줄임)·06(카드 규칙 밖 카드 빠짐)은 같거나 줄어듦만" if tr_j else "")
+                                  + (f" · 판 K 전환 — 06 같음 · 01 = 기준 + 요일 카드 {round(add, 1)}px(높이 + 위 여백, ±1)" if tr_k else ""))
                     run.check(f"{w} 펼치기 버튼 없음(PC)", pgi["foldBtns"] == 0, f"문서의 .chart-fold {pgi['foldBtns']}개")
 
             # ── 회전: 모바일 폭 → 가로(844) → 모바일 ──
@@ -848,6 +895,11 @@ def main():
                     res[tag] = {"m0": m0, "m1": m1, "ev": ev, "pages": pages, "imgs": imgs, "errs": errs, "pdf": pdf}
                 N = res["new"]
                 ev = N["ev"]
+                wsize = next(([cw, ch] for cid, cw, ch in N["m0"]["page"].get("cvs", []) if cid == "weekdayChart"), None) if wcard else None
+                if wcard:   # 판 K — 요일 캔버스(인쇄 때 다시 그리지 않음 — 로드 때 비트맵 그대로)가 PDF 에 한 번 · 쪽 경계·클립에 안 잘림
+                    wim = [im for im in N["imgs"] if wsize and im["size"] == wsize]
+                    run.check(f"인쇄 {w} 01 요일 카드 PDF 한 번·안 잘림(판 K)", len(wim) == 1 and wim[0]["vis_w"] >= 0.999 and wim[0]["vis_h"] >= 0.999 and not N["errs"],
+                              f"요일 캔버스 비트맵 {wsize} · PDF 이미지 {[(x['page'], x['vis_w'], x['vis_h']) for x in wim]} · pageerror {len(N['errs'])}")
                 if mobile:
                     bp = ev["beforeprint"][0] if ev["beforeprint"] else None
                     apv = ev["afterprint"][0] if ev["afterprint"] else None
@@ -885,12 +937,18 @@ def main():
                     det = f"PDF {N['pages']}쪽 · 폭 {minwidth} 캔버스 이미지 {[(x['size'], x['page'], x['vis_w'], x['vis_h']) for x in big]}"
                     ok = not N["errs"] and len(big) == 2
                     if "base" in res:
-                        sig_new, sig_old = pdf_signature(N["imgs"]), pdf_signature(res["base"]["imgs"])
+                        imgs_new = list(N["imgs"])
+                        wk_out = tr_k_all and wsize and next((x for x in imgs_new if x["size"] == wsize), None)   # 판 K 전환 — 새 판의 요일 캔버스 이미지 하나만 더해져야
+                        if wk_out:
+                            imgs_new.remove(wk_out)
+                        sig_new, sig_old = pdf_signature(imgs_new), pdf_signature(res["base"]["imgs"])
                         pl = place_size(res["base"]["m0"]["page"]) if not place_size(N["m0"]["page"]) else None   # 판 I 전환 — 직전 배포본 placementChart 이미지 하나만 빠져야
                         want = [e for e in sig_old if not ((e[0], e[1]) == pl and e[2] == 1)] if pl else sig_old
                         ok = ok and sig_new == want and (not pl or len(want) == len(sig_old) - 1)
                         det += (f" · 이미지 구성 기준과 {'같음' if sig_new == want else '다름 새 ' + str(sig_new) + ' / 기준 ' + str(want)}"
-                                + (f"(판 I 전환 — 기준에서 placementChart {pl[0]}×{pl[1]} 하나 뺌)" if pl else ""))
+                                + (f"(판 I 전환 — 기준에서 placementChart {pl[0]}×{pl[1]} 하나 뺌)" if pl else "")
+                                + (f"(판 K 전환 — 새 판에서 요일 캔버스 {wsize[0]}×{wsize[1]} 이미지 하나 뺌)" if wk_out else ""))
+                        ok = ok and (not tr_k_all or bool(wk_out))
                     else:
                         det += " · --base 없음 — 기준 대조 생략"
                     run.check(f"인쇄 {w} PC PDF = 기준", ok, det + f" · pageerror {len(N['errs'])}")

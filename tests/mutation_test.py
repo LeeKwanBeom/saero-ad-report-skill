@@ -40,6 +40,10 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
      "판 J 뺀 글 0"(새 검사): 변조 3(01 머리 줄 누적 CTR A → B · 10 변화 없음 줄에 숫자 · 11 note 정렬 줄) + 0건 가드 1(Section 3 주석 변조 → 구역 0자) ·
      "레이아웃 판": 변조 +2(KPI '업종 평균 수준' 되살림 · 09-call 표지 매회차로) · "07번 클릭률": 변조 +1('적음' 칸을 숫자로) · "10번 항목 수·판정 줄": 변조 +1(판정 줄 M/D 하루 앞) ·
      "05번 mediaChart": 변조 +1(콘텐츠 매체 MLB파크 5위 막대 되살림) · config 실험 +2(group_cards.promotion_groups 비움 → "06번 카드 그룹" FAIL · ctr_few_07.min_imps +1 → "레이아웃 판" FAIL).
+  (2026-10-26 판 K 01 요일 카드) 기준 사본은 판 K 작업본(precheck 를 통과한 work/index.html — 옆에 compute.json)이어야 한다 — 판 J 배포본은 기준 실행에서 "레이아웃 판" FAIL(기대값).
+     "레이아웃 판": 변조 +3(요일 캔버스 이름 변조 · 카드를 ① 박스 뒤로 · 차트 블록을 분기 도우미 앞으로) ·
+     **compare 실험**(새 — 6b): index.html 옆 compute.json(precheck 의 재계산) 사본으로 기준 compare DIFF 0 → 변조 5(막대 노출 첫 칸 +1 · 클릭 첫 칸 +0.1 · 보조 줄 끝날 하루 앞 ·
+     보조 줄 일수 +1 · compute 쪽 노출 첫 칸 +1)마다 겨냥한 "01 요일 카드 …" 항목만 DIFF · exit 1. 카드·compute.json 이 없으면 [MISS](통과 아님).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -195,12 +199,74 @@ def archive_experiments(work):
     return ok
 
 
+def compare_experiments(work, H, comp_src, cfg_path, cfg_text):
+    """판 K(2026-10-26 01 요일 카드) — 요일 값 변조가 compare DIFF 로 잡히는지(그 항목만 · exit 1). 재료 = 배포본(작업본) 사본 + index.html 옆 compute.json
+    (precheck 가 쓴 재계산) 사본 — 원본은 읽기만. 기준 compare DIFF 0 이어야 시작. 변조 = 막대 노출 첫 칸 +1 · 막대 위 클릭 첫 칸 +0.1(null 이면 0.0) ·
+    보조 줄 끝날 하루 앞 · 보조 줄 일수 +1 · compute 쪽 노출 첫 칸 +1(재계산이 배포본과 다르면)."""
+    print("\n== compare 실험(판 K 01 요일 카드 — 겨냥한 항목만 DIFF · exit 1 이어야 함)")
+    if 'data-weekday="card"' not in H:
+        print("  [MISS] 요일 카드가 없는 배포본 — 판 K 작업본(precheck 를 통과한 work/index.html)으로 돌릴 것")
+        return False
+    if not os.path.exists(comp_src):
+        print(f"  [MISS] compute.json 없음({comp_src}) — precheck 가 작업본 옆에 쓴 재계산이 재료")
+        return False
+    with open(cfg_path, "w", encoding="utf-8") as f:   # 위 config 실험이 남긴 덮어쓰기를 되돌린다(사본 config = 원본 글)
+        f.write(cfg_text)
+    compare = os.path.join(work, "scripts", "compare.py")
+    hp, jp = os.path.join(work, "cmp.html"), os.path.join(work, "cmp.json")
+    base_j = read(comp_src)
+
+    def run(html, js):
+        for p, t in ((hp, html), (jp, js)):
+            with open(p, "w", encoding="utf-8", newline="") as f:
+                f.write(t)
+        r = subprocess.run([sys.executable, compare, hp, jp], capture_output=True, text=True, encoding="utf-8")
+        return r.returncode, [l.strip()[len("[DIFF] "):] for l in r.stdout.splitlines() if l.strip().startswith("[DIFF]")]
+
+    rc, d = run(H, base_j)
+    if rc != 0 or d:
+        print(f"  [MISS] 기준 compare DIFF {len(d)}(exit {rc}) — {d[:3]} · 배포본과 compute.json 이 맞는 조합인지 먼저 확인할 것")
+        return False
+    print("  기준 compare DIFF 0")
+    i = H.index("getElementById('weekdayChart')")
+    blk = H[i:H.index("</script>", i)]
+    in_blk = lambda old, new: H[:i] + blk.replace(old, new, 1) + H[i + len(blk):]
+    m_imp = re.search(r"(label:\s*'하루 평균 노출'\s*,\s*data:\s*\[)(\d+)", blk)
+    m_clk = re.search(r"(clicks:\s*\[)(null|[\d.]+)", blk)
+    m_sub = re.search(r'(data-weekday="sub">검색 지면 · \d+/\d+~)(\d+)/(\d+)( · 요일마다 )(\d+)((?:~\d+)?일</div>)', H)
+    R2 = json.loads(base_j)
+    R2["01"]["요일"]["노출"][0] += 1
+    sub = lambda f: H.replace(m_sub.group(0), f(m_sub), 1) if m_sub else None
+    cases = [("요일 노출 첫 칸 +1", "01 요일 카드 노출 7칸", in_blk(m_imp.group(0), f"{m_imp.group(1)}{int(m_imp.group(2)) + 1}") if m_imp else None, base_j),
+             ("요일 클릭 첫 칸 +0.1(null 이면 0.0)", "01 요일 카드 클릭 7칸",
+              in_blk(m_clk.group(0), m_clk.group(1) + ("0.0" if m_clk.group(2) == "null" else f"{float(m_clk.group(2)) + 0.1:.1f}")) if m_clk else None, base_j),
+             ("보조 줄 끝날 하루 앞", "01 요일 카드 보조 줄",
+              sub(lambda m: f"{m.group(1)}{m.group(2)}/{int(m.group(3)) - 1 if int(m.group(3)) > 1 else 2}{m.group(4)}{m.group(5)}{m.group(6)}"), base_j),
+             ("보조 줄 일수 +1", "01 요일 카드 보조 줄", sub(lambda m: f"{m.group(1)}{m.group(2)}/{m.group(3)}{m.group(4)}{int(m.group(5)) + 1}{m.group(6)}"), base_j),
+             ("compute 쪽 요일 노출 첫 칸 +1(재계산이 다르면)", "01 요일 카드 노출 7칸", H, json.dumps(R2, ensure_ascii=False, indent=1))]
+    ok = True
+    for name, target, html, js in cases:
+        if html is None:
+            print(f"  [SKIP] {name} — 변조 위치를 못 찾음(마크업이 바뀌었으면 이 스크립트를 고칠 것)")
+            ok = False
+            continue
+        rc, d = run(html, js)
+        hit, others = [x for x in d if x.startswith(target)], [x for x in d if not x.startswith(target)]
+        if rc == 1 and hit and not others:
+            print(f"  [OK]   {name} → DIFF: {hit[0][:100]}")
+        else:
+            ok = False
+            print(f"  [MISS] {name} → exit {rc} · 겨냥 '{target}' {len(hit)}건 · 다른 DIFF {others[:3]}")
+    return ok
+
+
 def main():
     if len(sys.argv) not in (6, 7):
         sys.exit(__doc__)
     orig = dict(zip(["html", "kw", "sr", "hr", "rg"], sys.argv[1:6]))
     bal_src = sys.argv[6] if len(sys.argv) == 7 else os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "balance.json")
     bal_base = read(bal_src) if os.path.exists(bal_src) else None
+    comp_src = os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "compute.json")   # 판 K compare 실험 재료(precheck 가 작업본 옆에 쓴 재계산 — 읽기만)
     extra_src = os.path.join(os.path.dirname(os.path.abspath(orig["html"])), "extra")   # 판 G 추가 합본(precheck 와 같은 자리 — 없으면 빈 폴더)   # 판 F 잔액 기록(없으면 기준 실행이 "광고비 잔액 카드" FAIL — 아래에서 멈춘다)
     data_files = sorted(glob.glob(os.path.join(REPO, "data", "*", "*.csv")))
     orig_md5 = {k: md5(v) for k, v in orig.items()}
@@ -427,6 +493,15 @@ def main():
         b5 = (blk5.replace(mm.group(0), f"{mm.group(1)}{mm.group(2)},['MLB파크','모바일']{mm.group(3)}", 1).replace(md5_.group(0), f"{md5_.group(1)}{md5_.group(2)}, 828{md5_.group(3)}", 1)
               .replace(mc.group(0), f"{mc.group(1)}{mc.group(2)}, mint{mc.group(3)}", 1)) if mm and md5_ and mc else None
         muts.append(("05 콘텐츠 매체 MLB파크 5위 막대 되살림", "05번 mediaChart", {"html": H.replace(blk5, b5, 1) if b5 else None}))
+        # (2026-10-26 판 K) 01 요일 카드 — 캔버스 이름 변조(표지 수) · 카드를 ① 박스 뒤로 · 차트 블록을 분기 도우미 앞으로 → "레이아웃 판"(값은 아래 compare 실험)
+        wcard = re.search(r'\n    <div class="card" data-weekday="card".*?\n    </div>\n', H, re.S)
+        wblk = re.search(r"\n// 8\. Weekday average.*?\n\}\)\(\);\n", H, re.S)
+        muts.append(("요일 카드 캔버스 이름 변조(weekdayChart → weekdayChartX)", "레이아웃 판",
+                     {"html": H.replace('<canvas id="weekdayChart">', '<canvas id="weekdayChartX">', 1) if '<canvas id="weekdayChart">' in H else None}))
+        muts.append(("요일 카드를 ① 박스 뒤로(01 구역 끝)", "레이아웃 판",
+                     {"html": H.replace(wcard.group(0), "\n", 1).replace("  <!-- Section 2:", wcard.group(0)[1:] + "  <!-- Section 2:", 1) if wcard else None}))
+        muts.append(("요일 차트 블록을 분기 도우미 앞으로", "레이아웃 판",
+                     {"html": H.replace(wblk.group(0), "\n", 1).replace("/* saero:mobile-helper", wblk.group(0)[1:] + "/* saero:mobile-helper", 1) if wblk else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -545,6 +620,9 @@ def main():
         for c in uncovered:
             print(f"  [UNCOVERED] {c} — 이 검사를 깨뜨리는 변조가 없다. 스크립트에 추가할 것")
         ok &= not uncovered
+
+        # --- 6b. compare 실험(2026-10-26 판 K — 요일 값 변조 → compare DIFF, 그 항목만) ---
+        ok &= compare_experiments(work, H, comp_src, cfg_path, cfg_text)
 
         # --- 7. archive.py ---
         ok &= archive_experiments(work)

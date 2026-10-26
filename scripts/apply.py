@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
 판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12 · 판 H 07 정식표 접기 2026-10-17 · 판 I 콘텐츠 지면 빼기 2026-10-23 ·
-판 J 불필요 항목 빼기 2026-10-23 오후).
+판 J 불필요 항목 빼기 2026-10-23 오후 · 판 K 01 요일 카드 2026-10-26).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-J):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-K):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
@@ -18,16 +18,19 @@
     11·12 구역 주석·번호 배지 → 10·11 · 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외" → "KPI·01~07번에서 제외" — 구역 11 · 캔버스 7 · 새 CSS·JS·색 0) →
     r2026-10-J(`convert_i_to_j` — 불필요 항목 빼기, 사용자 결정 "추천대로": meta · masthead 제목 '주간' 빼기 · KPI 평균 클릭률 보조 줄 '업종 평균 수준' 빼기 · KPI 클릭 단위 '건' ·
     02 groupChart 이름 '(4개 그룹 · 자동매칭 포함)' · 고정 표지 04-foot·07-src·12-desc 새 글 · 12-basis 세 줄(집계 기간 · 타겟 지역 줄 빼기 · 클릭률 강조) · 07-legend 끝 '노출 N회 미만' 한 구 ·
-    서술 표지 03-desc·08-note·09-desc·09-call 종류 매회차 → 고정(compare 가 그 숫자를 전부 읽는다 — 숫자를 빼도 narrative 미교체 FAIL 이 안 나게). 새 CSS·JS·색 0).
-    meta 가 사슬 위의 옛 판이면 `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-I ≠ config …`.
+    서술 표지 03-desc·08-note·09-desc·09-call 종류 매회차 → 고정(compare 가 그 숫자를 전부 읽는다 — 숫자를 빼도 narrative 미교체 FAIL 이 안 나게). 새 CSS·JS·색 0) →
+    r2026-10-K(`convert_j_to_k` — 01 요일 카드, 사용자 결정 "추천대로 진행해줘": meta · 01 차트 카드(dailyChart) 바로 뒤 · ① 박스 앞 카드 하나(머리 '요일별 하루 평균' · 보조 줄 data-weekday="sub" ·
+    캔버스 weekdayChart) · 차트 스크립트 끝(분기 도우미 뒤) 차트 블록 하나(막대 7 = 하루 평균 노출 · clicks = 하루 평균 클릭 라벨) — 캔버스 7 → 8 · 새 구역·CSS·색 0).
+    meta 가 사슬 위의 옛 판이면 `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-J ≠ config …`.
   · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g` → `convert_g_to_h` →
-    `convert_h_to_i` → `convert_i_to_j`) 뒤 값을 바꾼다.
+    `convert_h_to_i` → `convert_i_to_j` → `convert_j_to_k`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` — 판 G 추가 블록 안 접기는 빼고 셈(`strip_extra`, 2026-10-15) · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
     `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안 ·
     판 H 07 "나머지 N행" summary 정확히 1 · 그 접기가 정식표 wrapper 바로 뒤 · 접힌 표가 "클릭 1건 검색어" 앞 · `top_rows_07` 1 이상 정수 ·
     판 I 구역 주석 1~`markers.sections` 순서대로 · 마지막 구역 = Action items · 번호 배지 = 그 구역 번호 · placementChart·`n:10-` 표지 0 · 캔버스 = `markers.canvases` ·
-    ① 칸 머리 5 · 판 J 고정 글(`check_trim` — 뺀 고정 글 0 · 클릭 단위 건 · 네 표지 고정))는 사슬 끝에 한 번 — 값만 경로도 같다.
+    ① 칸 머리 5 · 판 J 고정 글(`check_trim` — 뺀 고정 글 0 · 클릭 단위 건 · 네 표지 고정) · 판 K 요일 카드(`check_weekday` — 표지 data-weekday card·sub = `markers.weekday_card` ·
+    01 차트 카드 뒤 · ① 박스 앞 · 차트 블록 = 분기 도우미 뒤 하나 · labels 월~일))는 사슬 끝에 한 번 — 값만 경로도 같다. 캔버스 수는 판마다(`canvases_at` — 판 K 8 · I·J 7).
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09 — 판 H 까지는 10 placementChart 도) ·
   05 mediaChart 라벨·색 = compute `05.top5` 순서(`media_labels` — 2026-10-14, 그 전엔 값 배열만 바꿔 순위가 바뀐 날 라벨·색이 옛 순서로 남았다) ·
   02 도넛 제목 총액 · 01 표 5행(최신 위 — 2026-10-15 · 판 I 는 날짜·노출·클릭·CTR·CPC 5칸, 판 H 까지는 검색·콘텐츠 포함 7칸)·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
@@ -35,7 +38,7 @@
   07 클릭 1건·클릭 0 목록(동률은 직전 순서) ·
   (판 J — 값만 경로도 매 회차) 07 정식표 노출 칸 쉼표 · 노출 config `ctr_few_07.min_imps` 미만 행 클릭률 '적음'(강조 0) · KPI 클릭 단위 '건' · 06 카드 = compute 06.카드(밖이 된 그룹의 카드 블록은
   서술 표지째 지우고 · 있어야 할 카드가 없으면 FAIL) · 04 이름 칸 `(M/D 신규)` 는 compute 04.신규 그룹만(그 밖은 지움) · 04 변경 기록 끝 스킬 줄 0 · 05 성별·연령대 머리 `(네이버 추정)` ·
-  알 수 없음 % 는 표에 그 줄이 없는 종류만 ·
+  알 수 없음 % 는 표에 그 줄이 없는 종류만 · (판 K) 01 요일 카드 막대 data · clicks · 보조 줄(compute "01.요일" — 없으면 `[FAIL] apply: … "01.요일" 없음`) ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행(판 H 까지 — 판 I 는 구역 없음) ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 정식표 "나머지 N행(클릭 a~b건 · 합 M건 · X원)"(판 H — 나머지가 없으면 "나머지 0행") ·
   07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
@@ -598,7 +601,7 @@ TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        
 # compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
 # data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
 LAYOUT_F = "r2026-10-F"
-CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I", "r2026-10-J")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I·J 도 잔액 카드 그대로)
+CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I·J·K 도 잔액 카드 그대로)
 BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
      값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
   .kpi-wide{grid-column:1 / -1;}
@@ -785,7 +788,7 @@ def balance_values(h, R):
 # 앵커: 구역 n 의 마지막 `\n  </div>\n`(구역 div 닫힘) 앞 — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐이어야(정확히 하나). 04 의 표는 블록이 본 표 뒤에 오므로
 # apply 의 04 tbody 앵커(구역 첫 tbody)·compare _s04(구역 첫 <table>)·validate parse_04_rows(숫자 칸 7개 행)와 겹치지 않는다.
 LAYOUT_G = "r2026-10-G"
-EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I", "r2026-10-J")  # 추가 카드·표가 있는 판(판 H·I·J 도 그대로)
+EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K")  # 추가 카드·표가 있는 판(판 H·I·J·K 도 그대로)
 GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
 HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
 MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
@@ -946,7 +949,7 @@ def extra_values(h, R, trim=True):
 # summary 는 "나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기" — 경쟁사 summary 꼴("표 N행 · 펼치기")·07 앵커 문구(클릭 1건 검색어 · 노출은 있으나 클릭 0건인 ·
 # line-height:1.9;"> · 클릭의 N% 차지)를 쓰지 않는다(apply·compare 의 07 첫 일치·once_in 보호). 행이 top_rows_07 이하면 "나머지 0행 펼치기" + 빈 tbody(details 수 고정 — 03 "이전 0일" 선례).
 LAYOUT_H = "r2026-10-H"
-FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I", "r2026-10-J")  # 07 정식표 접기가 있는 판(판 I·J 도 그대로)
+FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I", "r2026-10-J", "r2026-10-K")  # 07 정식표 접기가 있는 판(판 I·J·K 도 그대로)
 SUM07 = r"(<summary[^>]*>)나머지 \d+행(?:\([^)<]*\))? 펼치기(</summary>)"   # apply·시험이 다시 쓰는 summary(07 구역 안 정확히 하나)
 SUM07_HEAD = re.compile(r"<summary[^>]*>나머지 ")
 WRAP_END = re.compile(r"</table>\n([ \t]*)</div>\n")
@@ -1036,7 +1039,7 @@ def convert_g_to_h(h, lay):
 # 서술 표지는 건드리지 않는다 — 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외"(10 = 없어진 지면 구역) 한 곳만 고친다(사용자 결정 기본값 — 매회차 표지 글은 운영 서술 몫).
 # 표지·config·compute 키·함수 이름의 11·12(11-list·12-1 · items_in_12 · "12번")는 내부 이름이라 그대로(화면 번호 10·11 — report-structure.md "서술 표지").
 LAYOUT_I = "r2026-10-I"
-NOPLACE_LAYOUTS = (LAYOUT_I, "r2026-10-J")   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸 — 판 J 도 그대로)
+NOPLACE_LAYOUTS = (LAYOUT_I, "r2026-10-J", "r2026-10-K")   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸 — 판 J·K 도 그대로)
 H1_OLD, H1_NEW = "① 일별 지표 — 노출·CTR·지면 변화", "① 일별 지표 — 노출·CTR 변화"
 TH_SC = r'\n[ \t]*<th class="num">검색</th>\n[ \t]*<th class="num">콘텐츠</th>'   # ① 칸 머리 둘(정확히 하나)
 BASIS_OLD, BASIS_NEW = "KPI·01~07·10번에서 제외", "KPI·01~07번에서 제외"
@@ -1047,10 +1050,10 @@ SEC_COMMENT = re.compile(r"<!-- Section (\d+):")
 BADGE = re.compile(r'<span class="section-num">(\d+)</span>')
 
 
-def check_noplace(h, lay, why):
+def check_noplace(h, lay, why, lid):
     """판 I 표지 — 구역 주석 1~markers.sections 순서대로(그 밖 번호 0) · 마지막 구역 = Action items · 구역마다 번호 배지(있으면) = 그 번호 ·
-    placementChart 0 · 서술 표지 10-* 0 · 캔버스 = markers.canvases · ① 머리글 새 글 하나 · ① 칸 머리 5(있으면)."""
-    n_sec, n_cv = int(lay["markers"]["sections"]), int(lay["markers"]["canvases"])
+    placementChart 0 · 서술 표지 10-* 0 · 캔버스 = 판 lid 의 수(canvases_at — 판 K 부터 요일 캔버스 +1) · ① 머리글 새 글 하나 · ① 칸 머리 5(있으면)."""
+    n_sec, n_cv = int(lay["markers"]["sections"]), canvases_at(lay, lid)
     secs = [int(x) for x in SEC_COMMENT.findall(h)]
     if secs != list(range(1, n_sec + 1)):
         raise ApplyError(f"{why} 구역 주석 {secs} ≠ 1~{n_sec} — 손으로 바꾼 판으로 보임")
@@ -1066,7 +1069,7 @@ def check_noplace(h, lay, why):
         raise ApplyError(f"{why} 지면 구역 흔적(placementChart {h.count('placementChart')} · 10-* 표지 {h.count('<!-- n:10-')}) — 손으로 바꾼 판으로 보임")
     cv = re.findall(r'<canvas id="([^"]+)"', h)
     if len(cv) != n_cv:
-        raise ApplyError(f"{why} 캔버스 {len(cv)}개({cv}) ≠ config markers.canvases {n_cv}")
+        raise ApplyError(f"{why} 캔버스 {len(cv)}개({cv}) ≠ 판 {lid} {n_cv}(config markers.canvases {lay['markers']['canvases']})")
     a, b = span_of(h, 1)
     s1 = h[a:b]
     if s1.count(H1_NEW) != 1 or H1_OLD in h:
@@ -1127,7 +1130,7 @@ def convert_h_to_i(h, lay):
         elif re.search(r"(?<!\d)10번", body):
             raise ApplyError(f"고정 표지 12-basis 에 {BASIS_OLD!r} 꼴이 아닌 10번 — 손으로 바꾼 판으로 보임, 변환하지 않음")
         h = h[:m.start(2)] + body + h[m.end(2):]
-    check_noplace(h, lay, "변환 뒤")                                                                                                 # ⑦
+    check_noplace(h, lay, "변환 뒤", LAYOUT_I)                                                                                       # ⑦
     return h
 
 
@@ -1136,7 +1139,7 @@ def convert_h_to_i(h, lay):
 # 값(매 회차 — apply 의 trim 갈래) = 07 노출 쉼표·'적음' · 06 카드 집합 · 04 '(M/D 신규)' 기한 · 04 스킬 줄 0 · 05 머리·알 수 없음 %. 서술(매회차 표지 글)은 운영 서술 스크립트 몫.
 # 표지가 없는 판(시험 fixture — 옛 판에서 사슬로 온 판)은 그 표지 단계를 건너뛴다 · 표지가 있는데 글이 옛 글도 새 글도 아니면 FAIL(손으로 바꾼 판).
 LAYOUT_J = "r2026-10-J"
-TRIM_LAYOUTS = (LAYOUT_J,)   # 판 J 값 갈래(07 '적음'·쉼표 · 06 카드 집합 · 04 신규 기한 · KPI 클릭 '건' · 판 G 블록 글)
+TRIM_LAYOUTS = (LAYOUT_J, "r2026-10-K")   # 판 J 값 갈래(07 '적음'·쉼표 · 06 카드 집합 · 04 신규 기한 · KPI 클릭 '건' · 판 G 블록 글 — 판 K 도 그대로)
 TITLE_OLD, TITLE_NEW = '<div class="title">네이버 검색광고 주간 리포트</div>', '<div class="title">네이버 검색광고 리포트</div>'
 KPI_SUB_CTR = r'(<div class="label">평균 클릭률</div>\s*<div class="value">[^\n]*</div>)\n[ \t]*<div class="sub">업종 평균 수준</div>'
 KPI_CLK_UNIT = r'(<div class="label">총 클릭수</div>\s*<div class="value">[^<]*<span class="unit">)회(</span></div>\s*<div class="sub">일 평균 [\d.]+)회(</div>)'
@@ -1279,10 +1282,143 @@ def drop_cards(h, keep):
 NEW_TAG = re.compile(r'\s*<span[^>]*>\(\d+/\d+ 신규\)</span>')   # 04 이름 칸 '(M/D 신규)' 메모(판 J 결정 30 — compute 04.신규 밖 그룹은 지운다)
 
 
+# ── 판 K(r2026-10-K, 2026-10-26 — 01 요일 카드, 사용자 결정 "추천대로 진행해줘"): 01 차트 카드 뒤 · ① 박스 앞 카드 하나 + 차트 스크립트 끝(분기 도우미 뒤) 블록 하나 ──
+# 새 구역 0(구역 11 그대로) · 새 CSS·색 0(.card·.sub-head·.note · 막대 #cdeee7 = 01 막대 · 라벨 ink) · PC·모바일 같은 HTML(7칸 — 모바일 가로 막대 분기·접기 없음) · 캔버스 7 → 8.
+# 값(매 회차 — apply 판 K 갈래) = 막대 data(compute 01.요일.노출) · clicks(01.요일.클릭 — null 은 라벨 빈칸) · 보조 줄(검색 지면 · 첫날~끝날 · 요일마다 N일 / N~M일).
+# 블록에 getElementById('dailyChart'|'rankChart') 리터럴 · 'M/D(요)' 꼴 labels · min-width · 5칸 td · .note-mint 를 쓰지 않는다(apply·compare·validate 01 첫 일치 앵커 보호).
+LAYOUT_K = "r2026-10-K"
+WEEKDAY_LAYOUTS = (LAYOUT_K,)   # 01 요일 카드가 있는 판
+WEEK_LABELS = "['월','화','수','목','금','토','일']"
+WEEK_CARD = """    <div class="card" data-weekday="card" style="margin-top:12px;">
+      <div class="sub-head" style="margin-top:0;">요일별 하루 평균</div>
+      <div class="note" data-weekday="sub">검색 지면</div>
+      <div style="height:200px;margin-top:8px;">
+        <canvas id="weekdayChart"></canvas>
+      </div>
+    </div>
+"""
+WEEK_JS = """
+// 8. Weekday average(판 K — 01 요일별 하루 평균 · 검색 지면): 막대 = 하루 평균 노출(라벨 막대 하단) · 막대 위 = 하루 평균 클릭(clicks — null 이면 빈칸).
+//    PC·모바일 같은 모양(7칸) · 강조색·범례 없음 · 스크립트 맨 끝(이 블록의 예외가 위 차트 7개·분기 도우미를 막지 않게 — try 로 한 번 더 감쌈)
+(function(){
+  try {
+    new Chart(document.getElementById('weekdayChart'), {
+      type: 'bar',
+      data: {
+        labels: ['월','화','수','목','금','토','일'],
+        datasets: [{
+          label: '하루 평균 노출',
+          data: [0, 0, 0, 0, 0, 0, 0],
+          clicks: [null, null, null, null, null, null, null],
+          backgroundColor: '#cdeee7',
+          borderRadius: 6,
+          maxBarThickness: 56,
+          datalabels: {labels: {
+            imp: {display: true, anchor: 'start', align: 'top', offset: 4, color: ink, font: {size:11, weight:'700'}, formatter: (v) => v.toLocaleString()},
+            clk: {display: (ctx) => ctx.dataset.clicks[ctx.dataIndex] !== null, anchor: 'end', align: 'top', offset: 2, clip: false, color: ink, font: {size:11, weight:'700'},
+                  formatter: (v, ctx) => Number(ctx.dataset.clicks[ctx.dataIndex]).toFixed(1) + '건'}
+          }}
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: {top: 22} },
+        plugins: { legend: {display: false} },
+        scales: {
+          x: {grid:{display:false}, ticks:{font:{size:11}}},
+          y: {beginAtZero: true, grid:{color:grid}, ticks:{font:{size:10}}}
+        }
+      }
+    });
+  } catch (e) {}
+})();
+"""
+WEEK_SUB = r'(<div class="note" data-weekday="sub">)[^<\n]*(</div>)'
+WEEK_CLICKS = r"(clicks:\s*\[)[^\]]*(\])"
+
+
+def week_sub(W):
+    """판 K 보조 줄 — `검색 지면 · M/D~M/D · 요일마다 N일`(일수가 다 같으면) / `… 요일마다 N~M일`(0일 요일이 있으면 범위에 0 포함). 글자는 사용자 승인 꼴."""
+    lo, hi = min(W["일수"]), max(W["일수"])
+    return f"검색 지면 · {W['첫날']}~{W['끝날']} · 요일마다 {lo}일" if lo == hi else f"검색 지면 · {W['첫날']}~{W['끝날']} · 요일마다 {lo}~{hi}일"
+
+
+def canvases_at(lay, lid):
+    """판 lid 의 캔버스 수 — config markers.canvases 는 config 판 기준(판 K 8)이라, 사슬 중간 판(I·J — 요일 카드 없음)을 검사할 때는 요일 캔버스 하나를 뺀다."""
+    n = int(lay["markers"]["canvases"])
+    return n - 1 if lay["layout_id"] in WEEKDAY_LAYOUTS and lid not in WEEKDAY_LAYOUTS else n
+
+
+def check_weekday(h, lay, why):
+    """판 K 표지 — 요일 카드 data-weekday card·sub 각 config markers.weekday_card(1) · 캔버스 weekdayChart 하나 · 01 구역 안 dailyChart 카드 뒤 · ① 박스 앞 ·
+    차트 블록(getElementById('weekdayChart')) 하나 = 분기 도우미 뒤(스크립트 끝) · labels 월~일 · clicks 배열 하나."""
+    want = int(lay["markers"].get("weekday_card", 1))
+    nc, ns, nv = h.count('data-weekday="card"'), h.count('data-weekday="sub"'), h.count('<canvas id="weekdayChart">')
+    if nc != want or ns != want or nv != want:
+        raise ApplyError(f"{why} 요일 카드 표지 card {nc} · sub {ns} · 캔버스 {nv} ≠ config weekday_card {want} — 손으로 바꾼 판으로 보임")
+    a, b = span_of(h, 1)
+    d, w, t = h.find('<canvas id="dailyChart">', a, b), h.find('data-weekday="card"', a, b), h.find("① 일별 지표", a, b)
+    if not (-1 < d < w < t):
+        raise ApplyError(f"{why} 요일 카드가 01 구역 안 차트 카드 뒤 · ① 박스 앞이 아님 — 손으로 옮긴 판으로 보임")
+    js = h.count("getElementById('weekdayChart')")
+    hp = h.find("/* saero:mobile-helper")
+    if js != 1 or not -1 < hp < h.find("getElementById('weekdayChart')"):
+        raise ApplyError(f"{why} 요일 차트 블록 {js}개(분기 도우미 뒤 하나여야) — 손으로 바꾼 판으로 보임")
+    blk = h[h.index("getElementById('weekdayChart')"):]
+    blk = blk[:blk.find("</script>")]
+    if WEEK_LABELS not in blk or len(re.findall(WEEK_CLICKS, blk)) != 1:
+        raise ApplyError(f"{why} 요일 차트 블록의 labels(월~일)·clicks 배열이 아님 — 손으로 바꾼 판으로 보임")
+
+
+def convert_j_to_k(h, lay):
+    """레이아웃 판 r2026-10-J → r2026-10-K(01 요일 카드). 바뀌는 곳 = meta · 01 차트 카드(dailyChart) 바로 뒤 · ① 박스 카드 앞에 카드 하나 · 차트 스크립트의 분기 도우미 뒤
+    (스크립트 끝)에 차트 블록 하나. 앵커는 전부 정확히 하나 — 차트 카드와 ① 박스 사이에 닫는 div 밖의 것이 있거나, 분기 도우미가 스크립트 끝이 아니거나, 요일 표지가
+    이미 있으면 FAIL(손으로 바꾼 판, 변환 안 함). 다른 구역·01 차트·① ② ③·서술 표지·CSS 바이트 그대로. 값(막대·clicks·보조 줄)은 뒤의 apply 가 쓴다."""
+    if "weekdayChart" in h or "data-weekday=" in h:
+        raise ApplyError("판 J 인데 요일 카드 표지(weekdayChart · data-weekday)가 이미 있음 — 손으로 넣은 판으로 보임, 변환하지 않음")
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_J}">', f'<meta name="report-layout" content="{LAYOUT_K}">', h)        # ①
+    a, b = span_of(h, 1)                                                                                                           # ② 카드 — 차트 카드 뒤 · ① 박스 앞
+    cv = '<canvas id="dailyChart"></canvas>'
+    if h.count(cv, a, b) != 1 or h.count("① 일별 지표", a, b) != 1:
+        raise ApplyError(f"01 구역에 dailyChart 캔버스 {h.count(cv, a, b)}개 · ① 머리글 {h.count('① 일별 지표', a, b)}개 — 각각 하나여야 함")
+    i = h.index(cv, a) + len(cv)
+    t = h.index("① 일별 지표", a)
+    k = h.rfind('<div class="card"', i, t)
+    ls = h.rindex("\n", 0, k) + 1 if k != -1 else -1
+    if k == -1 or not re.fullmatch(r"(\s*</div>){3}\s*", h[i:ls]):
+        raise ApplyError("01 차트 카드와 ① 박스 사이에 닫는 div 셋 밖의 것이 있음 — 손으로 바꾼 판으로 보임, 변환하지 않음")
+    h = h[:ls] + WEEK_CARD + h[ls:]
+    if h.count("/* saero:mobile-helper") != 1:                                                                                     # ③ 차트 블록 — 분기 도우미 뒤
+        raise ApplyError(f"분기 도우미 시작 표지가 {h.count('/* saero:mobile-helper')}개 — 손으로 바꾼 판으로 보임")
+    j = find1(h, "\n})();\n", h.index("/* saero:mobile-helper")) + len("\n})();\n")
+    if not h.startswith("</script>", j):
+        raise ApplyError("분기 도우미가 차트 스크립트 끝이 아님 — 손으로 바꾼 판으로 보임, 변환하지 않음")
+    h = h[:j] + WEEK_JS.lstrip("\n") + h[j:]
+    check_weekday(h, lay, "변환 뒤")                                                                                               # ④
+    return h
+
+
+def weekday_values(h, R):
+    """판 K 값(매 회차) — 요일 차트 막대 data = compute 01.요일.노출 · clicks = 01.요일.클릭(null 그대로 — 소수 1자리) · 보조 줄 = week_sub. compute 에 "요일" 이 없거나
+    꼴이 다르면 FAIL(옛 값을 남기지 않는다)."""
+    W = (R.get("01") or {}).get("요일")
+    if not (isinstance(W, dict) and all(isinstance(W.get(x), list) and len(W[x]) == 7 for x in ("일수", "노출", "클릭")) and W.get("첫날") and W.get("끝날")):
+        raise ApplyError('compute.json "01.요일" 없음 또는 꼴이 다름(첫날·끝날 · 일수·노출·클릭 7칸) — compute.py 를 판 K 로 다시')
+    i = find1(h, "getElementById('weekdayChart')")
+    j = h.find("</script>", i)
+    blk, n1 = re.subn(r"(label:\s*'하루 평균 노출'\s*,\s*data:\s*\[)[^\]]*", lambda m: m.group(1) + ", ".join(str(int(x)) for x in W["노출"]), h[i:j], count=1)
+    blk, n2 = re.subn(WEEK_CLICKS, lambda m: m.group(1) + ", ".join("null" if x is None else f"{float(x):.1f}" for x in W["클릭"]) + m.group(2), blk, count=1)
+    if n1 != 1 or n2 != 1:
+        raise ApplyError(f"요일 차트 블록 data {n1} · clicks {n2} — 각각 하나여야 함")
+    h = h[:i] + blk + h[j:]
+    return once(WEEK_SUB, lambda m: m.group(1) + week_sub(W) + m.group(2), h)
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
 STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
          (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g), (LAYOUT_G, LAYOUT_H, convert_g_to_h),
-         (LAYOUT_H, LAYOUT_I, convert_h_to_i), (LAYOUT_I, LAYOUT_J, convert_i_to_j))
+         (LAYOUT_H, LAYOUT_I, convert_h_to_i), (LAYOUT_I, LAYOUT_J, convert_i_to_j), (LAYOUT_J, LAYOUT_K, convert_j_to_k))
 
 
 def chain(frm, to):
@@ -1316,7 +1452,9 @@ def apply(h, R, cfg, layout=False):
     config 대조(details 수 · 분기 표지 수 · 판 F 잔액 카드 표지 · 판 G 추가 블록 표지 · 판 H 07 정식표 접기 자리 · 판 I 구역 11·캔버스 7·지면 흔적 0)는 사슬 끝에 한 번(값만 경로 포함).
     판 F·G·H·I 는 compute.json "잔액" 이 없으면 FAIL(balance_values) · 판 G·H·I 블록은 "변경기록"·"성별연령" 이 없으면 '확인 못 함'(extra_values — FAIL 아님).
     판 I 는 01 ① 5칸(날짜·노출·클릭·CTR·CPC)이고 placementChart·10 표를 쓰지 않는다(판 H 까지는 7칸 + placementChart + 10 표 4행).
-    판 J(TRIM_LAYOUTS)는 값 갈래가 더 있다 — KPI 클릭 '건' · 07 노출 쉼표·'적음' · 06 카드 집합(drop_cards) · 04 '(M/D 신규)' 기한(compute 04.신규) · 판 G 블록 글(trim)."""
+    판 J(TRIM_LAYOUTS)는 값 갈래가 더 있다 — KPI 클릭 '건' · 07 노출 쉼표·'적음' · 06 카드 집합(drop_cards) · 04 '(M/D 신규)' 기한(compute 04.신규) · 판 G 블록 글(trim).
+    판 K(WEEKDAY_LAYOUTS)는 사슬 끝에 check_weekday(요일 카드 표지·자리 · 차트 블록 = 분기 도우미 뒤) · 값 갈래 weekday_values(compute "01.요일" — 없으면 FAIL) ·
+    캔버스 수는 판마다(canvases_at — config markers.canvases 8 은 판 K 기준 · 사슬 중간 I·J 검사는 7)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     trim = lid in TRIM_LAYOUTS
@@ -1354,14 +1492,18 @@ def apply(h, R, cfg, layout=False):
     if lid in FOLD07_LAYOUTS:
         check_fold07(h, f"레이아웃 판 {lid} 인데")
     if lid in NOPLACE_LAYOUTS:
-        check_noplace(h, lay, f"레이아웃 판 {lid} 인데")
+        check_noplace(h, lay, f"레이아웃 판 {lid} 인데", lid)
     if trim:
         check_trim(h, cfg, f"레이아웃 판 {lid} 인데")
+    if lid in WEEKDAY_LAYOUTS:
+        check_weekday(h, lay, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     if lid in CARD_LAYOUTS:
         h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
     if lid in EXTRA_LAYOUTS:
         h = extra_values(h, R, trim)                      # 판 G 04·05 추가 블록(매 회차 — compute.json "성별연령"·"변경기록", 없으면 '확인 못 함' · 판 J 글)
+    if lid in WEEKDAY_LAYOUTS:
+        h = weekday_values(h, R)                          # 판 K 01 요일 카드 막대·clicks·보조 줄(매 회차 — compute.json "01.요일", 없으면 FAIL)
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)
@@ -1563,7 +1705,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H·I)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H·I·J)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -1607,6 +1749,9 @@ def main():
         a4, b4 = bounds(new, 4)
         n_new = len(NEW_TAG.findall(new, a4, b4))
         nopl += f" · 06 카드 {now}" + (f"(뺌 {dropped})" if dropped else "") + f" · 04 신규 메모 {n_new}"
+    if lid in WEEKDAY_LAYOUTS:   # 판 K — 운영 세션이 출력에서 요일 카드 보조 줄(기간·일수)을 본다
+        mw = re.search(WEEK_SUB, new)
+        nopl += f" · 요일 카드 {mw.group(0)[len(mw.group(1)):-len(mw.group(2))] if mw else '없음'}"
     print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + fold7 + nopl + (" (변경 없음)" if new == h else ""))
     return 0
 
