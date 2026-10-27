@@ -76,7 +76,7 @@ KPI 합·순위·정렬 같은 값 계산은 compute.py와 공유하지 않는�
  24b. (2026-10-27 판 L 추가) "하루예산 카드 = 예산 기록(balance.json budget) · 원장 SYSTEM 줄" — `--balance` 기록의 "budget"(balance.py 가 읽은 캠페인·그룹 하루예산)과
      `--extra` 원장 사본(변경이력.csv · 변경이력_기록구간.csv)을 직접 읽어(compute.py 와 계산 공유 0) 값(플레이스 실제 한도 = 켜진 그룹 하나면 min(그룹, 캠페인) · 최근 7일 멈춘 수) ·
      보조 줄(파워링크 캠페인 값 · 켜진 그룹 값 · 멈춘 수) · summary(기간 시작 = 그 유형 마지막 하루예산 변경(사람) — 없으면 기록 구간 첫날 · 일수 · 멈춘 수 · 범위) · 목록(멈춘 줄 전부 최신 위 ·
-     시각 · 설정 값)을 다시 센 글과 바이트까지 대조. 예산 기록 없음·fail = '확인 못 함' · 원장 사본 없음·기록 구간이 집계 끝날에 못 미침 = 멈춤 칸 '확인 못 함'.
+     시각 · 설정 값 — 00:00~00:09 줄은 전날 몫 `M/D(요) 밤 · 기록 M/D HH:MM` · 최근 7일·범위도 그 날 · 끝날 다음 날 00:0x 줄은 끝날 몫(2026-10-27 사용자 "전날 밤으로 표시"))을 다시 센 글과 바이트까지 대조. 예산 기록 없음·fail = '확인 못 함' · 원장 사본 없음·기록 구간이 집계 끝날에 못 미침 = 멈춤 칸 '확인 못 함'.
      카드 표지가 하나씩이 아니거나·잔액 기록이 없거나·꼴이 다르거나·예산을 읽은 날 ≤ 집계 마지막 날이면 FAIL. config markers.budget_card 가 없는 판이면 검사 없음.
 
  25. (2026-10-10 매출 작업 A) "01·10·11 서술에 장부 라벨+숫자 0(공개 범위 verdict)" — 01·10·11(판 H 까지 01·11·12) 본문(<script> 앞까지, 태그·표지 뺀 글)에 config `leads.public_labels`
@@ -752,7 +752,9 @@ def _bud_expect(budget, extra_dir, dmax):
                 lrows = [r for r in csv.reader(f)][1:]
             ts = lambda r: dt.datetime(int(r[0][:4]), int(r[0][5:7]), int(r[0][8:10]), int(r[0][12:14]), int(r[0][15:17]))
             inside = [r for r in lrows if r and start <= ts(r).date() <= dmax.date()]
-            names = {lab: ({g["name"] for g in c["groups"]} if c else set()) for lab, (_, c) in T.items()}
+            # 2026-10-27 사용자 "전날 밤으로 표시": 00:00~00:09 멈춤 = 전날 몫(전날이 기간 안일 때) — 집계 끝날 다음 날 00:0x 줄도 끝날 몫
+            late = [r for r in lrows if r and ts(r).date() == dmax.date() + dt.timedelta(days=1) and ts(r).hour == 0 and ts(r).minute < 10]
+            names ={lab: ({g["name"] for g in c["groups"]} if c else set()) for lab, (_, c) in T.items()}
             stops = {}
             for lab, (st, c) in T.items():
                 if c is None:
@@ -771,18 +773,23 @@ def _bud_expect(budget, extra_dir, dmax):
                 marks = [ts(r) for r in inside if changed(r)]
                 t0 = max(marks) if marks else None
                 d0 = t0.date() if t0 else start
-                mine = [r for r in inside if r[2] == "시스템" and r[1] == "광고그룹 하루예산 중단"
+                mine = [r for r in inside + late if r[2] == "시스템" and r[1] == "광고그룹 하루예산 중단"
                         and r[5].split("\n")[0].strip() in names[lab] and sum(r[5].split("\n")[0].strip() in v for v in names.values()) == 1
                         and (t0 is None or ts(r) > t0)]
                 uniq = sorted({(ts(r), r[5].split("\n")[0].strip()): r for r in mine}.items(), key=lambda kv: kv[0][0], reverse=True)
-                out = []
+                out, sday = [], []
                 for (t, _), r in uniq:
                     m = [re.fullmatch(r"하루예산:\s*([\d,]+)원", x.strip()) for x in r[5].split("\n")]
                     m = next((x for x in m if x), None)
-                    out.append((f"{t.month}/{t.day}({YOIL[t.weekday()]}) {t.hour:02d}:{t.minute:02d}", f"하루예산 {m.group(1)}원" if m else "하루예산 —"))
+                    prev = t.date() - dt.timedelta(days=1)
+                    d = prev if (t.hour, t.minute) < (0, 10) and prev >= d0 else t.date()
+                    sday.append(d)
+                    when_txt = (f"{t.month}/{t.day}({YOIL[t.weekday()]}) {t.hour:02d}:{t.minute:02d}" if d == t.date()
+                                else f"{d.month}/{d.day}({YOIL[d.weekday()]}) 밤 · 기록 {t.month}/{t.day} {t.hour:02d}:{t.minute:02d}")
+                    out.append((when_txt, f"하루예산 {m.group(1)}원" if m else "하루예산 —"))
                 lo7 = dmax.date() - dt.timedelta(days=6)
-                stops[lab] = {"d0": d0, "kind": "변경" if t0 else "기록", "n": len(out), "n7": sum(1 for (t, _), _r in uniq if t.date() >= lo7),
-                              "rows": out, "days": (dmax.date() - d0).days + 1, "first": uniq[-1][0][0] if uniq else None, "last": uniq[0][0][0] if uniq else None}
+                stops[lab] = {"d0": d0, "kind": "변경" if t0 else "기록", "n": len(out), "n7": sum(1 for d in sday if d >= lo7),
+                              "rows": out, "days": (dmax.date() - d0).days + 1, "first": sday[-1] if sday else None, "last": sday[0] if sday else None}
     pst, pc = T["플레이스"]
     sp = stops.get("플레이스") if stops else None
     sw = stops.get("파워링크") if stops else None
