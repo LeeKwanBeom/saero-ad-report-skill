@@ -36,7 +36,7 @@
   첫날·끝날 M/D · 일수 7 · 노출 7(반올림 정수) · 클릭 7(소수 1자리 — 그 요일 날이 0 이면 노출 0 · 클릭 null)). 01 차트(지면 전부)와 틀이 달라 평균 × 일수 합 ≠ 01 막대 합이 정상.
 - (2026-10-27 판 L 하루예산 카드 — 사용자 결정 "추천대로 7건만 보여주고 진행해줘") --balance 가 있으면 "예산"(budget_card — balance.json 의 "budget"(balance.py 가 읽은 캠페인·그룹
   하루예산) + --extra 원장 사본의 SYSTEM `광고그룹 하루예산 중단` 줄: 플레이스 실제 한도 · 파워링크 캠페인·켜진 그룹 · 유형마다 기간(마지막 하루예산 변경 뒤 ~ 집계 끝날) 멈춘 수 ·
-  최근 7일 · 멈춘 줄 전부 최신 위). 예산 읽기 실패 = 상태 fail(카드 '확인 못 함' — exit 0) · 원장 사본 없음·extras 꺼짐·기록 구간이 집계 끝날에 못 미침 = 멈춤 상태 '없음'(exit 0) ·
+  최근 7일 · 멈춘 줄 전부 최신 위 — 00:00~00:09 줄은 전날 몫 `M/D(요) 밤 · 기록 M/D HH:MM`(2026-10-27 사용자 "전날 밤으로 표시"))). 예산 읽기 실패 = 상태 fail(카드 '확인 못 함' — exit 0) · 원장 사본 없음·extras 꺼짐·기록 구간이 집계 끝날에 못 미침 = 멈춤 상태 '없음'(exit 0) ·
   예산 기록 꼴이 다르거나 읽은 날 ≤ 집계 마지막 날이면 `[FAIL] 잔액 기록…`(잔액과 같은 길). 09-21 결정(config extras.history.show_system false)은 04 변경 기록 블록 몫 — 이 카드만 SYSTEM 줄을 쓴다.
 """
 import argparse
@@ -672,6 +672,13 @@ def balance_card(bal, kw, inc):
 BUDGET_TYPES = (("플레이스", "PLACE"), ("파워링크", "WEB_SITE"))   # 카드 두 줄 = 캠페인 유형(campaignTp) — 그 밖 유형 캠페인은 카드 밖([주의])
 STOP_KIND = "광고그룹 하루예산 중단"                               # 원장 SYSTEM 줄 유형(references/report-fetch.md — 캠페인·그룹 칸 빈칸, 내용 첫 줄 = 그룹 이름)
 BUDGET_LINE = re.compile(r"^하루예산:\s*([\d,]+)원\s*$")
+STOP_LATE_MIN = 10   # (2026-10-27 사용자 "전날 밤으로 표시") 00:00~00:09 멈춤 줄 = 전날 예산이 자정 직전에 다 쓰인 기록(9/17 광고비 20,312원 · 기록 9/18 00:02)
+
+
+def _stop_day(t, d0):
+    """멈춤 줄 일시 → 그 멈춤의 날(예산을 다 쓴 날). 00:00~00:(STOP_LATE_MIN-1) 이고 전날 ≥ 기간 시작 d0 이면 전날, 아니면 그날."""
+    p = t.date() - dt.timedelta(days=1)
+    return p if t.hour == 0 and t.minute < STOP_LATE_MIN and p >= d0 else t.date()
 
 
 def _when(r):
@@ -777,6 +784,8 @@ def budget_stops(D, cfg, last, B):
     (이름이 안 맞거나 두 유형에 다 있으면 카드에 넣지 않고 [주의]). 유형마다 기간 시작 = 그 캠페인 또는 그 유형 그룹의 하루예산 변경(주체 `사람` · 내용 `변경 전`/`변경 후` 의
     `하루예산…:` 값이 다름) 중 마지막 줄의 일시 — 그 일시 **뒤** 멈춤만 센다(같은 날 앞선 멈춤은 옛 예산) · 일수 = 그 날 ~ 집계 끝날 양끝 포함. 기록 구간 안에 변경이 없으면
     기록 구간 첫날(시작종류 '기록' — 그날 0시부터). 기간 끝 = 집계 끝날(그 뒤 일시 줄은 안 셈). 같은 분 같은 그룹 줄은 한 줄. 최근 7일 = 집계 끝날 포함 7 달력 날 ∩ 기간.
+    (2026-10-27 사용자 "전날 밤으로 표시") 00:00~00:09 멈춤 줄은 전날 몫(_stop_day — 전날이 기간 안일 때만): 목록 `M/D(요) 밤 · 기록 M/D HH:MM` · 최근 7일·범위도 그 날로 ·
+    집계 끝날 다음 날 00:00~00:09 줄도 끝날 몫으로 센다.
     원장 사본 없음 · extras·history 꺼짐 · 기록 구간 없음 · 기록 구간 끝 < 집계 끝날 → {"상태": "없음", "사유"}(카드 멈춤 칸 '확인 못 함' — exit 0)."""
     import extras as X
     ex, warns = X.extras_config(cfg["report_fetch"])
@@ -806,12 +815,13 @@ def budget_stops(D, cfg, last, B):
     if ce < last:
         return {"상태": "없음", "사유": f"기록 구간 끝 {ce.month}/{ce.day} 이 집계 끝날 {last.month}/{last.day} 에 못 미침"}
     inside = [r for r in rows if cs <= when[r[0]].date() <= last]
+    late = [r for r in rows if when[r[0]].date() == last + dt.timedelta(days=1) and when[r[0]].hour == 0 and when[r[0]].minute < STOP_LATE_MIN]
     owner = {}
     for label, _ in BUDGET_TYPES:
         for n in B[label].get("그룹이름", []):
             owner.setdefault(n, set()).add(label)
     per, warn = {label: [] for label, _ in BUDGET_TYPES}, []
-    for r in inside:
+    for r in inside + late:
         if r[2] != "시스템" or r[1] != STOP_KIND:
             continue
         g = r[5].split("\n")[0].strip()
@@ -843,10 +853,12 @@ def budget_stops(D, cfg, last, B):
             m = next((BUDGET_LINE.match(x.strip()) for x in r[5].split("\n") if BUDGET_LINE.match(x.strip())), None)
             return int(m.group(1).replace(",", "")) if m else None
         lo7 = last - dt.timedelta(days=6)
+        day = [_stop_day(when[r[0]], d0) for r in ss]
+        stamp = lambda t, d: _stamp(t) if d == t.date() else f"{d.month}/{d.day}({WD[d.weekday()]}) 밤 · 기록 {t.month}/{t.day} {t:%H:%M}"
         out[label] = {"시작": f"{d0.month}/{d0.day}", "시작종류": "변경" if t0 else "기록", "일수": (last - d0).days + 1, "횟수": len(ss),
-                      "최근7일": sum(1 for r in ss if when[r[0]].date() >= lo7),
-                      "범위": [f"{when[ss[-1][0]].month}/{when[ss[-1][0]].day}", f"{when[ss[0][0]].month}/{when[ss[0][0]].day}"] if ss else None,
-                      "줄": [{"일시": _stamp(when[r[0]]), "하루예산": amount(r)} for r in ss]}
+                      "최근7일": sum(1 for d in day if d >= lo7),
+                      "범위": [f"{day[-1].month}/{day[-1].day}", f"{day[0].month}/{day[0].day}"] if ss else None,
+                      "줄": [{"일시": stamp(when[r[0]], d), "하루예산": amount(r)} for r, d in zip(ss, day)]}
     return out
 
 
