@@ -156,6 +156,128 @@ propose 창 2026-10-22~2026-10-22 · 등록 미룸(사용자): 아니오
 
 ---
 
+# 기능 추가 구현 기준선(하루예산 카드 — 판 L, 2026-10-27) · 브랜치 `feat-20261027-budget`
+점검일: 2026-10-27 08:34 ~ 09:4x KST (기능 추가 회차 **작업(설계+구현, 작은 작업)** — 배포 0 · 첫 적용은 병합 뒤 운영 `/q-saero-run` "보류" 회차). Code 탭 `D:\saero` 하위 세션(부모 = 질문 세션) · Opus 5.5 · xhigh · 울트라코드 끔. 지시문 `D:\saero\saero-ad-report_하루예산카드_작업지시_2026-10-27.md`(부모 세션이 씀).
+기준: 시작 clone — origin/main `ccefe60`(지시문 사실과 같음 — 고칠 파일 마지막 커밋 balance.py·test_balance.py `20d8526` · extras.py `6866817` · 나머지 `88d39da` 전부 같음 → 함수·앵커 다시 볼 것 없음). clone `D:\saero\feat-20261027-budget`(`git clone -c core.autocrlf=false`, 브랜치 `feat-20261027-budget`). **코드 커밋 `00ea918`** + 이 기록.
+지킨 제약: 네이버 = 리허설 `balance.py` 1회 **GET 4**(잔액 1 · 캠페인 1 · 그룹 2 — POST·PUT·PATCH·DELETE 0) · 배포 PUT 0 · origin/main 변경 0 · 운영 작업 폴더 쓰기 0(읽기 = work/ 재료 복사뿐 · HEAD `ccefe60` · work/index.html `18996e51` · balance.json `274f4bdd` · compute.json `4e1471a2` 전후 같음) · data/·registry(audit/exclusions.csv) md5 전후 같음(13파일) · fetch_reports·ingest·archive·exclusions 실행 0 · deploy 는 `push --dry-run` 만 · 브라우저 = playwright 새 임시 프로필(file:// · CDN 2) · 키 파일은 경로만.
+방법: 조정자 혼자 설계·코드·시험·리허설·문서·자체 검토 — **하위 에이전트 0 · 하위 토큰 0**(예산 에이전트 5 · +150만 안).
+
+## 사용자 결정(지시문 원문 — 다시 묻지 않음)
+- 원문(2026-10-27, 차례대로): 1. "26일 날짜에 2만원 광고비가 찍혔어 하루 광고예산과 광고예산에 도달해서 광고가 중단되는것도 조회가 가능해?" → 질문 세션이 원장 SYSTEM 줄 · API GET 으로 조회(26일 20:19 플레이스 그룹 2만원 도달 중단).
+  2. "어제 날짜만 말고 이전에도 한도 도달로 멈췄던적 있는지 다 조회가 가능해?" → "그 시기의 예사나과 멈춘 시각을 다 알고 싶어 너가 엑셀 다운받아서 조회 해줘" → 두 브라우저 ads.naver.com "안전 제한" → 사용자가 손으로 받은 엑셀(8/1~10/27)로 8/31~10/26 23번 전부 플레이스 확인(그룹 1만원 시절 16번 · 9/17 그룹 2만원 뒤 7번).
+  3. "예산안 관련된 내용이라 가장 중요하게 생각해 그래서 나는 1.일별추이 위에 해당 정보를 넣고 싶어 어떻게 넣으면 좋을지 너가 추천해줘" → 추천 A(잔액 카드 아래 한 줄 카드) · B · C.
+  4. "추천대로 진행해주는데 지난 기록은 5개로 나오고 있는 부분은 처음에는 목록숨김처리 되어있다가 누르면 전체 다 나오게 해줘 목록숨김처리로 되어있는 처음에는 몇건이 중지됐나 보여주고 위 내용 적용해서 시각 자료 다시 보여줘" → 목업 2벌째(접기).
+  5. 펼침 범위 질문(지금 예산 기간 7건 / 1만원 시절 포함 23건) → "추천대로 7건만 보여주고 진행해줘".
+- 결정 1~6: 1 자리 = 잔액 카드 아래 한 줄 전체 카드(추천 A) · 2 세는 기간 = 지금 예산으로 바꾼 날 뒤 + 최근 7일 · 3 목록 = 처음 접힘 · summary 에 멈춘 수 · 펼치면 그 기간 전부(10/26 기준 7건 — 1만원 시절 빼고 · 엑셀은 원장에 안 합침) ·
+  4 09-21 결정은 **이 카드에만** 바꾼다(04 표 · 10 · 11 그대로 — config `show_system` false 그대로) · 5 첫 적용 = 보류로 시작 + 맨 위(마스트헤드 ~ 01 머리) 옛/새 전후 비교(1280 · 390) · 6 판 이름 `r2026-10-L`(report-structure 판 G 절 "확장 소재 … 그다음 판" 글 그대로).
+- 승인 글자(목업 2벌째 — 그대로 씀): 머리 `하루예산 · 예산 도달 멈춤` · 값 `플레이스 20,000원` + 작은 글 `· 최근 7일 1번 멈춤` · 보조 줄 `파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번` · summary `9/17 뒤 40일 중 7번 멈춤(9/18~10/26) 펼치기` · 줄 `10/26(월) 20:19` · `하루예산 20,000원`(목업 "41일" 은 질문 세션 셈 틀림 — 양끝 포함 40).
+
+## 바뀐 것(파일별 `wc -l` 전 → 후 · md5 앞 8자리 — 코드 커밋 `00ea918`, 16파일) [실측]
+- `scripts/balance.py` 136 → 249 · 22798629 → 7cd7173d(`read_budget` — GET `/ncc/campaigns` 1 + 캠페인마다 GET `/ncc/adgroups?nccCampaignId=` 1 · "budget" 기록 · 잔액과 따로 실패 · 출력 `[하루예산] …` 줄 · 호출 수 주소마다)
+- `scripts/compute.py` 721 → 912 · 49155df3 → 745f5a33(`budget_card` · `budget_stops` · `_budget_change` — "예산") · `scripts/apply.py` 1760 → 1909 · 0aae37d7 → f8665523(`convert_k_to_l` · `check_budget` · `budget_texts` · `budget_values` · 판 목록 튜플에 L)
+- `scripts/compare.py` 336 → 400 · caf0a3ab → 5d983762(구역 "하루예산 카드(판 L)" 4) · `scripts/validate.py` 1136 → 1345 · d5ff13f4 → f748f3fb(23 레이아웃 판에 판 L 표지 · 새 검사 24b `check_budget_card` — 독립 재셈)
+- `config/report-config.json` 359 → 360 · f814cee8 → a584798e(`layout_id` r2026-10-L · `markers.details` 7 · 새 `markers.budget_card` 1 · `_comment` 판 L)
+- `tests/test_balance.py` 330 → 441 · 430f9228 → c7b83314 · `tests/test_apply.py` 1566 → 1893 · 867b1d00 → baf9b3aa · `tests/chart_check.py` 970 → 1075 · 19150b05 → b57bbcd9 · `tests/mutation_test.py` 642 → 751 · aa1b0218 → 8df1c6c5 ·
+  `tests/fixtures/layout_old.compute.json` 681 → 747 · 796a3490 → 0c9715f9("예산" 추가 — 다른 바이트 그대로)
+- `SKILL.md` 732 → 743 · fe0bdcf9 → e2f52d9f · `references/report-structure.md` 948 → 1017 · bd7bb762 → 98322523 · `references/code-tab.md` 327 → 334 · 94973c76 → 77c5c007 · `references/css-and-layout.md` 308 → 315 · 3c2862d0 → f0c9b664 · `audit/checklist.md` 580 → 588 · be59fc5b → 07160dfd · `audit/last-audit.md`(이 절) · `local/` 변경 0(설치본 교체 없음)
+- 흐름: 5단계 balance.py(잔액 + 하루예산 GET) → compute(`예산` = 예산 기록 + `--extra` 원장 사본 SYSTEM 줄) → apply `--layout` — meta r2026-10-K 판 → `convert_k_to_l`(CSS 두 줄 · 잔액 카드 뒤 카드 하나) → 사슬 끝 `check_budget` → 값 `budget_values`
+  → 서술(바꿀 표지 0) → 6 precheck(validate **32** — 레이아웃 판에 하루예산 카드 · 새 24b · compare **107**(새 4) · overflow · narrative) → 7 deploy 게이트(`--layout-change`) 그대로.
+
+## 임의 결정(번호 = 사용자가 바꿀 단위)
+1. 예산 기록 = balance.json 새 키 `budget`(같은 파일·같은 실행 — 지시문 기본) — 캠페인·그룹마다 `id`·`name`·`type`(campaignTp·adgroupType)·`useDailyBudget`·`dailyBudget`(원 버림)·`userLock`·`status` + `read_at`. 꼴이 다르면(목록 아님 · 이름·유형 문자열 아님 · bool 아님 · 숫자 아님·NaN·음수 · nccCampaignId 없음·다름) 예산 전체 fail(반쪽 목록 0).
+2. 예산 읽기는 잔액 실패와 무관하게 늘 시도(키 파일 문제면 둘 다 fail · 호출 0). 출력 `[잔액]` 줄의 GET 수 = bizmoney 주소 호출 수만 · 둘째 줄 `[하루예산] … · GET /ncc/campaigns N회 · /ncc/adgroups N회 · 이 실행 호출 합 N회(전부 GET — 쓰기 0)`.
+3. 캠페인 유형 → 카드 줄: `PLACE` = 플레이스 · `WEB_SITE` = 파워링크. 유형마다 캠페인 하나 — 둘 이상이면 켜진(userLock false) 것이 하나일 때 그것, 아니면 그 유형 `확인 못 함` + `[주의] 하루예산 카드 — …`. 그 밖 유형 캠페인은 `[주의]` 만.
+4. 켜진 = userLock false(status 는 안 봄 — 예산 도달로 PAUSED 여도 켜진 그룹). 캠페인 userLock = `꺼짐`(멈춤은 계속 셈).
+5. **예산 읽기 실패(또는 판 L 전 balance.json — budget 키 없음)면 카드 전체 `확인 못 함`**(값 · 보조 줄 `M/D(요) HH:MM 조회 실패` · summary `멈춤 기록 확인 못 함 — 하루예산 조회 실패` · 빈 목록 — 잔액 카드와 같은 꼴). 까닭: 멈춤 줄은 예산 읽기의 그룹 이름으로만 유형을 가른다(지시문 규칙 — 다른 길로 가르면 틀릴 수 있음). 지시문 "카드의 예산 칸만 확인 못 함" 의 '예산 칸' = 이 카드로 읽음 — 검증·사용자가 다르게 보면 이월 1.
+6. 멈춤 유형 가르기 = 그 유형 캠페인의 **모든** 그룹 이름(꺼진 그룹 포함 — 기간 안에 켜져 있다 꺼진 그룹의 멈춤도 진짜 멈춤) · 이름 정확히 같음 · 안 맞거나 두 유형에 다 있으면 안 셈 + `[주의]`.
+7. 기간 시작 = 마지막 하루예산 변경 줄의 **일시(분)** — 그 뒤 멈춤만 센다(9/17 13:02 1만원 줄은 빠짐) · 일수는 그 날부터 양끝 포함. 변경 판정 = 주체 `사람` · 내용 `변경 전`/`변경 후` 의 `하루예산`으로 시작하는 칸(`하루예산:` · `하루예산 사용여부:`) 값이 다름 ·
+   대상 = 캠페인 칸 = 그 캠페인(그룹 칸은 그 캠페인 그룹 또는 빈칸) 또는 캠페인 칸 빈칸이고 그룹 칸·내용 첫 줄이 그 유형 그룹·캠페인 이름. 유형 단위(꺼진 그룹 변경도 시작을 옮김 — 이월 4).
+8. 기록 구간 = 마지막 연속 구간(04 변경 기록과 같은 규칙) · 끝 < 집계 끝날이면 멈춤 `없음`. 기록 구간 안에 변경이 없으면 기록 구간 첫날 0시부터 — summary 앞에 `기록 시작 `(`기록 시작 9/12 뒤 45일 중 …`).
+9. 최근 7일 = 집계 끝날 포함 7 달력 날 **∩ 기간**(바꾼 지 7일 안이면 바꾼 뒤만). 같은 분 같은 그룹 줄 = 한 줄. 집계 끝날 뒤 일시 줄은 안 셈.
+10. 접기(summary · 목록) = **플레이스 기간** · 파워링크는 보조 줄 `멈춤 N번`(파워링크 기간 — 지금 기록 시작 9/12 뒤 0번)만 — 목록에 파워링크 줄을 섞으려면 줄 꼴(그룹 이름)이 새 글자라 묻는다(이월 2).
+11. 켜진 플레이스 그룹 둘 이상 → 값 `플레이스 30,000원(그룹마다 N원 | 그룹 a~b원)`(파워링크 꼴) · 0개 → `플레이스 켜진 그룹 없음` · 한 개 = min(그룹, 캠페인)(한도 없는 쪽 빼고 · 둘 다 없으면 `제한 없음`).
+12. 그룹 괄호 글: `그룹마다 N원`(다 같음) · `그룹 a~b원`(다름) · `그룹 제한 없음`(전부 한도 없음) · `그룹 a원~제한 없음`(섞임) · `켜진 그룹 없음`. 캠페인 한도 없음 = `제한 없음`.
+13. 0번 summary `M/D 뒤 N일 중 멈춤 0번 펼치기` + 빈 목록(details 수 고정) · 범위가 하루면 `(10/26)` · 줄 설정 값 없으면 `하루예산 —` · 멈춤 셈 못 함 summary `멈춤 기록 확인 못 함 — <사유>`(펼치기 글 없음) · 작은 글 `· 최근 7일 멈춤 확인 못 함` · 보조 줄 `· 멈춤 확인 못 함`.
+14. 마크업: 카드 `<div class="kpi kpi-wide" data-budget="card" style="--accent:#1c2b2a;">` · 값 `data-budget="value"`(`플레이스 20,000<span class="unit">원 · 최근 7일 1번 멈춤</span>` — 작은 글 = 기존 `.unit`) · 보조 줄 `.sub data-budget="sub"` ·
+   `<details class="fold budget-fold" data-budget="fold">` · `<summary class="fold-more" data-budget="summary">` · 목록 `<div class="budget-stops" data-budget="list">` 줄마다 `<div><span>시각</span><span>설정 값</span></div>`(표·td 0 — 01 앞 첫 일치 앵커 보호).
+15. 새 CSS 두 줄(팔레트 변수만): `.kpi .budget-fold{margin-top:8px;position:relative;}`(장식 원 위로) · `.budget-stops > div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:4px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink);}`. 아이콘 = 계기판(반원 · 바늘 · 중심점) 라인 svg.
+16. config 새 키 `report_layout.markers.budget_card` 1(판 F `balance_card` 꼴) · `markers.details` 6 → 7 · 판 L 은 `CARD_LAYOUTS`·`EXTRA_LAYOUTS`·`FOLD07_LAYOUTS`·`NOPLACE_LAYOUTS`·`TRIM_LAYOUTS`·`WEEKDAY_LAYOUTS` 에도 · 새 `BUDGET_LAYOUTS`.
+17. compute 출력 키 `예산` = {`상태`·`기준` · `플레이스`·`파워링크`(`상태`·`캠페인이름`·`캠페인`·`그룹`·`그룹이름` · 플레이스 `한도`) · `멈춤`(`상태`·`끝`·`기록구간` · 유형마다 `시작`·`시작종류`(변경|기록)·`일수`·`횟수`·`최근7일`·`범위`·`줄`[`일시`·`하루예산`]) · `주의`}. 예산 기록이 지난 회차(읽은 날 ≤ 집계 끝날)·꼴 다름 = compute `[FAIL] 잔액 기록: …`(잔액과 같은 길 — exit 1).
+18. validate 새 검사 24b "하루예산 카드 = 예산 기록(balance.json budget) · 원장 SYSTEM 줄"(검사 31 → **32** — 레이아웃 판과 따로: 값 독립 재셈 · csv 모듈 · compute 공유 0) · 23 레이아웃 판에 표지·자리(PASS 끝 `· 하루예산 카드 1`).
+19. compare 4항목은 화면 글을 숫자로 읽어 compute 와 대조(글자 바이트 대조는 validate 24b 몫) · 103 → **107**.
+20. chart_check: `TOPJS`·`top_ok` 가 `.kpi-wide` 둘(잔액 다섯째 · 하루예산 마지막) · `BUDJS`·`bud_ok`(처음 닫힘 → summary 진짜 눌러 펼침 → 다시 닫힘 — 목록 보임은 `checkVisibility()`: 닫힌 details 안은 content-visibility:hidden 이라 크기가 남는다, 실측) ·
+    인쇄 훅에 `budgetOpen` · `pdf_budget_ok`(pypdf 쪽별 글자 — 머리 · summary · 목록 줄 시각 전부 한 쪽) · PAGE 의 03 summary 기준 `summary.fold-more:not([data-budget])`(새 카드 summary 가 문서 첫 summary) ·
+    `shot_top` 을 01 머리 줄 아래까지(판 F~K 비교 그림도 길어짐) · compare.html 맨 앞 "맨 위" 옛/새 + 새 판 펼침 셋째(`<폭>_open_top.png`).
+21. mutation_test: 24b 변조 7(화면 값 5 · 예산 기록 2 — 겨냥 글 `하루예산 카드 =`) · 레이아웃 판 변조 2(잔액 카드 앞으로 · 카드 뒤 다른 카드) · 0건 가드 2 · 새 `budget_compare_experiments`(6c — 값 변조 6).
+22. 시험: test_balance `Route`(주소마다 답하는 가짜 sender) 새 5 · 옛 시험 3곳(호출 목록 · 실패 기록 칸 · 429 재시도 수)을 판 L 꼴로 · test_apply `at()` 가 판 L 전(H~K)을 details 6 · budget_card 없음으로 · `ApplyLayoutK` 는 `at(cfg, K)` · 새 `ApplyLayoutL` 5 · `ComputeBudget` 4 · 고정 숫자 단언(details 5/7개 → 6/8개 · config 판 K → L) · `ApplyRehearsal` 판 L.
+
+## 리허설 결과 [실측 — 09:0x~09:2x KST, 작업 clone 코드 · 이 PC Code 탭 · Git Bash · venv · clone `work/`(git 무시)]
+- **재료**(운영 `work/` 에서 복사 — 읽기만): `combined/` CSV 4 · `extra/` 4(원장 사본 146줄 · 기록 구간 9/12~10/26) · 운영 `index.html` = 10/27 배포본 c692679(md5 **18996e51** = live_ok public_md5) → `work/RX/same/index.html`·`prev.html`(같은 기간 첫 적용 흉내).
+- **R1 balance.py 실제 1회**(`--key-file ~/naver-api.keys.json --out work/RX/same/balance.json`, 09:09 KST): `[잔액] 481,449원 · 10/27(화) 09:09 기준(KST) · GET /billing/bizmoney 1회` ·
+  `[하루예산] 새로필라테스 파워링크 30,000원(켜진 그룹 3 · 15,000원) · 플레이스#1 30,000원(켜진 그룹 1 · 20,000원) · GET /ncc/campaigns 1회 · /ncc/adgroups 2회 · 이 실행 호출 합 4회(전부 GET — 쓰기 0)` exit 0 ·
+  기록(a3e3d6df) = 지시문 질문 세션 값과 같음(플레이스 그룹 `새로필라테스` LOCAL_AD 20,000 · 캠페인 30,000 / 파워링크 캠페인 30,000 · 켜진 그룹 노원역·상계동·노원산전 각 15,000 · 꺼짐 노원키즈 15,000 · `새로필라테스 파워링크` 30,000).
+- **R2 5단계**: compute(`[주의] 장부 확인 못 함(장부 없음)` — 운영과 같음 · `하루예산 ok(플레이스 20000 · 멈춤 ok 9/17 뒤 40일 7번)`) → apply `--layout`: `레이아웃 판 변환(r2026-10-K → r2026-10-L, 분기 2)` · 끝 `· 하루예산 카드 플레이스 20,000원 · 최근 7일 1번 멈춤 · 파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번 · 9/17 뒤 40일 중 7번 멈춤(9/18~10/26) 펼치기 · 목록 7줄` ·
+  목록 = 10/26(월) 20:19 · 10/12(월) 18:02 · 9/30(수) 22:46 · 9/28(월) 21:06 · 9/22(화) 21:58 · 9/18(금) 13:27 · 9/18(금) 00:02 — 전부 `하루예산 20,000원` = **지시문 실측 7줄과 같음**.
+- **R2b 회귀 바이트**: 배포본(18996e51) ↔ 결과(**ef70407f**) 줄 diff = meta 한 줄 · CSS 4줄(주석 2 + 규칙 2) · 잔액 카드 값·보조 줄(새 GET — 481,449원 · 09:09) · 새 카드 뿐 — 다른 구역·카드 넷·서술 표지·스크립트 바이트 그대로.
+- **R3 precheck**(`scripts/precheck.sh work/RX/same/index.html work/combined work/RX/same/prev.html`): **validate 32/32**(레이아웃 판 PASS 끝 `· 요일 카드 1 · 하루예산 카드 1` · 24b PASS) · compute(8c2665f8) → **compare OK 107 / DIFF 0** · overflow 360·390·430 넘침 0(details 8 연 상태 — 접기 7 + 04 변경 기록 1) · narrative `[주의] 같은 기간 — 대조 생략` · 도장 rc 0(`work/precheck_1027l.log`).
+- **R4 deploy** `push --file work/RX/same/index.html --base work/RX/same/prev.html --dry-run`: 도장 확인 · **`[주의] 레이아웃 판이 바뀜 — … 직전 배포본(--base) r2026-10-K → 작업본(--file) r2026-10-L`** · 배포본 = --base md5 18996e51 확인(최신 sha 4edbeb5) · 자격 증명 확인 · 쓰기 권한 참 · `[dry-run] PUT을 보내지 않음` rc 0(`work/deploy_dry_1027l.log`).
+- **R5 chart_check** `work/RX/same/index.html work/RX/same/compute.json --base work/RX/same/prev.html --out work/chart_1027l`: **PASS 45 / FAIL 0** — 폭마다 `.kpi-wide` 둘(잔액 자리 4 · 하루예산 자리 5 = 마지막) · 하루예산 처음 닫힘(1280 133px · 390 119px) → 펼침(302 · 288px · 목록 7줄 = compute · 넘침·겹침 0) → 다시 닫힘(높이 같음) ·
+  인쇄 390·1280 `beforeprint·afterprint 접기 열림 [True, False]` · PDF 1쪽에 머리·summary·목록 7줄 시각 9/9 · "섹션 1·6 높이 = 기준"(1280 [1093, 481] 같음) · "인쇄 1280 PC PDF = 기준"(이미지 구성 같음) · 문서 390 9,577 → 9,706px · 외부 요청 허용 2 · 차단 0.
+  (개발 중 첫 실행 `work/r0` — 같은 재료 · 가짜 예산 기록: 닫힌 목록 '보임' 판정이 getClientRects 라 FAIL 4 → `checkVisibility()` 로 고침 — 임의 결정 20)
+- **R6 전후 비교**: **`work/chart_1027l/compare.html`** 맨 앞 "맨 위(마스트헤드 ~ 01 머리)" 옛(판 K)/새(판 L 처음)/새(접기 펼침) — 1280 · 390 + 04·05·01·06 옛/새 — 첫 적용 보류 회차 재료. 눈 확인: 승인 목업 글자 그대로 · 390 에서 `원 · 최근 7일 1번 멈춤` 한 줄 · 목록 두 칸 한 줄.
+- **R7 변조**: `mutation_test`(R3 산출 + 옆 compute.json · balance.json · extra/) **검사 32개 중 변조로 FAIL 확인 32 · 변조 67 + 0건 가드 29 + archive 7 = [OK] 103 · compare 실험 [OK] 11**(판 K 5 + 판 L 6 — 각각 그 항목만 DIFF · exit 1) · config 실험 7 · 원본 md5 동일(`work/mutation_1027l.log`).
+- **네트워크**: 네이버 GET 4(R1) · GitHub GET(dry-run sha·본문·권한 — 읽기) · cdnjs 2(chart_check) 뿐 · 쓰기 0.
+
+## 전체 시험(커밋 전 한 번 — 09:2x KST)
+py_compile scripts/·tests/ 전부 OK · bash -n 2 OK · **test_apply 72**(새 `ApplyLayoutL` 5 · `ComputeBudget` 4 · 리허설 RX 판 L — skip 0) · **test_balance 18**(새 5) · test_deploy 45 · test_exclusions 49(registry `9f027641` 전/후 같음) · test_extras 21 · test_fetch_reports 25 · test_ingest 10(data/ 12파일 md5 전/후 같음) · test_leads 23 · test_narrative_check 7 · test_place 10 · test_validate_07 14 — 전부 OK(`work/fulltest_1027l.log`) · mutation_test 위 R7.
+test_compare_sections(`<index.html> <compute.json>` 인자 시험 — 리허설 결과로): 14경우 중 `09 콜아웃 2위 동률 시간 빼기` 하나 [MISS](지울 자리 없음) — **배포본(판 K 18996e51 · 운영 compute.json)으로 돌려도 같은 [MISS]**: 10/26 데이터의 09 2위(15시 46건)에 동률 시간이 없는 날이라 그 경우를 만들 수 없음(데이터 조건 — 판 L 무관 · 이월 아님). 나머지 경우·원본 md5 그대로.
+
+## 자체 검토(지시의 [검토 깊이 규칙] — 조정자 1회 · "다음 단계로 가도 된다" · 막음 0 · 같이 0)
+- 완료 기준 표: 1 카드 값 = 예산 기록 · 멈춤 = 원장 SYSTEM 줄(compare 새 4 · validate 24b · mutation 24b 7 · compare 6c 6 · R1·R2 값 = 지시문 실측) · 2 GET 만 · 키 0 · 실패해도 잔액·회차·종료 코드 그대로(test_balance 새 5 — `test_source_has_get_only` 가 원문 request 메서드 GET 셋뿐) ·
+  3 판 L 규약(test_apply `ApplyLayoutL` · validate 23 · R2·R4) · 4 접기(chart_check 처음 닫힘·펼침·다시 닫힘·인쇄) · 5 다른 구역 바이트 그대로(R2b · compare 기존 103 OK · test_apply 범위 시험) · 6 넘침 0 · pageerror 0(R3 overflow · R5) ·
+  7 팔레트 밖 색 0(카드 색 = `#1c2b2a` 하나 · CSS 는 `var(--line)`·`var(--ink)` 뿐 — test_apply 가 대조) · 새 CDN·파일 0 · 8 문서 = 코드(아래) · 9 리허설 끝까지(위 R1~R7) — 전부 참.
+- 막음 후보로 본 것: (가) 예산 읽기에 쓰기 호출이 섞이는 길 — 원문 GET 셋뿐(시험) · 가짜 sender 호출 목록 전부 GET·본문 없음 · 실제 R1 호출 합 4(전부 GET). (나) 멈춤 수가 조용히 틀리는 길 — 같은 날 변경 앞 멈춤 · 같은 분 겹침 · 집계 끝날 뒤 줄 · 이름 안 맞음 · 변경이 기록 구간 밖 —
+  `ComputeBudget` 손 계산 기대값 + validate 24b 독립 재셈이 같은 HTML 을 PASS · 값 하나 바꾸면 FAIL. (다) 다른 구역 숫자 변화 — R2b 바이트 diff · compare 기존 항목 OK. (라) 키 노출 — reason 은 범주 글 · 세부는 `_mask` · 시험이 키를 되돌려 주는 서버로 대조. 막음 0.
+
+## 문서 = 코드(조정자 grep 대조)
+- 고친 곳: report-structure.md 레이아웃 판 절(머리 r2026-10-L · 판 목록 · 표지 · 사슬 · 접기 표에 KPI 하루예산 줄 · 기계 자리 규칙 한 줄 · 판 L 문단(사용자 원문 · 결정 1~6 · 변환 · 표지 · 값 · 보호 · 검사 · 높이 · 첫 적용)) · 목차 · "KPI 요약" 새 소절 "하루예산 카드(판 L)"(보이는 글 · 다른 꼴 · 정의 · 10/26 값 · 09-21 결정 범위) ·
+  04 절 SYSTEM 줄 486행 · 10 작성 기준 7) 867행(09-21 결정 범위 = 04 블록·10·11 — 이 카드만 예외) · SKILL.md(레이아웃 판 줄 · 5단계 balance 줄 · 하루예산 카드 문단 · apply 사슬·FAIL 꼴 · validate 23 판 L · 27 의 SYSTEM 0 범위 · 새 24b · compare 107 · 파일 목록·시험 목록) ·
+  code-tab.md(work/ 줄 · 5단계 balance·compute·apply · 4절 첫 적용 목록에 판 L · 실패 표 2줄(`[주의] 하루예산 확인 못 함` — 멈춤 아님 · compute `[주의] 하루예산 카드 — …`) · 5절 출력 표 balance 줄) · css-and-layout.md(판 L 줄 · 클래스 목록 둘 · 접기 수 7) ·
+  checklist([의도된 동작] 34 신설 · 16 validate 32·compare 107·mutation 수 · [되돌리면 안 되는 것] 레이아웃 판 행에 판 L · 잔액 카드 행에 GET 만) · config `_comment`.
+- grep 대조(`지금 r2026-10-K` · `config r2026-10-K` · `(103항목` · `compare 103` · `검사 31개` · `details 6)` — SKILL.md · references/*.md · audit/checklist.md · local/*/SKILL.md · scripts · tests): 남은 것 = 날짜·판이 박힌 역사 기록(판 H·I·J·K 문단 · 이력)과 판 K 시험(`ApplyLayoutK` — `at(cfg, K)`)뿐. `local/` 변경 0.
+
+## 이월(한 줄씩 — 막음 아님)
+1. 예산 읽기 실패면 멈춤 칸도 '확인 못 함'(임의 결정 5) — 지시문 "예산 칸만" 을 멈춤은 남기는 뜻으로 읽으면 키워드 보고서 `캠페인`·`광고그룹` 으로 그룹 → 유형을 가르는 두 번째 길이 필요(가끔 · 요란).
+2. 파워링크 멈춤이 생기면 접기 목록에 넣을지 · 줄 꼴(그룹 이름)은 새 글자라 사용자 결정(지금 0번 — 8/31~10/26 23번 전부 플레이스).
+3. 회차 당일(집계 끝날 뒤) 하루예산을 바꾸면 그날 카드는 값 = 새 예산 · 접기 = 옛 예산 기간(각각은 정의대로 참 — 다음 회차에 맞춰짐 · 가끔).
+4. 꺼진 그룹의 하루예산 변경도 유형 기간 시작을 옮긴다(임의 결정 7 — 여러 우연).
+5. 켜진 플레이스 그룹 둘 이상이면 실제 도달 한도(캠페인이 합을 묶음)를 셈하지 않고 `캠페인(그룹마다)` 로만(여러 우연 — 지금 하나).
+6. SYSTEM `광고그룹 하루예산 재개` 줄은 안 셈(멈춘 시간 길이 미표시 — 승인 모양 밖).
+7. 같은 분 같은 그룹 겹친 줄의 설정 값이 다르면 compute(첫 줄) · validate(마지막 줄)가 갈려 validate FAIL(요란 · 여러 우연).
+8. 지시문 [진행]의 `test_deploy(격리 env)` 는 test_deploy 가 스스로 자식 환경의 `GIT_*` 를 지운다(따로 env 를 만들지 않음 — 판 K 와 같음).
+
+## 검증 회차가 볼 것(완료 기준 표 줄로 — 판정만, 쓰기 0 · 네이버 0)
+1 카드 예산 값 = 예산 기록 · 멈춤 수 · 기간 시작 · 일수 · 최근 7일 · 목록 줄 · 시각 · 설정 값 = compute(원장 사본 SYSTEM 줄) — compare 새 4 · validate 24b · mutation(24b 7 · 6c 6) · `ComputeBudget` · 리허설 balance.json 사본(a3e3d6df)으로 사본 재실행 ·
+2 GET 만 · 키 0 · 실패 갈래(test_balance 새 5 · balance.py 원문) · 3 판 L 규약(meta · config · 사슬 K → L · 옛 판 → … → L · 멱등 · `--layout` 없이 K FAIL 문구 · deploy 게이트 — test_apply `ApplyLayoutL` · R4) · 4 접기(chart_check — 막음 후보가 있을 때만 다시 잼) ·
+5 다른 구역 바이트(R2b diff · compare 기존 항목) · 6 넘침·pageerror(R3·R5 기록) · 7 색·CDN · 8 문서 = 코드 · 9 리허설 R1~R7 기록 = 작업 clone `work/` 산출.
+
+## 마무리 기록(이번 회차)
+효율: 벽시계 약 70분(08:34~09:4x KST — 시험·리허설·문서 포함) · 하위 에이전트 0 · 조정자 즉석 코드(저장소 밖 스크래치) — 패치 스크립트(balance·compute·apply·config·compare·validate·시험 4·문서 6) · 리허설 명령.
+쓴 곳: 브랜치 커밋 `00ea918`(코드·시험·문서) + 이 기록 · 브랜치 push 1회(main 아님) · 저장소 밖: 검증 지시문 `D:\saero\saero-ad-report_하루예산카드_검증지시_회차1_2026-10-27.md` · 공유 노트 `하루예산카드_구현_끝_2026-10-27.md`.
+
+## 첫 적용 본보기(병합 뒤 운영 `/q-saero-run` — 판 L 첫 적용 · 보류로 시작)
+1. 첫 말: "**판 L(하루예산 카드) 첫 적용 — 보류로 시작 — 6단계 도장까지만, 배포는 내가 말함**".
+2. 평소대로 ①~5 — 5단계 첫 줄 balance.py 출력에 둘째 줄 `[하루예산] … · 이 실행 호출 합 4회(전부 GET — 쓰기 0)`(또는 `[주의] 하루예산 확인 못 함(<사유>)` — 멈춤 아님, 카드 '확인 못 함') ·
+   apply `--layout` 출력에 `레이아웃 판 변환(r2026-10-K → r2026-10-L, 분기 2)` 와 끝 `· 하루예산 카드 플레이스 N원 · 최근 7일 N번 멈춤 · 파워링크 … · M/D 뒤 N일 중 N번 멈춤(…) 펼치기 · 목록 N줄` 확인
+   (`--layout` 없이 돌리면 `meta r2026-10-K ≠ config r2026-10-L` FAIL — 작업본 그대로 · compute.json 에 `예산` 이 없으면 `[FAIL] apply: … "예산" 없음 또는 꼴이 다름`).
+3. 서술 스크립트(n<날짜>.py — 저장소 밖): **바꿀 표지 0**(10·11 은 SYSTEM 줄을 쓰지 않는다 — 09-21 결정 범위 그대로).
+4. 6 precheck(validate **32** — "레이아웃 판" PASS 끝 `· 하루예산 카드 1` · 24b PASS · compare **107**(새 4) · overflow · narrative) → 도장.
+5. 전후 비교: `"$PY" tests/chart_check.py work/index.html work/compute.json --base work/prev.html --out work/chart_<날짜>` → `work/chart_<날짜>/compare.html` 맨 앞 "맨 위" 옛/새/펼침(1280 · 390) — 폭마다 하루예산 카드 4줄·인쇄 PASS.
+   사용자에게 광고시스템 화면의 하루예산(플레이스 그룹 · 파워링크 캠페인·그룹)과 카드 값을 한 번 대조해 달라고 한다.
+6. 사용자 "배포" 답 뒤에만 7단계 실제 push 에 `--layout-change`(답 전에는 dry-run `[주의] 레이아웃 판이 바뀜 … r2026-10-K → r2026-10-L` 만).
+
+---
+
 ## 검증·병합 기록(2026-10-26 — 01 요일 카드(레이아웃 판 r2026-10-K): 검증 1(막음 0) → main 병합)
 검증 세션: `D:\saero-verify` 하위 세션(Sonnet 5.5 · 울트라코드 켬 — 폴더 설정) · 검증 clone `D:\saero-verify\feat-20261026-weekday-1`(`git clone -c core.autocrlf=false`) · 대상 = 브랜치 `feat-20261026-weekday` 코드 `88d39da` + 기록 `7202d34`(origin/main `2347e78` 위 — 시작 전·끝 `git ls-remote` 일치 · main 안 앞섬). 전문 = `D:\saero-verify\saero-ad-report_검증_01요일카드_회차1_2026-10-26.md`(판정만 — 검증 clone 커밋 0).
 방식: 조정자 직접 — 사본 재실행(compute → apply 판 J FAIL 문구 → `--layout` → 멱등 → precheck) · 독립 재계산(`csv` 모듈로 합본에서 요일 7칸을 다시 셈) · 시험 4종 · mutation_test + 워크플로 에이전트 3(Sonnet 5.5 상속 · Opus 0 · 하위 토큰 615,460): apply 판 변환·차트 JS · 검증기·deploy 게이트·시험 실효성(변조 46종) · 문서·바이트·팔레트·자격 증명. 네이버 0 · 배포 PUT 0 · push 0.
