@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) 시험 — scripts/balance.py · compute.py --balance · validate.py "광고비 잔액 카드".
+"""광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) · 하루예산 읽기(판 L, 2026-10-27) 시험 — scripts/balance.py · compute.py --balance · validate.py "광고비 잔액 카드".
 
 가짜 API(sender 바꿔 끼우기 — 네트워크 0)·가짜 키 파일(임시 폴더)·합성 CSV 만 쓴다. 실제 키 파일·계정·배포본에 닿지 않는다.
 - balance.py: 성공(원 단위 버림 · 정수 그대로) · customerId 같음(문자열/숫자) → ok / 401·403 · 5xx · 그 밖 코드 · 429 두 번 · 네트워크 · 프록시 · 응답 도중 끊김 ·
   응답 꼴 다름(dict 아님 · bizmoney 없음 · 문자열 · bool · NaN · 무한 · 음수 · customerId 다름) · 예상 못 한 오류 · 키 파일 없음·JSON 아님·칸 없음 → fail 기록(exit 0) ·
-  옛 ok 기록은 실행 시작에 지워져 실패 기록으로 바뀐다(옛 값이 남지 않음) · 기록을 못 쓰면 exit 1·파일 없음 · 호출은 GET /billing/bizmoney 하나뿐(429 재시도만 둘) ·
+  옛 ok 기록은 실행 시작에 지워져 실패 기록으로 바뀐다(옛 값이 남지 않음) · 기록을 못 쓰면 exit 1·파일 없음 · 잔액 호출은 GET /billing/bizmoney 하나뿐(429 재시도만 둘) ·
   서버가 키를 되돌려 줘도 화면·json 에 키 0.
+- balance.py 하루예산(판 L — Route 가짜 서버가 주소마다 답): GET /ncc/campaigns 1 + 캠페인마다 GET /ncc/adgroups?nccCampaignId= 1(10/27 꼴 캠페인 2 → 합 4회 · 전부 GET · 본문 없음) ·
+  기록 "budget"(이름·유형·useDailyBudget·dailyBudget 원 버림·userLock·status · 그룹 목록) · 잔액과 따로: 예산 실패(5xx · 401/403 · 네트워크 · 응답 꼴 다름 9가지)에도 잔액 ok·exit 0 /
+  잔액 실패에도 예산 ok · 키 파일 문제면 둘 다 fail · 호출 0 · 서버가 키를 되돌려 줘도 0 · balance.py 원문의 request 메서드는 GET 뿐(쓰기 호출 0).
 - compute.py --balance: 창 = 키워드 `일별` 달력 7일(빈 날 0원 · 제외 그룹 뺌) · 일분 = ⌊원 × 창일수 ÷ 창합계⌋ · 합계 0 이면 일분 null · 실패 기록 → 상태 fail ·
   읽은 날 ≤ 집계 마지막 날(지난 회차 기록) → [FAIL] exit 1 · 파일 없음·꼴 다름 → [FAIL] exit 1.
 - validate.py "광고비 잔액 카드": 합성 카드 HTML + 합성 키워드 표 — ok·일분 생략·fail 꼴 PASS / 값·시각·며칠분·꼴 하나라도 다르면 FAIL · 지난 회차 기록 FAIL ·
@@ -18,6 +21,7 @@ import io
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -54,6 +58,36 @@ class Fake:
         return a(headers) if callable(a) else a
 
 
+class Route:
+    """sender 자리(판 L) — 주소(쿼리 뗀 경로)마다 정해 둔 답(목록이면 차례로 · 마지막은 되풀이 · 함수면 (headers, url) 을 받아 답). 받은 요청을 적는다."""
+
+    def __init__(self, **answers):
+        self.answers, self.seen = {k: (list(v) if isinstance(v, list) else [v]) for k, v in answers.items()}, []
+
+    def __call__(self, method, url, headers, data):
+        self.seen.append((method, url, dict(headers), data))
+        path = url.split("api.searchad.naver.com", 1)[1].split("?")[0]
+        q = self.answers[{"/billing/bizmoney": "biz", "/ncc/campaigns": "camps", "/ncc/adgroups": "groups"}[path]]
+        a = q.pop(0) if len(q) > 1 else q[0]
+        if isinstance(a, BaseException):
+            raise a
+        return a(headers, url) if callable(a) else a
+
+
+CAMPS = [{"nccCampaignId": "cmp-1", "name": "가짜 파워링크", "campaignTp": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 30000, "status": "ELIGIBLE", "userLock": False},
+         {"nccCampaignId": "cmp-2", "name": "가짜플레이스#1", "campaignTp": "PLACE", "useDailyBudget": True, "dailyBudget": 30000.9, "status": "ELIGIBLE", "userLock": False}]
+GROUPS = {"cmp-1": [{"nccAdgroupId": "grp-1", "nccCampaignId": "cmp-1", "name": "가짜그룹A", "adgroupType": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 15000,
+                     "status": "ELIGIBLE", "userLock": False},
+                    {"nccAdgroupId": "grp-2", "nccCampaignId": "cmp-1", "name": "가짜그룹B", "adgroupType": "WEB_SITE", "useDailyBudget": False, "dailyBudget": 0,
+                     "status": "PAUSED", "userLock": True}],
+          "cmp-2": [{"nccAdgroupId": "grp-3", "nccCampaignId": "cmp-2", "name": "가짜플레이스그룹", "adgroupType": "LOCAL_AD", "useDailyBudget": True, "dailyBudget": 20000,
+                     "status": "ELIGIBLE", "userLock": False}]}
+
+
+def groups_by_query(h, url):
+    return 200, GROUPS[url.split("nccCampaignId=")[1]]
+
+
 class BalanceScript(unittest.TestCase):
     def setUp(self):
         self.td = tempfile.mkdtemp()
@@ -82,7 +116,7 @@ class BalanceScript(unittest.TestCase):
         return rc, rec, text
 
     def test_ok_floor_and_one_get(self):
-        f = Fake((200, {"customerId": CID, "bizmoney": 217817.915506, "budgetLock": False, "refundLock": False}))
+        f = Fake((200, {"customerId": CID, "bizmoney": 217817.915506, "budgetLock": False, "refundLock": False}), (200, []))   # 둘째 답부터 = 캠페인 0개(판 L 예산 GET 1)
         rc, rec, text = self.run_main(f)
         self.assertEqual(rc, 0, text)
         self.assertEqual(rec["status"], "ok")
@@ -92,11 +126,14 @@ class BalanceScript(unittest.TestCase):
         t = dt.datetime.fromisoformat(rec["read_at"])
         self.assertEqual(t.utcoffset(), dt.timedelta(hours=9))          # KST
         self.assertLess(abs((dt.datetime.now(dt.timezone.utc) - t).total_seconds()), 60)
-        self.assertEqual([(m, u.split("?")[0]) for m, u, _, _ in f.seen], [("GET", "https://api.searchad.naver.com/billing/bizmoney")])
+        self.assertEqual([(m, u.split("?")[0]) for m, u, _, _ in f.seen], [("GET", "https://api.searchad.naver.com/billing/bizmoney"),
+                                                                          ("GET", "https://api.searchad.naver.com/ncc/campaigns")])   # 잔액 1 + 판 L 캠페인 1(0개 — 그룹 GET 0)
         self.assertIsNone(f.seen[0][3])                                  # 본문 없음(읽기)
         self.assertEqual(f.seen[0][2]["X-Customer"], str(CID))
         self.assertIn("[잔액] 217,817원 · ", text)
         self.assertIn("GET /billing/bizmoney 1회", text)
+        self.assertEqual(rec["budget"]["status"], "ok")
+        self.assertEqual(rec["budget"]["campaigns"], [])
 
     def test_ok_variants(self):
         for label, resp, want in (("정수", {"bizmoney": 5000}, 5000), (".999 버림", {"bizmoney": 9.999}, 9), ("0원", {"bizmoney": 0.0}, 0),
@@ -110,7 +147,7 @@ class BalanceScript(unittest.TestCase):
         self.assertEqual(rc, 0, text)                                   # 조회 실패로 회차를 멈추지 않는다
         self.assertEqual(rec["status"], "fail", text)
         self.assertIn(reason_part, rec["reason"])
-        self.assertEqual(set(rec), {"status", "read_at", "reason"})      # 숫자 칸 없음
+        self.assertEqual(set(rec), {"status", "read_at", "reason", "budget"})   # 숫자 칸 없음(판 L — 예산 기록은 따로)
         self.assertIn("[주의] 잔액 확인 못 함", text)
         return rec, text
 
@@ -127,7 +164,7 @@ class BalanceScript(unittest.TestCase):
             self.fail_case(f, "429")
         finally:
             B.X.time.sleep = orig
-        self.assertEqual(len(f.seen), 2)                                 # 429 는 NaverApi.request 가 1회 재시도(그 밖엔 1회)
+        self.assertEqual(len([u for _, u, _, _ in f.seen if u.endswith("/billing/bizmoney")]), 2)   # 429 는 NaverApi.request 가 1회 재시도(그 밖엔 1회)
 
     def test_transport_failures(self):
         self.fail_case(Fake(urllib.error.URLError("Tunnel connection failed: 403 Forbidden")), "프록시")
@@ -176,6 +213,80 @@ class BalanceScript(unittest.TestCase):
         self.assertEqual(rc, 1, buf.getvalue())
         self.assertIn("[FAIL]", buf.getvalue())
         self.assertTrue(os.path.isdir(self.out))
+
+    # ── 판 L 하루예산(2026-10-27) ──
+    def test_budget_ok_four_gets(self):
+        r = Route(biz=(200, {"bizmoney": 483628.96}), camps=(200, CAMPS), groups=groups_by_query)
+        rc, rec, text = self.run_main(r)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual((rec["status"], rec["bizmoney"]), ("ok", 483628))
+        self.assertEqual([(m, u.split("searchad.naver.com")[1]) for m, u, _, _ in r.seen],
+                         [("GET", "/billing/bizmoney"), ("GET", "/ncc/campaigns"), ("GET", "/ncc/adgroups?nccCampaignId=cmp-1"), ("GET", "/ncc/adgroups?nccCampaignId=cmp-2")])
+        self.assertTrue(all(m == "GET" and d is None for m, _, _, d in r.seen))       # 전부 GET · 본문 없음(쓰기 0)
+        b = rec["budget"]
+        self.assertEqual(b["status"], "ok")
+        t = dt.datetime.fromisoformat(b["read_at"])
+        self.assertEqual(t.utcoffset(), dt.timedelta(hours=9))
+        self.assertEqual(b["campaigns"][1], {"id": "cmp-2", "name": "가짜플레이스#1", "type": "PLACE", "useDailyBudget": True, "dailyBudget": 30000, "userLock": False,
+                                             "status": "ELIGIBLE", "groups": [{"id": "grp-3", "name": "가짜플레이스그룹", "type": "LOCAL_AD", "useDailyBudget": True,
+                                                                               "dailyBudget": 20000, "userLock": False, "status": "ELIGIBLE"}]})   # 30000.9 → 30000(버림)
+        self.assertEqual([(g["name"], g["userLock"], g["useDailyBudget"]) for g in b["campaigns"][0]["groups"]], [("가짜그룹A", False, True), ("가짜그룹B", True, False)])
+        self.assertIn("[하루예산] 가짜 파워링크 30,000원(켜진 그룹 1 · 15,000원) · 가짜플레이스#1 30,000원(켜진 그룹 1 · 20,000원)", text)
+        self.assertIn("GET /ncc/campaigns 1회 · /ncc/adgroups 2회 · 이 실행 호출 합 4회(전부 GET — 쓰기 0)", text)
+        self.assertIn("GET /billing/bizmoney 1회", text)
+
+    def test_budget_fail_keeps_balance(self):
+        bad_shapes = (("목록 아님", (200, {"data": CAMPS})), ("dailyBudget 문자열", (200, [dict(CAMPS[0], dailyBudget="30000")])),
+                      ("dailyBudget bool", (200, [dict(CAMPS[0], dailyBudget=True)])), ("dailyBudget NaN", (200, [dict(CAMPS[0], dailyBudget=math.nan)])),
+                      ("dailyBudget 음수", (200, [dict(CAMPS[0], dailyBudget=-1)])), ("useDailyBudget 없음", (200, [{k: v for k, v in CAMPS[0].items() if k != "useDailyBudget"}])),
+                      ("이름 없음", (200, [{k: v for k, v in CAMPS[0].items() if k != "name"}])), ("nccCampaignId 없음", (200, [{k: v for k, v in CAMPS[0].items() if k != "nccCampaignId"}])),
+                      ("userLock 문자열", (200, [dict(CAMPS[0], userLock="false")])))
+        for label, camps in bad_shapes:
+            with self.subTest(label=label):
+                rc, rec, text = self.run_main(Route(biz=(200, {"bizmoney": 1000}), camps=camps, groups=groups_by_query))
+                self.assertEqual((rc, rec["status"], rec["bizmoney"]), (0, "ok", 1000), text)    # 잔액 그대로
+                self.assertEqual((rec["budget"]["status"], rec["budget"]["reason"]), ("fail", "응답 꼴 다름"), text)
+                self.assertEqual(set(rec["budget"]), {"status", "read_at", "reason"})           # 반쪽 목록 0
+                self.assertIn("[주의] 하루예산 확인 못 함(응답 꼴 다름)", text)
+                self.assertIn("[잔액] 1,000원", text)
+        other = dict(GROUPS, **{"cmp-2": [dict(GROUPS["cmp-2"][0], nccCampaignId="cmp-9")]})
+        for label, kw, why in (("캠페인 500", {"camps": lambda h, u: (500, {"message": f"oops {h['X-API-KEY']}"})}, "서버 오류(500)"),
+                               ("그룹 403", {"camps": (200, CAMPS), "groups": (403, {"message": "forbidden"})}, "인증·권한"),
+                               ("그룹 404", {"camps": (200, CAMPS), "groups": (404, {"message": "no"})}, "응답 코드 404"),
+                               ("캠페인 네트워크", {"camps": urllib.error.URLError(f"getaddrinfo failed {KEY}")}, "네트워크 오류"),
+                               ("캠페인 끊김", {"camps": TimeoutError("timed out")}, "요청 결과 모름"),
+                               ("그룹 목록 아님", {"camps": (200, CAMPS), "groups": (200, {"x": 1})}, "응답 꼴 다름"),
+                               ("그룹 캠페인 다름", {"camps": (200, CAMPS), "groups": lambda h, u: (200, other[u.split("=")[1]])}, "응답 꼴 다름"),
+                               ("그룹 dailyBudget 없음", {"camps": (200, CAMPS), "groups": (200, [{k: v for k, v in GROUPS["cmp-1"][0].items() if k != "dailyBudget"}])}, "응답 꼴 다름")):
+            with self.subTest(label=label):
+                kw.setdefault("groups", groups_by_query)
+                rc, rec, text = self.run_main(Route(biz=(200, {"bizmoney": 1000}), **kw))
+                self.assertEqual((rc, rec["status"], rec["bizmoney"]), (0, "ok", 1000), text)
+                self.assertEqual(rec["budget"]["status"], "fail", text)
+                self.assertIn(why, rec["budget"]["reason"])
+                self.assertIn("[주의] 하루예산 확인 못 함", text)
+
+    def test_balance_fail_budget_ok(self):
+        r = Route(biz=(500, {"message": "down"}), camps=(200, CAMPS), groups=groups_by_query)
+        rc, rec, text = self.run_main(r)
+        self.assertEqual((rc, rec["status"], rec["budget"]["status"]), (0, "fail", "ok"), text)   # 잔액 실패에도 예산은 따로
+        self.assertIn("[주의] 잔액 확인 못 함(서버 오류(500))", text)
+        self.assertIn("[하루예산] ", text)
+        self.assertEqual(len(r.seen), 4)
+
+    def test_key_file_problem_budget_fail_no_calls(self):
+        r = Route(biz=(200, {"bizmoney": 1}), camps=(200, CAMPS), groups=groups_by_query)
+        rc, rec, text = self.run_main(r, keys=os.path.join(self.td, "없는.json"))
+        self.assertEqual((rc, rec["budget"]["status"], rec["budget"]["reason"], r.seen), (0, "fail", "키 파일 문제", []), text)
+        self.assertIn("GET /ncc/campaigns 0회 · /ncc/adgroups 0회 · 이 실행 호출 합 0회", text)
+
+    def test_source_has_get_only(self):
+        with open(os.path.join(ROOT, "scripts", "balance.py"), encoding="utf-8") as f:
+            src = f.read()
+        methods = re.findall(r'\.request\(\s*"([A-Z]+)"', src)
+        self.assertEqual(sorted(set(methods)), ["GET"])                                  # 쓰기 호출(POST·PUT·PATCH·DELETE) 0 — 판 L 은 GET 만 더한다
+        self.assertEqual(len(methods), 3)                                                # 잔액 · 캠페인 · 그룹
+        self.assertNotRegex(src, r"\.(add_restricted|delete_restricted)\(")
 
     def test_cli_usage(self):
         r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "balance.py")], capture_output=True, text=True, encoding="utf-8")

@@ -41,9 +41,13 @@ playwright chromium 새 임시 프로필(수집 프로필 `~/saero-fetch` 아님
   대조하지 않는다 — 판 C 는 화면 스크롤 자리(S, 최신 쪽)를 따른다).
 - 상단(판 F, 2026-10-09): 폭마다 광고비 잔액 카드 하나가 .kpi-row 마지막 자식 · 좌우 = .kpi-row(한 줄 전체) · 카드 넷 아래 · 카드 넷은 PC 한 줄 / 모바일(≤ max_px) 2·2 ·
   값·보조 줄 글자 넘침 0 · 값 글자 크기 = 카드 넷 · 값·보조 줄 글자 = compute.json "잔액"(apply 와 같은 꼴).
+  (판 L, 2026-10-27 — config markers.budget_card 가 있으면) `.kpi-wide` 둘 = 잔액 카드 다섯째 · 하루예산 카드 여섯째(.kpi-row 마지막 자식 · 잔액 카드 아래 · 한 줄 전체) /
+  하루예산 카드(폭마다): 처음 닫힘 · 값·보조 줄·summary·목록 글 = apply.budget_texts(compute "예산") · summary 글꼴 = 03 접기 summary · 글자 넘침 0 → summary 를 진짜 눌러 펼침:
+  목록 보임 · 줄 수 = compute · 줄마다 시각·설정 값 · 줄 넘침 0 · 두 칸 겹침 0(좁으면 줄바꿈) · 문서 가로 넘침 0 → 다시 눌러 닫힘(처음과 같음) /
+  인쇄(폭마다): beforeprint 때 하루예산 접기 열림 · afterprint 뒤 닫힘 · PDF 한 쪽에 카드 머리·summary·목록 줄 시각 전부(안 잘림 — pypdf 쪽별 글자).
 - --out 이 있으면 모바일·PC 폭의 섹션 1·6 PNG(로드 상태 — 모바일은 접힘 `<폭>_sec1.png` + 둘 다 펼침 `<폭>_open_sec1.png`)와 PDF 를 저장하고,
   --base 도 있으면 기준 캡처 `base_<폭>_sec1.png` 와 전후 비교 페이지 `<out>/compare.html`(옛 판 · 새 판 처음 · 새 판 펼침 나란히, 그림 내장 한 파일 ·
-  높이 표 · 판 F 부터 맨 앞에 상단 카드 영역 `base_<폭>_top.png`·`<폭>_top.png` 옛/새 나란히)을 쓴다 — 첫 적용 보류 회차에 사용자에게 보이는 비교 페이지(2026-10-07 — 이전 회차 생성기 mk_compare.py 는 작업 clone 과 함께 지워짐).
+  높이 표 · 판 F 부터 맨 앞에 상단 카드 영역 `base_<폭>_top.png`·`<폭>_top.png` 옛/새 나란히 — 판 L 부터 마스트헤드 ~ 01 머리 · 새 판 하루예산 접기 펼침 `<폭>_open_top.png` 셋째)을 쓴다 — 첫 적용 보류 회차에 사용자에게 보이는 비교 페이지(2026-10-07 — 이전 회차 생성기 mk_compare.py 는 작업 clone 과 함께 지워짐).
 
 검사로 못 지키는 것 — **사용자 시크릿 창(실기기) 몫**: 실기기 폰트 폭(iOS Safari·삼성 인터넷 — 라벨 겹침이 달라질 수 있음) · 회전 체감·첫 페인트 깜빡임 ·
 iOS 공유→PDF·실제 인쇄 대화상자(beforeprint 가 오는지) · PWA 설치본의 service-worker 캐시(network-first — 온라인이면 첫 열기에 새 판).
@@ -129,7 +133,7 @@ PAGE = """() => {
     let e = cm.nextSibling; while (e && e.nodeType !== 1) e = e.nextSibling; if (!e) continue;
     const r = e.getBoundingClientRect(); secs[m[1]] = {x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: Math.round(r.height)}; }
   const cv = [...document.querySelectorAll('canvas')];
-  const s3 = document.querySelector('summary.fold-more'), st = s3 ? getComputedStyle(s3) : null;   // 문서 첫 접기 summary = 03 "이전 N일" — 펼치기 버튼 글꼴 기준
+  const s3 = document.querySelector('summary.fold-more:not([data-budget])'), st = s3 ? getComputedStyle(s3) : null;   // 하루예산 카드(판 L) 밖 첫 접기 summary = 03 "이전 N일" — 펼치기 버튼 글꼴 기준
   return {canvases: cv.length, charts: cv.filter(c => Chart.getChart(c)).length, missing: cv.filter(c => !Chart.getChart(c)).map(c => c.id),
           docSW: document.documentElement.scrollWidth, docSH: document.documentElement.scrollHeight, secs, scrollY: window.scrollY,
           foldBtns: document.querySelectorAll('.chart-fold').length, sum3: st ? [st.fontSize, st.fontWeight, st.color, st.fontFamily] : null,
@@ -143,6 +147,7 @@ document.addEventListener('DOMContentLoaded', function(){
     ['dailyChart', 'rankChart'].forEach(function(id){ var cv = document.getElementById(id); var c = (window.Chart && cv) ? Chart.getChart(cv) : null; var b = cv ? cv.parentElement : null;
       o[id] = {idx: c ? (c.options.indexAxis || 'x') : null, h: b ? Math.round(b.getBoundingClientRect().height * 10) / 10 : null, styleH: b ? b.style.height : null,
                bitmap: cv ? [cv.width, cv.height] : null, n: c ? c.data.labels.length : null}; });
+    var bd = document.querySelector('[data-budget="fold"]'); o.budgetOpen = bd ? bd.open : null;   // 판 L 하루예산 접기(인쇄 때 접기 스크립트가 연다)
     return o; }
   window.addEventListener('beforeprint', function(){ window.__ev.beforeprint.push(snap('beforeprint')); });
   window.addEventListener('afterprint', function(){ window.__ev.afterprint.push(snap('afterprint')); });
@@ -165,11 +170,16 @@ TIP = "(id) => { const c = Chart.getChart(id), t = c && c.tooltip; return (t && 
 TOPJS = """() => {
   const row = document.querySelector('.kpi-row'); if (!row) return {err: '.kpi-row 없음'};
   const R = (e) => { const b = e.getBoundingClientRect(); return {x: b.left + window.scrollX, y: b.top + window.scrollY, w: b.width, h: b.height, r: b.right + window.scrollX, b: b.bottom + window.scrollY}; };
-  const kids = [...row.children], wides = [...document.querySelectorAll('.kpi-wide')], w = wides.length === 1 ? wides[0] : null;
+  const bv0 = document.querySelector('[data-balance="value"]'), bd = document.querySelector('[data-budget="card"]');   // 판 L — .kpi-wide 둘(잔액 · 하루예산)
+  const kids = [...row.children], wides = [...document.querySelectorAll('.kpi-wide')], w = bv0 ? bv0.closest('.kpi-wide') : null;
   const val = w ? w.querySelector('[data-balance="value"]') : null, sub = w ? w.querySelector('[data-balance="sub"]') : null;
   const v4 = row.querySelector('.kpi:not(.kpi-wide) .value');
+  const s1 = (() => { const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT); let c;
+    while ((c = tw.nextNode())) { if (c.nodeValue.trim().startsWith('Section 1:')) { let e = c.nextSibling; while (e && e.nodeType !== 1) e = e.nextSibling; return e; } } return null; })();
+  const h1 = s1 ? s1.querySelector('.section-head') : null;
   return {row: R(row), n: kids.length, cards: kids.filter(e => !e.classList.contains('kpi-wide')).map(R), wideCount: wides.length, wide: w ? R(w) : null,
-          wideLast: !!(w && kids[kids.length - 1] === w), value: val ? val.textContent : null, sub: sub ? sub.textContent : null,
+          wideLast: !!(w && kids[kids.length - 1] === w), widePos: w ? kids.indexOf(w) : -1, value: val ? val.textContent : null, sub: sub ? sub.textContent : null,
+          bud: bd ? {r: R(bd), pos: kids.indexOf(bd), last: kids[kids.length - 1] === bd} : null, head1: h1 ? R(h1) : null,
           over: (val && sub) ? [val.scrollWidth - val.clientWidth, sub.scrollWidth - sub.clientWidth] : null,
           font: [val ? getComputedStyle(val).fontSize : null, v4 ? getComputedStyle(v4).fontSize : null]};
 }"""
@@ -185,21 +195,82 @@ def top_want(R):
     return "확인 못 함", f"{b['기준']} 조회 실패"
 
 
-def top_ok(t, w, maxpx, R):
-    """판 F 상단 — 잔액 카드 하나 · .kpi-row 마지막 자식 · 좌우 = .kpi-row(한 줄 전체) · 카드 넷 아래 · 카드 넷 = PC 한 줄 / 모바일 2·2 · 글자 넘침 0 · 값 글자 크기 = 카드 넷 · 글자 = compute "잔액"."""
+def top_ok(t, w, maxpx, R, nbud=0):
+    """판 F 상단 — 잔액 카드 하나 · .kpi-row 마지막 자식 · 좌우 = .kpi-row(한 줄 전체) · 카드 넷 아래 · 카드 넷 = PC 한 줄 / 모바일 2·2 · 글자 넘침 0 · 값 글자 크기 = 카드 넷 · 글자 = compute "잔액".
+    nbud(판 L — config markers.budget_card) 면 `.kpi-wide` 둘: 잔액 카드 = 다섯째 · 하루예산 카드 = 여섯째(마지막 자식) · 잔액 카드 아래 · 좌우 = .kpi-row."""
     if "err" in t:
         return False, t["err"]
     rows = sorted({round(c["y"]) for c in t["cards"]})
     want_rows = 2 if w <= maxpx else 1
     wd = t["wide"]
     v, sv = top_want(R)
-    ok = (t["wideCount"] == 1 and t["wideLast"] and len(t["cards"]) == 4 and len(rows) == want_rows and wd is not None
+    bd = t.get("bud")
+    if nbud:
+        pos_ok = (t["wideCount"] == 2 and t["widePos"] == 4 and bd is not None and bd["pos"] == 5 and bd["last"] and wd is not None
+                  and bd["r"]["y"] >= wd["b"] and abs(bd["r"]["x"] - t["row"]["x"]) <= 1 and abs(bd["r"]["r"] - t["row"]["r"]) <= 1)
+    else:
+        pos_ok = t["wideCount"] == 1 and t["wideLast"] and bd is None
+    ok = (pos_ok and len(t["cards"]) == 4 and len(rows) == want_rows and wd is not None
           and abs(wd["x"] - t["row"]["x"]) <= 1 and abs(wd["r"] - t["row"]["r"]) <= 1 and wd["y"] >= max(c["b"] for c in t["cards"])
           and t["over"] is not None and max(t["over"]) <= 0 and t["font"][0] == t["font"][1] and t["value"] == v and t["sub"] == sv)
-    det = (f"잔액 카드 {t['wideCount']}개 · 마지막 자식 {t['wideLast']} · 카드 넷 {len(t['cards'])}개 {len(rows)}줄(기대 {want_rows}) · "
+    det = (f"한 줄 전체 카드 {t['wideCount']}개(기대 {2 if nbud else 1}) · 잔액 카드 자리 {t['widePos']} · 마지막 자식 {t['wideLast']} · "
+           + (f"하루예산 카드 자리 {bd['pos']} · 마지막 {bd['last']} · 위 {bd['r']['y']:.1f} ≥ 잔액 아래 {wd['b'] if wd else '?'} · " if bd else ("하루예산 카드 없음 · " if nbud else ""))
+           + f"카드 넷 {len(t['cards'])}개 {len(rows)}줄(기대 {want_rows}) · "
            + (f"카드 x {wd['x']:.1f}~{wd['r']:.1f} = 줄 {t['row']['x']:.1f}~{t['row']['r']:.1f} · 위 {wd['y']:.1f} ≥ 넷 아래 {max(c['b'] for c in t['cards']):.1f} · 높이 {wd['h']:.1f} · "
               f"글자 넘침(값·보조 줄 px) {t['over']} · 값 글자 {t['font'][0]}(넷 {t['font'][1]}) · 글자 {t['value']!r} / {t['sub']!r}(기대 {v!r} / {sv!r})" if wd else "잔액 카드 없음"))
     return ok, det
+
+
+# 판 L(2026-10-27) 하루예산 카드 — 접기 열림·글(값·보조 줄·summary·목록 줄)·글자 넘침·목록 줄 두 칸 겹침·summary 글꼴(= 03 접기 summary)·자리(.kpi-row 마지막 자식 · 한 줄 전체)
+BUDJS = """() => {
+  const c = document.querySelector('[data-budget="card"]'); if (!c) return {err: '하루예산 카드(data-budget="card") 없음'};
+  const R = (e) => { const b = e.getBoundingClientRect(); return {x: b.left + window.scrollX, y: b.top + window.scrollY, w: b.width, h: b.height, r: b.right + window.scrollX, b: b.bottom + window.scrollY}; };
+  const d = c.querySelector('details'), s = c.querySelector('summary'), list = c.querySelector('[data-budget="list"]');
+  const v = c.querySelector('[data-budget="value"]'), sb = c.querySelector('[data-budget="sub"]'), row = c.parentElement;
+  const s3 = document.querySelector('summary.fold-more:not([data-budget])'), f = (e) => { const x = getComputedStyle(e); return [x.fontSize, x.fontWeight, x.color, x.fontFamily]; };
+  const rows = [...list.children].map(e => ({t: [...e.children].map(x => x.textContent), r: R(e), over: e.scrollWidth - e.clientWidth, kids: [...e.children].map(R)}));
+  // 보임 = checkVisibility(닫힌 details 안은 content-visibility:hidden — 크기는 남아 getClientRects 로는 못 가름, 2026-10-27 실측)
+  const shown = typeof list.checkVisibility === 'function' ? list.checkVisibility() : list.offsetHeight > 0;
+  return {open: d.open, summary: s.textContent, value: v.textContent, sub: sb.textContent, rows, listShown: shown,
+          over: [v.scrollWidth - v.clientWidth, sb.scrollWidth - sb.clientWidth, s.scrollWidth - s.clientWidth, list.scrollWidth - list.clientWidth],
+          font: f(s), font3: s3 ? f(s3) : null, card: R(c), rowR: R(row), last: row.lastElementChild === c, docSW: document.documentElement.scrollWidth};
+}"""
+
+
+def bud_ok(b, w, R, open_):
+    """판 L 하루예산 카드 — 열림 = open_ · 글 = apply.budget_texts(compute "예산") · 목록 줄 수·글 · 보임(open_ 이고 줄이 있으면) · 글자 넘침 0 · 줄 두 칸 겹침 0 · summary 글꼴 = 03 · 자리 · 문서 넘침 0."""
+    import apply as A
+    if "err" in b:
+        return False, b["err"]
+    val, sub, summ, rows = A.budget_texts(R["예산"])
+    plain = lambda x: re.sub(r"<[^>]+>", "", x)
+    got_rows = [r["t"] for r in b["rows"]]
+    shown_ok = (b["listShown"] == (open_ and bool(rows))) if open_ else not b["listShown"]
+    pair = all(len(r["kids"]) == 2 and (r["kids"][1]["x"] >= r["kids"][0]["r"] - 0.5 or r["kids"][1]["y"] >= r["kids"][0]["b"] - 0.5) for r in b["rows"]) if open_ else True
+    row_over = max([r["over"] for r in b["rows"]] or [0]) if open_ else 0
+    ok = (b["open"] == open_ and b["value"] == plain(val) and b["sub"] == sub and b["summary"] == summ and got_rows == [list(r) for r in rows] and shown_ok and pair
+          and max(b["over"]) <= 0 and row_over <= 0 and b["font"] == b["font3"] and b["last"] and abs(b["card"]["x"] - b["rowR"]["x"]) <= 1 and abs(b["card"]["r"] - b["rowR"]["r"]) <= 1
+          and b["docSW"] <= w)
+    det = (f"{'펼침' if open_ else '처음(닫힘)'} 열림 {b['open']} · 값 {b['value']!r} · 보조 줄 {b['sub']!r} · summary {b['summary']!r}(기대 {summ!r}) · 목록 {len(got_rows)}줄(기대 {len(rows)}) "
+           f"보임 {b['listShown']} · 글자 넘침 {b['over']} · 줄 넘침 {row_over} · 두 칸 겹침 0 {pair} · summary 글꼴 {'= 03' if b['font'] == b['font3'] else str(b['font']) + ' ≠ 03 ' + str(b['font3'])} · "
+           f"마지막 자식 {b['last']} · 카드 높이 {round(b['card']['h'], 1)} · 문서 폭 {b['docSW']}(≤ {w})")
+    if got_rows != [list(r) for r in rows]:
+        det += f" · 첫 다름 화면 {next((a for a, c in zip(got_rows, rows) if a != list(c)), None)} · 기대 {next((list(c) for a, c in zip(got_rows, rows) if a != list(c)), None)}"
+    return ok, det
+
+
+def pdf_budget_ok(path, R):
+    """판 L 인쇄 — 하루예산 카드 머리·summary·목록 줄 시각 전부가 PDF 한 쪽에 있는가(pypdf 쪽별 글자 — 띄어쓰기 뺀 대조). (통과, 설명)"""
+    import apply as A
+    from pypdf import PdfReader
+    _, _, summ, rows = A.budget_texts(R["예산"])
+    sq = lambda x: re.sub(r"\s+", "", x)
+    pages = [sq(pg.extract_text() or "") for pg in PdfReader(path).pages]
+    want = [sq("하루예산 · 예산 도달 멈춤"), sq(summ)] + [sq(a) for a, _ in rows]
+    hit = [i + 1 for i, t in enumerate(pages) if want[0] in t]
+    page = pages[hit[0] - 1] if len(hit) == 1 else ""
+    miss = [x for x in want if x not in page]
+    return len(hit) == 1 and not miss, f"카드 머리 쪽 {hit} · 그 쪽에 없는 글 {miss[:3]}{'…' if len(miss) > 3 else ''}(찾은 글 {len(want) - len(miss)}/{len(want)} — 머리 · summary · 목록 줄 {len(rows)})"
 
 
 # 판 G(2026-10-12) — 04 계정 변경 기록 · 05 성별·연령대 카드: 하나씩 · 제 구역 안 · 카드 자체 가로 넘침 0(넓은 표는 안쪽 .wide-table 이 스크롤) · 문서 가로 넘침 0
@@ -262,16 +333,25 @@ def week_ok(wk, inf, R):
 
 
 def shot_top(pg, out, tag):
-    """상단(마스트헤드 ~ .kpi-row 아래 12px) 캡처 — 전후 비교 페이지 재료(옛 판은 카드 넷까지, 새 판은 잔액 카드까지)."""
+    """상단(마스트헤드 ~ 01 머리 줄 아래 12px — 판 L 2026-10-27 부터, 머리 줄을 못 찾으면 .kpi-row 아래 12px) 캡처 — 전후 비교 페이지 재료(옛 판은 잔액 카드까지, 새 판은 하루예산 카드까지).
+    문서 높이보다 길면 뷰포트를 잠시 늘려(폭 그대로) 찍고 되돌린다(shot 과 같은 방식 — full_page 캡처 안 씀)."""
     if not out:
         return
     t = pg.evaluate(TOPJS)
     if "err" in t:
         return
+    bottom = int((t.get("head1") or t["row"])["b"]) + 12
+    vp = pg.viewport_size
+    if bottom > vp["height"]:
+        pg.set_viewport_size({"width": vp["width"], "height": bottom})
     pg.evaluate("window.scrollTo(0, 0)")
-    pg.wait_for_timeout(200)
-    vw = pg.viewport_size["width"]
-    pg.screenshot(path=os.path.join(out, f"{tag}_top.png"), clip={"x": 0, "y": 0, "width": vw, "height": int(t["row"]["b"]) + 12})
+    pg.wait_for_timeout(300)
+    try:
+        pg.screenshot(path=os.path.join(out, f"{tag}_top.png"), clip={"x": 0, "y": 0, "width": vp["width"], "height": bottom})
+    finally:
+        if bottom > vp["height"]:
+            pg.set_viewport_size(vp)
+            pg.wait_for_timeout(300)
 
 
 class Run:
@@ -390,14 +470,15 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
     (lo, po), (ln, pn) = meta(base_path), meta(new_path)
     rows = "".join(f"<tr><td>{w}</td><td>{k}</td>" + "".join(f"<td class='n'>{v if v is not None else '—'}</td>" for v in hts[w].get(k, (None, None, None))) + "</tr>"
                    for w in widths for k in ("옛 판", "새 판(처음)", "새 판(펼침)") if k in hts.get(w, {}))
-    secs = ""
+    secs = "<h2>맨 위(마스트헤드 ~ 01 머리 — KPI · 광고비 잔액(판 F) · 하루예산 카드(판 L))</h2>"
+    for w in widths:
+        secs += (f"<h3>{w}px 폭</h3><div class='pair{' w3' if os.path.exists(os.path.join(out, f'{w}_open_top.png')) else ''}'>" + img(f"base_{w}_top.png", f"옛 판 {lo} · {w}px")
+                 + img(f"{w}_top.png", f"새 판 {ln} · {w}px · 처음(접기 닫힘)")
+                 + (img(f"{w}_open_top.png", f"새 판 {ln} · {w}px · 하루예산 접기 펼침") if os.path.exists(os.path.join(out, f"{w}_open_top.png")) else "") + "</div>")
     for s, name in (("4", "04 캠페인 상세 지표 — 아래 계정 변경 기록(판 G)"), ("5", "05 매체·기기별 분포 — 아래 성별·연령대(판 G)")):
         secs += f"<h2>{name}</h2>"
         for w in widths:
             secs += f"<h3>{w}px 폭</h3><div class='pair'>" + img(f"base_{w}_sec{s}.png", f"옛 판 {lo} · {w}px") + img(f"{w}_sec{s}.png", f"새 판 {ln} · {w}px") + "</div>"
-    secs += "<h2>상단 카드(KPI · 광고비 잔액 — 판 F)</h2>"
-    for w in widths:
-        secs += f"<h3>{w}px 폭</h3><div class='pair'>" + img(f"base_{w}_top.png", f"옛 판 {lo} · {w}px") + img(f"{w}_top.png", f"새 판 {ln} · {w}px") + "</div>"
     for s, name in (("1", "01 일별 추이"), ("6", "06 파워링크 키워드 노출순위 추이")):
         secs += f"<h2>{name}</h2>"
         for w in widths:
@@ -416,7 +497,7 @@ def write_compare(out, new_path, base_path, widths, maxpx, hts):
             ".pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} .pair.w3{grid-template-columns:repeat(3,minmax(0,420px))}"
             "figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px} figcaption{font-size:12px;font-weight:700;color:var(--mint-dark);margin-bottom:6px}"
             "img{width:100%;height:auto;display:block} @media (max-width:700px){.pair,.pair.w3{grid-template-columns:1fr}}"
-            "</style></head><body><div class='wrap'><h1>전후 비교 — 04·05번(판 G 추가 카드·표) · 상단 카드 · 01, 06번</h1>"
+            "</style></head><body><div class='wrap'><h1>전후 비교 — 맨 위(KPI · 잔액 · 하루예산 카드) · 04·05번(판 G 추가 카드·표) · 01, 06번</h1>"
             f"<p class='meta'>옛 판 <b>{H.escape(base_path)}</b> (레이아웃 meta {lo} · 집계 기간 {H.escape(po)})<br>새 판 <b>{H.escape(new_path)}</b> (레이아웃 meta {ln} · 집계 기간 {H.escape(pn)})<br>"
             "캡처: tests/chart_check.py(Chart.js CDN 2건만 허용 · networkidle + 1.8초). 새 판 모바일은 처음(접힘)과 01·06 버튼을 누른 뒤(펼침) 두 가지.</p>"
             "<h2>높이(px)</h2><div class='tw'><table><thead><tr><th>폭</th><th>판</th><th class='n'>섹션 1</th><th class='n'>섹션 6</th><th class='n'>문서 전체</th></tr></thead>"
@@ -613,6 +694,7 @@ def main():
     mob = cfg["report_layout"]["mobile"]
     ncv = int(cfg["report_layout"]["markers"]["canvases"])   # 캔버스 수(판 K 2026-10-26 부터 8 — 01 요일 카드 · 판 I·J 7 — 지면 구역 placementChart 가 빠짐 · 판 H 까지 8)
     wcard = int(cfg["report_layout"]["markers"].get("weekday_card", 0))   # 판 K 01 요일 카드 수(config — 0 이면 요일 카드 검사 없음)
+    nbud = int(cfg["report_layout"]["markers"].get("budget_card", 0))     # 판 L 하루예산 카드 수(config — 0 이면 하루예산 카드 검사 없음)
     tr_k_all = layout_of(a.base) == "r2026-10-J" and layout_of(a.html) == "r2026-10-K"   # 판 K 전환(--base 판 J · 작업본 판 K)
     maxpx, printmax = int(mob["max_px"]), int(mob["print_max_height_px"])
     row, padpx = {k: int(v) for k, v in mob["row_px"].items()}, {k: int(v) for k, v in mob["pad_px"].items()}
@@ -686,8 +768,8 @@ def main():
                 m = measure(pg)
                 shot(pg, m["page"], out, f"{w}")
                 hts.setdefault(w, {})["새 판(처음)"] = sec_h(m["page"])
-                ok_t, det_t = top_ok(pg.evaluate(TOPJS), w, maxpx, R)                # 판 F 상단 잔액 카드(로드 상태 — 버튼 누르기 전)
-                run.check(f"{w} 상단 잔액 카드 한 줄 전체(판 F)", ok_t, det_t)
+                ok_t, det_t = top_ok(pg.evaluate(TOPJS), w, maxpx, R, nbud)          # 판 F 상단 잔액 카드(로드 상태 — 버튼 누르기 전) · 판 L 하루예산 카드 자리
+                run.check(f"{w} 상단 잔액 카드 한 줄 전체(판 F)" + (" · 하루예산 카드 마지막 자식(판 L)" if nbud else ""), ok_t, det_t)
                 ok_x, det_x = extra_ok(pg.evaluate(EXTRAJS), w, R)                    # 판 G 04·05 추가 카드·표
                 run.check(f"{w} 04·05 추가 카드·표 제 구역 안·넘침 0(판 G)", ok_x, det_x)
                 if wcard:   # 판 K 01 요일 카드(로드 상태 — 모바일도 같은 세로 막대 7칸)
@@ -695,6 +777,24 @@ def main():
                     ok_w, det_w = week_ok(wks[w], pg.evaluate(INFO, "weekdayChart"), R)
                     run.check(f"{w} 01 요일 카드 그려짐·자리·글·겹침 0(판 K)", ok_w, det_w)
                 shot_top(pg, out, f"{w}")
+                if nbud:   # 판 L 하루예산 카드 — 처음 닫힘 → summary 진짜 눌러 펼침(캡처) → 다시 눌러 닫힘(처음과 같음) · 뒤 측정은 닫힌 상태 그대로
+                    b0 = pg.evaluate(BUDJS)
+                    run.check(f"{w} 하루예산 카드 처음 닫힘·글 = compute(판 L)", *bud_ok(b0, w, R, False))
+                    sm = pg.locator('[data-budget="summary"]')
+                    sm.scroll_into_view_if_needed()
+                    sm.click()
+                    pg.wait_for_timeout(400)
+                    b1 = pg.evaluate(BUDJS)
+                    run.check(f"{w} 하루예산 카드 펼침 — 목록 줄 = compute · 넘침·겹침 0(판 L)", *bud_ok(b1, w, R, True))
+                    shot_top(pg, out, f"{w}_open")                                   # 전후 비교 셋째 그림 <폭>_open_top.png
+                    sm.scroll_into_view_if_needed()
+                    sm.click()
+                    pg.wait_for_timeout(400)
+                    b2 = pg.evaluate(BUDJS)
+                    ok_c, det_c = bud_ok(b2, w, R, False)
+                    run.check(f"{w} 하루예산 카드 다시 닫힘(처음과 같음 · 판 L)", ok_c and b2["card"]["h"] == b0["card"]["h"], det_c + f" · 높이 처음 {round(b0['card']['h'], 1)}")
+                    pg.evaluate("window.scrollTo(0, 0)")
+                    pg.wait_for_timeout(300)
                 m_start = None
                 if not mobile:  # PC 모양 대조는 기준과 같은 스크롤 자리(맨 왼쪽)에서 — S 는 로드 상태(m)로 따로 본다
                     to_left(pg)
@@ -895,6 +995,11 @@ def main():
                     res[tag] = {"m0": m0, "m1": m1, "ev": ev, "pages": pages, "imgs": imgs, "errs": errs, "pdf": pdf}
                 N = res["new"]
                 ev = N["ev"]
+                if nbud:   # 판 L — 인쇄 때 하루예산 접기 열림(접기 스크립트) · 뒤 닫힘 · PDF 한 쪽에 카드 머리·summary·목록 줄 전부
+                    bo = [x.get("budgetOpen") for x in ev["beforeprint"]] + [x.get("budgetOpen") for x in ev["afterprint"]]
+                    ok_p, det_p = pdf_budget_ok(N["pdf"], R)
+                    run.check(f"인쇄 {w} 하루예산 카드 펼쳐 찍힘·안 잘림(판 L)", bo == [True, False] and ok_p and not N["errs"],
+                              f"beforeprint·afterprint 접기 열림 {bo}(기대 [True, False]) · {det_p} · pageerror {len(N['errs'])}")
                 wsize = next(([cw, ch] for cid, cw, ch in N["m0"]["page"].get("cvs", []) if cid == "weekdayChart"), None) if wcard else None
                 if wcard:   # 판 K — 요일 캔버스(인쇄 때 다시 그리지 않음 — 로드 때 비트맵 그대로)가 PDF 에 한 번 · 쪽 경계·클립에 안 잘림
                     wim = [im for im in N["imgs"] if wsize and im["size"] == wsize]

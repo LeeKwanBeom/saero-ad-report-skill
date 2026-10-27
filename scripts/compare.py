@@ -45,6 +45,10 @@
   보조 줄 `검색 지면 · M/D~M/D · 요일마다 N일`(다 같으면) / `N~M일` 의 [첫날, 끝날, 최소, 최대(같으면 None)] = compute `01.요일` · labels 월~일. 차트 블록은 getElementById('weekdayChart') 부터
   차트 스크립트 끝(`</script>`)까지(분기 도우미 뒤 — 다음 new Chart 가 없다). 카드가 없는 판(J 까지)은 항목 그대로 · 판 K 에 카드가 없으면 validate "레이아웃 판" FAIL.
   **항목 수 N = 99 + 4 = 103**(판 G 둘 다 ok · 종류 2).
+- (2026-10-27 판 L 하루예산 카드 — 사용자 결정 "추천대로 7건만 보여주고 진행해줘") 하루예산 카드 표지(`data-budget=`)가 있으면 구역 "하루예산 카드(판 L)" 4항목(화면 글을 숫자로 읽어 compute "예산" 과 대조):
+  값(플레이스 한도 — 켜진 그룹이 둘 이상이면 캠페인 값 · 최근 7일 멈춘 수) · 보조 줄(파워링크 캠페인 값 · 켜진 그룹 값 최소·최대 · 멈춘 수) · summary(시작 종류 · 시작 M/D · 일수 · 멈춘 수 · 범위 첫·끝) ·
+  목록(줄 수 · 줄마다 시각 · 설정 값). 예산 읽기 실패면 '확인 못 함' 1항목(값 · 보조 줄 'M/D(요) HH:MM 조회 실패' · 빈 목록) · 멈춤 셈을 못 했으면 summary '멈춤 기록 확인 못 함' · 빈 목록.
+  카드가 없는 판(K 까지)은 항목 그대로 · 판 L 에 카드가 없으면 validate "레이아웃 판" FAIL. **항목 수 N = 103 + 4 = 107**(판 G 둘 다 ok · 종류 2 · 예산 ok).
 """
 import json
 import re
@@ -319,6 +323,64 @@ def _sw():  # 판 K(2026-10-26 01 요일 카드) — 막대 노출 7 · 막대 �
     cmp("01 요일 카드 labels 월~일", re.sub(r"\s+", "", grp(r"labels:\s*\[([^\]]*)\]", blk).group(1)), "'월','화','수','목','금','토','일'")
 
 
+BUD = re.compile(r'data-budget="(value|sub|summary)">(.*?)</(?:div|summary)>')
+BUD_ROW = re.compile(r"<div><span>([^<]*)</span><span>([^<]*)</span></div>")
+
+
+def _won(x):
+    """'20,000원' → 20000 · '제한 없음' → None · 그 밖 글(꺼짐 · 캠페인 없음 …)은 글 그대로."""
+    m = re.fullmatch(r"([\d,]+)원", x)
+    return int(m.group(1).replace(",", "")) if m else (None if x == "제한 없음" else x)
+
+
+def _grp(x):
+    """보조 줄 괄호 글 → 켜진 그룹 값 (최소, 최대) — '그룹마다 N원' · '그룹 a~b원' · '그룹 제한 없음' · '그룹 a원~제한 없음' · '켜진 그룹 없음'."""
+    if x == "켜진 그룹 없음":
+        return []
+    if x == "그룹 제한 없음":
+        return [None, None]
+    m = re.fullmatch(r"그룹마다 ([\d,]+)원", x) or re.fullmatch(r"그룹 ([\d,]+)~([\d,]+)원", x) or re.fullmatch(r"그룹 ([\d,]+)원~(제한 없음)", x)
+    if not m:
+        raise ValueError(f"그룹 괄호 꼴 {x!r}")
+    a = int(m.group(1).replace(",", ""))
+    b = a if m.lastindex == 1 else (None if m.group(2) == "제한 없음" else int(m.group(2).replace(",", "")))
+    return [a, b]
+
+
+def _sb():  # 판 L(2026-10-27 하루예산 카드) — 값 · 보조 줄 · summary · 목록 = compute "예산"(balance.json budget + work/extra 원장 사본 SYSTEM 줄)
+    B = R["예산"]
+    a = html.find('data-budget="card"')
+    if a == -1: raise ValueError("하루예산 카드 표지 data-budget=\"card\" 없음")
+    blk = html[a:html.find("</details>", a)]
+    got = {k: _plain(v) for k, v in BUD.findall(blk)}
+    rows = BUD_ROW.findall(blk[blk.find('data-budget="list"'):])
+    if B["상태"] == "fail":
+        cmp("하루예산 카드 '확인 못 함'(예산 읽기 실패 — 값 · 보조 줄 · 빈 목록)", [got.get("value"), got.get("sub"), got.get("summary", "").startswith("멈춤 기록 확인 못 함"), rows],
+            ["확인 못 함", f"{B['기준']} 조회 실패", True, []])
+        return
+    S = B["멈춤"]; sp, sw = (S.get("플레이스"), S.get("파워링크")) if S["상태"] == "ok" else (None, None)
+    P, W = B["플레이스"], B["파워링크"]
+    m = grp(r"플레이스 (.+?) · 최근 7일 (?:(\d+)번 멈춤|멈춤 확인 못 함)", got["value"])
+    head = m.group(1).split("(")[0]
+    want_p = P["상태"] if P["상태"] != "ok" else ("켜진 그룹 없음" if not P["그룹"] else (P["한도"] if len(P["그룹"]) == 1 else P["캠페인"]))
+    cmp("하루예산 카드 값(플레이스 한도 · 최근 7일 멈춘 수)", [_won(head), None if m.group(2) is None else int(m.group(2))], [want_p, sp["최근7일"] if sp else None])
+    m = grp(r"파워링크 (.+?) · (?:멈춤 (\d+)번|멈춤 확인 못 함)", got["sub"])
+    pm = re.fullmatch(r"(.+?)\((.+)\)", m.group(1))
+    gw = sorted((x for x in W.get("그룹", []) if x is not None))
+    want_w = W["상태"] if W["상태"] != "ok" else [W["캠페인"], [] if not W["그룹"] else [None, None] if not gw else [gw[0], gw[-1] if len(gw) == len(W["그룹"]) else None]]
+    got_w = [_won(pm.group(1)), _grp(pm.group(2))] if pm else m.group(1)
+    cmp("하루예산 카드 보조 줄(파워링크 캠페인 · 켜진 그룹 최소·최대 · 멈춘 수)", [got_w, None if m.group(2) is None else int(m.group(2))], [want_w, sw["횟수"] if sw else None])
+    if not sp:
+        cmp("하루예산 카드 summary·목록 '확인 못 함'(멈춤 셈 못 함)", [got["summary"].startswith("멈춤 기록 확인 못 함"), rows], [True, []])
+        return
+    m = grp(r"(기록 시작 )?(\d+/\d+) 뒤 (\d+)일 중 (?:(\d+)번 멈춤\((\d+/\d+)(?:~(\d+/\d+))?\)|멈춤 (0)번) 펼치기", got["summary"])
+    n = int(m.group(4) or m.group(7))
+    cmp("하루예산 카드 summary(시작 종류 · 시작 · 일수 · 멈춘 수 · 범위)", ["기록" if m.group(1) else "변경", m.group(2), int(m.group(3)), n, None if not n else [m.group(5), m.group(6) or m.group(5)]],
+        [sp["시작종류"], sp["시작"], sp["일수"], sp["횟수"], sp["범위"]])
+    cmp("하루예산 카드 목록(줄 수 · 시각 · 설정 값 — 최신 위)", [(t, None if v == "하루예산 —" else int(grp(r"하루예산 ([\d,]+)원", v).group(1).replace(",", ""))) for t, v in rows],
+        [(r["일시"], r["하루예산"]) for r in sp["줄"]])
+
+
 S = {}  # 구역 사이에 넘기는 값(kpi → 07 · got4 → 06). 앞 구역이 실패해 없으면 뒤 구역의 그 항목이 KeyError → 그 구역 [DIFF]
 SECTIONS = [("masthead·KPI", _kpi), ("01", _s01), ("02", _s02), ("03", _s03), ("04", _s04), ("05", _s05), ("06", _s06),
             ("07", _s07), ("08", _s08), ("09", _s09), ("10·11", _s11), ("11 장부·플레이스", _s12g)]   # 판 I — 지면 구역(옛 10) 없음
@@ -326,6 +388,8 @@ if "saero:extra" in html:  # 판 G 블록이 있는 판만(옛 판 대조는 항
     SECTIONS.append(("04·05 추가(판 G)", _sx))
 if "data-weekday=" in html:  # 판 K 요일 카드가 있는 판만(J 까지는 항목 그대로 — 판 K 에 카드가 없으면 validate "레이아웃 판" 이 FAIL)
     SECTIONS.insert(2, ("01 요일 카드(판 K)", _sw))
+if "data-budget=" in html:  # 판 L 하루예산 카드가 있는 판만(K 까지는 항목 그대로 — 판 L 에 카드가 없으면 validate "레이아웃 판" 이 FAIL)
+    SECTIONS.insert(1, ("하루예산 카드(판 L)", _sb))
 for _label, _fn in SECTIONS:  # 구역별 try — 한 구역의 첫 파싱 실패가 다른 구역 항목을 생략시키지 않는다(2026-10-06, 탐색 프로브 r9: OK 17에서 멈춤)
     try:
         _fn()

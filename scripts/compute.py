@@ -34,6 +34,10 @@
   변경 기록 확장소재 추가 = '확장 소재 n개 추가'(같은 분 묶음 안 건수의 합 — 28).
 - (2026-10-26 판 K 01 요일 카드 — 사용자 결정 "추천대로 진행해줘") "01" 에 "요일"(weekday_avg — 검색 지면 · 제외 그룹 뺌 · 전 기간 누적 요일(월~일) 하루 평균:
   첫날·끝날 M/D · 일수 7 · 노출 7(반올림 정수) · 클릭 7(소수 1자리 — 그 요일 날이 0 이면 노출 0 · 클릭 null)). 01 차트(지면 전부)와 틀이 달라 평균 × 일수 합 ≠ 01 막대 합이 정상.
+- (2026-10-27 판 L 하루예산 카드 — 사용자 결정 "추천대로 7건만 보여주고 진행해줘") --balance 가 있으면 "예산"(budget_card — balance.json 의 "budget"(balance.py 가 읽은 캠페인·그룹
+  하루예산) + --extra 원장 사본의 SYSTEM `광고그룹 하루예산 중단` 줄: 플레이스 실제 한도 · 파워링크 캠페인·켜진 그룹 · 유형마다 기간(마지막 하루예산 변경 뒤 ~ 집계 끝날) 멈춘 수 ·
+  최근 7일 · 멈춘 줄 전부 최신 위). 예산 읽기 실패 = 상태 fail(카드 '확인 못 함' — exit 0) · 원장 사본 없음·extras 꺼짐·기록 구간이 집계 끝날에 못 미침 = 멈춤 상태 '없음'(exit 0) ·
+  예산 기록 꼴이 다르거나 읽은 날 ≤ 집계 마지막 날이면 `[FAIL] 잔액 기록…`(잔액과 같은 길). 09-21 결정(config extras.history.show_system false)은 04 변경 기록 블록 몫 — 이 카드만 SYSTEM 줄을 쓴다.
 """
 import argparse
 import datetime as dt
@@ -307,6 +311,7 @@ def compute(D, cfg, comp_prev=(), bal=None, leads=None, place=None, prev_html=No
                  "B분해": {k: int(v) for k, v in inc[iss & ~isn].groupby("매체이름")["노출수"].sum().items()}}
     if bal is not None:
         out["잔액"] = balance_card(bal, kw, inc)
+        out["예산"] = budget_card(bal, extra, cfg, days)   # 판 L — 하루예산 · 예산 도달 멈춤 카드(예산 = balance.json budget · 멈춤 = --extra 원장 사본)
     if extra is not None:   # 판 G(2026-10-12 보고서 더 받기 A + B) — 05 아래 성별·연령대 카드 · 04 아래 계정 변경 기록 표
         out["성별연령"], out["변경기록"] = extra_cards(extra, cfg, days)
     end = dt.date(*(int(x) for x in days[-1].rstrip(".").split(".")))
@@ -663,11 +668,193 @@ def balance_card(bal, kw, inc):
             "일분": (won * n // total) if total > 0 else None}
 
 
+# ---- 판 L(2026-10-27 — 하루예산 카드, 사용자 결정 "추천대로 7건만 보여주고 진행해줘"): 잔액 카드 아래 한 줄 전체 카드
+BUDGET_TYPES = (("플레이스", "PLACE"), ("파워링크", "WEB_SITE"))   # 카드 두 줄 = 캠페인 유형(campaignTp) — 그 밖 유형 캠페인은 카드 밖([주의])
+STOP_KIND = "광고그룹 하루예산 중단"                               # 원장 SYSTEM 줄 유형(references/report-fetch.md — 캠페인·그룹 칸 빈칸, 내용 첫 줄 = 그룹 이름)
+BUDGET_LINE = re.compile(r"^하루예산:\s*([\d,]+)원\s*$")
+
+
+def _when(r):
+    """원장 일시 '2026.10.26. 20:19' → datetime(분)."""
+    return dt.datetime.strptime(r[0], "%Y.%m.%d. %H:%M")
+
+
+def _stamp(t):
+    return f"{t.month}/{t.day}({WD[t.weekday()]}) {t:%H:%M}"
+
+
+def _budget_rec(b):
+    """balance.json "budget"(ok) 의 꼴 — 캠페인·그룹마다 이름·유형 문자열 · useDailyBudget·userLock bool · dailyBudget 0 이상 정수. 다르면 BalanceError."""
+    def item(x, what):
+        if (not isinstance(x, dict) or not isinstance(x.get("name"), str) or not isinstance(x.get("type"), str)
+                or not isinstance(x.get("useDailyBudget"), bool) or not isinstance(x.get("userLock"), bool)
+                or isinstance(x.get("dailyBudget"), bool) or not isinstance(x.get("dailyBudget"), int) or x["dailyBudget"] < 0):
+            raise BalanceError(f"예산 기록 꼴이 다름({what} {str(x)[:80]})")
+    cs = b.get("campaigns")
+    if not isinstance(cs, list):
+        raise BalanceError("예산 기록 꼴이 다름(campaigns 목록 아님)")
+    for c in cs:
+        item(c, "캠페인")
+        if not isinstance(c.get("groups"), list):
+            raise BalanceError(f"예산 기록 꼴이 다름(캠페인 {c['name']!r} groups 목록 아님)")
+        for g in c["groups"]:
+            item(g, "그룹")
+    return cs
+
+
+def budget_card(bal, D, cfg, days):
+    """레이아웃 판 r2026-10-L 하루예산 카드(report-structure.md "KPI 요약" — 하루예산 카드(판 L) 정의(compute.py)).
+    예산(balance.json "budget" — 캠페인 유형 PLACE = 플레이스 · WEB_SITE = 파워링크, 유형마다 캠페인 하나 — 둘 이상이면 켜진 것 하나, 아니면 '확인 못 함' + [주의]):
+      한도 값 = useDailyBudget 이면 dailyBudget, 아니면 None(제한 없음) · 켜진 그룹 = userLock false · 플레이스 '한도' = 켜진 그룹이 하나일 때 min(그룹, 캠페인)(None 은 한도 없음 —
+      둘 다 None 이면 None) · 파워링크(와 켜진 그룹 둘 이상인 플레이스)는 캠페인 값 + 켜진 그룹 값 목록 · 캠페인 userLock = 상태 '꺼짐'.
+    멈춤(budget_stops) · 예산 기록 없음(판 L 전 balance.py)·fail = {"상태": "fail", "기준", "사유"} — 카드 '확인 못 함'. 꼴이 다르거나 읽은 날 ≤ 집계 마지막 날 = BalanceError."""
+    last = dt.date(*(int(x) for x in days[-1].rstrip(".").split(".")))
+    b = bal.get("budget")
+    if b is None:
+        t = dt.datetime.fromisoformat(bal["read_at"].replace("Z", "+00:00")).astimezone(KST)   # balance_card 가 먼저 꼴·날짜를 봤다
+        return {"상태": "fail", "기준": _stamp(t), "사유": "예산 기록 없음(판 L 전 balance.py 기록)"}
+    if not isinstance(b, dict) or b.get("status") not in ("ok", "fail") or not isinstance(b.get("read_at"), str):
+        raise BalanceError("예산 기록 꼴이 다름(budget.status ok|fail · read_at 문자열)")
+    try:
+        t = dt.datetime.fromisoformat(b["read_at"].replace("Z", "+00:00"))
+    except ValueError:
+        raise BalanceError(f"예산 기록 꼴이 다름(budget.read_at {b['read_at']!r})")
+    if t.tzinfo is None:
+        raise BalanceError(f"예산 기록 꼴이 다름(budget.read_at 시간대 없음 {b['read_at']!r})")
+    t = t.astimezone(KST)
+    if t.date() <= last:
+        raise BalanceError(f"예산 기록을 읽은 날 {t.date()}(KST)이 집계 마지막 날 {last} 이하 — 지난 회차 기록, 이번 회차에 balance.py 를 다시")
+    if b["status"] == "fail":
+        return {"상태": "fail", "기준": _stamp(t), "사유": str(b.get("reason") or "알 수 없음")}
+    cs = _budget_rec(b)
+    out, warn = {"상태": "ok", "기준": _stamp(t)}, []
+    lim = lambda x: x["dailyBudget"] if x["useDailyBudget"] else None
+    for label, tp in BUDGET_TYPES:
+        mine = [c for c in cs if c["type"] == tp]
+        if len(mine) > 1 and len([c for c in mine if not c["userLock"]]) == 1:
+            mine = [c for c in mine if not c["userLock"]]
+        if not mine:
+            out[label] = {"상태": "캠페인 없음"}
+            continue
+        if len(mine) > 1:
+            out[label] = {"상태": "확인 못 함"}
+            warn.append(f"{label} 캠페인 {len(mine)}개({', '.join(c['name'] for c in mine)}) — 카드는 유형마다 하나")
+            continue
+        c = mine[0]
+        on = [g for g in c["groups"] if not g["userLock"]]
+        e = {"상태": "꺼짐" if c["userLock"] else "ok", "캠페인이름": c["name"], "캠페인": lim(c), "그룹": [lim(g) for g in on],
+             "그룹이름": [g["name"] for g in c["groups"]]}
+        if label == "플레이스":
+            vals = [v for v in (e["캠페인"], e["그룹"][0]) if v is not None] if len(on) == 1 else []
+            e["한도"] = min(vals) if vals else None
+        out[label] = e
+    other = [c["name"] for c in cs if c["type"] not in {tp for _, tp in BUDGET_TYPES}]
+    if other:
+        warn.append(f"카드 밖 유형 캠페인 {other}")
+    out["멈춤"] = budget_stops(D, cfg, last, out)
+    out["주의"] = warn + out["멈춤"].pop("주의", [])
+    for w in out["주의"]:
+        print(f"[주의] 하루예산 카드 — {w}", file=sys.stderr)
+    return out
+
+
+def _budget_change(content):
+    """사람 변경 줄 내용 → 하루예산 칸(`하루예산:` · `하루예산 사용여부:`)이 변경 전 → 후로 바뀌었나."""
+    L = [x.strip() for x in content.split("\n")]
+    if "변경 전" not in L or "변경 후" not in L:
+        return False
+    i, j = L.index("변경 전"), L.index("변경 후")
+    if j < i:
+        return False
+    kv = lambda seg: {x.partition(":")[0].strip(): x.partition(":")[2].strip() for x in seg if ":" in x and x.startswith("하루예산")}
+    fb, fa = kv(L[i + 1:j]), kv(L[j + 1:])
+    return bool(fb or fa) and any(fb.get(k) != fa.get(k) for k in set(fb) | set(fa))
+
+
+def budget_stops(D, cfg, last, B):
+    """판 L 멈춤 셈 — 입력 = --extra 원장 사본(work/extra/변경이력.csv · 변경이력_기록구간.csv ← extras.py combine) · 기록 구간 = 마지막 연속 구간(history_table 과 같은 규칙).
+    멈춤 줄 = 주체 `시스템` · 유형 `광고그룹 하루예산 중단` · 그룹 = 내용 첫 줄 → 예산 읽기의 그룹 이름(유형 안 모든 그룹 — 꺼진 그룹 포함)으로 유형을 가른다
+    (이름이 안 맞거나 두 유형에 다 있으면 카드에 넣지 않고 [주의]). 유형마다 기간 시작 = 그 캠페인 또는 그 유형 그룹의 하루예산 변경(주체 `사람` · 내용 `변경 전`/`변경 후` 의
+    `하루예산…:` 값이 다름) 중 마지막 줄의 일시 — 그 일시 **뒤** 멈춤만 센다(같은 날 앞선 멈춤은 옛 예산) · 일수 = 그 날 ~ 집계 끝날 양끝 포함. 기록 구간 안에 변경이 없으면
+    기록 구간 첫날(시작종류 '기록' — 그날 0시부터). 기간 끝 = 집계 끝날(그 뒤 일시 줄은 안 셈). 같은 분 같은 그룹 줄은 한 줄. 최근 7일 = 집계 끝날 포함 7 달력 날 ∩ 기간.
+    원장 사본 없음 · extras·history 꺼짐 · 기록 구간 없음 · 기록 구간 끝 < 집계 끝날 → {"상태": "없음", "사유"}(카드 멈춤 칸 '확인 못 함' — exit 0)."""
+    import extras as X
+    ex, warns = X.extras_config(cfg["report_fetch"])
+    for w in warns:
+        print(w, file=sys.stderr)
+    if ex is None or not ex["history"]:
+        return {"상태": "없음", "사유": "extras 설정 꺼짐"}
+    if D is None:
+        return {"상태": "없음", "사유": "원장 사본 인자 없음(compute --extra)"}
+    led, cov = os.path.join(D, X.HISTORY_FILE), os.path.join(D, X.COVERED_FILE)
+    if not os.path.exists(led) or not os.path.exists(cov):
+        return {"상태": "없음", "사유": "원장 없음(첫 회·수집 실패)"}
+    try:
+        rows, spans = X.read_ledger(led), X.read_covered(cov)
+        when = {r[0]: _when(r) for r in rows}
+    except (X.ExtrasError, ValueError, OSError, IndexError) as e:
+        return {"상태": "없음", "사유": f"원장 사본을 못 읽음({type(e).__name__})"}
+    if not spans:
+        return {"상태": "없음", "사유": "기록 구간 없음"}
+    runs = []
+    for a, e in sorted(spans):
+        if runs and a <= runs[-1][1] + dt.timedelta(days=1):
+            runs[-1][1] = max(runs[-1][1], e)
+        else:
+            runs.append([a, e])
+    cs, ce = runs[-1]
+    if ce < last:
+        return {"상태": "없음", "사유": f"기록 구간 끝 {ce.month}/{ce.day} 이 집계 끝날 {last.month}/{last.day} 에 못 미침"}
+    inside = [r for r in rows if cs <= when[r[0]].date() <= last]
+    owner = {}
+    for label, _ in BUDGET_TYPES:
+        for n in B[label].get("그룹이름", []):
+            owner.setdefault(n, set()).add(label)
+    per, warn = {label: [] for label, _ in BUDGET_TYPES}, []
+    for r in inside:
+        if r[2] != "시스템" or r[1] != STOP_KIND:
+            continue
+        g = r[5].split("\n")[0].strip()
+        o = owner.get(g, set())
+        if len(o) != 1:
+            warn.append(f"멈춤 줄 {r[0]} 그룹 {g!r} 이 예산 읽기 그룹 이름과 {'안 맞음' if not o else '두 유형에 다 있음'} — 카드에 안 넣음")
+            continue
+        per[next(iter(o))].append(r)
+    out = {"상태": "ok", "끝": f"{last.month}/{last.day}", "기록구간": f"{cs.month}/{cs.day}~{ce.month}/{ce.day}", "주의": warn}
+    for label, _ in BUDGET_TYPES:
+        e = B[label]
+        if "캠페인이름" not in e:   # 캠페인 없음·확인 못 함 — 그 유형은 셀 수 없다
+            out[label] = None
+            continue
+        names = set(e["그룹이름"])
+        hit = lambda r: r[2] == "사람" and _budget_change(r[5]) and (
+            r[3] == e["캠페인이름"] or (r[3] == "" and (r[4] in names or r[5].split("\n")[0].strip() in names | {e["캠페인이름"]})))
+        ch = [when[r[0]] for r in inside if hit(r)]
+        t0 = max(ch) if ch else None
+        d0 = t0.date() if t0 else cs
+        seen, ss = set(), []
+        for r in sorted(per[label], key=lambda r: when[r[0]], reverse=True):
+            k = (r[0], r[5].split("\n")[0].strip())
+            if (t0 is not None and when[r[0]] <= t0) or k in seen:
+                continue
+            seen.add(k)
+            ss.append(r)
+        def amount(r):
+            m = next((BUDGET_LINE.match(x.strip()) for x in r[5].split("\n") if BUDGET_LINE.match(x.strip())), None)
+            return int(m.group(1).replace(",", "")) if m else None
+        lo7 = last - dt.timedelta(days=6)
+        out[label] = {"시작": f"{d0.month}/{d0.day}", "시작종류": "변경" if t0 else "기록", "일수": (last - d0).days + 1, "횟수": len(ss),
+                      "최근7일": sum(1 for r in ss if when[r[0]].date() >= lo7),
+                      "범위": [f"{when[ss[-1][0]].month}/{when[ss[-1][0]].day}", f"{when[ss[0][0]].month}/{when[ss[0][0]].day}"] if ss else None,
+                      "줄": [{"일시": _stamp(when[r[0]]), "하루예산": amount(r)} for r in ss]}
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("combined")
     ap.add_argument("--competitors-html")
-    ap.add_argument("--balance", help="balance.py 의 잔액 기록(work/balance.json) — 판 F 광고비 잔액 카드 값(\"잔액\")을 낸다. 5단계·precheck 는 늘 붙인다")
+    ap.add_argument("--balance", help="balance.py 의 잔액 기록(work/balance.json) — 판 F 광고비 잔액 카드 값(\"잔액\") · 판 L 하루예산 카드 값(\"예산\" — 멈춤은 --extra 원장 사본)을 낸다. 5단계·precheck 는 늘 붙인다")
     ap.add_argument("--leads", help="주간 성과 장부(저장소 밖 — precheck 는 config leads.path·환경 변수 SAERO_LEADS) → \"성과장부\"(판정 낱말만)")
     ap.add_argument("--place", help="플레이스 체크리스트(precheck 는 config place_checklist.path·SAERO_PLACE) → \"플레이스전후\"")
     ap.add_argument("--extra", help="추가 합본 폴더(work/extra — extras.py combine) → \"성별연령\"(05 아래 카드)·\"변경기록\"(04 아래 표). 판 G — 5단계·precheck 는 늘 붙인다(없거나 비면 [주의] · '확인 못 함')")
@@ -705,6 +892,10 @@ def main():
         print(f"[compute] {a.out}  {out['masthead']}  KPI {out['KPI']['노출']:,}/{out['KPI']['클릭']}/{out['KPI']['CTR']}%/{out['KPI']['광고비']:,}원"
               f"  경쟁사 {len(out['07']['경쟁사표'])}행(신규 변형 후보 {out['07']['신규변형후보']})"
               + ("" if "잔액" not in out else f"  잔액 {out['잔액']}")
+              + ("" if "예산" not in out else f"  하루예산 {out['예산']['상태']}" + (
+                  "" if out["예산"]["상태"] != "ok" else f"(플레이스 {out['예산']['플레이스'].get('한도', out['예산']['플레이스']['상태'])} · 멈춤 {out['예산']['멈춤']['상태']}"
+                  + ("" if out["예산"]["멈춤"]["상태"] != "ok" or not out["예산"]["멈춤"].get("플레이스") else
+                     f" {out['예산']['멈춤']['플레이스']['시작']} 뒤 {out['예산']['멈춤']['플레이스']['일수']}일 {out['예산']['멈춤']['플레이스']['횟수']}번") + ")"))
               + ("" if "성과장부" not in out else f"  장부 판정 {out['성과장부']['판정']}")
               + ("" if "성별연령" not in out else f"  성별·연령대 {out['성별연령']['상태']}"
                  + "".join(f"({t['종류']} {t.get('기간', t['상태'])})" for t in out['성별연령'].get('표', [])))

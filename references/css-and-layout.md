@@ -29,6 +29,11 @@
   카드 우상단 원형 배경 장식
 - (판 F, 2026-10-09) 그 아래 광고비 잔액 카드 1개: 같은 `.kpi` 모양(강조색 = 광고비와 같은 ink · 지갑 라인 아이콘) + `.kpi-wide` 로 한 줄 전체.
   카드의 `scrollWidth` 는 `.kpi::after` 원형 장식(−20px 밖, overflow:hidden 으로 잘림) 때문에 카드 넷과 같이 +20 — 넘침이 아니다(글자 넘침은 값·보조 줄로 잰다)
+- (판 L, 2026-10-27) 그 아래 하루예산 카드 1개(.kpi-row 마지막 자식): 같은 `.kpi` + `.kpi-wide` 모양(강조색 = 잔액 카드와 같은 ink · 계기판 라인 아이콘 — 새 색·새 뜻 0) ·
+  값의 작은 글 `· 최근 7일 N번 멈춤` 은 기존 `.unit` · 카드 안 접기는 기존 `.fold`·`.fold-more`(인쇄 때 펼침 = 기존 접기 스크립트). **새 CSS 두 줄**(팔레트 변수만):
+  `.kpi .budget-fold{margin-top:8px;position:relative;}`(보조 줄 아래 여백 · `.kpi::after` 장식 원 위로 — label·value·sub 의 position:relative 와 같은 까닭) ·
+  `.budget-stops > div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:4px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink);}`(목록 줄 = 시각 왼쪽 · 설정 값 오른쪽, 좁으면 줄바꿈) ·
+  실측(10/26 데이터 · chart_check 구현 리허설, 판 K → L): 카드 처음(닫힘) 1280 133px · 390 119px · 펼침(7줄) 302 · 288px · 390 한 줄에 `원 · 최근 7일 1번 멈춤` 까지 · 목록 줄 넘침·겹침 0 · 구역 1~11 높이 같음
 - (판 G, 2026-10-12) 04 끝 계정 변경 기록 · 05 끝 성별·연령대 카드: **새 CSS 0** — 기존 `.card`·`.sub-head`·`.wide-table`·`.note`·`.name-cell`·`.num` + 인라인 간격(margin-top)만, 넓은 표는 안쪽 `.wide-table` 이 스크롤(카드 넘침 0 — chart_check).
   예외 하나(2026-10-12 사용자 결정 "줄바꿈" — 같은 분 묶음으로 칸이 길어짐): 04 계정 변경 기록 표의 유형·대상·내용 칸만 인라인 `white-space:normal;word-break:keep-all;overflow-wrap:normal;`
   (apply.py `HI_WRAP` — `.wide-table table` 의 nowrap 상속을 칸에서 풀고, 본문 `overflow-wrap:anywhere` 로 낱말 가운데서 끊기지 않게 낱말 단위) · 일시 칸은 한 줄. 새 CSS 규칙 0 —
@@ -72,9 +77,11 @@
 .scroll-fade  오른쪽(::after)·왼쪽(::before, 판 C) 끝 페이드용 래퍼 — 스크립트가 자동으로 감쌈
 .wide-table   컬럼 많은 표 wrapper
 .fold         접기 <details> (레이아웃 판 r2026-10-B — 아래 "접기 안내"). summary 에 cursor:pointer
-.kpi-wide     KPI 줄 한 줄 전체 카드(판 F 광고비 잔액 — grid-column:1 / -1, 데스크톱 4칸·모바일 2칸 모두). 값·보조 줄은 data-balance 표지 안(apply 기계 자리)
+.kpi-wide     KPI 줄 한 줄 전체 카드(판 F 광고비 잔액 · 판 L 하루예산 — grid-column:1 / -1, 데스크톱 4칸·모바일 2칸 모두). 값·보조 줄은 data-balance·data-budget 표지 안(apply 기계 자리)
+.budget-fold  하루예산 카드 안 접기(판 L — .fold 와 같이 단다 · 위 8px · position:relative)
+.budget-stops 하루예산 접기 안 목록(판 L — 줄마다 flex 두 칸 · 윗줄 선 var(--line) · 12px ink)
 .chart-fold   01·06 모바일 펼치기 버튼(판 D — 분기 도우미가 모바일에서만 만든다, HTML 에 없음). .fold-more 와 같이 달아 03 summary 글꼴 · 버튼 기본 모양만 지움
-.fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기" · 07 정식표 "나머지 N행(…) 펼치기"(판 H)) — 12px 굵게 진한민트, 펼치면 아래 8px
+.fold-more    접기 머리 중 새로 생긴 것(03 "이전 N일 펼치기" · 경쟁사 "표 N행 · 펼치기" · 07 정식표 "나머지 N행(…) 펼치기"(판 H) · 하루예산 "M/D 뒤 N일 중 N번 멈춤(…) 펼치기"(판 L)) — 12px 굵게 진한민트, 펼치면 아래 8px
 ```
 
 ### .wide-table 안의 표
@@ -145,7 +152,7 @@ white-space: nowrap;  /* 줄바꿈으로 셀 찌그러지는 것 방지 */
 ## 접기 안내 (레이아웃 판 r2026-10-B, 2026-10-06)
 
 긴 목록·표를 `<details class="fold">` 로 접는다(report-structure.md 맨 위 "레이아웃 판" — 03 이전 날짜 · 07 클릭 1건·클릭 0 목록 · 07 경쟁사표 · 08 TOP 10 밖, 5개 ·
-판 H(2026-10-17)부터 07 정식표 나머지 행(위 10행 아래) 하나를 더해 6개 — 판 G 04 변경 기록 접기는 판 G 블록 안이라 이 수에 안 든다).
+판 H(2026-10-17)부터 07 정식표 나머지 행(위 10행 아래) 하나를 더해 6개 · 판 L(2026-10-27)부터 KPI 하루예산 카드 안 멈춘 줄 목록 하나를 더해 7개(문서 첫 접기) — 판 G 04 변경 기록 접기는 판 G 블록 안이라 이 수에 안 든다).
 기본 닫힘. 만드는 것은 `scripts/apply.py --layout`(옛 판을 이 판으로 바꿀 때 CSS·스크립트까지 한 번에 넣는다) — 손으로 넣지 않는다.
 
 1. **CSS**: `.fold > summary{cursor:pointer;}` · `.fold-more{font-size:12px;font-weight:700;color:var(--mint-dark);}` · `.fold[open] > .fold-more{margin-bottom:8px;}`

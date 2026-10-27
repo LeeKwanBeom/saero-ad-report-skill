@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """compute.json → 작업본 index.html 의 기계 자리 교체(5단계, E2 — 2026-10-06 저장소화) + 레이아웃 판 변환(2026-10-06 회차 2 · 판 C 01 차트 회차 1 · 판 D 모바일 기간 접기 2026-10-07 ·
 판 E 01 모바일 터치 날짜 2026-10-08 · 판 F 광고비 잔액 카드 2026-10-09 · 판 G 보고서 더 받기 A + B 2026-10-12 · 판 H 07 정식표 접기 2026-10-17 · 판 I 콘텐츠 지면 빼기 2026-10-23 ·
-판 J 불필요 항목 빼기 2026-10-23 오후 · 판 K 01 요일 카드 2026-10-26).
+판 J 불필요 항목 빼기 2026-10-23 오후 · 판 K 01 요일 카드 2026-10-26 · 판 L 하루예산 카드 2026-10-27).
 
 사용법: "$PY" scripts/apply.py --layout [--html work/index.html] [--compute work/compute.json]
 
-- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-K):
+- 레이아웃 판(config `report_layout`, references/report-structure.md "레이아웃 판" 절 — 지금 r2026-10-L):
   · `<meta name="report-layout" content="…">` 가 config `layout_id` 와 같으면 그 판으로 값만 바꾼다 — `--layout` 이 있어도 변환은 건너뜀(멱등).
   · 판 사슬(`STEPS`): r2026-10-B(접기형) → r2026-10-C(`convert_b_to_c` — meta · 왼쪽 페이드 CSS · 01·06 차트 블록을 PC/모바일 두 모양 템플릿으로 ·
     차트 스크립트 끝 분기 도우미 · 가로 안내 스크립트 4줄) → r2026-10-D(`convert_c_to_d` — meta · 펼치기 버튼 CSS · 01 비용 라벨 간격 두 곳 ·
@@ -20,17 +20,21 @@
     02 groupChart 이름 '(4개 그룹 · 자동매칭 포함)' · 고정 표지 04-foot·07-src·12-desc 새 글 · 12-basis 세 줄(집계 기간 · 타겟 지역 줄 빼기 · 클릭률 강조) · 07-legend 끝 '노출 N회 미만' 한 구 ·
     서술 표지 03-desc·08-note·09-desc·09-call 종류 매회차 → 고정(compare 가 그 숫자를 전부 읽는다 — 숫자를 빼도 narrative 미교체 FAIL 이 안 나게). 새 CSS·JS·색 0) →
     r2026-10-K(`convert_j_to_k` — 01 요일 카드, 사용자 결정 "추천대로 진행해줘": meta · 01 차트 카드(dailyChart) 바로 뒤 · ① 박스 앞 카드 하나(머리 '요일별 하루 평균' · 보조 줄 data-weekday="sub" ·
-    캔버스 weekdayChart) · 차트 스크립트 끝(분기 도우미 뒤) 차트 블록 하나(막대 7 = 하루 평균 노출 · clicks = 하루 평균 클릭 라벨) — 캔버스 7 → 8 · 새 구역·CSS·색 0).
+    캔버스 weekdayChart) · 차트 스크립트 끝(분기 도우미 뒤) 차트 블록 하나(막대 7 = 하루 평균 노출 · clicks = 하루 평균 클릭 라벨) — 캔버스 7 → 8 · 새 구역·CSS·색 0) →
+    r2026-10-L(`convert_k_to_l` — 하루예산 카드, 사용자 결정 "추천대로 7건만 보여주고 진행해줘": meta · `</style>` 앞 CSS 두 줄(카드 안 접기·목록 줄) · 광고비 잔액 카드 바로 뒤
+    (.kpi-row 마지막 자식 — 01 섹션 앞) 한 줄 전체 카드 하나(머리 '하루예산 · 예산 도달 멈춤' · 값·보조 줄 · 접기 하나(details.fold — 목록 = 멈춘 줄 전부 최신 위)) —
+    details 6 → 7 · `.kpi-wide` 둘 · 새 구역·색 0).
     meta 가 사슬 위의 옛 판이면 `--layout` 일 때 config 판까지 차례로 변환한 뒤 값을 바꾼다. `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta r2026-10-J ≠ config …`.
   · meta 가 없는 옛 판은 `--layout` 일 때만 사슬로 변환(`convert_layout(h, LAYOUT_B)` → `convert_b_to_c` → `convert_c_to_d` → `convert_d_to_e` → `convert_e_to_f` → `convert_f_to_g` → `convert_g_to_h` →
-    `convert_h_to_i` → `convert_i_to_j` → `convert_j_to_k`) 뒤 값을 바꾼다.
+    `convert_h_to_i` → `convert_i_to_j` → `convert_j_to_k` → `convert_k_to_l`) 뒤 값을 바꾼다.
     `--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …` (옛 배치로 쓰지 않는다). 사슬 밖 meta 는 FAIL(판 변경은 설계 회차 몫).
   · config 대조(details 수 = `markers.details` — 판 G 추가 블록 안 접기는 빼고 셈(`strip_extra`, 2026-10-15) · 분기 표지 주석 `/* saero:mobile-branch 01|06 */` 수 = `markers.mobile_branch` · 판 F 잔액 카드 표지
     `data-balance="value"`·`"sub"` 각 `markers.balance_card` · .kpi-row 안 · 판 G 추가 블록 표지 각 1(합 `markers.extra_blocks`) · 04 블록은 04 본 표 뒤 · 05 블록은 05 안 ·
     판 H 07 "나머지 N행" summary 정확히 1 · 그 접기가 정식표 wrapper 바로 뒤 · 접힌 표가 "클릭 1건 검색어" 앞 · `top_rows_07` 1 이상 정수 ·
     판 I 구역 주석 1~`markers.sections` 순서대로 · 마지막 구역 = Action items · 번호 배지 = 그 구역 번호 · placementChart·`n:10-` 표지 0 · 캔버스 = `markers.canvases` ·
     ① 칸 머리 5 · 판 J 고정 글(`check_trim` — 뺀 고정 글 0 · 클릭 단위 건 · 네 표지 고정) · 판 K 요일 카드(`check_weekday` — 표지 data-weekday card·sub = `markers.weekday_card` ·
-    01 차트 카드 뒤 · ① 박스 앞 · 차트 블록 = 분기 도우미 뒤 하나 · labels 월~일))는 사슬 끝에 한 번 — 값만 경로도 같다. 캔버스 수는 판마다(`canvases_at` — 판 K 8 · I·J 7).
+    01 차트 카드 뒤 · ① 박스 앞 · 차트 블록 = 분기 도우미 뒤 하나 · labels 월~일) · 판 L 하루예산 카드(`check_budget` — 표지 data-budget card·value·sub·fold·summary·list =
+    `markers.budget_card` · 잔액 카드 바로 뒤 · .kpi-row 마지막 자식 · 접기는 카드 안))는 사슬 끝에 한 번 — 값만 경로도 같다. 캔버스 수는 판마다(`canvases_at` — 판 K·L 8 · I·J 7).
 - 바꾸는 자리(매 회차 — 변환을 건너뛴 회차에도): masthead · og:description · KPI 4 + sub 3 · 차트 min-width 2(01·06) · 차트 배열·라벨(01·02·05·06·09 — 판 H 까지는 10 placementChart 도) ·
   05 mediaChart 라벨·색 = compute `05.top5` 순서(`media_labels` — 2026-10-14, 그 전엔 값 배열만 바꿔 순위가 바뀐 날 라벨·색이 옛 순서로 남았다) ·
   02 도넛 제목 총액 · 01 표 5행(최신 위 — 2026-10-15 · 판 I 는 날짜·노출·클릭·CTR·CPC 5칸, 판 H 까지는 검색·콘텐츠 포함 7칸)·순위 5칸(오름차순 그대로) · 03 두 표(위 = 합계 + 최근 `recent_days`일 최신 위 · 접힌 표 = 나머지 날짜 최신 위) ·
@@ -39,6 +43,7 @@
   (판 J — 값만 경로도 매 회차) 07 정식표 노출 칸 쉼표 · 노출 config `ctr_few_07.min_imps` 미만 행 클릭률 '적음'(강조 0) · KPI 클릭 단위 '건' · 06 카드 = compute 06.카드(밖이 된 그룹의 카드 블록은
   서술 표지째 지우고 · 있어야 할 카드가 없으면 FAIL) · 04 이름 칸 `(M/D 신규)` 는 compute 04.신규 그룹만(그 밖은 지움) · 04 변경 기록 끝 스킬 줄 0 · 05 성별·연령대 머리 `(네이버 추정)` ·
   알 수 없음 % 는 표에 그 줄이 없는 종류만 · (판 K) 01 요일 카드 막대 data · clicks · 보조 줄(compute "01.요일" — 없으면 `[FAIL] apply: … "01.요일" 없음`) ·
+  (판 L) 하루예산 카드 값·보조 줄·summary·목록 줄(compute "예산" — 없으면 `[FAIL] apply: … "예산" 없음` · 예산 읽기 실패면 '확인 못 함' · 멈춤 셈을 못 하면 그 칸 '확인 못 함') ·
   07 경쟁사표(소재구·매칭 = 직전 행, 신규 변형 = config `competitor_defaults`) · 08 TOP 10 · 08 TOP 10 밖 목록(동률은 직전 순서)·개수 줄 · 10 표 4행(판 H 까지 — 판 I 는 구역 없음) ·
   **summary 의 개수·날짜 전부**(03 "이전 N일(M/D~M/D)" · 07 정식표 "나머지 N행(클릭 a~b건 · 합 M건 · X원)"(판 H — 나머지가 없으면 "나머지 0행") ·
   07 클릭 1건·클릭 0 "(N개 · 펼치기)" · 경쟁사표 "표 N행" · 08 "(N개 지역·클릭 M건)") — 막음 M2 ·
@@ -601,7 +606,7 @@ TOUCH_D_TO_E = ("        interaction: {mode:'index', intersect:false},\n        
 # compute.json "잔액"(← balance.py 가 읽은 비즈머니 · compute.py --balance)으로 둘 다 다시 쓴다(실패 기록이면 "확인 못 함" — 옛 값이 새 시각과 같이 남는 길 0).
 # data-balance 속성 덕분에 기존 KPI 앵커(validate parse_kpi_tiles · apply 총 광고비 once · compare _kpi 의 sub 순번)에 잡히지 않는다. 새 색 0(accent = 넷째 카드 값).
 LAYOUT_F = "r2026-10-F"
-CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I·J·K 도 잔액 카드 그대로)
+CARD_LAYOUTS = ("r2026-10-F", "r2026-10-G", "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K", "r2026-10-L")   # 잔액 카드가 있는 판(apply 가 값을 쓰고 표지 수를 대조하는 판 — 판 G·H·I·J·K·L 도 잔액 카드 그대로)
 BALANCE_CSS = """  /* 광고비 잔액 카드(레이아웃 판 r2026-10-F, 2026-10-09) — KPI 카드 넷 아래 한 줄 전체(데스크톱 4칸·모바일 2칸 모두 grid-column 1 / -1). 모양·색은 .kpi 그대로 — 새 색 0.
      값·보조 줄(data-balance)은 scripts/apply.py 가 매 회차 compute.json 의 잔액(scripts/balance.py 가 읽은 비즈머니)으로 쓴다(기계 자리) */
   .kpi-wide{grid-column:1 / -1;}
@@ -788,7 +793,7 @@ def balance_values(h, R):
 # 앵커: 구역 n 의 마지막 `\n  </div>\n`(구역 div 닫힘) 앞 — 그 뒤엔 공백과 `<!-- Section n+1:` 뿐이어야(정확히 하나). 04 의 표는 블록이 본 표 뒤에 오므로
 # apply 의 04 tbody 앵커(구역 첫 tbody)·compare _s04(구역 첫 <table>)·validate parse_04_rows(숫자 칸 7개 행)와 겹치지 않는다.
 LAYOUT_G = "r2026-10-G"
-EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K")  # 추가 카드·표가 있는 판(판 H·I·J·K 도 그대로)
+EXTRA_LAYOUTS = (LAYOUT_G, "r2026-10-H", "r2026-10-I", "r2026-10-J", "r2026-10-K", "r2026-10-L")  # 추가 카드·표가 있는 판(판 H·I·J·K·L 도 그대로)
 GA_OPEN, GA_CLOSE = "<!-- saero:extra gender-age -->", "<!-- /saero:extra gender-age -->"
 HI_OPEN, HI_CLOSE = "<!-- saero:extra history -->", "<!-- /saero:extra history -->"
 MUTED = 'style="font-weight:400;color:var(--ink-soft);"'
@@ -949,7 +954,7 @@ def extra_values(h, R, trim=True):
 # summary 는 "나머지 N행(클릭 a~b건 · 합 M건 · X원) 펼치기" — 경쟁사 summary 꼴("표 N행 · 펼치기")·07 앵커 문구(클릭 1건 검색어 · 노출은 있으나 클릭 0건인 ·
 # line-height:1.9;"> · 클릭의 N% 차지)를 쓰지 않는다(apply·compare 의 07 첫 일치·once_in 보호). 행이 top_rows_07 이하면 "나머지 0행 펼치기" + 빈 tbody(details 수 고정 — 03 "이전 0일" 선례).
 LAYOUT_H = "r2026-10-H"
-FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I", "r2026-10-J", "r2026-10-K")  # 07 정식표 접기가 있는 판(판 I·J·K 도 그대로)
+FOLD07_LAYOUTS = (LAYOUT_H, "r2026-10-I", "r2026-10-J", "r2026-10-K", "r2026-10-L")  # 07 정식표 접기가 있는 판(판 I·J·K·L 도 그대로)
 SUM07 = r"(<summary[^>]*>)나머지 \d+행(?:\([^)<]*\))? 펼치기(</summary>)"   # apply·시험이 다시 쓰는 summary(07 구역 안 정확히 하나)
 SUM07_HEAD = re.compile(r"<summary[^>]*>나머지 ")
 WRAP_END = re.compile(r"</table>\n([ \t]*)</div>\n")
@@ -1039,7 +1044,7 @@ def convert_g_to_h(h, lay):
 # 서술 표지는 건드리지 않는다 — 고정 표지 12-basis 의 "KPI·01~07·10번에서 제외"(10 = 없어진 지면 구역) 한 곳만 고친다(사용자 결정 기본값 — 매회차 표지 글은 운영 서술 몫).
 # 표지·config·compute 키·함수 이름의 11·12(11-list·12-1 · items_in_12 · "12번")는 내부 이름이라 그대로(화면 번호 10·11 — report-structure.md "서술 표지").
 LAYOUT_I = "r2026-10-I"
-NOPLACE_LAYOUTS = (LAYOUT_I, "r2026-10-J", "r2026-10-K")   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸 — 판 J·K 도 그대로)
+NOPLACE_LAYOUTS = (LAYOUT_I, "r2026-10-J", "r2026-10-K", "r2026-10-L")   # 지면 구역·placementChart 가 없고 구역이 markers.sections 개인 판(01 ① 5칸 — 판 J·K·L 도 그대로)
 H1_OLD, H1_NEW = "① 일별 지표 — 노출·CTR·지면 변화", "① 일별 지표 — 노출·CTR 변화"
 TH_SC = r'\n[ \t]*<th class="num">검색</th>\n[ \t]*<th class="num">콘텐츠</th>'   # ① 칸 머리 둘(정확히 하나)
 BASIS_OLD, BASIS_NEW = "KPI·01~07·10번에서 제외", "KPI·01~07번에서 제외"
@@ -1139,7 +1144,7 @@ def convert_h_to_i(h, lay):
 # 값(매 회차 — apply 의 trim 갈래) = 07 노출 쉼표·'적음' · 06 카드 집합 · 04 '(M/D 신규)' 기한 · 04 스킬 줄 0 · 05 머리·알 수 없음 %. 서술(매회차 표지 글)은 운영 서술 스크립트 몫.
 # 표지가 없는 판(시험 fixture — 옛 판에서 사슬로 온 판)은 그 표지 단계를 건너뛴다 · 표지가 있는데 글이 옛 글도 새 글도 아니면 FAIL(손으로 바꾼 판).
 LAYOUT_J = "r2026-10-J"
-TRIM_LAYOUTS = (LAYOUT_J, "r2026-10-K")   # 판 J 값 갈래(07 '적음'·쉼표 · 06 카드 집합 · 04 신규 기한 · KPI 클릭 '건' · 판 G 블록 글 — 판 K 도 그대로)
+TRIM_LAYOUTS = (LAYOUT_J, "r2026-10-K", "r2026-10-L")   # 판 J 값 갈래(07 '적음'·쉼표 · 06 카드 집합 · 04 신규 기한 · KPI 클릭 '건' · 판 G 블록 글 — 판 K·L 도 그대로)
 TITLE_OLD, TITLE_NEW = '<div class="title">네이버 검색광고 주간 리포트</div>', '<div class="title">네이버 검색광고 리포트</div>'
 KPI_SUB_CTR = r'(<div class="label">평균 클릭률</div>\s*<div class="value">[^\n]*</div>)\n[ \t]*<div class="sub">업종 평균 수준</div>'
 KPI_CLK_UNIT = r'(<div class="label">총 클릭수</div>\s*<div class="value">[^<]*<span class="unit">)회(</span></div>\s*<div class="sub">일 평균 [\d.]+)회(</div>)'
@@ -1287,7 +1292,7 @@ NEW_TAG = re.compile(r'\s*<span[^>]*>\(\d+/\d+ 신규\)</span>')   # 04 이름 �
 # 값(매 회차 — apply 판 K 갈래) = 막대 data(compute 01.요일.노출) · clicks(01.요일.클릭 — null 은 라벨 빈칸) · 보조 줄(검색 지면 · 첫날~끝날 · 요일마다 N일 / N~M일).
 # 블록에 getElementById('dailyChart'|'rankChart') 리터럴 · 'M/D(요)' 꼴 labels · min-width · 5칸 td · .note-mint 를 쓰지 않는다(apply·compare·validate 01 첫 일치 앵커 보호).
 LAYOUT_K = "r2026-10-K"
-WEEKDAY_LAYOUTS = (LAYOUT_K,)   # 01 요일 카드가 있는 판
+WEEKDAY_LAYOUTS = (LAYOUT_K, "r2026-10-L")   # 01 요일 카드가 있는 판(판 L 도 그대로)
 WEEK_LABELS = "['월','화','수','목','금','토','일']"
 WEEK_CARD = """    <div class="card" data-weekday="card" style="margin-top:12px;">
       <div class="sub-head" style="margin-top:0;">요일별 하루 평균</div>
@@ -1345,7 +1350,7 @@ def week_sub(W):
 
 
 def canvases_at(lay, lid):
-    """판 lid 의 캔버스 수 — config markers.canvases 는 config 판 기준(판 K 8)이라, 사슬 중간 판(I·J — 요일 카드 없음)을 검사할 때는 요일 캔버스 하나를 뺀다."""
+    """판 lid 의 캔버스 수 — config markers.canvases 는 config 판 기준(판 K·L 8)이라, 사슬 중간 판(I·J — 요일 카드 없음)을 검사할 때는 요일 캔버스 하나를 뺀다."""
     n = int(lay["markers"]["canvases"])
     return n - 1 if lay["layout_id"] in WEEKDAY_LAYOUTS and lid not in WEEKDAY_LAYOUTS else n
 
@@ -1415,10 +1420,143 @@ def weekday_values(h, R):
     return once(WEEK_SUB, lambda m: m.group(1) + week_sub(W) + m.group(2), h)
 
 
+# ── 판 L(r2026-10-L, 2026-10-27 — 하루예산 카드, 사용자 결정 "추천대로 7건만 보여주고 진행해줘"): 광고비 잔액 카드 바로 뒤 한 줄 전체 카드 하나(.kpi-row 마지막 자식) ──
+# 새 구역 0(구역 01~11 번호 그대로) · 강조색 ink(잔액 카드와 같은 값 — 새 색·새 뜻 0) · 접기 = 기존 .fold·.fold-more(인쇄 때 펼침은 기존 접기 스크립트 — 모든 details) ·
+# 새 CSS 두 줄(카드 안 접기 자리 · 목록 줄 — 팔레트 변수만) · PC·모바일 같은 HTML. 값(매 회차 — apply 판 L 갈래 budget_values) = compute "예산".
+# 카드 글에 `data-balance` · `광고비 잔액` · `일 평균` · `클릭당 평균` · `<td>`·`<tbody>` · `getElementById(` · 'M/D(요)' 꼴 labels · 07/03/04 summary 꼴(`이전 N` · `나머지 N행` · `표 N행`)을
+# 쓰지 않는다(validate parse_kpi_tiles · compare _kpi sub · apply KPI once · 03/04/07 접기 앵커 보호 — 목록 날짜 `M/D(요)` 는 HTML 글이라 날짜축 labels 셈 밖).
+LAYOUT_L = "r2026-10-L"
+BUDGET_LAYOUTS = (LAYOUT_L,)   # 하루예산 카드가 있는 판
+BUDGET_CSS = """  /* 하루예산 카드(레이아웃 판 r2026-10-L, 2026-10-27) — 잔액 카드 아래 한 줄 전체(.kpi-wide) · 접기는 03 과 같은 .fold·.fold-more(인쇄 때 펼침 = 접기 스크립트).
+     카드 안 접기를 장식 원(.kpi::after) 위로 · 목록 줄 = 시각 왼쪽 · 설정 값 오른쪽(좁으면 줄바꿈). 값·보조 줄·summary·목록은 scripts/apply.py 가 매 회차 compute.json 의 예산으로 쓴다 */
+  .kpi .budget-fold{margin-top:8px;position:relative;}
+  .budget-stops > div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 12px;padding:4px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink);}
+"""
+BUDGET_CARD = """    <div class="kpi kpi-wide" data-budget="card" style="--accent:#1c2b2a;">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.5 17a8.5 8.5 0 0 1 17 0"/><path d="M12 17l4.5-5.5"/><circle cx="12" cy="17" r="1.2"/></svg></div>
+      <div class="label">하루예산 · 예산 도달 멈춤</div>
+      <div class="value" data-budget="value">확인 못 함</div>
+      <div class="sub" data-budget="sub">—</div>
+      <details class="fold budget-fold" data-budget="fold">
+        <summary class="fold-more" data-budget="summary">멈춤 기록 확인 못 함</summary>
+        <div class="budget-stops" data-budget="list">
+        </div>
+      </details>
+    </div>
+"""
+BAL_END = r'(<div class="sub" data-balance="sub">[^<\n]*</div>\n    </div>\n)(  </div>\n)'   # 잔액 카드 끝 + .kpi-row 닫힘(정확히 하나)
+BUD_VALUE = r'(<div class="value" data-budget="value">)[^\n]*?(</div>)'
+BUD_SUB = r'(<div class="sub" data-budget="sub">)[^<\n]*(</div>)'
+BUD_SUM = r'(<summary class="fold-more" data-budget="summary">)[^<\n]*(</summary>)'
+BUD_LIST = r'(<div class="budget-stops" data-budget="list">\n)(?:[ \t]*<div><span>[^\n]*\n)*([ \t]*</div>)'
+BUD_KEYS = ("card", "value", "sub", "fold", "summary", "list")
+
+
+def check_budget(h, lay, why):
+    """판 L 표지 — data-budget card·value·sub·fold·summary·list 각 config markers.budget_card(1) · .kpi-row 안 잔액 카드 바로 뒤(01 섹션 앞) · .kpi-row 마지막 자식 · 접기는 카드 안."""
+    want = int(lay["markers"].get("budget_card", 1))
+    n = [h.count(f'data-budget="{k}"') for k in BUD_KEYS]
+    if n != [want] * len(BUD_KEYS):
+        raise ApplyError(f"{why} 하루예산 카드 표지 {dict(zip(BUD_KEYS, n))} ≠ 각 config budget_card {want} — 손으로 바꾼 판으로 보임")
+    kr, bv, bc, s1 = h.find('<div class="kpi-row">'), h.find('data-balance="value"'), h.find('data-budget="card"'), h.find("<!-- Section 1:")
+    if not (-1 < kr < bv < bc < s1):
+        raise ApplyError(f"{why} 하루예산 카드가 .kpi-row 안 잔액 카드 뒤(01 섹션 앞)가 아님 — 손으로 옮긴 판으로 보임")
+    a = h.rindex("\n", 0, bc) + 1
+    e = h.find("\n    </div>\n", bc)
+    if not h.startswith('    <div class="kpi kpi-wide" data-budget="card"', a) or e == -1 or not h.startswith("\n    </div>\n  </div>\n", e) or h[e + len("\n    </div>\n  </div>\n"):s1].strip():
+        raise ApplyError(f"{why} 하루예산 카드가 .kpi-row 마지막 자식(한 줄 전체 · 바로 뒤 01 섹션)이 아님 — 손으로 바꾼 판으로 보임")
+    if not a < h.find('data-budget="fold"') < h.find('data-budget="list"') < e or h.count("<details", a, e) != 1:
+        raise ApplyError(f"{why} 하루예산 카드 접기·목록이 카드 안 하나가 아님 — 손으로 바꾼 판으로 보임")
+    if not re.search(r'<div class="sub" data-balance="sub">[^<\n]*</div>\n    </div>\n\Z', h[max(0, a - 400):a]):
+        raise ApplyError(f"{why} 하루예산 카드 바로 앞이 잔액 카드가 아님 — 손으로 옮긴 판으로 보임")
+
+
+def convert_k_to_l(h, lay):
+    """레이아웃 판 r2026-10-K → r2026-10-L(하루예산 카드). 바뀌는 곳 = meta · `</style>` 앞 CSS 두 줄 · 잔액 카드 바로 뒤(.kpi-row 닫힘 앞) 카드 하나 — 앵커 셋 다 정확히 하나.
+    카드 넷·잔액 카드·섹션 HTML·서술 표지·스크립트는 건드리지 않는다. 카드 값·보조 줄·summary·목록은 뒤의 apply 가 compute.json "예산"으로 쓴다(템플릿은 자리만 — '확인 못 함')."""
+    if "data-budget=" in h or "budget-stops" in h:
+        raise ApplyError("판 K 인데 하루예산 카드 표지(data-budget · budget-stops)가 이미 있음 — 손으로 넣은 판으로 보임, 변환하지 않음")
+    h = once(rf'<meta name="report-layout" content="{LAYOUT_K}">', f'<meta name="report-layout" content="{LAYOUT_L}">', h)        # ①
+    h = once(r"(\n</style>)", lambda m: "\n" + BUDGET_CSS.rstrip("\n") + m.group(1), h)                                          # ② CSS 두 줄
+    h = once(BAL_END, lambda m: m.group(1) + BUDGET_CARD + m.group(2), h)                                                          # ③ 카드(잔액 카드 뒤)
+    check_budget(h, lay, "변환 뒤")                                                                                                # ④
+    return h
+
+
+def _won_txt(v):
+    return "제한 없음" if v is None else f"{c(v)}원"
+
+
+def budget_groups(gs):
+    """켜진 그룹 한도 목록 → 괄호 글 — 다 같으면 '그룹마다 N원' · 다르면 '그룹 a~b원' · 전부 한도 없음 '그룹 제한 없음' · 섞이면 '그룹 a원~제한 없음' · 0개 '켜진 그룹 없음'."""
+    if not gs:
+        return "켜진 그룹 없음"
+    nums = sorted(x for x in gs if x is not None)
+    if not nums:
+        return "그룹 제한 없음"
+    if len(nums) < len(gs):
+        return f"그룹 {c(nums[0])}원~제한 없음"
+    return f"그룹마다 {c(nums[0])}원" if nums[0] == nums[-1] else f"그룹 {c(nums[0])}~{c(nums[-1])}원"
+
+
+def budget_texts(B):
+    """compute "예산" → (값 HTML, 보조 줄, summary, 목록 [(시각, 설정 값 글)]). 글자는 사용자 승인 꼴(2026-10-27 목업 2벌째):
+    값 `플레이스 20,000원` + 작은 글 ` · 최근 7일 N번 멈춤` · 보조 줄 `파워링크 30,000원(그룹마다 15,000원) · 멈춤 N번` ·
+    summary `M/D 뒤 N일 중 N번 멈춤(M/D~M/D) 펼치기`(0번이면 `M/D 뒤 N일 중 멈춤 0번 펼치기` · 변경이 기록 구간 밖이면 앞에 `기록 시작 `) · 목록 줄 `M/D(요) HH:MM` · `하루예산 N원`.
+    예산 읽기 실패 = 값 `확인 못 함` · 보조 줄 `M/D(요) HH:MM 조회 실패` · summary `멈춤 기록 확인 못 함 — 하루예산 조회 실패` · 빈 목록(잔액 카드와 같은 꼴) /
+    멈춤 셈 못 함 = 작은 글 ` · 최근 7일 멈춤 확인 못 함` · ` · 멈춤 확인 못 함` · summary `멈춤 기록 확인 못 함 — <사유>` · 빈 목록."""
+    if B.get("상태") == "fail":
+        return "확인 못 함", f"{B['기준']} 조회 실패", "멈춤 기록 확인 못 함 — 하루예산 조회 실패", []
+    S = B["멈춤"]
+    sp, sw = (S.get("플레이스"), S.get("파워링크")) if S.get("상태") == "ok" else (None, None)
+    P, W = B["플레이스"], B["파워링크"]
+    if P["상태"] != "ok":
+        amt, unit = P["상태"], ""
+    elif len(P["그룹"]) == 1:
+        amt, unit = ("제한 없음", "") if P["한도"] is None else (c(P["한도"]), "원")
+    elif not P["그룹"]:
+        amt, unit = "켜진 그룹 없음", ""
+    else:   # 켜진 그룹 둘 이상 — 캠페인 값(그룹 괄호) — 파워링크 줄과 같은 꼴
+        amt, unit = ("제한 없음", "") if P["캠페인"] is None else (c(P["캠페인"]), "원")
+        unit += f"({budget_groups(P['그룹'])})"
+    recent = f" · 최근 7일 {sp['최근7일']}번 멈춤" if sp else " · 최근 7일 멈춤 확인 못 함"
+    val = f'플레이스 {amt}<span class="unit">{unit}{recent}</span>'
+    pw = W["상태"] if W["상태"] != "ok" else f"{_won_txt(W['캠페인'])}({budget_groups(W['그룹'])})"
+    sub = f"파워링크 {pw} · " + (f"멈춤 {sw['횟수']}번" if sw else "멈춤 확인 못 함")
+    if not sp:
+        why = S.get("사유") if S.get("상태") != "ok" else "플레이스 캠페인을 못 가름"
+        return val, sub, f"멈춤 기록 확인 못 함 — {why}", []
+    head = ("" if sp["시작종류"] == "변경" else "기록 시작 ") + f"{sp['시작']} 뒤 {sp['일수']}일 중 "
+    if sp["횟수"]:
+        a, b = sp["범위"]
+        summ = head + f"{sp['횟수']}번 멈춤({a if a == b else f'{a}~{b}'}) 펼치기"
+    else:
+        summ = head + "멈춤 0번 펼치기"
+    rows = [(r["일시"], "하루예산 —" if r["하루예산"] is None else f"하루예산 {c(r['하루예산'])}원") for r in sp["줄"]]
+    return val, sub, summ, rows
+
+
+def budget_values(h, R):
+    """판 L 값(매 회차 — 변환을 건너뛴 회차에도). compute.json "예산" 이 없거나 꼴이 다르면 FAIL(카드를 옛 값으로 두지 않는다 — 5단계는 balance.py → compute … --balance · --extra)."""
+    B = R.get("예산")
+    if not isinstance(B, dict) or B.get("상태") not in ("ok", "fail") or not isinstance(B.get("기준"), str) or not BAL_STAMP.fullmatch(B["기준"]):
+        raise ApplyError('compute.json "예산" 없음 또는 꼴이 다름(상태 ok|fail · 기준 M/D(요일) HH:MM) — 5단계는 balance.py → compute.py … --balance work/balance.json --extra work/extra → apply.py 순서')
+    try:
+        val, sub, summ, rows = budget_texts(B)
+    except (KeyError, TypeError, ValueError, IndexError) as e:
+        raise ApplyError(f'compute.json "예산" 꼴이 다름({type(e).__name__}: {e}) — compute.py 를 판 L 로 다시')
+    h = once(BUD_VALUE, lambda m: m.group(1) + val + m.group(2), h)
+    h = once(BUD_SUB, lambda m: m.group(1) + esc(sub) + m.group(2), h)
+    h = once(BUD_SUM, lambda m: m.group(1) + esc(summ) + m.group(2), h)
+    body = "".join(f"          <div><span>{esc(a)}</span><span>{esc(b)}</span></div>\n" for a, b in rows)
+    return once(BUD_LIST, lambda m: m.group(1) + body + m.group(2), h)
+
+
 # 판 사슬 — (옛 판, 새 판, 변환). meta 가 사슬 위에 있으면 config 판까지 차례로(--layout 일 때만)
 STEPS = (("r2026-10-B", LAYOUT_C, convert_b_to_c), (LAYOUT_C, LAYOUT_D, convert_c_to_d), (LAYOUT_D, LAYOUT_E, convert_d_to_e),
          (LAYOUT_E, LAYOUT_F, convert_e_to_f), (LAYOUT_F, LAYOUT_G, convert_f_to_g), (LAYOUT_G, LAYOUT_H, convert_g_to_h),
-         (LAYOUT_H, LAYOUT_I, convert_h_to_i), (LAYOUT_I, LAYOUT_J, convert_i_to_j), (LAYOUT_J, LAYOUT_K, convert_j_to_k))
+         (LAYOUT_H, LAYOUT_I, convert_h_to_i), (LAYOUT_I, LAYOUT_J, convert_i_to_j), (LAYOUT_J, LAYOUT_K, convert_j_to_k),
+         (LAYOUT_K, LAYOUT_L, convert_k_to_l))
 
 
 def chain(frm, to):
@@ -1454,7 +1592,8 @@ def apply(h, R, cfg, layout=False):
     판 I 는 01 ① 5칸(날짜·노출·클릭·CTR·CPC)이고 placementChart·10 표를 쓰지 않는다(판 H 까지는 7칸 + placementChart + 10 표 4행).
     판 J(TRIM_LAYOUTS)는 값 갈래가 더 있다 — KPI 클릭 '건' · 07 노출 쉼표·'적음' · 06 카드 집합(drop_cards) · 04 '(M/D 신규)' 기한(compute 04.신규) · 판 G 블록 글(trim).
     판 K(WEEKDAY_LAYOUTS)는 사슬 끝에 check_weekday(요일 카드 표지·자리 · 차트 블록 = 분기 도우미 뒤) · 값 갈래 weekday_values(compute "01.요일" — 없으면 FAIL) ·
-    캔버스 수는 판마다(canvases_at — config markers.canvases 8 은 판 K 기준 · 사슬 중간 I·J 검사는 7)."""
+    캔버스 수는 판마다(canvases_at — config markers.canvases 8 은 판 K 기준 · 사슬 중간 I·J 검사는 7).
+    판 L(BUDGET_LAYOUTS)는 사슬 끝에 check_budget(하루예산 카드 표지·자리 · .kpi-row 마지막 자식) · 값 갈래 budget_values(compute "예산" — 없으면 FAIL)."""
     lay = cfg["report_layout"]
     lid, k = lay["layout_id"], int(lay["recent_days"])
     trim = lid in TRIM_LAYOUTS
@@ -1497,6 +1636,8 @@ def apply(h, R, cfg, layout=False):
         check_trim(h, cfg, f"레이아웃 판 {lid} 인데")
     if lid in WEEKDAY_LAYOUTS:
         check_weekday(h, lay, f"레이아웃 판 {lid} 인데")
+    if lid in BUDGET_LAYOUTS:
+        check_budget(h, lay, f"레이아웃 판 {lid} 인데")
     h = once(M_LINE.pattern, lambda m: m_line(lay), h)   # 분기 도우미 M 줄 = config report_layout.mobile(매 회차 — 변환을 건너뛴 회차에도)
     if lid in CARD_LAYOUTS:
         h = balance_values(h, R)                          # 판 F 잔액 카드 값·보조 줄(매 회차 — compute.json "잔액")
@@ -1504,6 +1645,8 @@ def apply(h, R, cfg, layout=False):
         h = extra_values(h, R, trim)                      # 판 G 04·05 추가 블록(매 회차 — compute.json "성별연령"·"변경기록", 없으면 '확인 못 함' · 판 J 글)
     if lid in WEEKDAY_LAYOUTS:
         h = weekday_values(h, R)                          # 판 K 01 요일 카드 막대·clicks·보조 줄(매 회차 — compute.json "01.요일", 없으면 FAIL)
+    if lid in BUDGET_LAYOUTS:
+        h = budget_values(h, R)                           # 판 L 하루예산 카드 값·보조 줄·summary·목록(매 회차 — compute.json "예산", 없으면 FAIL)
     K = R["KPI"]
     # masthead·og·KPI
     h = once(r"(집계 기간<b>)[^<]+(</b>)", rf'\g<1>{R["masthead"]}\g<2>', h)
@@ -1705,7 +1848,7 @@ def apply(h, R, cfg, layout=False):
 
 def main():
     ap = argparse.ArgumentParser(description="compute.json → 작업본 기계 자리 교체(5단계) + 레이아웃 판 변환(--layout)")
-    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H·I·J)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
+    ap.add_argument("--layout", action="store_true", help="옛 판(meta 없음)·사슬 위 옛 판(r2026-10-B·C·D·E·F·G·H·I·J·K)이면 레이아웃 판(config report_layout)까지 사슬 변환한 뒤 값 교체 — 이미 그 판이면 건너뜀(멱등). 5단계는 매 회차 붙인다")
     ap.add_argument("--html", default="work/index.html")
     ap.add_argument("--compute", default="work/compute.json")
     a = ap.parse_args()
@@ -1752,6 +1895,12 @@ def main():
     if lid in WEEKDAY_LAYOUTS:   # 판 K — 운영 세션이 출력에서 요일 카드 보조 줄(기간·일수)을 본다
         mw = re.search(WEEK_SUB, new)
         nopl += f" · 요일 카드 {mw.group(0)[len(mw.group(1)):-len(mw.group(2))] if mw else '없음'}"
+    if lid in BUDGET_LAYOUTS:   # 판 L — 운영 세션이 출력에서 하루예산 카드 글(값 · 보조 줄 · summary · 목록 줄 수)을 본다
+        mv, ms, mm = re.search(BUD_VALUE, new), re.search(BUD_SUB, new), re.search(BUD_SUM, new)
+        li = new.find('data-budget="list"')
+        nrow = new.count("<div><span>", li, new.find("</details>", li))
+        plain = lambda m: re.sub(r"<[^>]+>", "", m.group(0))
+        nopl += (f" · 하루예산 카드 {plain(mv)} · {plain(ms)} · {plain(mm)} · 목록 {nrow}줄" if mv and ms and mm else " · 하루예산 카드 없음")
     print(f"[apply] {a.html} ← {a.compute}  {R['masthead']} · {len(h):,} → {len(new):,}자" + conv + card + fold7 + nopl + (" (변경 없음)" if new == h else ""))
     return 0
 

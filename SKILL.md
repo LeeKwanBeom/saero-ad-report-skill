@@ -23,8 +23,9 @@ description: 새로필라테스 네이버 검색광고 주간리포트(GitHub Pa
 
 이 스킬의 설명만 보고 처음부터 코딩하면 여백·문구·세부 스타일이 반드시 달라진다.
 **배포본이 유일한 원본이고, 이 문서는 그 원본을 어떻게 다루는지에 대한 설명서다.**
-**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-K`(사용자 결정 2026-10-06·07·08·09·12·17·23·26 — 판 B 접기형 + 01·06 모바일 가로 막대(판 C) + 모바일 01·06 처음 최근 14일·펼치기 버튼(판 D) + 01 모바일 터치 날짜(판 E) + KPI 카드 넷 아래 광고비 잔액 카드(판 F) + 04 아래 계정 변경 기록·05 아래 성별·연령대 카드(판 G) + 07 정식표 위 10행·나머지 접기(판 H) + 콘텐츠 지면 빼기 — 01 ① 5칸 · 옛 10번 지면 구역 삭제 · 11·12 → 10·11, 구역 11개(판 I) + 불필요 항목 빼기 — 고정 글(제목 '주간' · KPI '업종 평균 수준' · 04 ※ · 07 안내 · 11 설명 · 집계 기준)·
-06 카드 규칙·07 '적음'·05 검색 지면 막대(판 J) + 01 일별 추이 안 '요일별 하루 평균' 카드 — 검색 지면 · 막대 7개 노출 + 막대 위 클릭, 캔버스 8개(판 K), references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
+**레이아웃 판(접기·표 순서 같은 모양)은 설계 회차·사용자 결정으로만 바꾼다** — 지금 판은 `r2026-10-L`(사용자 결정 2026-10-06·07·08·09·12·17·23·26·27 — 판 B 접기형 + 01·06 모바일 가로 막대(판 C) + 모바일 01·06 처음 최근 14일·펼치기 버튼(판 D) + 01 모바일 터치 날짜(판 E) + KPI 카드 넷 아래 광고비 잔액 카드(판 F) + 04 아래 계정 변경 기록·05 아래 성별·연령대 카드(판 G) + 07 정식표 위 10행·나머지 접기(판 H) + 콘텐츠 지면 빼기 — 01 ① 5칸 · 옛 10번 지면 구역 삭제 · 11·12 → 10·11, 구역 11개(판 I) + 불필요 항목 빼기 — 고정 글(제목 '주간' · KPI '업종 평균 수준' · 04 ※ · 07 안내 · 11 설명 · 집계 기준)·
+06 카드 규칙·07 '적음'·05 검색 지면 막대(판 J) + 01 일별 추이 안 '요일별 하루 평균' 카드 — 검색 지면 · 막대 7개 노출 + 막대 위 클릭, 캔버스 8개(판 K) + 잔액 카드 아래 '하루예산 · 예산 도달 멈춤' 한 줄 카드 —
+플레이스 실제 한도 · 최근 7일 멈춘 수 · 파워링크 캠페인·그룹 · 접기(지금 예산으로 바꾼 날 뒤 멈춘 줄 전부), 접기 7개(판 L), references/report-structure.md "레이아웃 판"), 배포본 `<meta name="report-layout">` = config `report_layout.layout_id` 여야 validate·deploy 가 통과한다.
 
 ## 배포 정보
 
@@ -274,9 +275,9 @@ compute 는 config `content_watch.since`(2026-09-06) 이후 날에 콘텐츠 지
 
 교체는 잔액 읽기 + 두 단계(2026-10-06 — E2 저장소화 · 서술 표지 · 레이아웃 판 / 2026-10-09 판 F 광고비 잔액 카드 — 앞 두 줄 / 2026-10-12 판 G — compute `--extra`):
 ```bash
-"$PY" scripts/balance.py --key-file ~/naver-api.keys.json                              # 광고비 잔액(비즈머니) GET 1회(읽기) → work/balance.json — 실패해도 exit 0(카드 "확인 못 함")
+"$PY" scripts/balance.py --key-file ~/naver-api.keys.json                              # 광고비 잔액(비즈머니) GET 1회 + 하루예산(캠페인 1 · 캠페인마다 그룹 1 — 판 L) GET(읽기 — 10/27 기준 합 4회) → work/balance.json — 실패해도 exit 0(그 카드만 "확인 못 함")
 "$PY" scripts/compute.py work/combined --competitors-html work/prev.html --balance work/balance.json --leads "$("$PY" scripts/leads.py path)" --place "$("$PY" scripts/place.py path)" --extra work/extra -o work/compute.json   # 잔액 카드 값("잔액")·성과장부·플레이스전후·성별연령·변경기록까지 — 잔액 기록이 없거나 지난 회차 것이면 [FAIL] exit 1
-"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·잔액 카드·표·목록·차트·masthead·og·접기 summary·04·05 추가 블록) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
+"$PY" scripts/apply.py --layout --html work/index.html --compute work/compute.json   # 기계 자리(KPI·잔액 카드·하루예산 카드·표·목록·차트·masthead·og·접기 summary·04·05 추가 블록) + 레이아웃 판 — 앵커가 하나가 아니면 [FAIL] exit 1, 작업본 그대로
 "$PY" work/n<날짜>.py                                                                  # 서술 — 저장소 밖 스크래치, 표지마다 rep('<자리>', 새 문장)
 ```
 **광고비 잔액 카드(판 F)**: `balance.py` 는 네이버 검색광고 API `GET /billing/bizmoney` 를 한 번 읽어(서명·키는 exclusions.py 의 NaverApi·load_keys 그대로 — 키 파일은 경로만)
@@ -285,6 +286,11 @@ compute 는 config `content_watch.since`(2026-09-06) 이후 날에 콘텐츠 지
 `10/9(금) 14:34 기준 · 약 24일분`(며칠분 = 잔액 ÷ 집계 마지막 날까지 7일 평균 총비용, 버림 — 평균 0 이면 생략). compute 는 읽은 날(KST)이 집계 마지막 날 이하인 기록(지난 회차 것)을
 `[FAIL]` 로 멈추고, apply 는 compute.json 에 "잔액" 이 없으면(5a 의 `--balance` 없는 compute 그대로) `[FAIL] apply: … "잔액" 없음` 으로 멈춘다 — 세 줄은 이 순서로 매 회차(2-1 같음 경로 포함).
 세션은 `work/balance.json` 을 손으로 쓰거나 고치지 않는다(다시 읽으려면 balance.py 를 다시 — 그 뒤 compute·apply 도 다시).
+**하루예산 카드(판 L, 2026-10-27)**: 같은 `balance.py` 실행이 잔액 뒤 `GET /ncc/campaigns` 1회 + 캠페인마다 `GET /ncc/adgroups?nccCampaignId=` 1회(읽기만 — 쓰기 0)로 하루예산을 읽어 같은 기록의 "budget" 에 둔다
+(잔액과 따로 성공·실패 — 예산 실패면 `[주의] 하루예산 확인 못 함(<사유>)` exit 0, 잔액 카드·회차·종료 코드 그대로 · 하루예산 카드만 `확인 못 함`). compute 는 "예산"(플레이스 실제 한도 = 켜진 그룹 min(그룹, 캠페인) ·
+파워링크 캠페인·켜진 그룹 · `--extra` 원장 사본의 SYSTEM `광고그룹 하루예산 중단` 줄을 그룹 이름으로 가름 — 마지막 하루예산 변경 뒤 ~ 집계 끝날 멈춘 수 · 최근 7일 · 멈춘 줄 전부)을 내고, apply 가 카드
+`플레이스 20,000원 · 최근 7일 1번 멈춤` · `파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번` · 접기 `9/17 뒤 40일 중 7번 멈춤(9/18~10/26) 펼치기`(펼치면 `10/26(월) 20:19 · 하루예산 20,000원` 줄들)를 매 회차 쓴다.
+원장 사본이 없거나 기록 구간이 집계 끝날에 못 미치면 멈춤 칸만 '확인 못 함'(FAIL 0). 09-21 결정(SYSTEM 줄을 리포트에 안 씀)은 04 변경 기록·10·11 범위 그대로 — SYSTEM 줄은 이 카드에만(사용자 결정 2026-10-27).
 **계정 변경 기록·성별·연령대(판 G, 2026-10-12)**: compute `--extra work/extra`(1단계 1x combine 의 합본·원장 사본)가 "변경기록"·"성별연령"을 내고, apply 가 04·05 구역 끝 표지
 (`<!-- saero:extra history|gender-age -->`) 사이를 매 회차 통째로 다시 쓴다. 폴더·파일이 없거나 extras 가 꺼져 있으면 compute `[주의]` exit 0 · 카드·표 '확인 못 함 — <사유>'(잔액과 달리 FAIL 아님 — 5a 는 `--extra` 없이 그대로).
 **매출 작업 A·C(2026-10-10 — 주간 성과 장부 + 플레이스 화면 손보기, 새 외부 쓰기 0 · 네이버 호출 0)**: 3단계 뒤 `leads.py status`·`place.py status`(읽기)가 (5) 지난주 숫자 · (7) 지난주 플레이스에서 바꾼 것 ·
@@ -293,9 +299,9 @@ C 첫 회 9항목을 물을지 정하고(질문은 ⓐ 묶음 끝의 **정보 �
 "플레이스전후"는 11번 플레이스 행(✗ 항목 · 바꾼 항목의 효과 판정 — 플레이스 검색 지면만·달력 일수·띠 `band_pct` 밖일 때만 좋아짐/나빠짐 · 키 이름 `"12번"` 은 그대로)과 채팅 질문 신호·이월 줄. 11번 행 꼴은
 `references/report-structure.md` 11번 작성 기준 6). 직전 배포본의 다음 액션 구역은 주석 이름(`<!-- Section N: Action items -->`)으로 읽는다 — 못 찾거나 둘이면 compute `[FAIL] 직전 배포본 다음 액션 구역: …` exit 1. 장부 숫자·(5) 답 원문·캡처 숫자는 리포트·last-audit·커밋 어디에도 쓰지 않는다(공개 저장소·공개 배포본 — validate "장부 라벨+숫자 0"·`leads.py guard`).
 `--layout` 은 **매 회차 붙인다**(멱등): 작업본이 이미 레이아웃 판(meta = config `report_layout.layout_id`)이면 변환을 건너뛰고 값만(분기 도우미의 M 줄 포함),
-meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D → 01 모바일 터치 날짜 = r2026-10-E → 광고비 잔액 카드 = r2026-10-F → 04·05 추가 카드·표 = r2026-10-G → 07 정식표 접기(접기 6개) = r2026-10-H → 콘텐츠 지면 빼기(구역 11 · 캔버스 7) = r2026-10-I → 불필요 항목 빼기(고정 글 · 네 표지 고정) = r2026-10-J → 01 요일 카드(캔버스 8) = r2026-10-K),
-meta r2026-10-B·C·D·E·F·G·H·I·J 판이면 사슬을 따라 r2026-10-K 로 바꾼 뒤 값.
-`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B·C·D·E·F·G·H·I·J 판이면 `… 레이아웃 판 meta r2026-10-J ≠ config r2026-10-K — --layout …`(B·C·D·E·F·G·H·I 도 같은 꼴),
+meta 없는 옛 판이면 사슬(meta + 접기 5개 뼈대 = r2026-10-B → 01·06 모바일 분기 = r2026-10-C → 모바일 기간 접기 = r2026-10-D → 01 모바일 터치 날짜 = r2026-10-E → 광고비 잔액 카드 = r2026-10-F → 04·05 추가 카드·표 = r2026-10-G → 07 정식표 접기(접기 6개) = r2026-10-H → 콘텐츠 지면 빼기(구역 11 · 캔버스 7) = r2026-10-I → 불필요 항목 빼기(고정 글 · 네 표지 고정) = r2026-10-J → 01 요일 카드(캔버스 8) = r2026-10-K → 하루예산 카드(접기 7개) = r2026-10-L),
+meta r2026-10-B·C·D·E·F·G·H·I·J·K 판이면 사슬을 따라 r2026-10-L 로 바꾼 뒤 값.
+`--layout` 없이 옛 판이면 `[FAIL] apply: ApplyError: 레이아웃 판 meta 없음 — --layout …`, B·C·D·E·F·G·H·I·J·K 판이면 `… 레이아웃 판 meta r2026-10-K ≠ config r2026-10-L — --layout …`(B·C·D·E·F·G·H·I·J 도 같은 꼴),
 meta 가 사슬 밖의 값이면 FAIL(판 변경은 설계 회차 몫). 03 은 합계 맨 위 + 최근 `recent_days`(7)일 최신 위,
 나머지 날짜는 접힌 표에 최신 위. 07 정식표(판 H)는 위 표 = 앞 `top_rows_07`(10)행 · 접힌 표 = 나머지 행(순서 그대로). 01 ① 표는 5칸(판 I — 날짜·노출·클릭·CTR·CPC) ·
 판 I 작업본이면 `[apply]` 출력 끝에 `· 구역 11 · 캔버스 7(지면 구역 없음)`(판 K 는 캔버스 8) · 판 J 는 그 뒤 `· 06 카드 [그룹…](뺌 [그룹…]) · 04 신규 메모 N` · 판 K 는 그 뒤 `· 요일 카드 검색 지면 · M/D~M/D · 요일마다 N일`(compute `01.요일` — 없으면 `[FAIL] apply: … "01.요일" 없음`)(06 카드 = compute 06.카드 — 카드 밖이 된 그룹의 카드는
@@ -626,7 +632,7 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   ② `제외 검색어: … 등록 N개 · 확인 a/b · 실패 n` · ③ `클릭 0인 검색어 전체는 N개·노출 N회` 셋 다 있고, ②의 b = 등록 수 × config `exclusions.targets` 수, a ≤ b,
   클릭 0 목록 항목 ≥ 1. 하나라도 없으면 FAIL(글을 줄인 뒤 각주 자리가 빠지거나 옛 형식으로 돌아가는 것). HTML 태그 짝 검사에 `details`·`summary` 포함(회차 2 선반영)
 - (2026-10-06 회차 2 추가) **"레이아웃 판"** — `<meta name="report-layout" content="…">` 가 정확히 하나이고 값 = config `report_layout.layout_id`, `<details` 수 =
-  `report_layout.markers.details`(6 — 판 G 까지 5), details 마다 바로 안에 summary. meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것 — 옛 사본 통째 교체·세션의 "복원").
+  `report_layout.markers.details`(7 — 판 G 까지 5 · 판 H~K 6), details 마다 바로 안에 summary. meta 0건·details 0건이면 FAIL(옛 모양으로 조용히 되돌아가는 것 — 옛 사본 통째 교체·세션의 "복원").
   (판 C, 2026-10-06) 같은 검사가 분기 표지 주석 `/* saero:mobile-branch 01 */`·`06` 각 1(합 = `markers.mobile_branch` 2) · 분기 도우미 M 줄 = config `report_layout.mobile` ·
   `matchMedia('(max-width: ' + M.maxPx + 'px)')` 1곳 · CSS `@media (max-width: 640px){` 1곳 = `mobile.max_px`(JS 경계 = CSS 경계)도 본다(이름·검사 수 그대로).
   (판 D, 2026-10-07) M 줄에 `recent: {"01": 14, "06": 14}` = config `mobile.recent_days` 까지 대조.
@@ -643,6 +649,8 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   서술 표지 03-desc·08-note·09-desc·09-call = 고정 — PASS 끝 `· 판 J 고정 글`
   (판 K, 2026-10-26) `<canvas id=` 수 = `markers.canvases`(8) · 요일 카드 표지 `data-weekday` card·sub·캔버스 weekdayChart 각 `markers.weekday_card`(1) · 01 안 차트 카드 뒤 · ① 앞 ·
   차트 블록 하나 = 분기 도우미 뒤 · labels 월~일 — PASS 끝 `· 캔버스 8 · ① 5칸 · 판 J 고정 글 · 요일 카드 1`(값은 compare 몫)
+  (판 L, 2026-10-27) details 7 · 하루예산 카드 표지 `data-budget` card·value·sub·fold·summary·list 각 `markers.budget_card`(1) · `.kpi-row` 안 잔액 카드 바로 뒤 · `.kpi-row` 마지막 자식 · 접기·목록 카드 안 —
+  PASS 끝 `· 요일 카드 1 · 하루예산 카드 1`
 - (2026-10-09 판 F 추가) **"광고비 잔액 카드 = 잔액 기록(balance.json)·며칠분"** — `--balance work/balance.json` 을 직접 읽어(compute 와 계산 공유 0) 카드 값 = ⌊bizmoney_raw⌋ 원 ·
   보조 줄 = 읽은 시각 KST + 며칠분(키워드 CSV 에서 제외 그룹 뺀 마지막 날까지 달력 7일 총비용 — 정수 나눗셈, 0 이면 생략) / 실패 기록이면 `확인 못 함` · `… 조회 실패` ·
   읽은 날 ≤ 집계 마지막 날(지난 회차 기록)·기록 없음·꼴 다름·카드 0건이면 FAIL. 이것으로 validate 검사는 **25개**
@@ -652,7 +660,7 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   플레이스 ✗ 행 ≤ `place_checklist.items_in_12` · ✓ 아닌 행 ≤ 7 · 11번 표 행 0 이면 FAIL. 이것으로 validate 검사는 **27개**(첫 적용 전 배포본 — 12번 장부 행 없음 — 은 이 검사가 FAIL 인 것이 기대값)
 - (2026-10-12 판 G 추가) **"추가 카드·표(판 G — 성별·연령대 · 계정 변경 기록) = work/extra"** — `--extra work/extra`(precheck 는 작업본 옆 extra/)의 **파일 유무가 카드 유무 기준**:
   `<종류>.csv`(성별·연령대 합본)·`변경이력.csv`+`변경이력_기록구간.csv`(원장 사본)가 있으면 머리 기간·표 줄·스킬 줄이 compute 와 따로 다시 센 값(csv 모듈 — 계산 공유 0)과 같아야,
-  없으면 그 자리가 '확인 못 함'이어야 한다(첫 회·수집 실패에 FAIL 0). show_system false 면 표에 SYSTEM·하루예산 중단 0 · 배포본 전체에 아이디 꼴 `:naver` 0 · 블록 표지 0건이면 FAIL.
+  없으면 그 자리가 '확인 못 함'이어야 한다(첫 회·수집 실패에 FAIL 0). show_system false 면 표에 SYSTEM·하루예산 중단 0(04 변경 기록 블록 안 — 09-21 결정의 범위 · 판 L 하루예산 카드는 이 검사 밖, 아래 24b) · 배포본 전체에 아이디 꼴 `:naver` 0 · 블록 표지 0건이면 FAIL.
   이것으로 validate 검사는 **28개**(판 G 첫 적용 전 배포본은 "레이아웃 판"·이 검사가 FAIL 인 것이 기대값)
 - (2026-10-23 판 I 추가) **"화면 글 구역 번호(판 I — 없는 12번·지면 10번·옛 지면 글 0)"** — 서술 표지 안 글(태그 뺀)의 구역 번호 참조(`NN번` — 앞이 숫자·글자 아님(검색어 `노원역10번출구` 제외)·
   뒤가 '째'·'출구' 아님 · `07·10번`·`01~07·10번` 묶음은 숫자마다)가 1~`markers.sections`(11) 밖이면 FAIL(옛 `12번 1번`·`지난 회차 12번`·`(12번 행 없음)`) · 10번이 지면 구역을 가리키면 FAIL
@@ -663,8 +671,11 @@ config `date_based_sections`에 따라 늘고 준다. 검사는 이름으로 부
   09 '회차 연속'·'전략과 부합'·'최다 클릭 시간대는'·'(지난 회차'·클릭 '회' · 10 순위 방향·상향 유지·클릭 1건 목록·(참고) 경쟁사·클릭 0·누적 CTR·판정 되풀이·변화 없음 숫자 ·
   제외 검색어 항목(07 ② 에 실패·재노출·미확인이 없는 날) · 11 registry·'다시 묻지 않음'·'채팅으로 알림'·정렬·경쟁사·신규 없음 사유·'조용히 사라진 항목'·체크리스트 N항목)이 그 구역에 다시 나오면 FAIL ·
   구역 0자 FAIL. 옛 서술 스크립트를 복사해 뺀 글이 돌아와도 다른 검사는 통과하던 길을 막는다. 이것으로 validate 검사는 **31개**(판 I 배포본은 "레이아웃 판"·"10번 항목 수·판정 줄"·이 검사가 FAIL 인 것이 기대값)
+- (2026-10-27 판 L 추가) **"하루예산 카드 = 예산 기록(balance.json budget) · 원장 SYSTEM 줄"**(24b) — `--balance` 기록의 "budget" 과 `--extra` 원장 사본을 직접 읽어(compute 와 계산 공유 0 — csv 모듈) 값(플레이스 실제 한도 ·
+  최근 7일) · 보조 줄(파워링크 캠페인 · 켜진 그룹 · 멈춘 수) · summary(마지막 하루예산 변경 뒤 — 없으면 기록 구간 첫날 · 일수 · 멈춘 수 · 범위) · 목록(멈춘 줄 전부 최신 위 · 시각 · 설정 값)을 다시 센 글과 대조 ·
+  예산 기록 없음·fail = '확인 못 함' · 원장 사본 없음·기록 구간 부족 = 멈춤 칸 '확인 못 함' · 예산을 읽은 날 ≤ 집계 마지막 날·꼴 다름·표지 0건이면 FAIL. 이것으로 validate 검사는 **32개**(판 K 배포본은 "레이아웃 판"·이 검사가 FAIL 인 것이 기대값)
 
-그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(103항목 — 판 K 2026-10-26: 01 요일 카드 4 · 99항목 — 판 J 2026-10-23 오후: 04 비중 한 값·격차 기준 +2 · 07 행 단위 2·08 11위·09 심야 괄호·09 최다 −5 · 102항목 — 판 I 2026-10-23: 옛 10 지면 구역 8항목 삭제 · 01 ③ 3항목("01 ③ 누적 CTR"·괄호·옛 구절 0) · 03·01 표는 최신 위,
+그 밖에 precheck 가 함께 돌리는 것(validate 검사 수에는 안 셈): compare.py(107항목 — 판 L 2026-10-27: 하루예산 카드 4(값 · 보조 줄 · summary · 목록) · 103항목 — 판 K 2026-10-26: 01 요일 카드 4 · 99항목 — 판 J 2026-10-23 오후: 04 비중 한 값·격차 기준 +2 · 07 행 단위 2·08 11위·09 심야 괄호·09 최다 −5 · 102항목 — 판 I 2026-10-23: 옛 10 지면 구역 8항목 삭제 · 01 ③ 3항목("01 ③ 누적 CTR"·괄호·옛 구절 0) · 03·01 표는 최신 위,
 접기 summary 4항목, 2026-10-10 "11 장부·플레이스"(판 H 까지 "12 장부·플레이스") 2항목, 2026-10-12 "04·05 추가(판 G)" 7항목, 2026-10-17 판 H 07 정식표 2항목(위 표 행수 · 접힌 행 summary 숫자), 구역별로 따로 파싱해 한 구역 실패가 다른 구역 대조를 생략시키지 않음) · overflow_check.py(접기 전부 열고) · narrative_check.py(서술 미교체).
 compute.py 는 `--competitors-html` 경쟁사표가 0행이면 `[FAIL]` exit 1. deploy.py 는 레이아웃 판이 바뀌면 `--layout-change` 없이 PUT 하지 않는다(7단계).
 precheck **밖**(판 C, 2026-10-06 · 판 D 2026-10-07 · 판 E 2026-10-08 · 판 F 2026-10-09 · 판 G 2026-10-12 · 판 I 2026-10-23): `"$PY" tests/chart_check.py <index.html> <compute.json> --base <직전 배포본> --out <폴더>` — 라이브 Chart.js(CDN 2건만 허용, 미로드면 exit 2)로
@@ -713,15 +724,15 @@ narrative_check.py 가 본다(매회차 표지 — 사실 여부는 여전히 �
   `tests/test_extras.py`(+ `tests/xlsxfix.py` 가짜 엑셀 — 셀 `r` 열 글자·주체 낱말·머리줄 다름 메시지 셀 원문 0·원장 멱등·정확한 이름 보관·`.bak`·일 단위 연속·compute 판 G 값·apply·validate 검사 항목 27번("추가 카드·표")·compare 판 G — 실제 보관·원장 불변).
 - `scripts/reportlib.py` — 읽기·제외그룹 필터·일수·섹션 자르기 공통 헬퍼(값 계산은 두지 않는다) · 다음 액션 구역을 주석 이름으로 찾기(`action_section` — 판 I, 없거나 둘이면 SectionError).
 - `scripts/archive.py`(1단계 store/combine) · `scripts/ingest.sh`(1단계 한 번에 — main에서만, 시작 검사(HEAD = origin/main·data/ = HEAD·추적 안 된 파일 0·data/ 줄바꿈 = 커밋) 뒤 store, push 뒤·변경 없음 둘 다 origin/main = HEAD 확인) ·
-  `scripts/balance.py`(5단계 첫 명령 — 광고비 잔액 GET 1회 → work/balance.json, 판 F) · `scripts/compute.py`(5단계 값 — `--balance` 면 잔액 카드 값 · `--extra` 면 판 G "성별연령"·"변경기록" · 판 I 콘텐츠 지면 재발 감시 `[주의]`) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL · `--layout` 레이아웃 판 변환·summary) ·
+  `scripts/balance.py`(5단계 첫 명령 — 광고비 잔액 GET 1회 + 판 L 하루예산 GET(캠페인 1 · 캠페인마다 그룹 1 — 읽기만) → work/balance.json, 판 F·L) · `scripts/compute.py`(5단계 값 — `--balance` 면 잔액 카드 값 · 판 L "예산"(`--extra` 원장 사본 SYSTEM 줄) · `--extra` 면 판 G "성별연령"·"변경기록" · 판 I 콘텐츠 지면 재발 감시 `[주의]`) · `scripts/apply.py`(5단계 기계 자리 교체 — 2026-10-06 저장소화, 멱등·앵커 하나 아니면 FAIL · `--layout` 레이아웃 판 변환·summary) ·
   `scripts/validate.py`(6단계 독립 검산) · `scripts/compare.py`(6단계 차이 0) · `scripts/narrative_check.py`(6단계 서술 미교체) · `scripts/precheck.sh`(6단계 한 번에) ·
   `scripts/deploy.py`(4·7단계 fetch/push/verify, `--dry-run`·`--base`·verify `--ref <커밋>`·push `--layout-change`(레이아웃 판 게이트) — GET 무인증 먼저, PUT은 이 PC git 자격 증명, dry-run은 쓰기 권한까지).
 - `tests/mutation_test.py`(validate·archive 검사 생존 — 레이아웃 판 변조·0건 가드·config 실험 포함 · 2026-10-12 판 G 추가 카드·표 변조 4·0건 가드 2, index.html 옆 extra/ 를 `--extra` 로 ·
-  2026-10-23 판 I 변조(Section 12 주석 · placementChart 캔버스 · 배지 · ① 칸 머리 · '(12번 행 없음)' · 12-basis 되돌림 · '콘텐츠 지면 47일 연속 0') + 표지 이름 꼴 0건 가드 · 2026-10-26 판 K 레이아웃 판 변조 3(요일 캔버스 이름 · 카드를 ① 뒤로 · 차트 블록을 분기 도우미 앞으로) + **compare 실험**(index.html 옆 compute.json — 요일 값 변조 5 → 그 항목만 DIFF) — 기준 사본은 판 K 작업본) · `tests/overflow_check.py`(360/390/430px 넘침, 접기 전부 열고, file:// 밖 요청 차단) ·
-  `tests/test_balance.py`(판 F — balance.py 가짜 API 성공·실패 범주·키 비출력·옛 기록 지움 · compute 잔액 창·지난 기록 FAIL · validate 잔액 검사) ·
+  2026-10-23 판 I 변조(Section 12 주석 · placementChart 캔버스 · 배지 · ① 칸 머리 · '(12번 행 없음)' · 12-basis 되돌림 · '콘텐츠 지면 47일 연속 0') + 표지 이름 꼴 0건 가드 · 2026-10-26 판 K 레이아웃 판 변조 3(요일 캔버스 이름 · 카드를 ① 뒤로 · 차트 블록을 분기 도우미 앞으로) + **compare 실험**(index.html 옆 compute.json — 요일 값 변조 5 → 그 항목만 DIFF) · 2026-10-27 판 L 하루예산 카드 변조 7 · 레이아웃 판 변조 2 · 0건 가드 2 + compare 실험 6c(값 변조 6) — 기준 사본은 판 L 작업본(옆에 compute.json · balance.json · extra/)) · `tests/overflow_check.py`(360/390/430px 넘침, 접기 전부 열고, file:// 밖 요청 차단) ·
+  `tests/test_balance.py`(판 F — balance.py 가짜 API 성공·실패 범주·키 비출력·옛 기록 지움 · compute 잔액 창·지난 기록 FAIL · validate 잔액 검사 · 판 L 하루예산 GET 4회 · 예산 실패 갈래 · 원문 request 메서드 GET 뿐) ·
   `tests/test_apply.py`(+ `tests/fixtures/layout_old.html`·`layout_old.compute.json` — 가짜 값: 판 고르기·`--layout` 변환(옛 → B → C → D → E → F → G → H → I 사슬·E → F 범위·잔액 카드 값 · 판 H G → H 범위·07 위 표 K행 + 접힌 표 나머지·summary·행 수 오감·손 수정 FAIL ·
-  판 I H → I 범위·① 5칸·구역 11·캔버스 7·멱등·손 수정 FAIL(ApplyLayoutI) · 판 K J → K 범위·요일 값·0일 요일·"01.요일" 없음 FAIL·손 수정 FAIL(ApplyLayoutK) · compute 요일 평균·반올림(ComputeWeekday) · compute 콘텐츠 재발 감시(ComputeContentWatch))·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
-  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 G 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 접힘·펼침 누락 0·01 터치 팝업 = 누른 줄 날짜·1280 = 기준·회전·page.pdf 실물 · 상단 잔액 카드 한 줄 전체 · 04·05 추가 카드 제 구역 안·넘침 0 · 캔버스 = config `markers.canvases`(판 K 8) · 판 H → I 전환 대조 · 판 K 01 요일 카드 그려짐·겹침 0·인쇄 안 잘림 · 판 J → K 전환 대조(01 = 기준 + 카드) · 전후 비교 compare.html — 섹션 1·4·5·6 캡처) ·
+  판 I H → I 범위·① 5칸·구역 11·캔버스 7·멱등·손 수정 FAIL(ApplyLayoutI) · 판 K J → K 범위·요일 값·0일 요일·"01.요일" 없음 FAIL·손 수정 FAIL(ApplyLayoutK) · compute 요일 평균·반올림(ComputeWeekday) · 판 L K → L 범위·하루예산 값 갈래·"예산" 없음 FAIL·손 수정 FAIL(ApplyLayoutL) · compute 하루예산·멈춤 셈 + validate 24b 같은 HTML PASS·변조 FAIL(ComputeBudget) · compute 콘텐츠 재발 감시(ComputeContentWatch))·멱등·앵커·행 수·03 행 분배(10일)·summary·M 줄 다시 쓰기·시끄러운 실패·compute 경쟁사표 0행 FAIL) ·
+  `tests/chart_check.py <index.html> <compute.json> [--base] [--out]`(판 G 라이브 차트 — precheck 밖, CDN 2건만 허용: 390 접힘·펼침 누락 0·01 터치 팝업 = 누른 줄 날짜·1280 = 기준·회전·page.pdf 실물 · 상단 잔액 카드 한 줄 전체 · 04·05 추가 카드 제 구역 안·넘침 0 · 캔버스 = config `markers.canvases`(판 K 8) · 판 H → I 전환 대조 · 판 K 01 요일 카드 그려짐·겹침 0·인쇄 안 잘림 · 판 J → K 전환 대조(01 = 기준 + 카드) · 판 L 하루예산 카드 처음 닫힘·summary 눌러 펼침·목록 = compute·다시 닫힘·인쇄 때 펼쳐 한 쪽 안 · 전후 비교 compare.html — 맨 위(마스트헤드 ~ 01 머리)·섹션 1·4·5·6 캡처) ·
   `tests/test_narrative_check.py`(미교체 FAIL·전부 교체 PASS·표지 0 FAIL·[주의] 둘) · `tests/test_validate_07.py`(07 각주 세 자리·예외 회차 문구 · 판 I "화면 글 구역 번호" 통과 꼴·FAIL 꼴·표지 0개 가드) ·
   `tests/test_compare_sections.py <index.html> <compute.json>`(한 구역 문단 삭제·03 오름차순 복귀·summary 옛 값 · 판 H 07 정식표 summary 클릭 합 +1·접힌 첫 행을 위 표로 · 판 I 01 ③ 괄호 콘텐츠 노출 합 +1·판 H 꼴 구절 끝에 다시 붙임 → 그 구역 그 항목만 DIFF, 나머지 구역 전부 대조) ·
   `tests/test_ingest.py`(임시 저장소 + 로컬 bare origin: 정상 push·main 아닌 브랜치·push 안 된 커밋·CRLF 입력 바이트·시작 검사, precheck compute 실패) ·

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """scripts/apply.py 시험(E2 저장소화 2026-10-06 + 레이아웃 판 r2026-10-B 회차 2 + 판 r2026-10-C 01 차트 회차 1 + 판 r2026-10-D 모바일 기간 접기 2026-10-07 +
 판 r2026-10-E 01 모바일 터치 날짜 2026-10-08 + 판 r2026-10-F 광고비 잔액 카드 2026-10-09 + 판 r2026-10-G 보고서 더 받기 2026-10-12 +
-판 r2026-10-H 07 정식표 접기 2026-10-17 + 판 r2026-10-I 콘텐츠 지면 빼기 2026-10-23 + 판 r2026-10-J 불필요 항목 빼기 2026-10-23 오후 + 판 r2026-10-K 01 요일 카드 2026-10-26) + compute.py 직전 경쟁사표 0행 가드 ·
+판 r2026-10-H 07 정식표 접기 2026-10-17 + 판 r2026-10-I 콘텐츠 지면 빼기 2026-10-23 + 판 r2026-10-J 불필요 항목 빼기 2026-10-23 오후 + 판 r2026-10-K 01 요일 카드 2026-10-26 +
+판 r2026-10-L 하루예산 카드 2026-10-27) + compute.py 직전 경쟁사표 0행 가드 ·
 콘텐츠 재발 감시(content_days) · 06 카드 규칙(card_groups — 판 J).
 
 fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — 숫자·검색어·경쟁사·그룹 이름 가짜, 서술 표지·레이아웃 meta 없는 옛 판) +
@@ -48,16 +49,26 @@ fixture = tests/fixtures/layout_old.html(배포본 앵커 마크업 발췌 — �
   직전 블록의 같은 매체 줄 나눔 유지 · 멱등·되돌리면 바이트 그대로) — validate check_media_top5 와 같은 읽기로 대조 · 따옴표 이름·낯선 유형·빈 조각·색 배열 없음 → ApplyError.
 - 시끄러운 실패: 앵커가 없거나 둘이면·새 04 그룹·직전/후보 밖 경쟁사 → `[FAIL] apply:` exit 1, 작업본 바이트 그대로.
 - compute.py: --competitors-html 의 경쟁사표 0행(소제목만 바꾼 사본 — 탐색 프로브 r10 유형) → `[FAIL]` exit 1(합본을 읽기 전) · 접힌 경쟁사표도 그대로 읽음.
-- 판 K(ApplyLayoutK, 2026-10-26 — 01 요일 카드, config 판): J → K = 사슬 바이트 · `--layout` 없이 J 면 `레이아웃 판 meta r2026-10-J ≠ config r2026-10-K — --layout …` ·
+- 판 K(ApplyLayoutK, 2026-10-26 — 01 요일 카드, 판 L 부터 사슬 중간 — config 를 판 K 로 둔 사본): J → K = 사슬 바이트 · `--layout` 없이 J 면 `레이아웃 판 meta r2026-10-J ≠ config r2026-10-K — --layout …` ·
   바뀌는 곳 = meta · 01 차트 카드 뒤 카드 하나 · 분기 도우미 뒤 차트 블록 하나뿐(다른 구역·01 차트·서술 표지·CSS 바이트 그대로 · 01 첫 일치 앵커 글자 0 · 색 = #cdeee7 하나) ·
   값(막대·clicks·보조 줄 = compute 01.요일 · 0일 요일 null·0~1일 · 8~9일 · 정수 클릭 10.0 · 되돌리면 바이트 그대로) · "01.요일" 없음·꼴 다름 FAIL ·
   손 수정 J(요일 표지 이미 있음 · 차트 카드와 ① 사이 다른 것 · 도우미가 스크립트 끝 아님 · ① 머리글 둘)·K(카드 지움 · 카드 ① 뒤 · 블록 도우미 앞 · 블록 지움 · labels · clicks 둘 · sub 둘) FAIL.
   (판 J 시험 ApplyLayoutJ 는 config 를 판 J 로 둔 사본 `at(cfg, LAYOUT_J)` 로 돈다 — 판 K 부터 판 J 는 사슬 중간 · 판 I·J 캔버스 7)
 - compute 요일 평균(ComputeWeekday — 판 K): 검색 지면 · 제외 그룹 뺌 · 28일 요일마다 4일 · 행 없는 날 0 · 반올림(250.5 → 250 · 10.25 → 10.2 · 6.75 → 6.8) · 0일 요일 노출 0·클릭 None.
-- 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-K 있음 — 2026-10-26 구현 리허설: 운영 배포본(판 J 6bc57c8) 사본을 apply --layout 으로 바꾼 것 — 같은 기간이라 서술 그대로)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
+- 판 L(ApplyLayoutL, 2026-10-27 — 하루예산 카드, config 판): K → L = 사슬 바이트 · `--layout` 없이 K 면 `레이아웃 판 meta r2026-10-K ≠ config r2026-10-L — --layout …` ·
+  바뀌는 곳 = meta · `</style>` 앞 CSS 두 줄 · 잔액 카드 바로 뒤 카드 하나뿐(.kpi-row 마지막 자식 · `.kpi-wide` 둘 · details 7 · 다른 구역·카드 넷·잔액 카드·서술 표지·스크립트 바이트 그대로 ·
+  KPI·03/04/07 접기·01 첫 일치 앵커 글자 0 · 색 = ink 하나) · 값(compute 예산 — 승인 글자 · 0번 · 기록 시작 · 범위 하루 · 멈춤 확인 못 함 · 예산 fail · 제한 없음 · 꺼짐 · 그룹 범위 ·
+  켜진 그룹 없음 · 플레이스 그룹 둘 · 설정 값 없음 · 되돌리면 바이트 그대로 · 멱등) · "예산" 없음·꼴 다름 FAIL · 손 수정 K(표지 이미 있음 · 잔액 카드 없음)·L(카드 지움 · 01 뒤로 · 잔액 카드 앞으로 ·
+  표지 둘 · 카드 뒤 다른 카드 · 접기 밖으로) FAIL.
+- compute 예산(ComputeBudget — 판 L): 합성 원장 사본 — 변경(사람 · 그룹/캠페인) 뒤만 셈 · 같은 날 앞선 멈춤 뺌 · 같은 분 같은 그룹 한 줄 · 집계 끝날 뒤 뺌 · 이름 안 맞음 [주의] ·
+  0번 · 변경이 기록 구간 밖(기록 시작 · 옛 설정 값 줄) · 기록 구간 끝 < 집계 끝날 · 원장 없음 · extras 꺼짐 → 없음 · 예산 fail·없음·지난 회차·꼴 다름 · 캠페인 둘 · 제한 없음 —
+  기대값은 손으로 적은 값 + validate 24b(독립 재셈)가 같은 HTML 을 PASS · 값 변조 FAIL.
+- 리허설 산출(work/RX/same/index.html + compute.json, 서술 표지·레이아웃 판 r2026-10-L 있음 — 2026-10-27 구현 리허설: 운영 배포본(판 K c692679) 사본을 apply --layout 으로 바꾼 것 — 같은 기간이라 서술 그대로)이 있으면 그것도 멱등(없으면 건너뜀) — A.apply() 직접(meta 로 판 선택).
 실행: "$PY" tests/test_apply.py
 """
+import contextlib
 import hashlib
+import io
 import json
 import os
 import re
@@ -118,12 +129,13 @@ def tbodies(sec):
 
 
 def at(cfg, lid):
-    """config 를 사슬 중간 판 lid 로 둔 시험용 사본 — 판 G 까지는 접기 5개(markers.details 5 — 판 H 가 07 정식표 접기 하나를 더한다 · 판 I 도 6) ·
-    판 K 전(요일 카드 없음)은 캔버스 7(판 I·J — 판 H 까지는 캔버스를 세지 않는다) · weekday_card 없음. 여러 번 거쳐도 같은 사본(값을 빼지 않고 정해 둔다)."""
+    """config 를 사슬 중간 판 lid 로 둔 시험용 사본 — 판 G 까지는 접기 5개(markers.details 5 — 판 H 가 07 정식표 접기 하나를 더한다 · 판 I·J·K 도 6 · 판 L 이 하루예산 접기를 더해 7) ·
+    판 K 전(요일 카드 없음)은 캔버스 7(판 I·J — 판 H 까지는 캔버스를 세지 않는다) · weekday_card 없음 · 판 L 전은 budget_card 없음. 여러 번 거쳐도 같은 사본(값을 빼지 않고 정해 둔다)."""
     lay = dict(cfg["report_layout"], layout_id=lid)
     mk = dict(lay["markers"])
-    if lid not in (A.LAYOUT_H, A.LAYOUT_I, A.LAYOUT_J, A.LAYOUT_K):
-        mk["details"] = 5
+    if lid not in A.BUDGET_LAYOUTS:
+        mk["details"] = 6 if lid in (A.LAYOUT_H, A.LAYOUT_I, A.LAYOUT_J, A.LAYOUT_K) else 5
+        mk.pop("budget_card", None)
     if lid not in A.WEEKDAY_LAYOUTS:
         mk["canvases"] = 7
         mk.pop("weekday_card", None)
@@ -335,7 +347,7 @@ class ApplyLayoutSelect(unittest.TestCase):
         for flag in (False, True):
             with self.assertRaisesRegex(A.ApplyError, "≠ config"):
                 A.apply(other, self.R, self.cfg, layout=flag)
-        with self.assertRaisesRegex(A.ApplyError, "details 5개"):
+        with self.assertRaisesRegex(A.ApplyError, "details 6개"):                      # config 판 L 7 에서 하나 풂
             A.apply(unfold_one(self.out, 3), self.R, self.cfg, layout=True)
         with self.assertRaisesRegex(A.ApplyError, "<details> 가"):                     # meta 없는데 접기가 있는 판 — 변환 안 함
             A.apply(re.sub(r'<meta name="report-layout"[^>]*>\n', "", self.out), self.R, self.cfg, layout=True)
@@ -385,8 +397,8 @@ class ApplyLayoutD(unittest.TestCase):
 
     def test_chain_old_to_d(self):
         o, R = self.out, self.R
-        self.assertEqual(self.lay["layout_id"], "r2026-10-K")                     # config 는 판 K — 판 D 몫은 사슬 끝(K) 결과에 그대로 남는다
-        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-K"])
+        self.assertEqual(self.lay["layout_id"], "r2026-10-L")                     # config 는 판 L — 판 D 몫은 사슬 끝(L) 결과에 그대로 남는다
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-L"])
         self.assertEqual(o.count("/* saero:mobile-branch 01 */"), 1)
         self.assertEqual(o.count("/* saero:mobile-branch 06 */"), 1)
         self.assertEqual(len(A.BRANCH.findall(o)), self.lay["markers"]["mobile_branch"])
@@ -426,9 +438,9 @@ class ApplyLayoutD(unittest.TestCase):
     def test_b_and_c_to_d(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.B), ["r2026-10-B"])
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.C), ["r2026-10-C"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-K — --layout 을 붙여 r2026-10-B → r2026-10-K"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-B ≠ config r2026-10-L — --layout 을 붙여 r2026-10-B → r2026-10-L"):
             A.apply(self.B, self.R, self.cfg)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-K — --layout 을 붙여 r2026-10-C → r2026-10-K"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-C ≠ config r2026-10-L — --layout 을 붙여 r2026-10-C → r2026-10-L"):
             A.apply(self.C, self.R, self.cfg)
         self.assertEqual(A.apply(self.B, self.R, self.cfg, layout=True), self.out)   # B → C → D → E → F → G → H → I = 옛 → B → … → I 사슬과 같은 바이트
         self.assertEqual(A.apply(self.C, self.R, self.cfg, layout=True), self.out)   # C → D → E → F → G → H → I 도 같은 바이트
@@ -527,7 +539,7 @@ class ApplyLayoutE(unittest.TestCase):
 
     def test_d_to_e(self):
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.D), ["r2026-10-D"])
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-K — --layout 을 붙여 r2026-10-D → r2026-10-K"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-D ≠ config r2026-10-L — --layout 을 붙여 r2026-10-D → r2026-10-L"):
             A.apply(self.D, self.R, self.cfg)
         self.assertEqual(A.apply(self.D, self.R, self.cfg_e, layout=True), self.E)   # D → E = 옛 → B → C → D → E 사슬과 같은 바이트
         self.assertEqual(A.apply(self.D, self.R, self.cfg, layout=True), self.out)   # D → E → F → G → H 도 사슬과 같은 바이트
@@ -589,10 +601,10 @@ class ApplyLayoutF(unittest.TestCase):
         return o[i:o.index("\n    </div>\n", i) + len("\n    </div>\n")]
 
     def test_e_to_f(self):
-        self.assertEqual(self.lay["layout_id"], "r2026-10-K")
+        self.assertEqual(self.lay["layout_id"], "r2026-10-L")
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.E), ["r2026-10-E"])
         self.assertNotIn("data-balance", self.E)
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-K — --layout 을 붙여 r2026-10-E → r2026-10-K"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-E ≠ config r2026-10-L — --layout 을 붙여 r2026-10-E → r2026-10-L"):
             A.apply(self.E, self.R, self.cfg)
         self.assertEqual(A.apply(self.E, self.R, self.cfg_f, layout=True), self.F)   # E → F = 옛 → B → C → D → E → F 사슬과 같은 바이트
         self.assertEqual(A.apply(self.E, self.R, self.cfg, layout=True), self.out)   # E → F → G → H 도 사슬과 같은 바이트
@@ -713,11 +725,11 @@ class ApplyLayoutH(unittest.TestCase):
         cls.long = A.apply(cls.H, cls.RL, cls.cfg, layout=True)                    # 정식표 K + 3 행 — 접힌 표 3행
 
     def test_config_and_chain(self):
-        self.assertEqual((self.lay["layout_id"], self.K, self.lay["markers"]["details"]), ("r2026-10-K", 10, 6))   # config 는 판 K — 판 H 몫(07 접기)은 사슬 끝(K)에 그대로
+        self.assertEqual((self.lay["layout_id"], self.K, self.lay["markers"]["details"]), ("r2026-10-L", 10, 7))   # config 는 판 L — 판 H 몫(07 접기)은 사슬 끝(L)에 그대로(판 L 접기 +1)
         self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', self.G), ["r2026-10-G"])
         self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", self.G)), 5)
         self.assertIsNone(A.SUM07_HEAD.search(self.G))
-        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-G ≠ config r2026-10-K — --layout 을 붙여 r2026-10-G → r2026-10-K"):
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-G ≠ config r2026-10-L — --layout 을 붙여 r2026-10-G → r2026-10-L"):
             A.apply(self.G, self.R, self.cfg)
         self.assertEqual(A.apply(self.G, self.R, self.cfg, layout=True), self.out)   # G → H → I → J = 옛 → B → … → J 사슬과 같은 바이트
         self.assertEqual(A.apply(self.G, self.RL, self.cfg, layout=True), self.long)
@@ -725,10 +737,10 @@ class ApplyLayoutH(unittest.TestCase):
         self.assertEqual(A.chain("r2026-10-B", "r2026-10-H")[-2:], [A.convert_f_to_g, A.convert_g_to_h])
         self.assertIsNone(A.chain("r2026-10-H", "r2026-10-G"))                       # 거꾸로는 없다
         for o in (self.out, self.long):
-            self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-K"])
-            self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), 6)
-            self.assertEqual(len(re.findall(r"<details[^>]*>\s*<summary", o)), 6)
-            self.assertEqual(o.count("</details>"), 6)
+            self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-L"])
+            self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", o)), 7)                     # 판 H 접기 6 + 판 L 하루예산 접기 1
+            self.assertEqual(len(re.findall(r"<details[^>]*>\s*<summary", o)), 7)
+            self.assertEqual(o.count("</details>"), 7)
             self.assertEqual(A.apply(o, self.R if o is self.out else self.RL, self.cfg), o)               # 값만(멱등)
             self.assertEqual(A.apply(o, self.R if o is self.out else self.RL, self.cfg, layout=True), o)
 
@@ -820,8 +832,8 @@ class ApplyLayoutH(unittest.TestCase):
         moved = self.long.replace(blk, "\n", 1)
         k1 = moved.index('          <details class="fold">\n          <summary style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:8px;">클릭 1건')
         s8 = moved.index("\n", moved.index("<!-- Section 8:")) + 1
-        cases = (("접기 지움", moved, "details 5개"),
-                 ("접기 둘", self.long.replace(blk, blk + blk[1:], 1), "details 7개"),
+        cases = (("접기 지움", moved, "details 6개"),                                   # config 판 L 7(판 L 하루예산 접기 포함)
+                 ("접기 둘", self.long.replace(blk, blk + blk[1:], 1), "details 8개"),
                  ("08 로 옮김", moved[:s8] + blk[1:] + moved[s8:], "07 안 0개"),
                  ("클릭 1건 목록 안으로 옮김", moved[:k1] + blk[1:] + moved[k1:], "wrapper 바로 뒤"),
                  ("summary 글 바꿈", self.long.replace("나머지 3행", "남은 3행", 1), "나머지 N행"))
@@ -1166,10 +1178,11 @@ WEEK_CARD_RE = re.compile(r'    <div class="card" data-weekday="card".*?\n    </
 class ApplyLayoutK(unittest.TestCase):
     """판 r2026-10-K(01 요일 카드 — 2026-10-26 사용자 결정 "추천대로 진행해줘", config 판): J → K = 사슬 바이트 · `--layout` 없이 J 면 FAIL ·
     바뀌는 곳 = meta · 01 차트 카드 뒤 · ① 박스 앞 카드 하나 · 차트 스크립트 끝(분기 도우미 뒤) 블록 하나(다른 구역 · 01 차트 · ① ② ③ · 서술 표지 · CSS 바이트 그대로) ·
-    값(막대 · clicks · 보조 줄 = compute 01.요일 — 0일 요일 · 일수 범위) · 멱등 · "01.요일" 없음·꼴 다름 FAIL · 손 수정 J/K FAIL."""
+    값(막대 · clicks · 보조 줄 = compute 01.요일 — 0일 요일 · 일수 범위) · 멱등 · "01.요일" 없음·꼴 다름 FAIL · 손 수정 J/K FAIL.
+    (판 L 부터 판 K 는 사슬 중간 — config 를 판 K 로 둔 사본 at(cfg, LAYOUT_K) 로 돈다)"""
     @classmethod
     def setUpClass(cls):
-        cls.F, cls.R, cls.cfg = with_marks_j(read(FIX)), jread(FIXJ), load_config()
+        cls.F, cls.R, cls.cfg = with_marks_j(read(FIX)), jread(FIXJ), at(load_config(), A.LAYOUT_K)
         cls.lay = cls.cfg["report_layout"]
         cls.cfg_j = at(cls.cfg, A.LAYOUT_J)
         cls.J = A.apply(cls.F, cls.R, cls.cfg_j, layout=True)                    # meta r2026-10-J 판(표지 있음 — 배포본 판 J 꼴)
@@ -1330,6 +1343,317 @@ class ComputeWeekday(unittest.TestCase):
         self.assertEqual(A.week_sub(W), "검색 지면 · 10/5~10/7 · 요일마다 0~1일")
 
 
+BUD_CARD_RE = re.compile(r'    <div class="kpi kpi-wide" data-budget="card".*?\n    </div>\n', re.S)   # 판 L 카드(값이 들어간 뒤)
+
+
+class ApplyLayoutL(unittest.TestCase):
+    """판 r2026-10-L(하루예산 카드 — 2026-10-27 사용자 결정 "추천대로 7건만 보여주고 진행해줘", config 판): K → L = 사슬 바이트 · `--layout` 없이 K 면 FAIL ·
+    바뀌는 곳 = meta · CSS 두 줄 · 잔액 카드 바로 뒤 카드 하나(다른 구역 · 카드 넷 · 잔액 카드 · 서술 표지 · 스크립트 바이트 그대로) · 값(compute 예산 — 승인 글자 · 갈래) · 멱등 ·
+    "예산" 없음·꼴 다름 FAIL · 손 수정 K/L FAIL."""
+    @classmethod
+    def setUpClass(cls):
+        cls.F, cls.R, cls.cfg = with_marks_j(read(FIX)), jread(FIXJ), load_config()
+        cls.lay = cls.cfg["report_layout"]
+        cls.cfg_k = at(cls.cfg, A.LAYOUT_K)
+        cls.K = A.apply(cls.F, cls.R, cls.cfg_k, layout=True)                    # meta r2026-10-K 판(표지 있음 — 배포본 판 K 꼴)
+        cls.out = A.apply(cls.F, cls.R, cls.cfg, layout=True)                    # 옛 → … → K → L
+
+    def card(self, h):
+        return BUD_CARD_RE.search(h).group(0)
+
+    def test_config_and_chain(self):
+        self.assertEqual((self.lay["layout_id"], self.lay["markers"]["details"], self.lay["markers"]["budget_card"]), ("r2026-10-L", 7, 1))
+        self.assertEqual(A.chain("r2026-10-K", "r2026-10-L"), [A.convert_k_to_l])
+        self.assertEqual(A.chain("r2026-10-B", "r2026-10-L")[-2:], [A.convert_j_to_k, A.convert_k_to_l])
+        self.assertIsNone(A.chain("r2026-10-L", "r2026-10-K"))
+        with self.assertRaisesRegex(A.ApplyError, "레이아웃 판 meta r2026-10-K ≠ config r2026-10-L — --layout 을 붙여 r2026-10-K → r2026-10-L"):
+            A.apply(self.K, self.R, self.cfg)
+        self.assertEqual(A.apply(self.K, self.R, self.cfg, layout=True), self.out)   # K → L = 옛 → … → L 사슬과 같은 바이트
+        self.assertEqual(A.apply(self.out, self.R, self.cfg), self.out)               # 값만(멱등)
+        self.assertEqual(A.apply(self.out, self.R, self.cfg, layout=True), self.out)
+        o = self.out
+        self.assertEqual(re.findall(r'<meta name="report-layout" content="([^"]*)">', o), ["r2026-10-L"])
+        self.assertEqual(re.findall(r"<!-- Section (\d+):", o), [str(n) for n in range(1, 12)])   # 새 구역 0
+        self.assertEqual(len(re.findall(r"<details(?:\s[^>]*)?>", A.strip_extra(o))), 7)
+        self.assertEqual(len(re.findall(r'<canvas id="', o)), 8)
+        row = o[o.index('<div class="kpi-row">'):o.index("<!-- Section 1:")]
+        kids = re.findall(r'\n    <div class="kpi([^"]*)"', row)
+        self.assertEqual(kids, ["", "", "", "", " kpi-wide", " kpi-wide"])                        # 카드 넷 · 잔액(다섯째) · 하루예산(여섯째 = 마지막)
+        self.assertLess(row.index('data-balance="value"'), row.index('data-budget="card"'))
+
+    def test_conversion_scope_k_to_l(self):
+        """K → L 이 바꾸는 곳 = meta · CSS 두 줄 · 잔액 카드 바로 뒤 카드 하나 — 그 밖 바이트 그대로 · KPI·접기·01 첫 일치 앵커 보호 · 색 = ink 하나."""
+        k, l = self.K, A.convert_k_to_l(self.K, self.lay)
+        self.assertEqual(l[:l.index("<body>")].replace('content="r2026-10-L"', 'content="r2026-10-K"', 1).replace("\n" + A.BUDGET_CSS.rstrip("\n"), "", 1),
+                         k[:k.index("<body>")])                                                   # 머리 = meta · CSS 두 줄만
+        self.assertEqual(l.replace(A.BUDGET_CARD, "", 1).replace("\n" + A.BUDGET_CSS.rstrip("\n"), "", 1).replace('content="r2026-10-L"', 'content="r2026-10-K"', 1), k)   # 그 밖 바이트 그대로
+        for n in range(1, 12):
+            self.assertEqual(section(l, n), section(k, n), n)                                    # 구역 1~11 그대로
+        self.assertTrue(l[:l.index(A.BUDGET_CARD)].endswith('</div>\n    </div>\n'))
+        self.assertIn('data-balance="sub"', l[l.index(A.BUDGET_CARD) - 200:l.index(A.BUDGET_CARD)])   # 잔액 카드 바로 뒤
+        self.assertTrue(l[l.index(A.BUDGET_CARD) + len(A.BUDGET_CARD):].startswith("  </div>\n"))     # .kpi-row 닫힘 바로 앞(마지막 자식)
+        nar = lambda h: dict(re.findall(NARR, h, re.S))
+        self.assertEqual(nar(l), nar(k))
+        for w in ("data-balance", "광고비 잔액", "일 평균", "클릭당 평균", "<td", "<tbody", "<table", "getElementById(", "min-width", "→ 누적 CTR", "하루 평균은",
+                  "이전 ", "나머지 ", "표 ", "클릭 1건", "노출은 있으나", "TOP 10", "line-height:1.9;", "ctr-high", "note-mint", "saero:"):
+            self.assertNotIn(w, A.BUDGET_CARD + A.BUDGET_CSS, w)                                  # KPI·03/04/07/08 접기·01 첫 일치 앵커 · 서술·추가 표지 0
+        self.assertIsNone(re.search(r"'\d+/\d+\(.\)'", A.BUDGET_CARD))                          # 날짜축 labels 꼴 0
+        self.assertEqual(re.findall(r"#[0-9a-fA-F]{3,6}\b", A.BUDGET_CARD + A.BUDGET_CSS), ["#1c2b2a"])   # 색 = ink(잔액 카드와 같은 값) 하나
+        self.assertEqual(sorted(set(re.findall(r"var\(--([\w-]+)\)", A.BUDGET_CSS))), ["ink", "line"])  # CSS 는 팔레트 변수만
+
+    def test_values_l(self):
+        o, R = self.out, self.R
+        cd = self.card(o)
+        self.assertIn('<div class="value" data-budget="value">플레이스 20,000<span class="unit">원 · 최근 7일 2번 멈춤</span></div>', cd)
+        self.assertIn('<div class="sub" data-budget="sub">파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번</div>', cd)
+        self.assertIn('<summary class="fold-more" data-budget="summary">1/3 뒤 5일 중 2번 멈춤(1/4~1/6) 펼치기</summary>', cd)
+        self.assertIn('<div class="budget-stops" data-budget="list">\n          <div><span>1/6(화) 21:10</span><span>하루예산 20,000원</span></div>\n'
+                      '          <div><span>1/4(일) 13:05</span><span>하루예산 20,000원</span></div>\n        </div>', cd)
+        self.assertTrue(cd.index("<details") > cd.index('data-budget="sub"'))                   # 접기는 보조 줄 아래(처음 닫힘 — open 속성 0)
+        self.assertNotIn(" open", cd)
+
+        def v(edit):
+            R2 = json.loads(json.dumps(R))
+            edit(R2["예산"])
+            o2 = A.apply(o, R2, self.cfg)
+            for n in range(1, 12):
+                self.assertEqual(section(o2, n), section(o, n), n)                                # 예산 값만 — 다른 구역 그대로
+            self.assertEqual(o2.replace(self.card(o2), cd, 1), o)                                 # 바뀐 곳 = 카드 안뿐
+            self.assertEqual(A.apply(o2, R2, self.cfg), o2)                                       # 멱등
+            self.assertEqual(A.apply(o2, R, self.cfg), o)                                         # 되돌리면 바이트 그대로
+            return A.budget_texts(R2["예산"])
+        S0 = lambda B: B["멈춤"]["플레이스"]
+        self.assertEqual(v(lambda B: S0(B).update(횟수=0, 최근7일=0, 범위=None, 줄=[])),
+                         ('플레이스 20,000<span class="unit">원 · 최근 7일 0번 멈춤</span>', "파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번", "1/3 뒤 5일 중 멈춤 0번 펼치기", []))
+        self.assertEqual(v(lambda B: S0(B).update(시작="12/20", 시작종류="기록", 일수=19))[2], "기록 시작 12/20 뒤 19일 중 2번 멈춤(1/4~1/6) 펼치기")
+        self.assertEqual(v(lambda B: S0(B).update(횟수=1, 범위=["1/6", "1/6"], 줄=[{"일시": "1/6(화) 21:10", "하루예산": None}]))[2:],
+                         ("1/3 뒤 5일 중 1번 멈춤(1/6) 펼치기", [("1/6(화) 21:10", "하루예산 —")]))
+        self.assertEqual(v(lambda B: B.update(멈춤={"상태": "없음", "사유": "원장 없음(첫 회·수집 실패)"})),
+                         ('플레이스 20,000<span class="unit">원 · 최근 7일 멈춤 확인 못 함</span>', "파워링크 30,000원(그룹마다 15,000원) · 멈춤 확인 못 함",
+                          "멈춤 기록 확인 못 함 — 원장 없음(첫 회·수집 실패)", []))
+        self.assertEqual(v(lambda B: (B.clear(), B.update(상태="fail", 기준="1/8(목) 09:05", 사유="네트워크 오류"))),
+                         ("확인 못 함", "1/8(목) 09:05 조회 실패", "멈춤 기록 확인 못 함 — 하루예산 조회 실패", []))
+        self.assertEqual(v(lambda B: B["플레이스"].update(한도=None))[0], '플레이스 제한 없음<span class="unit"> · 최근 7일 2번 멈춤</span>')
+        self.assertEqual(v(lambda B: B["플레이스"].update(상태="꺼짐"))[0], '플레이스 꺼짐<span class="unit"> · 최근 7일 2번 멈춤</span>')
+        self.assertEqual(v(lambda B: B["플레이스"].update(그룹=[20000, 10000]))[0], '플레이스 30,000<span class="unit">원(그룹 10,000~20,000원) · 최근 7일 2번 멈춤</span>')
+        self.assertEqual(v(lambda B: B["플레이스"].update(그룹=[]))[0], '플레이스 켜진 그룹 없음<span class="unit"> · 최근 7일 2번 멈춤</span>')
+        self.assertEqual(v(lambda B: B["파워링크"].update(그룹=[10000, 15000]))[1], "파워링크 30,000원(그룹 10,000~15,000원) · 멈춤 0번")
+        self.assertEqual(v(lambda B: B["파워링크"].update(캠페인=None, 그룹=[None, None]))[1], "파워링크 제한 없음(그룹 제한 없음) · 멈춤 0번")
+        self.assertEqual(v(lambda B: B["파워링크"].update(그룹=[15000, None]))[1], "파워링크 30,000원(그룹 15,000원~제한 없음) · 멈춤 0번")
+        self.assertEqual(v(lambda B: B["파워링크"].update(그룹=[]))[1], "파워링크 30,000원(켜진 그룹 없음) · 멈춤 0번")
+        self.assertEqual(v(lambda B: B.update(파워링크={"상태": "캠페인 없음"}))[1], "파워링크 캠페인 없음 · 멈춤 0번")
+        self.assertEqual(v(lambda B: B["멈춤"]["파워링크"].update(횟수=3))[1], "파워링크 30,000원(그룹마다 15,000원) · 멈춤 3번")
+
+    def test_missing_or_bad_budget_fails(self):
+        o, R = self.out, self.R
+        for label, edit in (("키 없음", None), ("상태 낯섦", lambda B: B.update(상태="?")), ("기준 꼴", lambda B: B.update(기준="1/8 09:05")),
+                            ("플레이스 없음", lambda B: B.pop("플레이스")), ("멈춤 없음", lambda B: B.pop("멈춤")), ("줄 꼴", lambda B: B["멈춤"]["플레이스"].update(줄=[{"x": 1}]))):
+            with self.subTest(label=label):
+                R2 = json.loads(json.dumps(R))
+                if edit is None:
+                    del R2["예산"]
+                else:
+                    edit(R2["예산"])
+                with self.assertRaisesRegex(A.ApplyError, '"예산" (없음 또는 )?꼴이 다름'):
+                    A.apply(o, R2, self.cfg)
+
+    def test_hand_edited_fails(self):
+        k, o, R = self.K, self.out, self.R
+        bal_card = re.search(r'    <div class="kpi kpi-wide" style="--accent:#1c2b2a;">.*?\n    </div>\n', k, re.S).group(0)
+        cases_k = (("하루예산 표지 이미 있음", k.replace("</body>", '<div data-budget="card"></div></body>', 1), "이미 있음"),
+                   ("잔액 카드 없음", k.replace(bal_card, "", 1), "앵커가 정확히 하나가 아님|잔액 카드 표지"))
+        for label, bad, msg in cases_k:
+            with self.subTest(label=label):
+                self.assertNotEqual(bad, k)
+                with self.assertRaisesRegex(A.ApplyError, msg):
+                    A.apply(bad, R, self.cfg, layout=True)
+        cd = self.card(o)
+        no_card = o.replace(cd, "", 1)
+        bal_l = re.search(r'    <div class="kpi kpi-wide" style="--accent:#1c2b2a;">.*?\n    </div>\n', o, re.S).group(0)
+        cases_l = (("카드 지움", no_card, "하루예산 카드 표지|details"),
+                   ("카드를 01 구역 안으로", no_card.replace("  <!-- Section 2:", cd + "  <!-- Section 2:", 1), "하루예산 카드가 .kpi-row 안"),
+                   ("카드를 잔액 카드 앞으로", o.replace(bal_l + cd, cd + bal_l, 1), "잔액 카드 뒤|바로 앞이 잔액 카드가 아님|마지막 자식"),
+                   ("summary 표지 둘", o.replace('<summary class="fold-more" data-budget="summary">', '<summary class="fold-more" data-budget="summary">x</summary><summary class="fold-more" data-budget="summary">', 1), "하루예산 카드 표지"),
+                   ("카드 뒤 다른 카드", o.replace(cd, cd + '    <div class="kpi">x</div>\n', 1), "마지막 자식"),
+                   ("접기를 카드 밖으로", o.replace("      </details>\n    </div>\n  </div>\n", "    </div>\n      </details>\n  </div>\n", 1), "마지막 자식|카드 안"))
+        for label, bad, msg in cases_l:
+            with self.subTest(label=label):
+                self.assertNotEqual(bad, o)
+                with self.assertRaisesRegex(A.ApplyError, msg):
+                    A.apply(bad, R, self.cfg)
+
+
+LEDGER_HEAD = "일시,유형,주체,캠페인,그룹,내용"
+
+
+def ledger_csv(rows):
+    """[(일시, 유형, 주체, 캠페인, 그룹, 내용)] → 원장 사본 글(utf-8-sig 로 쓸 것)."""
+    import csv as _csv
+    buf = io.StringIO()
+    w = _csv.writer(buf, lineterminator="\n")
+    w.writerow(LEDGER_HEAD.split(","))
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue()
+
+
+STOP = lambda when, g, won: (when, "광고그룹 하루예산 중단", "시스템", "", "", f"{g}\n설정 값\n하루예산 사용여부: 사용함\n하루예산: {won:,}원")
+CHANGE = lambda when, camp, g, a, b: (when, "광고그룹 변경" if g else "캠페인 변경", "사람", camp, g, f"{g or camp}\n변경 전\n하루예산: {a:,}원\n변경 후\n하루예산: {b:,}원")
+BUD_ROWS = [STOP("2026.01.08. 00:30", "가짜플레이스그룹", 20000),                      # 집계 끝날(1/7) 뒤 — 안 셈
+            STOP("2026.01.06. 21:10", "가짜플레이스그룹", 20000),
+            ("2026.01.05. 10:00", "광고그룹 On/Off", "사람", "가짜파워링크", "가짜그룹B", "가짜그룹B\n변경 전\nON/OFF: ON\n변경 후\nON/OFF: OFF"),   # 하루예산 아닌 변경 — 기간 시작 아님
+            STOP("2026.01.05. 09:00", "모르는그룹", 20000),                             # 예산 읽기에 없는 이름 — [주의] · 안 셈
+            STOP("2026.01.04. 13:05", "가짜플레이스그룹", 20000),
+            STOP("2026.01.04. 13:05", "가짜플레이스그룹", 20000),                       # 같은 분 같은 그룹 — 한 줄
+            CHANGE("2026.01.03. 15:30", "가짜플레이스", "가짜플레이스그룹", 10000, 20000),
+            STOP("2026.01.03. 13:02", "가짜플레이스그룹", 10000),                       # 같은 날 변경 앞 — 옛 예산(안 셈)
+            STOP("2026.01.02. 11:00", "가짜그룹", 15000),                               # 파워링크 그룹
+            CHANGE("2025.12.28. 09:00", "가짜파워링크", "", 20000, 30000),               # 파워링크 캠페인 변경(그룹 칸 빈칸)
+            STOP("2025.12.27. 20:00", "가짜그룹", 15000)]                               # 파워링크 변경 앞 — 안 셈
+BUD_REC = {"status": "ok", "read_at": "2026-01-08T09:05:30+09:00", "campaigns": [
+    {"id": "c1", "name": "가짜파워링크", "type": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 30000, "userLock": False, "status": "ELIGIBLE", "groups": [
+        {"id": "g1", "name": "가짜그룹", "type": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 15000, "userLock": False, "status": "ELIGIBLE"},
+        {"id": "g2", "name": "가짜그룹B", "type": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 15000, "userLock": False, "status": "ELIGIBLE"},
+        {"id": "g3", "name": "꺼진가짜그룹", "type": "WEB_SITE", "useDailyBudget": True, "dailyBudget": 9000, "userLock": True, "status": "PAUSED"}]},
+    {"id": "c2", "name": "가짜플레이스", "type": "PLACE", "useDailyBudget": True, "dailyBudget": 30000, "userLock": False, "status": "ELIGIBLE", "groups": [
+        {"id": "g4", "name": "가짜플레이스그룹", "type": "LOCAL_AD", "useDailyBudget": True, "dailyBudget": 20000, "userLock": False, "status": "ELIGIBLE"}]}]}
+BUD_DAYS = [f"2026.01.0{d}." for d in range(1, 8)]
+
+
+class ComputeBudget(unittest.TestCase):
+    """compute budget_card · budget_stops(판 L) — 합성 원장 사본(가짜 이름)으로 손으로 적은 기대값 + validate 24b 가 같은 HTML 을 따로 다시 세어 PASS · 값 변조 FAIL."""
+    def setUp(self):
+        self.td = tempfile.mkdtemp()
+        self.write(BUD_ROWS, [("2025-12-20", "2026-01-06"), ("2025-12-21", "2026-01-07")])
+
+    def tearDown(self):
+        shutil.rmtree(self.td, ignore_errors=True)
+
+    def write(self, rows, spans):
+        with open(os.path.join(self.td, "변경이력.csv"), "w", encoding="utf-8-sig", newline="") as f:
+            f.write(ledger_csv(rows))
+        with open(os.path.join(self.td, "변경이력_기록구간.csv"), "w", encoding="utf-8-sig", newline="") as f:
+            f.write("시작,끝,출처,기록 시각\n" + "".join(f"{a},{b},fetch 가짜,2026-01-08T09:00:00+09:00\n" for a, b in spans))
+
+    def run_b(self, rec=None, cfg=None, D="@"):
+        import compute as C
+        bal = {"status": "ok", "read_at": "2026-01-08T09:05:00+09:00", "bizmoney": 1, "bizmoney_raw": 1.0, "budget": rec if rec is not None else BUD_REC}
+        if rec == "없음":
+            del bal["budget"]
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = C.budget_card(bal, self.td if D == "@" else D, cfg or load_config(), BUD_DAYS)
+        return out, err.getvalue()
+
+    def test_counts(self):
+        B, err = self.run_b()
+        self.assertEqual((B["상태"], B["기준"]), ("ok", "1/8(목) 09:05"))
+        self.assertEqual({k: B["플레이스"][k] for k in ("상태", "캠페인", "그룹", "한도")}, {"상태": "ok", "캠페인": 30000, "그룹": [20000], "한도": 20000})
+        self.assertEqual({k: B["파워링크"][k] for k in ("상태", "캠페인", "그룹")}, {"상태": "ok", "캠페인": 30000, "그룹": [15000, 15000]})   # 꺼진 그룹 뺌
+        S = B["멈춤"]
+        self.assertEqual((S["상태"], S["끝"], S["기록구간"]), ("ok", "1/7", "12/20~1/7"))
+        self.assertEqual(S["플레이스"], {"시작": "1/3", "시작종류": "변경", "일수": 5, "횟수": 2, "최근7일": 2, "범위": ["1/4", "1/6"],
+                                     "줄": [{"일시": "1/6(화) 21:10", "하루예산": 20000}, {"일시": "1/4(일) 13:05", "하루예산": 20000}]})
+        self.assertEqual(S["파워링크"], {"시작": "12/28", "시작종류": "변경", "일수": 11, "횟수": 1, "최근7일": 1, "범위": ["1/2", "1/2"],
+                                     "줄": [{"일시": "1/2(금) 11:00", "하루예산": 15000}]})
+        self.assertEqual(len(B["주의"]), 1)
+        self.assertIn("모르는그룹", B["주의"][0])
+        self.assertIn("[주의] 하루예산 카드 — 멈춤 줄 2026.01.05. 09:00 그룹 '모르는그룹'", err)
+        self.assertEqual(A.budget_texts(B), ('플레이스 20,000<span class="unit">원 · 최근 7일 2번 멈춤</span>', "파워링크 30,000원(그룹마다 15,000원) · 멈춤 1번",
+                                             "1/3 뒤 5일 중 2번 멈춤(1/4~1/6) 펼치기", [("1/6(화) 21:10", "하루예산 20,000원"), ("1/4(일) 13:05", "하루예산 20,000원")]))
+        self.validate_agrees(B)
+
+    def test_change_outside_records_and_zero(self):
+        rows = [r for r in BUD_ROWS if r[2] != "사람"]                                       # 변경이 기록 구간 안에 없음 → 기록 첫날(12/20)부터 — 옛 설정 값 줄도 그 기간이면 든다
+        self.write(rows, [("2025-12-20", "2026-01-07")])
+        B, _ = self.run_b()
+        P = B["멈춤"]["플레이스"]
+        self.assertEqual((P["시작"], P["시작종류"], P["일수"], P["횟수"], P["범위"]), ("12/20", "기록", 19, 3, ["1/3", "1/6"]))
+        self.assertEqual(P["줄"][-1], {"일시": "1/3(토) 13:02", "하루예산": 10000})
+        self.assertEqual(A.budget_texts(B)[2], "기록 시작 12/20 뒤 19일 중 3번 멈춤(1/3~1/6) 펼치기")
+        self.assertEqual(B["멈춤"]["파워링크"]["횟수"], 2)
+        self.validate_agrees(B)
+        self.write([r for r in BUD_ROWS if r[1] != "광고그룹 하루예산 중단"], [("2025-12-20", "2026-01-07")])   # 멈춤 0번
+        B, _ = self.run_b()
+        self.assertEqual((B["멈춤"]["플레이스"]["횟수"], B["멈춤"]["플레이스"]["범위"], B["멈춤"]["플레이스"]["줄"]), (0, None, []))
+        self.assertEqual(A.budget_texts(B)[2:], ("1/3 뒤 5일 중 멈춤 0번 펼치기", []))
+        self.validate_agrees(B)
+
+    def test_unknown_stops(self):
+        self.write(BUD_ROWS, [("2025-12-20", "2026-01-06")])                                   # 기록 구간 끝 < 집계 끝날
+        B, _ = self.run_b()
+        self.assertEqual(B["멈춤"], {"상태": "없음", "사유": "기록 구간 끝 1/6 이 집계 끝날 1/7 에 못 미침"})
+        self.validate_agrees(B)
+        B, _ = self.run_b(D=os.path.join(self.td, "없음"))
+        self.assertEqual(B["멈춤"], {"상태": "없음", "사유": "원장 없음(첫 회·수집 실패)"})
+        B, _ = self.run_b(D=None)
+        self.assertEqual(B["멈춤"]["상태"], "없음")
+        cfg = load_config()
+        cfg2 = json.loads(json.dumps(cfg))
+        del cfg2["report_fetch"]["extras"]["history"]
+        B, _ = self.run_b(cfg=cfg2)
+        self.assertEqual(B["멈춤"], {"상태": "없음", "사유": "extras 설정 꺼짐"})
+        self.assertEqual(A.budget_texts(B)[2], "멈춤 기록 확인 못 함 — extras 설정 꺼짐")
+
+    def test_budget_record_states(self):
+        import compute as C
+        B, _ = self.run_b(rec={"status": "fail", "read_at": "2026-01-08T09:05:30+09:00", "reason": "네트워크 오류"})
+        self.assertEqual(B, {"상태": "fail", "기준": "1/8(목) 09:05", "사유": "네트워크 오류"})
+        self.validate_agrees(B, rec={"status": "fail", "read_at": "2026-01-08T09:05:30+09:00", "reason": "네트워크 오류"})
+        B, _ = self.run_b(rec="없음")
+        self.assertEqual((B["상태"], B["기준"]), ("fail", "1/8(목) 09:05"))
+        for label, rec in (("지난 회차", dict(BUD_REC, read_at="2026-01-07T23:00:00+09:00")), ("시간대 없음", dict(BUD_REC, read_at="2026-01-08T09:00:00")),
+                           ("상태 낯섦", dict(BUD_REC, status="?")), ("캠페인 목록 아님", dict(BUD_REC, campaigns={})),
+                           ("dailyBudget 문자열", dict(BUD_REC, campaigns=[dict(BUD_REC["campaigns"][0], dailyBudget="1")])),
+                           ("그룹 userLock 없음", dict(BUD_REC, campaigns=[dict(BUD_REC["campaigns"][1], groups=[{"name": "x", "type": "LOCAL_AD", "useDailyBudget": True, "dailyBudget": 1}])]))):
+            with self.subTest(label=label):
+                with self.assertRaises(C.BalanceError):
+                    self.run_b(rec=rec)
+        two = dict(BUD_REC, campaigns=BUD_REC["campaigns"] + [dict(BUD_REC["campaigns"][1], id="c3", name="가짜플레이스2", userLock=True)])
+        B, _ = self.run_b(rec=two)                                                            # 플레이스 캠페인 둘 — 켜진 것 하나
+        self.assertEqual((B["플레이스"]["상태"], B["플레이스"]["캠페인이름"]), ("ok", "가짜플레이스"))
+        two_on = dict(BUD_REC, campaigns=BUD_REC["campaigns"] + [dict(BUD_REC["campaigns"][1], id="c3", name="가짜플레이스2", groups=[])])
+        B, err = self.run_b(rec=two_on)                                                       # 둘 다 켜짐 — 확인 못 함 + [주의]
+        self.assertEqual((B["플레이스"], B["멈춤"]["플레이스"]), ({"상태": "확인 못 함"}, None))
+        self.assertIn("플레이스 캠페인 2개", err)
+        self.assertEqual(A.budget_texts(B)[0], '플레이스 확인 못 함<span class="unit"> · 최근 7일 멈춤 확인 못 함</span>')
+        nolim = dict(BUD_REC, campaigns=[BUD_REC["campaigns"][0], dict(BUD_REC["campaigns"][1], useDailyBudget=False, groups=[dict(BUD_REC["campaigns"][1]["groups"][0], useDailyBudget=False)])])
+        B, _ = self.run_b(rec=nolim)
+        self.assertEqual((B["플레이스"]["캠페인"], B["플레이스"]["한도"]), (None, None))
+        self.validate_agrees(B, rec=nolim)
+
+    def validate_agrees(self, B, rec=None):
+        """같은 HTML(apply 가 B 로 쓴 판 L 카드)을 validate 24b 가 balance.json · 원장 사본에서 따로 다시 세어 PASS — 값 하나 바꾸면 FAIL."""
+        import pandas as pd
+        with contextlib.redirect_stdout(io.StringIO()):
+            import validate as V
+        R = jread(FIXJ)
+        R["예산"] = B
+        cfg = load_config()
+        o = A.apply(A.apply(with_marks_j(read(FIX)), jread(FIXJ), cfg, layout=True), R, cfg)
+        bp = os.path.join(self.td, "balance.json")
+        with open(bp, "w", encoding="utf-8") as f:
+            json.dump({"status": "ok", "read_at": "2026-01-08T09:05:00+09:00", "bizmoney": 1, "bizmoney_raw": 1.0, "budget": rec or BUD_REC}, f, ensure_ascii=False)
+        kw = pd.DataFrame({"일별": BUD_DAYS})
+
+        def run(h):
+            V.results.clear()
+            with contextlib.redirect_stdout(io.StringIO()):
+                V.check_budget_card(h, kw, bp, self.td)
+            (name, ok, detail), = V.results
+            return ok, detail
+        ok, d = run(o)
+        self.assertTrue(ok, d)
+        if B["상태"] == "ok":
+            m = re.search(r'(data-budget="sub">파워링크 )([\d,]+|제한 없음)', o)
+            self.assertFalse(run(o.replace(m.group(0), m.group(1) + "1원", 1))[0])
+            if B["멈춤"]["상태"] == "ok":
+                self.assertFalse(run(re.sub(r"(최근 7일 )(\d+)", lambda x: x.group(1) + str(int(x.group(2)) + 1), o, count=1))[0])
+                self.assertFalse(run(re.sub(r"( 뒤 )(\d+)(일 중)", lambda x: x.group(1) + str(int(x.group(2)) + 1) + x.group(3), o, count=1))[0])
+                if B["멈춤"]["플레이스"]["줄"]:
+                    self.assertFalse(run(o.replace("<div><span>", "<div><span>0", 1))[0])
+
+
 class ComputeCardRule(unittest.TestCase):
     """판 J(결정 5·30) 06 카드 규칙 — compute card_groups(새 그룹 · 승격 그룹 · 오래된 그룹 · 최근 7일 노출 0 · 노원역) + validate "06번 카드 그룹"(CSV 로 따로) 같은 판정 ·
     완료 기준 "시험(새 그룹 카드)"."""
@@ -1452,12 +1776,13 @@ class ApplyFailsLoudly(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertFalse(same)
         self.assertIn("[apply]", out)
-        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G → r2026-10-H → r2026-10-I → r2026-10-J → r2026-10-K, details 6 · 분기 2)", out)
+        self.assertIn("레이아웃 판 변환(meta 없음 → r2026-10-B → r2026-10-C → r2026-10-D → r2026-10-E → r2026-10-F → r2026-10-G → r2026-10-H → r2026-10-I → r2026-10-J → r2026-10-K → r2026-10-L, details 7 · 분기 2)", out)
         self.assertIn("· 잔액 카드 123,456원 · 1/8(목) 09:05 기준 · 약 28일분", out)                  # 판 F — 운영 세션이 출력에서 카드 글을 본다
         self.assertIn("· 07 정식표 위 2행 · 나머지 0행 펼치기", out)                                      # 판 H — fixture 정식표 2행 ≤ K
         self.assertIn("· 구역 11 · 캔버스 8(지면 구역 없음)", out)                                        # 판 I — 운영 세션이 출력에서 구역·캔버스 수를 본다(판 K 요일 캔버스 +1)
         self.assertIn("· 06 카드 ['가짜그룹B'] · 04 신규 메모 1", out)                                    # 판 J — 06 카드 집합 · 04 신규 메모 수
         self.assertIn("· 요일 카드 검색 지면 · 1/1~1/7 · 요일마다 1일", out)                               # 판 K — 운영 세션이 출력에서 요일 카드 보조 줄을 본다
+        self.assertIn("· 하루예산 카드 플레이스 20,000원 · 최근 7일 2번 멈춤 · 파워링크 30,000원(그룹마다 15,000원) · 멈춤 0번 · 1/3 뒤 5일 중 2번 멈춤(1/4~1/6) 펼치기 · 목록 2줄", out)   # 판 L
 
     def test_cli_twice_same_bytes_and_flag_required(self):
         td = tempfile.mkdtemp()
@@ -1546,7 +1871,9 @@ class ApplyRehearsal(unittest.TestCase):
         H = read(os.path.join(ROOT, "work", "RX", "same", "index.html"))
         R = jread(os.path.join(ROOT, "work", "RX", "same", "compute.json"))
         self.assertGreater(H.count("<!-- n:"), 20)
-        self.assertIn('<meta name="report-layout" content="r2026-10-K">', H)               # 리허설 RX = 판 K(meta 로 판 선택 — --layout 없이 · 2026-10-26 구현 리허설)
+        self.assertIn('<meta name="report-layout" content="r2026-10-L">', H)               # 리허설 RX = 판 L(meta 로 판 선택 — --layout 없이 · 2026-10-27 구현 리허설)
+        self.assertEqual([H.count(f'data-budget="{k}"') for k in A.BUD_KEYS], [1] * 6)    # 판 L 하루예산 카드
+        self.assertEqual(R["예산"]["상태"], "ok")
         self.assertEqual((H.count('data-weekday="card"'), H.count('data-weekday="sub"'), H.count("getElementById('weekdayChart')")), (1, 1, 1))   # 판 K 요일 카드
         self.assertIn("요일", R["01"])
         self.assertEqual([w for w in A.TRIM_GONE if w in H], [])                            # 판 J 가 뺀 고정 글 0

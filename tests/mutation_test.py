@@ -44,6 +44,12 @@ validate.py · archive.py 검사 생존 확인(파괴 실험).
      "레이아웃 판": 변조 +3(요일 캔버스 이름 변조 · 카드를 ① 박스 뒤로 · 차트 블록을 분기 도우미 앞으로) ·
      **compare 실험**(새 — 6b): index.html 옆 compute.json(precheck 의 재계산) 사본으로 기준 compare DIFF 0 → 변조 5(막대 노출 첫 칸 +1 · 클릭 첫 칸 +0.1 · 보조 줄 끝날 하루 앞 ·
      보조 줄 일수 +1 · compute 쪽 노출 첫 칸 +1)마다 겨냥한 "01 요일 카드 …" 항목만 DIFF · exit 1. 카드·compute.json 이 없으면 [MISS](통과 아님).
+  (2026-10-27 판 L 하루예산 카드) 기준 사본은 판 L 작업본(precheck 를 통과한 work/index.html — 옆에 compute.json · balance.json(budget 포함) · extra/)이어야 한다.
+     "하루예산 카드"(새 검사 24b): 변조 7(플레이스 값 +1원 · 최근 7일 +1 · 파워링크 캠페인 값 +1원 · summary 일수 +1 · 목록 첫 줄 시각 +1분(줄이 없으면 줄 하나 덧붙임) ·
+     예산 기록 읽은 시각 = 집계 마지막 날 · 예산 기록의 플레이스 그룹 하루예산 +1,000원) + 0건 가드 2(data-budget 표지 지우기 → "하루예산 카드" · "레이아웃 판") ·
+     "레이아웃 판": 변조 +2(하루예산 카드를 잔액 카드 앞으로 · 카드 뒤에 다른 카드) ·
+     **compare 실험 6c**(index.html 옆 compute.json 사본): 변조 6(값 한도 +1 · 최근 7일 +1 · 보조 줄 멈춘 수 +1 · summary 일수 +1 · 목록 첫 줄 시각 · compute 쪽 플레이스 횟수 +1)마다
+     겨냥한 "하루예산 카드 …" 항목만 DIFF · exit 1. 카드·compute.json 이 없으면 [MISS](통과 아님).
 
 종료 코드: 0 = 전부 살아 있음(변조마다 겨냥한 검사가 FAIL, 미커버 검사 없음, archive 7종 FAIL, 원본 md5 동일), 1 = 아니면.
 """
@@ -244,6 +250,67 @@ def compare_experiments(work, H, comp_src, cfg_path, cfg_text):
               sub(lambda m: f"{m.group(1)}{m.group(2)}/{int(m.group(3)) - 1 if int(m.group(3)) > 1 else 2}{m.group(4)}{m.group(5)}{m.group(6)}"), base_j),
              ("보조 줄 일수 +1", "01 요일 카드 보조 줄", sub(lambda m: f"{m.group(1)}{m.group(2)}/{m.group(3)}{m.group(4)}{int(m.group(5)) + 1}{m.group(6)}"), base_j),
              ("compute 쪽 요일 노출 첫 칸 +1(재계산이 다르면)", "01 요일 카드 노출 7칸", H, json.dumps(R2, ensure_ascii=False, indent=1))]
+    ok = True
+    for name, target, html, js in cases:
+        if html is None:
+            print(f"  [SKIP] {name} — 변조 위치를 못 찾음(마크업이 바뀌었으면 이 스크립트를 고칠 것)")
+            ok = False
+            continue
+        rc, d = run(html, js)
+        hit, others = [x for x in d if x.startswith(target)], [x for x in d if not x.startswith(target)]
+        if rc == 1 and hit and not others:
+            print(f"  [OK]   {name} → DIFF: {hit[0][:100]}")
+        else:
+            ok = False
+            print(f"  [MISS] {name} → exit {rc} · 겨냥 '{target}' {len(hit)}건 · 다른 DIFF {others[:3]}")
+    return ok
+
+
+def budget_compare_experiments(work, H, comp_src, cfg_path, cfg_text):
+    """판 L(2026-10-27 하루예산 카드) — 카드 값 변조가 compare DIFF 로 잡히는지(그 항목만 · exit 1). 재료 = 배포본(작업본) 사본 + index.html 옆 compute.json 사본(읽기만).
+    기준 compare DIFF 0 이어야 시작. 변조 = 값 한도 +1원 · 최근 7일 +1 · 보조 줄 멈춘 수 +1 · summary 일수 +1 · 목록 첫 줄 시각 +1분(줄이 없으면 줄 하나 덧붙임) · compute 쪽 플레이스 횟수 +1."""
+    print("\n== compare 실험(판 L 하루예산 카드 — 겨냥한 항목만 DIFF · exit 1 이어야 함)")
+    if 'data-budget="card"' not in H:
+        print("  [MISS] 하루예산 카드가 없는 배포본 — 판 L 작업본(precheck 를 통과한 work/index.html)으로 돌릴 것")
+        return False
+    if not os.path.exists(comp_src):
+        print(f"  [MISS] compute.json 없음({comp_src}) — precheck 가 작업본 옆에 쓴 재계산이 재료")
+        return False
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        f.write(cfg_text)
+    compare = os.path.join(work, "scripts", "compare.py")
+    hp, jp = os.path.join(work, "cmpb.html"), os.path.join(work, "cmpb.json")
+    base_j = read(comp_src)
+
+    def run(html, js):
+        for p_, t in ((hp, html), (jp, js)):
+            with open(p_, "w", encoding="utf-8", newline="") as f:
+                f.write(t)
+        r = subprocess.run([sys.executable, compare, hp, jp], capture_output=True, text=True, encoding="utf-8")
+        return r.returncode, [l.strip()[len("[DIFF] "):] for l in r.stdout.splitlines() if l.strip().startswith("[DIFF]")]
+
+    rc, d = run(H, base_j)
+    if rc != 0 or d:
+        print(f"  [MISS] 기준 compare DIFF {len(d)}(exit {rc}) — {d[:3]} · 배포본과 compute.json 이 맞는 조합인지 먼저 확인할 것")
+        return False
+    R = json.loads(base_j)
+    if R.get("예산", {}).get("상태") != "ok" or R["예산"]["멈춤"]["상태"] != "ok" or not R["예산"]["멈춤"].get("플레이스"):
+        print("  [MISS] compute 예산·멈춤이 ok 가 아님 — 값 변조 실험은 예산·원장 사본이 있는 작업본으로")
+        return False
+    print("  기준 compare DIFF 0")
+    sub1 = lambda pat, f: (lambda m: H.replace(m.group(0), f(m), 1) if m else None)(re.search(pat, H))
+    R2 = json.loads(base_j)
+    R2["예산"]["멈춤"]["플레이스"]["횟수"] += 1
+    row = re.search(r'(data-budget="list">\n)(\s*<div><span>)(\d+/\d+\([^)]\) \d{2}):(\d{2})', H)
+    cases = [("값 한도 +1원", "하루예산 카드 값", sub1(r'(data-budget="value">플레이스 )([\d,]+)(<span)', lambda m: f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}"), base_j),
+             ("최근 7일 +1", "하루예산 카드 값", sub1(r"(최근 7일 )(\d+)(번 멈춤)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}"), base_j),
+             ("보조 줄 멈춘 수 +1", "하루예산 카드 보조 줄", sub1(r'(data-budget="sub">[^<]* · 멈춤 )(\d+)(번</div>)', lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}"), base_j),
+             ("summary 일수 +1", "하루예산 카드 summary", sub1(r'(data-budget="summary">[^<]*? 뒤 )(\d+)(일 중)', lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}"), base_j),
+             ("목록 첫 줄 시각 +1분(줄이 없으면 줄 하나 덧붙임)", "하루예산 카드 목록",
+              H.replace(row.group(0), f"{row.group(1)}{row.group(2)}{row.group(3)}:{(int(row.group(4)) + 1) % 60:02d}", 1) if row else
+              H.replace('data-budget="list">\n', 'data-budget="list">\n          <div><span>1/1(목) 00:00</span><span>하루예산 1원</span></div>\n', 1)
+              if 'data-budget="list">\n' in H else None, base_j),
+             ("compute 쪽 플레이스 횟수 +1(재계산이 다르면)", "하루예산 카드 summary", H, json.dumps(R2, ensure_ascii=False, indent=1))]
     ok = True
     for name, target, html, js in cases:
         if html is None:
@@ -502,6 +569,42 @@ def main():
                      {"html": H.replace(wcard.group(0), "\n", 1).replace("  <!-- Section 2:", wcard.group(0)[1:] + "  <!-- Section 2:", 1) if wcard else None}))
         muts.append(("요일 차트 블록을 분기 도우미 앞으로", "레이아웃 판",
                      {"html": H.replace(wblk.group(0), "\n", 1).replace("/* saero:mobile-helper", wblk.group(0)[1:] + "/* saero:mobile-helper", 1) if wblk else None}))
+        # (2026-10-27 판 L) 하루예산 카드 — 화면 값 변조 5 · 예산 기록 변조 2 → "하루예산 카드"(독립 재셈) · 자리 변조 2 → "레이아웃 판"
+        bcard = re.search(r'    <div class="kpi kpi-wide" data-budget="card".*?\n    </div>\n', H, re.S)
+        bal_c = re.search(r'    <div class="kpi kpi-wide" style="--accent:#1c2b2a;">\n[^\n]*\n      <div class="label">광고비 잔액</div>.*?\n    </div>\n', H, re.S)
+        def hsub(pat, f):
+            m = re.search(pat, H)
+            return H.replace(m.group(0), f(m), 1) if m else None
+        muts.append(("하루예산 카드 플레이스 값 +1원", "하루예산 카드 =",
+                     {"html": hsub(r'(data-budget="value">플레이스 )([\d,]+)(<span)', lambda m: f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}")}))
+        muts.append(("하루예산 카드 최근 7일 멈춘 수 +1", "하루예산 카드 =", {"html": hsub(r"(최근 7일 )(\d+)(번 멈춤)", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}")}))
+        muts.append(("하루예산 카드 파워링크 캠페인 값 +1원", "하루예산 카드 =",
+                     {"html": hsub(r'(data-budget="sub">파워링크 )([\d,]+)(원)', lambda m: f"{m.group(1)}{int(m.group(2).replace(',', '')) + 1:,}{m.group(3)}")}))
+        muts.append(("하루예산 카드 summary 일수 +1", "하루예산 카드 =", {"html": hsub(r'(data-budget="summary">[^<]*? 뒤 )(\d+)(일 중)', lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}")}))
+        brow = re.search(r'(data-budget="list">\n\s*<div><span>\d+/\d+\([^)]\) \d{2}):(\d{2})', H)
+        muts.append(("하루예산 카드 목록 첫 줄 시각 +1분(줄이 없으면 줄 하나 덧붙임)", "하루예산 카드 =",
+                     {"html": H.replace(brow.group(0), f"{brow.group(1)}:{(int(brow.group(2)) + 1) % 60:02d}", 1) if brow else
+                      (H.replace('data-budget="list">\n', 'data-budget="list">\n          <div><span>1/1(목) 00:00</span><span>하루예산 1원</span></div>\n', 1) if 'data-budget="list">\n' in H else None)}))
+        bstale = bmore = None
+        if bal_base and '"budget"' in bal_base:
+            from datetime import datetime as _dt
+            _rec = json.loads(bal_base)
+            if isinstance(_rec.get("budget"), dict):
+                _last = max(re.findall(r"(\d{4}\.\d{2}\.\d{2})\.", base["kw"].split("\n", 2)[2]))
+                _s = json.loads(bal_base)
+                _s["budget"]["read_at"] = _dt.strptime(_last, "%Y.%m.%d").strftime("%Y-%m-%dT23:59:00+09:00")
+                bstale = json.dumps(_s, ensure_ascii=False)
+                _m = json.loads(bal_base)
+                for _c in (_m["budget"].get("campaigns") or []):
+                    if _c.get("type") == "PLACE":
+                        for _g in _c["groups"]:
+                            _g["dailyBudget"] = int(_g["dailyBudget"]) + 1000
+                bmore = json.dumps(_m, ensure_ascii=False) if _m != _rec else None
+        muts.append(("예산 기록 읽은 시각 = 집계 마지막 날(지난 회차 기록)", "하루예산 카드 =", {"html": H if bstale else None, "bal": bstale}))
+        muts.append(("예산 기록의 플레이스 그룹 하루예산 +1,000원(카드는 그대로)", "하루예산 카드 =", {"html": H if bmore else None, "bal": bmore}))
+        muts.append(("하루예산 카드를 잔액 카드 앞으로", "레이아웃 판",
+                     {"html": H.replace(bal_c.group(0) + bcard.group(0), bcard.group(0) + bal_c.group(0), 1) if bcard and bal_c and (bal_c.group(0) + bcard.group(0)) in H else None}))
+        muts.append(("하루예산 카드 뒤에 다른 카드", "레이아웃 판", {"html": H.replace(bcard.group(0), bcard.group(0) + '    <div class="kpi">x</div>\n', 1) if bcard else None}))
 
         # --- 4. 0건 가드 ---
         guards = [
@@ -540,6 +643,10 @@ def main():
         nob = H.replace(' data-balance="value"', "", 1).replace(' data-balance="sub"', "", 1) if 'data-balance="value"' in H else None
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 잔액 검사", "광고비 잔액 카드", {"html": nob}))
         guards.append(("0건: 판 F 잔액 카드 표지(data-balance) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nob}))
+        # (2026-10-27 판 L) 하루예산 카드 표지 지우기 → 카드 값·보조 줄·summary 0건(하루예산 검사) · 카드 표지 0(레이아웃 판)
+        nobd = re.sub(r' data-budget="[a-z]+"', "", H) if 'data-budget="card"' in H else None
+        guards.append(("0건: 판 L 하루예산 카드 표지(data-budget) 지우기 → 하루예산 카드", "하루예산 카드 =", {"html": nobd}))
+        guards.append(("0건: 판 L 하루예산 카드 표지(data-budget) 지우기 → 레이아웃 판", "레이아웃 판", {"html": nobd}))
         # (2026-10-10 매출 작업 A·C) 11번 장부 판정 문구 변조 → 장부 행 0 · Section 1·10·11 주석 변조 → 01·10·11 본문 0자
         noh = H.replace("<!-- saero:extra history -->", "", 1).replace("<!-- /saero:extra history -->", "", 1) if "<!-- saero:extra history -->" in H else None
         guards.append(("0건: 판 G 변경 기록 블록 표지 지우기 → 추가 카드·표", "추가 카드·표", {"html": noh}))
@@ -623,6 +730,8 @@ def main():
 
         # --- 6b. compare 실험(2026-10-26 판 K — 요일 값 변조 → compare DIFF, 그 항목만) ---
         ok &= compare_experiments(work, H, comp_src, cfg_path, cfg_text)
+        # --- 6c. compare 실험(2026-10-27 판 L — 하루예산 카드 값 변조 → compare DIFF, 그 항목만) ---
+        ok &= budget_compare_experiments(work, H, comp_src, cfg_path, cfg_text)
 
         # --- 7. archive.py ---
         ok &= archive_experiments(work)
